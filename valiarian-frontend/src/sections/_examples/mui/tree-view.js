@@ -1,7 +1,6 @@
 import PropTypes from 'prop-types';
 // @mui
 import TreeView from '@mui/lab/TreeView';
-import TreeItem, { treeItemClasses } from '@mui/lab/TreeItem';
 import { alpha, styled } from '@mui/material/styles';
 import Box from '@mui/material/Box';
 import Container from '@mui/material/Container';
@@ -11,6 +10,7 @@ import { paths } from 'src/routes/paths';
 import Iconify from 'src/components/iconify';
 import CustomBreadcrumbs from 'src/components/custom-breadcrumbs';
 //
+import TreeItem, { treeItemClasses } from '@mui/lab/TreeItem';
 import ComponentBlock from '../component-block';
 
 // ----------------------------------------------------------------------
