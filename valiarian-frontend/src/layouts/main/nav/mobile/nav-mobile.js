@@ -17,7 +17,7 @@ import NavList from './nav-list';
 
 // ----------------------------------------------------------------------
 
-export default function NavMobile({ offsetTop, data }) {
+export default function NavMobile({ offsetTop, data, isTransparent }) {
   const pathname = usePathname();
 
   const nav = useBoolean();
@@ -35,9 +35,7 @@ export default function NavMobile({ offsetTop, data }) {
         onClick={nav.onTrue}
         sx={{
           ml: 1,
-          ...(offsetTop && {
-            color: 'text.primary',
-          }),
+          color: isTransparent ? 'common.white' : 'text.primary',
         }}
       >
         <SvgColor src="/assets/icons/navbar/ic_menu_item.svg" />
@@ -70,4 +68,5 @@ export default function NavMobile({ offsetTop, data }) {
 NavMobile.propTypes = {
   data: PropTypes.array,
   offsetTop: PropTypes.bool,
+  isTransparent: PropTypes.bool,
 };

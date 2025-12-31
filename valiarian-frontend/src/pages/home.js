@@ -8,7 +8,7 @@ export default function HomePage() {
   return (
     <>
       <Helmet>
-        <title> Minimal: The starting point for your next project</title>
+        <title> Valiarian - Premium Cotton Polos | Engineered for Comfort</title>
       </Helmet>
 
       <HomeView />

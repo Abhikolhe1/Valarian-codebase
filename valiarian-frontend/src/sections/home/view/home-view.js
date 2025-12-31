@@ -47,7 +47,7 @@ export default function HomeView() {
     <>
       <ScrollProgress scrollYProgress={scrollYProgress} />
 
-      <HomeHero />
+      <HomeHero imageSrc="/assets/images/home/hero/valiarian-hero.png" />
 
       <Box
         sx={{

@@ -6,6 +6,7 @@ import { usePathname } from 'src/routes/hook';
 //
 import Footer from './footer';
 import Header from './header';
+import OfferMarquee from './offer-marquee';
 
 // ----------------------------------------------------------------------
 
@@ -16,6 +17,7 @@ export default function MainLayout({ children }) {
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: 1 }}>
+      <OfferMarquee />
       <Header />
 
       <Box
