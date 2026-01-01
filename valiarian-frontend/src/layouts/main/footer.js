@@ -22,10 +22,10 @@ import Iconify from 'src/components/iconify';
 
 const LINKS = [
   {
-    headline: 'Minimal',
+    headline: 'Valiarian',
     children: [
-      { name: 'About us', href: paths.about },
-      { name: 'Contact us', href: paths.contact },
+      { name: 'Products', href: paths.about },
+      { name: 'Our Story', href: paths.contact },
       { name: 'FAQs', href: paths.faqs },
     ],
   },
@@ -38,7 +38,7 @@ const LINKS = [
   },
   {
     headline: 'Contact',
-    children: [{ name: 'support@minimals.cc', href: '#' }],
+    children: [{ name: 'support@Valiarian.in', href: '#' }],
   },
 ];
 
@@ -75,6 +75,7 @@ export default function Footer() {
     <Box
       component="footer"
       sx={{
+        mt: 5,
         position: 'relative',
         bgcolor: 'background.default',
       }}
@@ -88,16 +89,35 @@ export default function Footer() {
           textAlign: { xs: 'center', md: 'unset' },
         }}
       >
-        <Logo sx={{ mb: 3 }} />
+        <Grid container direction="row">
+        <Grid xs={12} md={6}>
+          <Stack direction="row" alignItems="center" spacing={1.5} mb={2}>
+            <Box
+              component="img"
+              src="/logo/footer-logo.png"
+              alt="Valiarian"
+              sx={{
+                width: 32,
+                height: 32,
+                objectFit: 'contain',
+              }}
+            />
 
-        <Grid
-          container
-          justifyContent={{
-            xs: 'center',
-            md: 'space-between',
-          }}
-        >
-          <Grid xs={8} md={3}>
+            <Typography
+              sx={{
+                fontFamily: '"Playfair Display", serif',
+                fontWeight: 900,
+                fontSize: '25px',
+                letterSpacing: '0.18em',
+                textTransform: 'uppercase',
+                lineHeight: 1,
+                color: 'text.primary',
+           
+              }}
+            >
+              VALIARIAN
+            </Typography>
+          </Stack>
             <Typography
               variant="body2"
               sx={{
@@ -130,44 +150,58 @@ export default function Footer() {
                 </IconButton>
               ))}
             </Stack>
-          </Grid>
-
-          <Grid xs={12} md={6}>
-            <Stack spacing={5} direction={{ xs: 'column', md: 'row' }}>
-              {LINKS.map((list) => (
-                <Stack
-                  key={list.headline}
-                  spacing={2}
-                  alignItems={{ xs: 'center', md: 'flex-start' }}
-                  sx={{ width: 1 }}
-                >
-                  <Typography component="div" variant="overline">
-                    {list.headline}
-                  </Typography>
-
-                  {list.children.map((link) => (
-                    <Link
-                      key={link.name}
-                      component={RouterLink}
-                      href={link.href}
-                      color="inherit"
-                      variant="body2"
-                    >
-                      {link.name}
-                    </Link>
-                  ))}
-                </Stack>
-              ))}
-            </Stack>
-          </Grid>
         </Grid>
 
-        <Typography variant="body2" sx={{ mt: 10 }}>
-          © 2021. All rights reserved
+
+        <Grid xs={12} md={6}>
+          <Stack spacing={5} direction={{ xs: 'column', md: 'row' }}>
+            {LINKS.map((list) => (
+              <Stack
+                key={list.headline}
+                spacing={2}
+                alignItems={{ xs: 'center', md: 'flex-start' }}
+                sx={{ width: 1 }}
+              >
+                <Typography component="div" variant="overline">
+                  {list.headline}
+                </Typography>
+
+                {list.children.map((link) => (
+                  <Link
+                    key={link.name}
+                    component={RouterLink}
+                    href={link.href}
+                    color="inherit"
+                    variant="body2"
+                  >
+                    {link.name}
+                  </Link>
+                ))}
+              </Stack>
+            ))}
+          </Stack>
+        </Grid>
+        </Grid>
+
+        <Grid
+          container
+          justifyContent={{
+            xs: 'center',
+            md: 'space-between',
+          }}
+        >
+          {/* <Grid xs={8} md={3} >
+          
+          </Grid> */}
+
+        </Grid>
+
+        <Typography variant="body2" sx={{ mt: 2 }}>
+          © 2026. All rights reserved
         </Typography>
       </Container>
     </Box>
   );
 
-  return isHome ? simpleFooter : mainFooter;
+  return mainFooter;
 }
