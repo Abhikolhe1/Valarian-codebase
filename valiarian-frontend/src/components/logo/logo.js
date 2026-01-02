@@ -36,7 +36,7 @@ const Logo = forwardRef(({ disabledLink = false, sx, ...other }, ref) => {
         sx={{
           fontFamily: '"Playfair Display", "Bodoni MT", "Bodoni 72", "Didot", "Baskerville", "Times New Roman", serif',
           fontWeight: 600,
-          fontSize: '1.8rem', // Larger header text
+          fontSize: 'clamp(1rem, 4vw, 1.8rem)',
           letterSpacing: '0.25em',
           color: 'text.primary',
           textTransform: 'uppercase',

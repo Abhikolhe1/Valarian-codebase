@@ -1,3 +1,4 @@
+import { useRef, useEffect, useState } from 'react';
 // @mui
 import { useTheme, styled, alpha } from '@mui/material/styles';
 import Box from '@mui/material/Box';
@@ -47,25 +48,15 @@ const StyledMarqueeWrapper = styled(Box)({
   overflow: 'hidden',
 });
 
-const StyledMarqueeTrack = styled(Box)(({ theme }) => ({
+const StyledMarqueeTrack = styled(Box)(({ theme, offset }) => ({
   display: 'inline-flex',
   alignItems: 'center',
   whiteSpace: 'nowrap',
   willChange: 'transform',
-  // Smooth, continuous animation - moves exactly one set (50% of duplicated content)
-  // Using linear timing ensures constant speed with no acceleration/deceleration
-  animation: 'marquee 50s linear infinite',
-  animationFillMode: 'both', // Ensures smooth loop without reset flicker
-  '@keyframes marquee': {
-    '0%': {
-      transform: 'translateX(0)',
-    },
-    '100%': {
-      transform: 'translateX(-50%)', // Move exactly one set when using 2 sets
-    },
-  },
+  transform: `translateX(${offset}px)`,
+  transition: 'none',
   [theme.breakpoints.down('sm')]: {
-    animation: 'marquee 45s linear infinite',
+    // Same behavior on mobile
   },
 }));
 
@@ -102,16 +93,129 @@ const StyledSeparator = styled(Box)(({ theme }) => ({
 export default function OfferMarquee() {
   const theme = useTheme();
   const isVisible = useMarqueeVisibility();
+  const trackRef = useRef(null);
+  const [offset, setOffset] = useState(0);
+  const setWidthRef = useRef(0);
+  const animationFrameRef = useRef(null);
+  const [isReady, setIsReady] = useState(false);
 
-  // Create seamless infinite loop by duplicating offers exactly 2x
-  // When animation moves -50%, it moves exactly one set
-  // When it loops back to 0%, the duplicate set seamlessly continues
-  const seamlessOffers = [...OFFERS, ...OFFERS];
+  // Create seamless infinite loop by duplicating offers multiple times
+  // Using 3 sets ensures we always have content ready when looping
+  const seamlessOffers = [...OFFERS, ...OFFERS, ...OFFERS];
+
+  // Calculate the exact width of one set of offers
+  useEffect(() => {
+    if (!isVisible || !trackRef.current) {
+      setIsReady(false);
+      return undefined;
+    }
+
+    let debounceTimeout;
+
+    const calculateSetWidth = () => {
+      const track = trackRef.current;
+      if (!track) return;
+
+      const items = track.children;
+      if (items.length === 0) return;
+
+      // Calculate width of one set (OFFERS.length items)
+      let oneSetWidth = 0;
+      const itemsPerSet = OFFERS.length;
+      
+      for (let i = 0; i < itemsPerSet; i += 1) {
+        if (items[i]) {
+          oneSetWidth += items[i].offsetWidth;
+        }
+      }
+
+      // Only update if width changed significantly (more than 1px difference)
+      // This prevents unnecessary updates that cause stuttering
+      if (oneSetWidth > 0 && Math.abs(setWidthRef.current - oneSetWidth) > 1) {
+        setWidthRef.current = oneSetWidth;
+        setIsReady(true);
+      } else if (oneSetWidth > 0 && setWidthRef.current === 0) {
+        setWidthRef.current = oneSetWidth;
+        setIsReady(true);
+      }
+    };
+
+    // Debounced resize handler to prevent too frequent recalculations
+    const debouncedCalculate = () => {
+      clearTimeout(debounceTimeout);
+      debounceTimeout = setTimeout(() => {
+        calculateSetWidth();
+      }, 150);
+    };
+
+    // Use ResizeObserver with debouncing to recalculate on resize
+    const resizeObserver = new ResizeObserver(() => {
+      debouncedCalculate();
+    });
+
+    // Initial calculation with delay to ensure DOM is ready
+    const resizeTimeout = setTimeout(() => {
+      calculateSetWidth();
+      if (trackRef.current) {
+        resizeObserver.observe(trackRef.current);
+      }
+    }, 100);
+
+    return () => {
+      clearTimeout(resizeTimeout);
+      clearTimeout(debounceTimeout);
+      resizeObserver.disconnect();
+    };
+  }, [isVisible]);
+
+  // Continuous animation loop - truly seamless infinite scroll
+  useEffect(() => {
+    if (!isVisible || !isReady || setWidthRef.current === 0) {
+      setOffset(0);
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+        animationFrameRef.current = null;
+      }
+      return undefined;
+    }
+
+    const speed = 60; // pixels per second (adjust for speed)
+    let lastTime = performance.now();
+    let currentOffset = 0; // Always start from 0 when animation begins
+
+    const animate = (currentTime) => {
+      const deltaTime = Math.min((currentTime - lastTime) / 1000, 0.016); // Cap at 60fps, convert to seconds
+      lastTime = currentTime;
+
+      // Move the offset continuously based on time
+      currentOffset -= speed * deltaTime;
+
+      // When we've scrolled exactly one set width, reset seamlessly
+      // This creates a perfect loop because the content is duplicated 3 times
+      // When we reset, we're showing the second set which is identical to the first
+      const currentSetWidth = setWidthRef.current;
+      if (currentSetWidth > 0 && Math.abs(currentOffset) >= currentSetWidth) {
+        currentOffset += currentSetWidth; // Reset by adding back one set width
+      }
+
+      setOffset(currentOffset);
+      animationFrameRef.current = requestAnimationFrame(animate);
+    };
+
+    animationFrameRef.current = requestAnimationFrame(animate);
+
+    return () => {
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+        animationFrameRef.current = null;
+      }
+    };
+  }, [isVisible, isReady]);
 
   return (
     <StyledMarqueeContainer visible={isVisible}>
       <StyledMarqueeWrapper>
-        <StyledMarqueeTrack>
+        <StyledMarqueeTrack ref={trackRef} offset={offset}>
           {seamlessOffers.map((offer, index) => (
             <Box 
               key={`marquee-offer-${index}`} 

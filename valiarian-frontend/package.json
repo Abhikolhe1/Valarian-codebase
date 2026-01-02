@@ -109,6 +109,7 @@
     "@babel/core": "^7.22.5",
     "@babel/plugin-syntax-flow": "^7.22.5",
     "@babel/plugin-transform-react-jsx": "^7.22.5",
+    "@babel/preset-react": "^7.28.5",
     "@types/react": "^18.2.12",
     "csstype": "^3.1.2",
     "eslint": "^8.43.0",

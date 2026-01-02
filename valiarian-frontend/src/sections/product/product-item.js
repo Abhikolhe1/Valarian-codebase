@@ -29,6 +29,11 @@ export default function ProductItem({ product }) {
 
   const linkTo = paths.product.details(id);
 
+  // Calculate discount percentage
+  const discountPercent = priceSale && price > 0 
+    ? Math.round(((price - priceSale) / price) * 100) 
+    : 0;
+
   const handleAddCart = async () => {
     const newProduct = {
       id,
@@ -68,15 +73,15 @@ export default function ProductItem({ product }) {
   );
 
   const renderImg = (
-    <Box sx={{ position: 'relative', p: 1 }}>
+    <Box sx={{ position: 'relative'}}>
       <Fab
         color="warning"
         size="medium"
         className="add-cart-btn"
         onClick={handleAddCart}
         sx={{
-          right: 16,
-          bottom: 16,
+          right: 24,
+          bottom: 24,
           zIndex: 9,
           opacity: 0,
           position: 'absolute',
@@ -90,28 +95,58 @@ export default function ProductItem({ product }) {
         <Iconify icon="solar:cart-plus-bold" width={24} />
       </Fab>
 
-      <Image alt={name} src={coverUrl} ratio="1/1" sx={{ borderRadius: 1.5 }} />
+      {/* Color preview at right bottom */}
+      <Box
+        sx={{
+          position: 'absolute',
+          right: 20,
+          bottom: 20,
+          zIndex: 8,
+          backgroundColor: 'rgba(255, 255, 255, 0.9)',
+          borderRadius: 1,
+          padding: '4px 8px',
+        }}
+      >
+        <ColorPreview colors={colors} />
+      </Box>
+
+      <Image alt={name} src={coverUrl} ratio="1/1" />
     </Box>
   );
 
   const renderContent = (
-    <Stack spacing={2.5} sx={{ p: 3, pt: 2 }}>
+    <Stack spacing={2.5} sx={{ p: 3, pt: 2, flexGrow: 1 }}>
       <Link component={RouterLink} href={linkTo} color="inherit" variant="subtitle2" noWrap>
         {name}
       </Link>
 
-      <Stack direction="row" alignItems="center" justifyContent="space-between">
-        <ColorPreview colors={colors} />
+      <Stack spacing={0.5}>
+        <Stack direction="row" alignItems="center" spacing={0.5} sx={{ typography: 'subtitle1' }}>
+          {/* Selling Price (discounted price if sale exists, otherwise regular price) */}
+          <Box component="span" sx={{ fontWeight: 600 }}>
+            {priceSale ? fCurrency(priceSale) : fCurrency(price)}
+          </Box>
 
-        <Stack direction="row" spacing={0.5} sx={{ typography: 'subtitle1' }}>
+          {/* Actual/Original Price (show only if sale exists, with strikethrough) */}
           {priceSale && (
             <Box component="span" sx={{ color: 'text.disabled', textDecoration: 'line-through' }}>
-              {fCurrency(priceSale)}
+              {fCurrency(price)}
             </Box>
           )}
-
-          <Box component="span">{fCurrency(price)}</Box>
         </Stack>
+
+        {/* Discount Percentage (show only if sale exists, below price) */}
+        {priceSale && discountPercent > 0 && (
+          <Box
+            component="span"
+            sx={{
+              typography: 'caption',
+              color: 'text.secondary',
+            }}
+          >
+            ({discountPercent}% off)
+          </Box>
+        )}
       </Stack>
     </Stack>
   );
@@ -119,6 +154,9 @@ export default function ProductItem({ product }) {
   return (
     <Card
       sx={{
+        height: '100%',
+        display: 'flex',
+        flexDirection: 'column',
         '&:hover .add-cart-btn': {
           opacity: 1,
         },

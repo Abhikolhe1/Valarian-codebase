@@ -10,6 +10,8 @@ import Typography from '@mui/material/Typography';
 import { RouterLink } from 'src/routes/components';
 // layouts
 import { HEADER } from 'src/layouts/config-layout';
+// contexts
+import { useMobileMenu } from 'src/contexts/mobile-menu-context';
 
 // ----------------------------------------------------------------------
 
@@ -47,6 +49,7 @@ const StyledBrandText = styled(m.span)(({ theme }) => ({
 
 export default function LogoAnimated({ onTransitionComplete, ...other }) {
   const { scrollY } = useScroll();
+  const { isMenuOpen } = useMobileMenu();
   const [headerCenterY, setHeaderCenterY] = useState(HEADER.H_DESKTOP / 2);
   const [isMounted, setIsMounted] = useState(false);
   const [viewportWidth, setViewportWidth] = useState(
@@ -96,11 +99,69 @@ export default function LogoAnimated({ onTransitionComplete, ...other }) {
     };
   }, []);
 
-  // Calculate initial position (50% above center = 25% from top)
-  const initialFontSize = isMobile ? 50 : 140; // Large text size (px) - Gucci style - VERY LARGE on hero
+  // Calculate responsive font sizes using viewport-based scaling
+  // Mobile: Smaller sizes to prevent overlap with icons
+  // Desktop: Larger sizes for premium feel
+  // Initial font size: Large on hero section
+  const initialFontSize = useMemo(() => {
+    if (isMobile) {
+      // On mobile, use clamp-like logic: scale based on viewport width but ensure minimum size
+      // Account for header icons: search (36px) + menu (36px) + cart (36px) + profile (36px) = ~144px
+      // Plus padding and spacing: ~40px
+      // Available width: viewportWidth - 184px
+      const availableWidth = viewportWidth - 184;
+      const calculatedSize = availableWidth * 0.15;
+      // Clamp between 40px (minimum) and 60px (maximum) for mobile
+      return Math.max(40, Math.min(60, calculatedSize));
+    }
+    // Desktop: use base size with viewport scaling
+    const scaleFactor = Math.min(1.2, Math.max(0.8, viewportWidth / 1920));
+    const baseSize = 140 * scaleFactor;
+    // Clamp between 120px and 160px for desktop
+    return Math.max(120, Math.min(160, baseSize));
+  }, [viewportWidth, isMobile]);
+
   // Position: 50% above vertical center = 25% from top (center is 50%, so 50% above = 25%)
   const initialTop = typeof window !== 'undefined' ? window.innerHeight * 0.25 : 180;
-  const finalFontSize = isMobile ? 20 : 30; // Header text size (px) - small in header
+
+  // Final font size: Small in header, must not overlap icons
+  // Mobile: Use viewport-based responsive calculation (scales proportionally like desktop)
+  // Ensures logo never overlaps cart/profile icons on any screen size
+  const finalFontSize = useMemo(() => {
+    if (isMobile) {
+      // Mobile: Calculate based on viewport width with conservative limits
+      // Icons: search (36px) + cart (36px) + profile (36px) + menu (36px) = 144px
+      // Spacing between icons: ~16px total
+      // Container padding: ~32px total
+      // Total reserved: 144px + 16px + 32px = 192px
+      const reservedSpace = 192;
+      const availableWidth = Math.max(100, viewportWidth - reservedSpace);
+      
+      // Logo should use max 22% of available space (very conservative to prevent overlap)
+      // This ensures proper responsive scaling based on screen size (like desktop)
+      const maxLogoWidth = availableWidth * 0.22;
+      
+      // Calculate font size accounting for character width and letter spacing
+      // Formula: fontSize * charCount * (avgCharWidth + letterSpacing)
+      const avgCharWidthWithSpacing = AVG_CHAR_WIDTH_RATIO + 0.12; // Includes letter spacing
+      const calculatedSize = maxLogoWidth / (CHAR_COUNT * avgCharWidthWithSpacing);
+      
+      // Responsive scaling: scales with viewport width proportionally (like desktop)
+      // Use viewport-based calculation: smaller screens = smaller font, larger screens = larger font
+      // Minimum: 10px (readable on small phones), Maximum: 13px (safe on all mobile devices)
+      // This creates smooth scaling: 320px screen ≈ 10px, 768px screen ≈ 13px
+      const minSize = 10;
+      const maxSize = 13;
+      const viewportRatio = (viewportWidth - 320) / (768 - 320); // Normalize between 320px and 768px
+      const viewportBasedSize = minSize + (maxSize - minSize) * Math.max(0, Math.min(1, viewportRatio));
+      
+      // Use the smaller of calculated size or viewport-based size for safety
+      return Math.min(viewportBasedSize, Math.max(minSize, Math.min(maxSize, calculatedSize)));
+    }
+    // Desktop: Scale based on viewport (responsive)
+    const scaleFactor = Math.min(1.1, Math.max(0.9, viewportWidth / 1920));
+    return 30 * scaleFactor;
+  }, [viewportWidth, isMobile, CHAR_COUNT]);
 
   // Calculate letter spacing to make text ~80% of viewport width
   // Formula: textWidth = (fontSize * avgCharWidth * charCount) + (letterSpacing * (charCount - 1))
@@ -186,6 +247,11 @@ export default function LogoAnimated({ onTransitionComplete, ...other }) {
   const currentScroll = scrollY.get();
   if (currentScroll > scrollThreshold + 50) {
     return null; // Header logo takes over after transition completes
+  }
+
+  // Hide logo on mobile when menu is open to prevent overlap
+  if (isMobile && isMenuOpen) {
+    return null;
   }
 
   return (

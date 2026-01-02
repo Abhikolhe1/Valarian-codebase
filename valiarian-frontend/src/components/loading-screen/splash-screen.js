@@ -3,8 +3,6 @@ import { m } from 'framer-motion';
 // @mui
 import { alpha } from '@mui/material/styles';
 import Box from '@mui/material/Box';
-//
-import Logo from '../logo';
 
 // ----------------------------------------------------------------------
 
@@ -39,7 +37,20 @@ export default function SplashScreen({ sx, ...other }) {
             repeat: Infinity,
           }}
         >
-          <Logo disabledLink sx={{ width: 64, height: 64 }} />
+          <Box
+            component="img"
+            src="/logo/Valarian_LOGO.png"
+            alt="Valarian"
+            sx={{
+              width: 90,
+              height: 90,
+              objectFit: 'contain',
+            }}
+            onError={(e) => {
+              // Fallback if image doesn't load
+              e.target.style.display = 'none';
+            }}
+          />
         </m.div>
 
         <Box
