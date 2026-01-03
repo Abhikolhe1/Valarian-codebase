@@ -9,6 +9,7 @@ import HomeHero from '../home-hero';
 import HomeNewArrivals from '../home-new-arrivals';
 import HomeCollectionHero from '../home-collection-hero';
 import HomeBestSellers from '../home-best-sellers';
+import HomeSocialMedia from '../home-social-media';
 import HomeMinimal from '../home-minimal';
 import HomePricing from '../home-pricing';
 import HomeDarkMode from '../home-dark-mode';
@@ -58,7 +59,9 @@ export default function HomeView() {
 
       <HomeBestSellers />
 
-      <Box
+      <HomeSocialMedia />
+
+      {/* <Box
         sx={{
           overflow: 'hidden',
           position: 'relative',
@@ -86,7 +89,7 @@ export default function HomeView() {
         <HomeLookingFor />
 
         <HomeAdvertisement />
-      </Box>
+      </Box> */}
     </>
   );
 }

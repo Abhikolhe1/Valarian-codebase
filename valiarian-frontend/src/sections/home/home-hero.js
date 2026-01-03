@@ -92,7 +92,6 @@ const StyledContentWrapper = styled(Stack)(({ theme }) => ({
   },
 }));
 
-
 const StyledHeading = styled(Typography)(({ theme }) => ({
   color: theme.palette.common.white,
   fontWeight: 500,
@@ -106,6 +105,18 @@ const StyledHeading = styled(Typography)(({ theme }) => ({
   },
   [theme.breakpoints.up('lg')]: {
     fontSize: '4rem',
+  },
+}));
+
+const ContentPosition = styled(Box)(({ theme }) => ({
+  position: 'absolute',
+  left: theme.spacing(4),
+  bottom: '8vh',
+  zIndex: 10,
+
+  [theme.breakpoints.down('md')]: {
+    left: theme.spacing(2),
+    bottom: '5vh',
   },
 }));
 
@@ -171,7 +182,7 @@ export default function HomeHero({ imageSrc, videoSrc, ...other }) {
         {renderMedia()}
       </StyledMediaContainer>
 
-      <Box
+      {/* <Box
         component={MotionContainer}
         sx={{
           position: 'absolute',
@@ -220,7 +231,18 @@ export default function HomeHero({ imageSrc, videoSrc, ...other }) {
             </StyledContentWrapper>
           </TransparentCard>
         </StyledContent>
-      </Box>
+      </Box> */}
+      <MotionContainer>
+        <ContentPosition>
+          <m.div variants={varFade().in}>
+            <TransparentCard
+              title="Premium Cotton Polos."
+              buttonLabel="Explore Collection"
+              buttonHref={paths.product.root}
+            />
+          </m.div>
+        </ContentPosition>
+      </MotionContainer>
     </StyledRoot>
   );
 }

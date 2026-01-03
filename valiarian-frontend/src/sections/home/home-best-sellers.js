@@ -48,7 +48,7 @@ const DUMMY_BEST_SELLERS = [
     id: 'best-seller-3',
     name: 'Arizona Soft Footbed Sandal',
     coverUrl: '/assets/images/home/new-arrival/t-shirt1.jpeg',
-    price: 3200.50,
+    price: 3200.5,
     priceSale: 0,
     colors: ['#00AB55', '#FFC107', '#1890FF'],
     sizes: ['S', 'M', 'L', 'XL'],
@@ -62,7 +62,7 @@ const DUMMY_BEST_SELLERS = [
     id: 'best-seller-4',
     name: 'Gazelle Vintage low-top sneakers',
     coverUrl: '/assets/images/home/new-arrival/t-shirt1.jpeg',
-    price: 4500.00,
+    price: 4500.0,
     priceSale: 0,
     colors: ['#000000', '#FFFFFF', '#8B4513'],
     sizes: ['S', 'M', 'L', 'XL'],
@@ -104,7 +104,7 @@ const DUMMY_BEST_SELLERS = [
     id: 'best-seller-7',
     name: 'Nike Air Zoom Pegasus 37 A.I.R.',
     coverUrl: '/assets/images/home/new-arrival/t-shirt1.jpeg',
-    price: 5500.00,
+    price: 5500.0,
     priceSale: 0,
     colors: ['#8B0000', '#000000', '#FFFFFF'],
     sizes: ['S', 'M', 'L', 'XL', 'XXL'],
@@ -118,7 +118,7 @@ const DUMMY_BEST_SELLERS = [
     id: 'best-seller-8',
     name: 'Boston Soft Footbed Sandal',
     coverUrl: '/assets/images/home/new-arrival/t-shirt1.jpeg',
-    price: 3600.50,
+    price: 3600.5,
     priceSale: 0,
     colors: ['#FFFFFF', '#000000', '#9370DB'],
     sizes: ['S', 'M', 'L', 'XL'],
@@ -270,4 +270,3 @@ export default function HomeBestSellers({ products: propProducts, ...other }) {
 HomeBestSellers.propTypes = {
   products: PropTypes.array,
 };
-
