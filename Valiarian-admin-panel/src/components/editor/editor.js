@@ -10,7 +10,7 @@ import Toolbar, { formats } from './toolbar';
 // ----------------------------------------------------------------------
 
 export default function Editor({
-  id = 'minimal-quill',
+  id = 'valiarian-quill',
   error,
   simple = false,
   helperText,

@@ -32,7 +32,7 @@ const CARDS = [
 
 // ----------------------------------------------------------------------
 
-export default function HomeMinimal() {
+export default function HomeValiarian() {
   return (
     <Container
       component={MotionViewport}
@@ -49,13 +49,13 @@ export default function HomeMinimal() {
       >
         <m.div variants={varFade().inUp}>
           <Typography component="div" variant="overline" sx={{ color: 'text.disabled' }}>
-            Minimal UI
+            Valiarian UI
           </Typography>
         </m.div>
 
         <m.div variants={varFade().inDown}>
           <Typography variant="h2">
-            What Minimal <br /> helps you?
+            What Valiarian <br /> helps you?
           </Typography>
         </m.div>
       </Stack>

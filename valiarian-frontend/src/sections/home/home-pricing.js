@@ -123,7 +123,7 @@ export default function HomePricing() {
               color="inherit"
               size="large"
               variant="contained"
-              href="mailto:support@minimals.cc?subject=[Feedback] from Customer"
+              href="mailto:support@valiarian.cc?subject=[Feedback] from Customer"
             >
               Contact us
             </Button>
@@ -245,7 +245,7 @@ function PlanCard({ plan, sx, ...other }) {
           size="small"
           target="_blank"
           rel="noopener"
-          href={paths.minimalUI}
+          href={paths.valiarianUI}
           endIcon={<Iconify icon="eva:arrow-ios-forward-fill" />}
         >
           Learn more

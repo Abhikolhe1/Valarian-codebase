@@ -6,7 +6,6 @@ import Box from '@mui/material/Box';
 import ScrollProgress from 'src/components/scroll-progress';
 //
 import HomeHero from '../home-hero';
-import HomeMinimal from '../home-minimal';
 import HomePricing from '../home-pricing';
 import HomeDarkMode from '../home-dark-mode';
 import HomeLookingFor from '../home-looking-for';
@@ -56,7 +55,6 @@ export default function HomeView() {
           bgcolor: 'background.default',
         }}
       >
-        <HomeMinimal />
 
         <HomeHugePackElements />
 

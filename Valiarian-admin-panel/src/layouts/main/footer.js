@@ -22,7 +22,7 @@ import Iconify from 'src/components/iconify';
 
 const LINKS = [
   {
-    headline: 'Minimal',
+    headline: 'Valiarian',
     children: [
       { name: 'About us', href: paths.about },
       { name: 'Contact us', href: paths.contact },
@@ -38,7 +38,7 @@ const LINKS = [
   },
   {
     headline: 'Contact',
-    children: [{ name: 'support@minimals.cc', href: '#' }],
+    children: [{ name: 'support@valiarian.cc', href: '#' }],
   },
 ];
 
@@ -65,7 +65,7 @@ export default function Footer() {
         <Typography variant="caption" component="div">
           © All rights reserved
           <br /> made by
-          <Link href="https://minimals.cc/"> minimals.cc </Link>
+          <Link href="https://valiarian.cc/"> valiarian.cc </Link>
         </Typography>
       </Container>
     </Box>
@@ -105,7 +105,7 @@ export default function Footer() {
                 mx: { xs: 'auto', md: 'unset' },
               }}
             >
-              The starting point for your next project with Minimal UI Kit, built on the newest
+              The starting point for your next project with Valiarian UI Kit, built on the newest
               version of Material-UI ©, ready to be customized to your style.
             </Typography>
 

@@ -33,7 +33,7 @@ export default function HomeAdvertisement() {
         sx={{ color: 'common.white', mb: 5, typography: 'h2' }}
       >
         Get started with
-        <br /> Minimal kit today
+        <br /> Valiarian kit today
       </Box>
 
       <Stack
@@ -48,7 +48,7 @@ export default function HomeAdvertisement() {
             variant="contained"
             target="_blank"
             rel="noopener"
-            href={paths.minimalUI}
+            href={paths.valiarianUI}
             sx={{
               color: 'grey.800',
               bgcolor: 'common.white',

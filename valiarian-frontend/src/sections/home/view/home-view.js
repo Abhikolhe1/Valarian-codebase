@@ -10,7 +10,6 @@ import HomeNewArrivals from '../home-new-arrivals';
 import HomeCollectionHero from '../home-collection-hero';
 import HomeBestSellers from '../home-best-sellers';
 import HomeSocialMedia from '../home-social-media';
-import HomeMinimal from '../home-minimal';
 import HomePricing from '../home-pricing';
 import HomeDarkMode from '../home-dark-mode';
 import HomeLookingFor from '../home-looking-for';
@@ -68,7 +67,6 @@ export default function HomeView() {
           bgcolor: 'background.default',
         }}
       >
-        <HomeMinimal />
 
         <HomeHugePackElements />
 

@@ -88,7 +88,7 @@ export default function Header() {
           {mdUp && <NavDesktop offsetTop={offsetTop} data={navConfig} />}
 
           <Stack alignItems="center" direction={{ xs: 'row', md: 'row-reverse' }}>
-            <Button variant="contained" target="_blank" rel="noopener" href={paths.minimalUI}>
+            <Button variant="contained" target="_blank" rel="noopener" href={paths.valiarianUI}>
               Purchase Now
             </Button>
 

@@ -1,6 +1,6 @@
 {
-  "name": "Minimal UI",
-  "short_name": "Minimal UI",
+  "name": "Valiarian UI",
+  "short_name": "Valiarian UI",
   "display": "standalone",
   "start_url": "/",
   "theme_color": "#000000",
