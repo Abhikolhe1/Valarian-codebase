@@ -1,11 +1,14 @@
 import PropTypes from 'prop-types';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import orderBy from 'lodash/orderBy';
 // @mui
+import { useTheme } from '@mui/material/styles';
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import Container from '@mui/material/Container';
+import Button from '@mui/material/Button';
+import useMediaQuery from '@mui/material/useMediaQuery';
 // api
 import { useGetProducts } from 'src/api/product';
 // components
@@ -133,6 +136,12 @@ const DUMMY_BEST_SELLERS = [
 // ----------------------------------------------------------------------
 
 export default function HomeBestSellers({ products: propProducts, ...other }) {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md')); // Mobile: below md breakpoint
+
+  // State for mobile view: number of visible cards (4, 6, or 8)
+  const [visibleCardsMobile, setVisibleCardsMobile] = useState(4);
+
   // Fetch products if not provided as prop
   const { products: fetchedProducts, productsLoading } = useGetProducts();
 
@@ -159,15 +168,30 @@ export default function HomeBestSellers({ products: propProducts, ...other }) {
     return sorted.slice(0, 8);
   }, [propProducts, fetchedProducts]);
 
+  // Get products to display: on mobile, limit to visibleCardsMobile; on desktop, show all
+  const displayedProducts = useMemo(() => {
+    if (isMobile) {
+      return products.slice(0, visibleCardsMobile);
+    }
+    return products;
+  }, [products, visibleCardsMobile, isMobile]);
+
+  // Handle "View More" button click: add 2 more cards (max 8)
+  const handleViewMore = () => {
+    setVisibleCardsMobile((prev) => Math.min(prev + 2, 8));
+  };
+
+  // Check if "View More" button should be shown (only on mobile, and only if there are more cards)
+  const showViewMoreButton = isMobile && visibleCardsMobile < products.length;
+
   const renderSkeleton = (
     <Box
       sx={{
         display: 'grid',
         gap: 3,
         gridTemplateColumns: {
-          xs: 'repeat(1, 1fr)',
-          sm: 'repeat(2, 1fr)',
-          md: 'repeat(4, 1fr)',
+          xs: 'repeat(2, 1fr)', // Mobile: 2 columns
+          md: 'repeat(4, 1fr)', // Desktop: 4 columns
         },
       }}
     >
@@ -236,30 +260,56 @@ export default function HomeBestSellers({ products: propProducts, ...other }) {
             );
           }
 
-          // Show grid layout with 8 products
+          // Show grid layout with products
           return (
-            <Box
-              sx={{
-                display: 'grid',
-                gap: 3,
-                gridTemplateColumns: {
-                  xs: 'repeat(1, 1fr)',
-                  sm: 'repeat(2, 1fr)',
-                  md: 'repeat(4, 1fr)',
-                },
-                '& > *': {
-                  width: '100%',
-                  minWidth: 0,
-                  height: '100%',
-                  display: 'flex',
-                  flexDirection: 'column',
-                },
-              }}
-            >
-              {products.map((product) => (
-                <HomeNewArrivalsCard key={product.id} product={product} />
-              ))}
-            </Box>
+            <>
+              <Box
+                sx={{
+                  display: 'grid',
+                  gap: 1,
+                  gridTemplateColumns: {
+                    xs: 'repeat(2, 1fr)', // Mobile: 2 columns
+                    md: 'repeat(4, 1fr)', // Desktop: 4 columns
+                  },
+                  '& > *': {
+                    width: '100%',
+                    minWidth: 0,
+                    height: '100%',
+                    display: 'flex',
+                    flexDirection: 'column',
+                  },
+                }}
+              >
+                {displayedProducts.map((product) => (
+                  <HomeNewArrivalsCard key={product.id} product={product} />
+                ))}
+              </Box>
+
+              {/* View More Button - Only visible on mobile */}
+              {showViewMoreButton && (
+                <Box
+                  sx={{
+                    display: { xs: 'flex', md: 'none' },
+                    justifyContent: 'center',
+                    mt: 4,
+                  }}
+                >
+                  <Button
+                    variant="outlined"
+                    size="large"
+                    onClick={handleViewMore}
+                    sx={{
+                      minWidth: 200,
+                      py: 1.5,
+                      fontSize: '1rem',
+                      fontWeight: 600,
+                    }}
+                  >
+                    View More
+                  </Button>
+                </Box>
+              )}
+            </>
           );
         })()}
       </Container>

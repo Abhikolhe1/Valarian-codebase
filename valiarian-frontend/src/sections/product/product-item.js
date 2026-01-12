@@ -129,7 +129,7 @@ export default function ProductItem({ product }) {
 
           {/* Actual/Original Price (show only if sale exists, with strikethrough) */}
           {priceSale && (
-            <Box component="span" sx={{ color: 'text.disabled', textDecoration: 'line-through' }}>
+            <Box component="span" sx={{ color: 'text.disabled', typography: 'caption', textDecoration: 'line-through' }}>
               {fCurrency(price)}
             </Box>
           )}
