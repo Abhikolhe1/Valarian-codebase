@@ -6,6 +6,7 @@ import Box from '@mui/material/Box';
 import ScrollProgress from 'src/components/scroll-progress';
 //
 import HomeHero from '../home-hero';
+import HomeScrollAnimated from '../home-scroll-animated';
 import HomeNewArrivals from '../home-new-arrivals';
 import HomeCollectionHero from '../home-collection-hero';
 import HomeBestSellers from '../home-best-sellers';
@@ -51,6 +52,8 @@ export default function HomeView() {
       <ScrollProgress scrollYProgress={scrollYProgress} />
 
       <HomeHero imageSrc="/assets/images/home/hero/valiarian-hero.png" />
+
+      <HomeScrollAnimated />
 
       <HomeNewArrivals />
 
