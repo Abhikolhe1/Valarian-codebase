@@ -5,7 +5,6 @@ import Link from '@mui/material/Link';
 import Stack from '@mui/material/Stack';
 import Divider from '@mui/material/Divider';
 import Container from '@mui/material/Container';
-import Grid from '@mui/material/Unstable_Grid2';
 import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
 // routes
@@ -17,6 +16,7 @@ import { _socials } from 'src/_mock';
 // components
 import Logo from 'src/components/logo';
 import Iconify from 'src/components/iconify';
+import { Grid } from '@mui/material';
 
 // ----------------------------------------------------------------------
 
@@ -90,7 +90,7 @@ export default function Footer() {
         }}
       >
         <Grid container direction="row">
-        <Grid xs={12} md={6}>
+        <Grid item xs={12} md={6}>
           <Stack direction="row" alignItems="center" spacing={1.5} mb={2}>
             <Box
               component="img"
@@ -153,7 +153,7 @@ export default function Footer() {
         </Grid>
 
 
-        <Grid xs={12} md={6}>
+        <Grid item xs={12} md={6}>
           <Stack spacing={5} direction={{ xs: 'column', md: 'row' }}>
             {LINKS.map((list) => (
               <Stack

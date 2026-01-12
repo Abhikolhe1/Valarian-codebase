@@ -5,8 +5,6 @@ import Box from '@mui/material/Box';
 // components
 import ScrollProgress from 'src/components/scroll-progress';
 //
-import Footer from 'src/layouts/main/footer';
-
 import HomeHero from '../home-hero';
 import HomeScrollAnimated from '../home-scroll-animated';
 import HomeNewArrivals from '../home-new-arrivals';
