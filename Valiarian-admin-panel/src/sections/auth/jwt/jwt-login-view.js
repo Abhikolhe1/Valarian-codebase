@@ -22,7 +22,7 @@ import { useBoolean } from 'src/hooks/use-boolean';
 import { useAuthContext } from 'src/auth/hooks';
 // components
 import Iconify from 'src/components/iconify';
-import FormProvider, { RHFTextField } from 'src/components/hook-form';
+import FormProvider, { RHFCheckbox, RHFTextField } from 'src/components/hook-form';
 
 // ----------------------------------------------------------------------
 
@@ -42,11 +42,13 @@ export default function JwtLoginView() {
   const LoginSchema = Yup.object().shape({
     email: Yup.string().required('Email is required').email('Email must be a valid email address'),
     password: Yup.string().required('Password is required'),
+    rememberMe: Yup.boolean(),
   });
 
   const defaultValues = {
-    email: 'demo@valiarian.cc',
-    password: 'demo1234',
+    email: '',
+    password: '',
+    rememberMe: true,
   };
 
   const methods = useForm({
@@ -62,13 +64,16 @@ export default function JwtLoginView() {
 
   const onSubmit = handleSubmit(async (data) => {
     try {
-      await login?.(data.email, data.password);
+      await login?.(data.email, data.password, data.rememberMe);
 
       router.push(returnTo || PATH_AFTER_LOGIN);
     } catch (error) {
       console.error(error);
-      reset();
-      setErrorMsg(typeof error === 'string' ? error : error.message);
+      const message =
+        typeof error === 'string'
+          ? error
+          : error?.error?.message || error?.message || 'Login failed';
+      setErrorMsg(typeof error === 'string' ? error : message);
     }
   });
 
@@ -76,13 +81,13 @@ export default function JwtLoginView() {
     <Stack spacing={2} sx={{ mb: 5 }}>
       <Typography variant="h4">Sign in to Valiarian</Typography>
 
-      <Stack direction="row" spacing={0.5}>
+      {/* <Stack direction="row" spacing={0.5}>
         <Typography variant="body2">New user?</Typography>
 
         <Link component={RouterLink} href={paths.auth.jwt.register} variant="subtitle2">
           Create an account
         </Link>
-      </Stack>
+      </Stack> */}
     </Stack>
   );
 
@@ -106,10 +111,23 @@ export default function JwtLoginView() {
           ),
         }}
       />
-
-      <Link variant="body2" color="inherit" underline="always" sx={{ alignSelf: 'flex-end' }}>
-        Forgot password?
-      </Link>
+      <Stack direction="row" alignItems="center" justifyContent="space-between">
+        <RHFCheckbox name="rememberMe" label="Remember me" sx={{ m: 0 }} />
+        <Link
+          variant="body2"
+          color="inherit"
+          underline="always"
+          sx={{
+            cursor: 'pointer',
+            '&:hover': {
+              textDecoration: 'underline',
+            },
+          }}
+          onClick={() => router.push(paths.auth.jwt.forgotPassword)}
+        >
+          Forgot password?
+        </Link>
+      </Stack>
 
       <LoadingButton
         fullWidth
@@ -128,9 +146,9 @@ export default function JwtLoginView() {
     <FormProvider methods={methods} onSubmit={onSubmit}>
       {renderHead}
 
-      <Alert severity="info" sx={{ mb: 3 }}>
+      {/* <Alert severity="info" sx={{ mb: 3 }}>
         Use email : <strong>demo@valiarian.cc</strong> / password :<strong> demo1234</strong>
-      </Alert>
+      </Alert> */}
 
       {renderForm}
     </FormProvider>

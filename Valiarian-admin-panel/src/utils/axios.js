@@ -32,6 +32,7 @@ export const endpoints = {
   auth: {
     me: '/api/auth/me',
     login: '/api/auth/login',
+    adminLogin: '/auth/super-admin-login',
     register: '/api/auth/register',
   },
   mail: {

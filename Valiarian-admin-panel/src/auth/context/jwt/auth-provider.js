@@ -95,13 +95,14 @@ export function AuthProvider({ children }) {
   }, [initialize]);
 
   // LOGIN
-  const login = useCallback(async (email, password) => {
+  const login = useCallback(async (email, password, rememberMe) => {
     const data = {
       email,
       password,
+      rememberMe,
     };
 
-    const response = await axios.post(endpoints.auth.login, data);
+    const response = await axios.post(endpoints.auth.adminLogin, data);
 
     const { accessToken, user } = response.data;
 

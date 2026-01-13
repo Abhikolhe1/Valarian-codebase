@@ -71,7 +71,7 @@ export default function AuthClassicLayout({ children, image, title }) {
         mx: 'auto',
         maxWidth: 480,
         px: { xs: 2, md: 8 },
-        py: { xs: 15, md: 30 },
+        py: { xs: 15, md: 20 },
       }}
     >
       {children}
@@ -101,11 +101,11 @@ export default function AuthClassicLayout({ children, image, title }) {
       <Box
         component="img"
         alt="auth"
-        src={image || '/assets/illustrations/illustration_dashboard.png'}
-        sx={{ maxWidth: 720 }}
+        src={image || '/logo/valiarian_logo.png'}
+        sx={{ maxWidth: 720, maxHeight: 400 }}
       />
 
-      <Stack direction="row" spacing={2}>
+      {/* <Stack direction="row" spacing={2}>
         {METHODS.map((option) => (
           <Tooltip key={option.label} title={option.label}>
             <Link component={RouterLink} href={option.path}>
@@ -124,7 +124,7 @@ export default function AuthClassicLayout({ children, image, title }) {
             </Link>
           </Tooltip>
         ))}
-      </Stack>
+      </Stack> */}
     </Stack>
   );
 
