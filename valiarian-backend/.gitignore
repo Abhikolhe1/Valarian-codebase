@@ -66,6 +66,6 @@ typings/
 # Emacs auto-save file
 \#*#
 
-# package lock json
 package-lock.json
 yarn.lock
+.sandbox
