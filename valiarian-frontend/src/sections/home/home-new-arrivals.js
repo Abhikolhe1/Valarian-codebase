@@ -172,7 +172,7 @@ export default function HomeNewArrivals({ products: propProducts, ...other }) {
     } else {
       allProducts = DUMMY_NEW_ARRIVALS;
     }
-    
+
     if (!allProducts.length) return [];
     const sorted = orderBy(allProducts, ['createdAt'], ['desc']);
     return sorted; // Show all products, no limit
@@ -229,7 +229,7 @@ export default function HomeNewArrivals({ products: propProducts, ...other }) {
       sx={{
         position: 'relative',
         width: '100%',
-        pt: { xs: 8, md: 10 },
+        // pt: { xs: 8, md: 10 },
         // pb: { xs: 8, md: 10 },
         bgcolor: 'background.default',
         zIndex: 1,

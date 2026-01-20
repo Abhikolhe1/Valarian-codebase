@@ -10,6 +10,7 @@ import HomeScrollAnimated from '../home-scroll-animated';
 import HomeNewArrivals from '../home-new-arrivals';
 import HomeCollectionHero from '../home-collection-hero';
 import HomeBestSellers from '../home-best-sellers';
+import HomeFabricSection from '../home-fabric-section';
 import HomeSocialMedia from '../home-social-media';
 import HomePricing from '../home-pricing';
 import HomeDarkMode from '../home-dark-mode';
@@ -60,6 +61,8 @@ export default function HomeView() {
       <HomeCollectionHero imageSrc="/assets/images/home/new-arrival/new-arrival-hero.jpeg" />
 
       <HomeBestSellers />
+
+      <HomeFabricSection />
 
       <HomeSocialMedia />
 
