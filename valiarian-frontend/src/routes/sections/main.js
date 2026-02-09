@@ -1,9 +1,9 @@
 import { lazy, Suspense } from 'react';
 import { Outlet } from 'react-router-dom';
 // layouts
+import CompactLayout from 'src/layouts/compact';
 import MainLayout from 'src/layouts/main';
 import SimpleLayout from 'src/layouts/simple';
-import CompactLayout from 'src/layouts/compact';
 // components
 import { SplashScreen } from 'src/components/loading-screen';
 
@@ -17,6 +17,7 @@ const FaqsPage = lazy(() => import('src/pages/faqs'));
 const AboutPage = lazy(() => import('src/pages/about-us'));
 const ContactPage = lazy(() => import('src/pages/contact-us'));
 const PricingPage = lazy(() => import('src/pages/pricing'));
+const PremiumPage = lazy(() => import('src/pages/premium'));
 const PaymentPage = lazy(() => import('src/pages/payment'));
 const ComingSoonPage = lazy(() => import('src/pages/coming-soon'));
 const MaintenancePage = lazy(() => import('src/pages/maintenance'));
@@ -44,7 +45,7 @@ export const mainRoutes = [
       { path: 'contact-us', element: <ContactPage /> },
       { path: 'faqs', element: <FaqsPage /> },
       {
-        path: 'product',
+        path: 'products',
         children: [
           { element: <ProductListPage />, index: true },
           { path: 'list', element: <ProductListPage /> },
@@ -72,6 +73,7 @@ export const mainRoutes = [
     ),
     children: [
       { path: 'pricing', element: <PricingPage /> },
+      { path: 'premium', element: <PremiumPage /> },
       { path: 'payment', element: <PaymentPage /> },
     ],
   },

@@ -14,6 +14,7 @@ import { useOffSetTop } from 'src/hooks/use-off-set-top';
 import { useResponsive } from 'src/hooks/use-responsive';
 import { usePathname } from 'src/routes/hook';
 import { useMarqueeVisibility } from 'src/hooks/use-marquee-visibility';
+import { useBoolean } from 'src/hooks/use-boolean';
 // theme
 import { bgBlur } from 'src/theme/css';
 // routes
@@ -22,6 +23,7 @@ import { RouterLink } from 'src/routes/components';
 // components
 import Logo from 'src/components/logo';
 import Iconify from 'src/components/iconify';
+import CategoryMegaMenu from 'src/components/category-mega-menu';
 //
 import { HEADER } from '../config-layout';
 import { navConfig } from './config-navigation';
@@ -228,6 +230,10 @@ export default function Header() {
   const [searchExpanded, setSearchExpanded] = useState(false);
   const searchInputRef = useRef(null);
   
+  // Category mega menu state
+  const categoryMenuOpen = useBoolean();
+  const categoryMenuAnchorRef = useRef(null);
+  
   // Marquee height: 36px desktop, 32px mobile
   const marqueeHeight = mdUp ? 36 : 32;
 
@@ -423,14 +429,31 @@ export default function Header() {
             {/* Navigation Links */}
             {mdUp && (
               <Stack direction="row" spacing={3} sx={{ mr: 2 }}>
-                <StyledNavLink
-                  component={RouterLink}
-                  href={paths.product.root}
-                  active={pathname === paths.product.root ? 1 : 0}
-                  isTransparent={headerBgOpacity === 0 ? 1 : 0}
+                <Box
+                  ref={categoryMenuAnchorRef}
+                  onClick={categoryMenuOpen.onToggle}
+                  sx={{
+                    position: 'relative',
+                  }}
                 >
-                  Categories
-                </StyledNavLink>
+                  <StyledNavLink
+                    component="div"
+                    active={pathname === paths.product.root ? 1 : 0}
+                    isTransparent={headerBgOpacity === 0 ? 1 : 0}
+                    sx={{
+                      cursor: 'pointer',
+                      userSelect: 'none',
+                    }}
+                  >
+                    Category
+                  </StyledNavLink>
+                  <CategoryMegaMenu
+                    open={categoryMenuOpen.value}
+                    onClose={categoryMenuOpen.onFalse}
+                    anchorEl={categoryMenuAnchorRef.current}
+                    isTransparent={headerBgOpacity === 0}
+                  />
+                </Box>
                 <StyledNavLink
                   component={RouterLink}
                   href={paths.pricing}

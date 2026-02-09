@@ -1,6 +1,6 @@
 // utils
-import { paramCase } from 'src/utils/change-case';
 import { _id, _postTitles } from 'src/_mock/assets';
+import { paramCase } from 'src/utils/change-case';
 
 // ----------------------------------------------------------------------
 
@@ -20,6 +20,7 @@ export const paths = {
   comingSoon: '/coming-soon',
   maintenance: '/maintenance',
   pricing: '/pricing',
+  premium: '/premium',
   payment: '/payment',
   about: '/about-us',
   contact: '/contact-us',
@@ -36,11 +37,12 @@ export const paths = {
   figma:
     'https://www.figma.com/file/kAYnYYdib0aQPNKZpgJT6J/%5BPreview%5D-Minimal-Web.v5.0.0?type=design&node-id=0%3A1&t=Al4jScQq97Aly0Mn-1',
   product: {
-    root: `/product`,
-    checkout: `/product/checkout`,
-    details: (id) => `/product/${id}`,
+    root: `/products`,
+    checkout: `/products/checkout`,
+    details: (id) => `/products/${id}`,
+    category: (categoryName) => `/products?category=${encodeURIComponent(categoryName)}`,
     demo: {
-      details: `/product/${MOCK_ID}`,
+      details: `/products/${MOCK_ID}`,
     },
   },
   post: {

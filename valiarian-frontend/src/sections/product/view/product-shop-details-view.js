@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useState, useMemo } from 'react';
 // @mui
 import { alpha } from '@mui/material/styles';
 import Tab from '@mui/material/Tab';
@@ -50,6 +50,247 @@ const SUMMARY = [
 
 // ----------------------------------------------------------------------
 
+// Helper function to get dummy product by ID with all required fields
+const getDummyProductById = (productId) => {
+  // Base product structure with all required fields
+  const createProduct = (base) => ({
+    ...base,
+    available: base.available || 100,
+    inventoryType: 'in_stock',
+    description: base.description || `${base.name}. Premium quality product with exceptional comfort and style. Perfect for everyday wear.`,
+    subDescription: base.subDescription || 'Experience premium quality and comfort.',
+    images: base.images || [
+      base.coverUrl,
+      '/assets/images/home/social-media/social-2.jpeg',
+      '/assets/images/home/social-media/social-3.jpeg',
+    ],
+    reviews: base.reviews || [],
+    ratings: base.ratings || { 5: Math.floor(base.totalRatings * 0.7), 4: Math.floor(base.totalRatings * 0.2), 3: Math.floor(base.totalRatings * 0.08), 2: Math.floor(base.totalRatings * 0.02), 1: 0 },
+    totalReviews: base.totalReviews || Math.floor(base.totalRatings * 0.4),
+  });
+
+  const DUMMY_PRODUCTS_MAP = {
+    'short-1': createProduct({
+      id: 'short-1',
+      name: 'Classic Short Sleeve Polo',
+      coverUrl: '/assets/images/home/social-media/social-1.jpeg',
+      price: 1299,
+      priceSale: 999,
+      colors: ['#000000', '#FFFFFF', '#1890FF'],
+      sizes: ['S', 'M', 'L', 'XL'],
+      category: 'Short Sleeves',
+      categorySlug: 'short-sleeves',
+      gender: ['Men'],
+      rating: 4.5,
+      totalRatings: 120,
+      totalSold: 50,
+      newLabel: { enabled: true, content: 'New' },
+      saleLabel: { enabled: true, content: 'Sale' },
+      createdAt: new Date(),
+    }),
+    'short-2': createProduct({
+      id: 'short-2',
+      name: 'Premium Cotton Short Sleeve',
+      coverUrl: '/assets/images/home/social-media/social-2.jpeg',
+      price: 1499,
+      priceSale: 0,
+      colors: ['#FF4842', '#00AB55'],
+      sizes: ['S', 'M', 'L', 'XL', 'XXL'],
+      category: 'Short Sleeves',
+      categorySlug: 'short-sleeves',
+      gender: ['Men'],
+      rating: 4.8,
+      totalRatings: 89,
+      totalSold: 75,
+      newLabel: { enabled: true, content: 'New' },
+      saleLabel: { enabled: false, content: '' },
+      createdAt: new Date(Date.now() - 86400000),
+    }),
+    'short-3': createProduct({
+      id: 'short-3',
+      name: 'Essential Short Sleeve T-Shirt',
+      coverUrl: '/assets/images/home/social-media/social-3.jpeg',
+      price: 1199,
+      priceSale: 899,
+      colors: ['#00AB55', '#1890FF', '#FFC107'],
+      sizes: ['S', 'M', 'L'],
+      category: 'Short Sleeves',
+      categorySlug: 'short-sleeves',
+      gender: ['Men', 'Women'],
+      rating: 4.2,
+      totalRatings: 65,
+      totalSold: 40,
+      newLabel: { enabled: false, content: '' },
+      saleLabel: { enabled: true, content: 'Sale' },
+      createdAt: new Date(Date.now() - 172800000),
+    }),
+    'short-4': createProduct({
+      id: 'short-4',
+      name: 'Modern Fit Short Sleeve',
+      coverUrl: '/assets/images/home/social-media/social-4.jpeg',
+      price: 1399,
+      priceSale: 1099,
+      colors: ['#FFFFFF', '#000000', '#8E33FF'],
+      sizes: ['M', 'L', 'XL'],
+      category: 'Short Sleeves',
+      categorySlug: 'short-sleeves',
+      gender: ['Men'],
+      rating: 4.6,
+      totalRatings: 200,
+      totalSold: 150,
+      newLabel: { enabled: false, content: '' },
+      saleLabel: { enabled: true, content: 'Sale' },
+      createdAt: new Date(Date.now() - 259200000),
+    }),
+    'short-5': createProduct({
+      id: 'short-5',
+      name: 'Comfort Fit Short Sleeve',
+      coverUrl: '/assets/images/home/social-media/social-5.jpeg',
+      price: 1599,
+      priceSale: 0,
+      colors: ['#000000', '#FF4842', '#94D82D'],
+      sizes: ['S', 'M', 'L', 'XL'],
+      category: 'Short Sleeves',
+      categorySlug: 'short-sleeves',
+      gender: ['Men'],
+      rating: 4.7,
+      totalRatings: 45,
+      totalSold: 30,
+      newLabel: { enabled: true, content: 'New' },
+      saleLabel: { enabled: false, content: '' },
+      createdAt: new Date(Date.now() - 345600000),
+    }),
+    'short-6': createProduct({
+      id: 'short-6',
+      name: 'Classic Crew Short Sleeve',
+      coverUrl: '/assets/images/home/new-arrival/t-shirt1.jpeg',
+      price: 999,
+      priceSale: 799,
+      colors: ['#1890FF', '#FFC0CB', '#000000'],
+      sizes: ['S', 'M', 'L', 'XL'],
+      category: 'Short Sleeves',
+      categorySlug: 'short-sleeves',
+      gender: ['Men', 'Women'],
+      rating: 4.3,
+      totalRatings: 70,
+      totalSold: 45,
+      newLabel: { enabled: false, content: '' },
+      saleLabel: { enabled: true, content: 'Sale' },
+      createdAt: new Date(Date.now() - 432000000),
+    }),
+    'full-1': createProduct({
+      id: 'full-1',
+      name: 'Premium Full Sleeve Polo',
+      coverUrl: '/assets/images/home/social-media/social-1.jpeg',
+      price: 1799,
+      priceSale: 1399,
+      colors: ['#000000', '#FFFFFF'],
+      sizes: ['M', 'L', 'XL'],
+      category: 'Full Sleeves',
+      categorySlug: 'full-sleeves',
+      gender: ['Men'],
+      rating: 4.8,
+      totalRatings: 89,
+      totalSold: 75,
+      newLabel: { enabled: true, content: 'New' },
+      saleLabel: { enabled: true, content: 'Sale' },
+      createdAt: new Date(),
+    }),
+    'full-2': createProduct({
+      id: 'full-2',
+      name: 'Classic Full Sleeve T-Shirt',
+      coverUrl: '/assets/images/home/social-media/social-2.jpeg',
+      price: 1599,
+      priceSale: 0,
+      colors: ['#FF4842', '#00AB55', '#1890FF'],
+      sizes: ['S', 'M', 'L', 'XL', 'XXL'],
+      category: 'Full Sleeves',
+      categorySlug: 'full-sleeves',
+      gender: ['Men'],
+      rating: 4.5,
+      totalRatings: 120,
+      totalSold: 50,
+      newLabel: { enabled: true, content: 'New' },
+      saleLabel: { enabled: false, content: '' },
+      createdAt: new Date(Date.now() - 86400000),
+    }),
+    'full-3': createProduct({
+      id: 'full-3',
+      name: 'Warm Full Sleeve Pullover',
+      coverUrl: '/assets/images/home/social-media/social-3.jpeg',
+      price: 1999,
+      priceSale: 1499,
+      colors: ['#000000', '#8E33FF', '#FFC107'],
+      sizes: ['M', 'L', 'XL'],
+      category: 'Full Sleeves',
+      categorySlug: 'full-sleeves',
+      gender: ['Men'],
+      rating: 4.6,
+      totalRatings: 95,
+      totalSold: 60,
+      newLabel: { enabled: false, content: '' },
+      saleLabel: { enabled: true, content: 'Sale' },
+      createdAt: new Date(Date.now() - 172800000),
+    }),
+    'full-4': createProduct({
+      id: 'full-4',
+      name: 'Comfort Full Sleeve',
+      coverUrl: '/assets/images/home/social-media/social-4.jpeg',
+      price: 1699,
+      priceSale: 0,
+      colors: ['#FFFFFF', '#000000', '#1890FF'],
+      sizes: ['S', 'M', 'L', 'XL'],
+      category: 'Full Sleeves',
+      categorySlug: 'full-sleeves',
+      gender: ['Men', 'Women'],
+      rating: 4.4,
+      totalRatings: 65,
+      totalSold: 40,
+      newLabel: { enabled: false, content: '' },
+      saleLabel: { enabled: false, content: '' },
+      createdAt: new Date(Date.now() - 259200000),
+    }),
+    'full-5': createProduct({
+      id: 'full-5',
+      name: 'Premium Full Sleeve Classic',
+      coverUrl: '/assets/images/home/social-media/social-5.jpeg',
+      price: 1899,
+      priceSale: 1599,
+      colors: ['#000000', '#FF4842'],
+      sizes: ['M', 'L', 'XL'],
+      category: 'Full Sleeves',
+      categorySlug: 'full-sleeves',
+      gender: ['Men'],
+      rating: 4.7,
+      totalRatings: 200,
+      totalSold: 150,
+      newLabel: { enabled: false, content: '' },
+      saleLabel: { enabled: true, content: 'Sale' },
+      createdAt: new Date(Date.now() - 345600000),
+    }),
+    'full-6': createProduct({
+      id: 'full-6',
+      name: 'Modern Full Sleeve Design',
+      coverUrl: '/assets/images/home/new-arrival/t-shirt1.jpeg',
+      price: 2199,
+      priceSale: 0,
+      colors: ['#00AB55', '#1890FF', '#FFC107'],
+      sizes: ['S', 'M', 'L', 'XL'],
+      category: 'Full Sleeves',
+      categorySlug: 'full-sleeves',
+      gender: ['Men'],
+      rating: 4.9,
+      totalRatings: 45,
+      totalSold: 30,
+      newLabel: { enabled: true, content: 'New' },
+      saleLabel: { enabled: false, content: '' },
+      createdAt: new Date(Date.now() - 432000000),
+    }),
+  };
+
+  return DUMMY_PRODUCTS_MAP[productId];
+};
+
 export default function ProductShopDetailsView() {
   const params = useParams();
 
@@ -61,7 +302,11 @@ export default function ProductShopDetailsView() {
 
   const [currentTab, setCurrentTab] = useState('description');
 
-  const { product, productLoading, productError } = useGetProduct(`${id}`);
+  const { product: apiProduct, productLoading, productError } = useGetProduct(`${id}`);
+
+  // Use dummy product if API doesn't return data
+  const dummyProduct = useMemo(() => getDummyProductById(id), [id]);
+  const product = apiProduct || dummyProduct;
 
   const handleChangeTab = useCallback((event, newValue) => {
     setCurrentTab(newValue);
@@ -98,7 +343,7 @@ export default function ProductShopDetailsView() {
           },
           { name: product?.name },
         ]}
-        sx={{ mb: 5 }}
+        sx={{ mb: 5, mt: 0, pt: 0 }}
       />
 
       <Grid container spacing={{ xs: 3, md: 5, lg: 8 }}>
@@ -156,7 +401,7 @@ export default function ProductShopDetailsView() {
             },
             {
               value: 'reviews',
-              label: `Reviews (${product.reviews.length})`,
+              label: `Reviews (${product?.reviews?.length || 0})`,
             },
           ].map((tab) => (
             <Tab key={tab.value} value={tab.value} label={tab.label} />
@@ -169,10 +414,10 @@ export default function ProductShopDetailsView() {
 
         {currentTab === 'reviews' && (
           <ProductDetailsReview
-            ratings={product.ratings}
-            reviews={product.reviews}
-            totalRatings={product.totalRatings}
-            totalReviews={product.totalReviews}
+            ratings={product?.ratings || {}}
+            reviews={product?.reviews || []}
+            totalRatings={product?.totalRatings || 0}
+            totalReviews={product?.totalReviews || 0}
           />
         )}
       </Card>
@@ -183,15 +428,15 @@ export default function ProductShopDetailsView() {
     <Container
       maxWidth={settings.themeStretch ? false : 'lg'}
       sx={{
-        mt: 5,
         mb: 15,
+        pt: 0,
       }}
     >
       <CartIcon totalItems={checkout.totalItems} />
 
       {productLoading && renderSkeleton}
 
-      {productError && renderError}
+      {/* {productError && renderError} */}
 
       {product && renderProduct}
     </Container>

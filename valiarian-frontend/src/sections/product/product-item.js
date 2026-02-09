@@ -1,13 +1,16 @@
 import PropTypes from 'prop-types';
 // @mui
-import Fab from '@mui/material/Fab';
+import { useTheme } from '@mui/material/styles';
+import useMediaQuery from '@mui/material/useMediaQuery';
 import Box from '@mui/material/Box';
 import Link from '@mui/material/Link';
 import Card from '@mui/material/Card';
 import Stack from '@mui/material/Stack';
+import Button from '@mui/material/Button';
 // routes
 import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
+import { useRouter } from 'src/routes/hook';
 // utils
 import { fCurrency } from 'src/utils/format-number';
 // redux
@@ -25,22 +28,27 @@ export default function ProductItem({ product }) {
   const { id, name, coverUrl, price, colors, available, sizes, priceSale, newLabel, saleLabel } =
     product;
 
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const dispatch = useDispatch();
+  const router = useRouter();
 
   const linkTo = paths.product.details(id);
 
   // Calculate discount percentage
-  const discountPercent = priceSale && price > 0 
-    ? Math.round(((price - priceSale) / price) * 100) 
+  const discountPercent = priceSale && price > 0
+    ? Math.round(((price - priceSale) / price) * 100)
     : 0;
 
-  const handleAddCart = async () => {
+  const handleAddCart = async (e) => {
+    // Prevent navigation when clicking Add to Cart button
+    e.stopPropagation();
     const newProduct = {
       id,
       name,
       coverUrl,
       available,
-      price,
+      price: priceSale || price,
       colors: [colors[0]],
       size: sizes[0],
       quantity: 1,
@@ -52,19 +60,30 @@ export default function ProductItem({ product }) {
     }
   };
 
-  const renderLabels = (newLabel.enabled || saleLabel.enabled) && (
+  // Handle card click for mobile - navigate to product details
+  const handleCardClick = () => {
+    if (isMobile) {
+      router.push(linkTo);
+    }
+  };
+
+  // Safely check labels
+  const hasNewLabel = newLabel?.enabled;
+  const hasSaleLabel = saleLabel?.enabled;
+
+  const renderLabels = (hasNewLabel || hasSaleLabel) && (
     <Stack
       direction="row"
       alignItems="center"
       spacing={1}
       sx={{ position: 'absolute', zIndex: 9, top: 16, right: 16 }}
     >
-      {newLabel.enabled && (
+      {hasNewLabel && (
         <Label variant="filled" color="info">
           {newLabel.content}
         </Label>
       )}
-      {saleLabel.enabled && (
+      {hasSaleLabel && (
         <Label variant="filled" color="error">
           {saleLabel.content}
         </Label>
@@ -73,28 +92,22 @@ export default function ProductItem({ product }) {
   );
 
   const renderImg = (
-    <Box sx={{ position: 'relative'}}>
-      <Fab
-        color="warning"
-        size="medium"
-        className="add-cart-btn"
-        onClick={handleAddCart}
-        sx={{
-          right: 24,
-          bottom: 24,
-          zIndex: 9,
-          opacity: 0,
-          position: 'absolute',
-          transition: (theme) =>
-            theme.transitions.create('all', {
-              easing: theme.transitions.easing.easeInOut,
-              duration: theme.transitions.duration.shorter,
-            }),
-        }}
-      >
-        <Iconify icon="solar:cart-plus-bold" width={24} />
-      </Fab>
-
+    <Box
+      component={isMobile ? 'div' : RouterLink}
+      href={isMobile ? undefined : linkTo}
+      sx={{
+        position: 'relative',
+        cursor: 'pointer',
+        textDecoration: 'none',
+        display: 'block',
+      }}
+      onClick={(e) => {
+        if (!isMobile) {
+          // On desktop, let the RouterLink handle navigation
+          // On mobile, let the event bubble up to card click handler
+        }
+      }}
+    >
       {/* Color preview at right bottom */}
       <Box
         sx={{
@@ -105,6 +118,7 @@ export default function ProductItem({ product }) {
           backgroundColor: 'rgba(255, 255, 255, 0.9)',
           borderRadius: 1,
           padding: '4px 8px',
+          pointerEvents: 'none', // Prevent color preview from blocking clicks
         }}
       >
         <ColorPreview colors={colors} />
@@ -116,14 +130,31 @@ export default function ProductItem({ product }) {
 
   const renderContent = (
     <Stack spacing={2.5} sx={{ p: 3, pt: 2, flexGrow: 1 }}>
-      <Link component={RouterLink} href={linkTo} color="inherit" variant="subtitle2" noWrap>
+      <Link
+        component={RouterLink}
+        href={linkTo}
+        color="inherit"
+        variant="subtitle2"
+        noWrap
+        sx={{ cursor: 'pointer' }}
+      >
         {name}
       </Link>
 
       <Stack spacing={0.5}>
         <Stack direction="row" alignItems="center" spacing={0.5} sx={{ typography: 'subtitle1' }}>
-          {/* Selling Price (discounted price if sale exists, otherwise regular price) */}
-          <Box component="span" sx={{ fontWeight: 600 }}>
+          {/* Selling Price (discounted price if sale exists, otherwise regular price) - clickable on desktop */}
+          <Box
+            component={isMobile ? 'span' : RouterLink}
+            href={isMobile ? undefined : linkTo}
+            sx={{
+              fontWeight: 600,
+              cursor: isMobile ? 'default' : 'pointer',
+              textDecoration: 'none',
+              color: 'inherit',
+              '&:hover': isMobile ? {} : { textDecoration: 'underline' },
+            }}
+          >
             {priceSale ? fCurrency(priceSale) : fCurrency(price)}
           </Box>
 
@@ -148,18 +179,40 @@ export default function ProductItem({ product }) {
           </Box>
         )}
       </Stack>
+
+      {/* Add to Cart Button at bottom right */}
+      <Box
+        sx={{
+          display: 'flex',
+          justifyContent: 'flex-end',
+          mt: 'auto',
+          position: 'relative',
+          zIndex: 10, // Ensure button is above card click area on mobile
+        }}
+        onClick={(e) => e.stopPropagation()} // Prevent card click when clicking button
+      >
+        <Button
+          variant="contained"
+          color="primary"
+          size="small"
+          onClick={handleAddCart}
+          startIcon={<Iconify icon="solar:cart-plus-bold" width={20} />}
+          sx={{ minWidth: 'auto' }}
+        >
+          Add to Cart
+        </Button>
+      </Box>
     </Stack>
   );
 
   return (
     <Card
+      onClick={handleCardClick}
       sx={{
         height: '100%',
         display: 'flex',
         flexDirection: 'column',
-        '&:hover .add-cart-btn': {
-          opacity: 1,
-        },
+        cursor: isMobile ? 'pointer' : 'default',
       }}
     >
       {renderLabels}

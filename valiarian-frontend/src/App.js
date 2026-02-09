@@ -13,8 +13,7 @@ import 'yet-another-react-lightbox/plugins/thumbnails.css';
 import 'mapbox-gl/dist/mapbox-gl.css';
 
 // editor
-// eslint-disable-next-line
-import 'quill/dist/quill.snow.css';
+import 'react-quill/dist/quill.snow.css';
 
 // slick-carousel
 import 'slick-carousel/slick/slick.css';

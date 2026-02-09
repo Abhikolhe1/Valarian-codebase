@@ -17,7 +17,7 @@ export default function CartIcon({ totalItems }) {
       href={paths.product.checkout}
       sx={{
         right: 0,
-        top: 112,
+        top: 120,
         zIndex: 999,
         display: 'flex',
         cursor: 'pointer',
