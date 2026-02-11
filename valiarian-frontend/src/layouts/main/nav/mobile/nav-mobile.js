@@ -1,25 +1,25 @@
 import PropTypes from 'prop-types';
 import { useEffect } from 'react';
 // @mui
-import List from '@mui/material/List';
+import Divider from '@mui/material/Divider';
 import Drawer from '@mui/material/Drawer';
 import IconButton from '@mui/material/IconButton';
-import Divider from '@mui/material/Divider';
+import List from '@mui/material/List';
 // hooks
 import { useBoolean } from 'src/hooks/use-boolean';
 // routes
 import { usePathname } from 'src/routes/hook';
 import { paths } from 'src/routes/paths';
 // components
-import Logo from 'src/components/logo';
-import SvgColor from 'src/components/svg-color';
-import Scrollbar from 'src/components/scrollbar';
 import Iconify from 'src/components/iconify';
+import Logo from 'src/components/logo';
+import Scrollbar from 'src/components/scrollbar';
+import SvgColor from 'src/components/svg-color';
 // contexts
 import { useMobileMenu } from 'src/contexts/mobile-menu-context';
 //
-import NavList from './nav-list';
 import NavItem from './nav-item';
+import NavList from './nav-list';
 
 // ----------------------------------------------------------------------
 
@@ -72,7 +72,7 @@ export default function NavMobile({ offsetTop, data, isTransparent }) {
               .map((link) => (
                 <NavList key={link.title} item={link} />
               ))}
-            
+
             {/* Additional menu items - Mobile only */}
             <NavItem
               item={{
@@ -85,10 +85,10 @@ export default function NavMobile({ offsetTop, data, isTransparent }) {
             <NavItem
               item={{
                 title: 'Premium',
-                path: paths.pricing,
+                path: paths.premium,
                 icon: <Iconify icon="eva:star-fill" />,
               }}
-              active={pathname === paths.pricing}
+              active={pathname === paths.premium}
             />
             <NavItem
               item={{
@@ -109,7 +109,7 @@ export default function NavMobile({ offsetTop, data, isTransparent }) {
             />
           </List>
         </Scrollbar>
-        
+
         <Logo sx={{ mx: 2.5, my: 3, flexShrink: 0 }} />
       </Drawer>
     </>

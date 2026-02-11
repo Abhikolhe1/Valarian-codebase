@@ -1,40 +1,40 @@
-import { useState, useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 // @mui
-import { useTheme, styled, alpha } from '@mui/material/styles';
-import Box from '@mui/material/Box';
-import Link from '@mui/material/Link';
-import Stack from '@mui/material/Stack';
 import AppBar from '@mui/material/AppBar';
-import Toolbar from '@mui/material/Toolbar';
+import Box from '@mui/material/Box';
+import ClickAwayListener from '@mui/material/ClickAwayListener';
 import Container from '@mui/material/Container';
 import IconButton from '@mui/material/IconButton';
-import ClickAwayListener from '@mui/material/ClickAwayListener';
+import Link from '@mui/material/Link';
+import Stack from '@mui/material/Stack';
+import { alpha, styled, useTheme } from '@mui/material/styles';
+import Toolbar from '@mui/material/Toolbar';
 // hooks
+import { useBoolean } from 'src/hooks/use-boolean';
+import { useMarqueeVisibility } from 'src/hooks/use-marquee-visibility';
 import { useOffSetTop } from 'src/hooks/use-off-set-top';
 import { useResponsive } from 'src/hooks/use-responsive';
 import { usePathname } from 'src/routes/hook';
-import { useMarqueeVisibility } from 'src/hooks/use-marquee-visibility';
-import { useBoolean } from 'src/hooks/use-boolean';
 // theme
 import { bgBlur } from 'src/theme/css';
 // routes
+import { RouterLink } from 'src/routes/components';
 import { paths } from 'src/routes/paths';
-import { RouterLink } from 'src/routes/components'; 
 // components
-import Logo from 'src/components/logo';
-import Iconify from 'src/components/iconify';
 import CategoryMegaMenu from 'src/components/category-mega-menu';
+import Iconify from 'src/components/iconify';
+import Logo from 'src/components/logo';
 //
+import HeaderShadow from '../_common/header-shadow';
 import { HEADER } from '../config-layout';
 import { navConfig } from './config-navigation';
 import NavMobile from './nav/mobile';
-import HeaderShadow from '../_common/header-shadow';
 
 // ----------------------------------------------------------------------
 
 const StyledNavLink = styled(Link)(({ theme, active, isTransparent }) => {
   let linkColor = theme.palette.text.primary;
-  
+
   if (isTransparent) {
     linkColor = theme.palette.common.white;
   } else if (active) {
@@ -61,10 +61,10 @@ const StyledExpandableSearch = styled(Box)(({ theme, expanded, isTransparent, is
   alignItems: 'center',
   height: 36,
   borderRadius: theme.shape.borderRadius,
-  backgroundColor: expanded 
+  backgroundColor: expanded
     ? alpha(theme.palette.common.white, isTransparent ? 0.95 : 1)
     : 'transparent',
-  border: expanded 
+  border: expanded
     ? `1px solid ${alpha(theme.palette.grey[500], 0.2)}`
     : 'none',
   overflow: 'hidden',
@@ -76,7 +76,7 @@ const StyledExpandableSearch = styled(Box)(({ theme, expanded, isTransparent, is
   minWidth: 36,
   maxWidth: expanded ? 300 : 36,
   '&:hover': {
-    backgroundColor: expanded 
+    backgroundColor: expanded
       ? alpha(theme.palette.common.white, isTransparent ? 0.95 : 1)
       : alpha(theme.palette.common.white, isTransparent ? 0.1 : 0.05),
   },
@@ -222,18 +222,18 @@ export default function Header() {
   const mdUp = useResponsive('up', 'md');
   const offsetTop = useOffSetTop(HEADER.H_DESKTOP);
   const marqueeVisible = useMarqueeVisibility();
-  
+
   const isHome = pathname === '/';
   const [showLogo, setShowLogo] = useState(!isHome);
   const [headerBgOpacity, setHeaderBgOpacity] = useState(isHome ? 0 : 1);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchExpanded, setSearchExpanded] = useState(false);
   const searchInputRef = useRef(null);
-  
+
   // Category mega menu state
   const categoryMenuOpen = useBoolean();
   const categoryMenuAnchorRef = useRef(null);
-  
+
   // Marquee height: 36px desktop, 32px mobile
   const marqueeHeight = mdUp ? 36 : 32;
 
@@ -308,7 +308,7 @@ export default function Header() {
   };
 
   return (
-    <AppBar 
+    <AppBar
       data-header="main"
       sx={{
         backgroundColor: `rgba(255, 255, 255, ${headerBgOpacity})`,
@@ -347,7 +347,7 @@ export default function Header() {
             <>
               {searchExpanded ? (
                 <ClickAwayListener onClickAway={handleSearchClose}>
-                  <StyledExpandableSearch 
+                  <StyledExpandableSearch
                     expanded={searchExpanded}
                     isTransparent={headerBgOpacity === 0}
                     isMobile={false}
@@ -380,7 +380,7 @@ export default function Header() {
                   </StyledExpandableSearch>
                 </ClickAwayListener>
               ) : (
-                <StyledExpandableSearch 
+                <StyledExpandableSearch
                   expanded={searchExpanded}
                   isTransparent={headerBgOpacity === 0}
                   isMobile={false}
@@ -456,8 +456,8 @@ export default function Header() {
                 </Box>
                 <StyledNavLink
                   component={RouterLink}
-                  href={paths.pricing}
-                  active={pathname === paths.pricing ? 1 : 0}
+                  href={paths.premium}
+                  active={pathname === paths.premium ? 1 : 0}
                   isTransparent={headerBgOpacity === 0 ? 1 : 0}
                 >
                   Premium
@@ -525,8 +525,8 @@ export default function Header() {
 
               {/* Mobile Menu */}
               {!mdUp && (
-                <NavMobile 
-                  offsetTop={offsetTop && headerBgOpacity > 0} 
+                <NavMobile
+                  offsetTop={offsetTop && headerBgOpacity > 0}
                   data={navConfig}
                   isTransparent={headerBgOpacity === 0}
                 />
@@ -541,7 +541,7 @@ export default function Header() {
       {/* Mobile Search Overlay */}
       {!mdUp && searchExpanded && (
         <ClickAwayListener onClickAway={handleMobileSearchClose}>
-          <StyledMobileSearchOverlay 
+          <StyledMobileSearchOverlay
             visible={searchExpanded}
             headerTop={marqueeVisible ? marqueeHeight + HEADER.H_MOBILE : HEADER.H_MOBILE}
           >

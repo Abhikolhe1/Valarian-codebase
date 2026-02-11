@@ -44,6 +44,7 @@ export const mainRoutes = [
       { path: 'about-us', element: <AboutPage /> },
       { path: 'contact-us', element: <ContactPage /> },
       { path: 'faqs', element: <FaqsPage /> },
+      { path: 'premium', element: <PremiumPage /> },
       {
         path: 'products',
         children: [
@@ -73,7 +74,6 @@ export const mainRoutes = [
     ),
     children: [
       { path: 'pricing', element: <PricingPage /> },
-      { path: 'premium', element: <PremiumPage /> },
       { path: 'payment', element: <PaymentPage /> },
     ],
   },
