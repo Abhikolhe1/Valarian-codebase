@@ -9,11 +9,6 @@ export class MediaService {
     private mediaRepository: MediaRepository,
   ) { }
 
-  async updateMediaUsedStatus(mediaIds: string[], usedStatus: boolean) {
-    if (!mediaIds?.length) return;
-
-    for (const id of mediaIds) {
-      await this.mediaRepository.updateById(id, {isUsed: usedStatus});
-    }
-  }
+  // Media service methods will be implemented as part of task 5
+  // This service is currently a placeholder for future media management functionality
 }

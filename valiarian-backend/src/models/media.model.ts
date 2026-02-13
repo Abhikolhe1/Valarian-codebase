@@ -3,10 +3,24 @@ import {Entity, model, property} from '@loopback/repository';
 @model({
   settings: {
     postgresql: {
+      schema: 'cms',
       table: 'media',
-      schema: 'public',
     },
-  }
+    indexes: {
+      filenameIdx: {
+        keys: {filename: 1},
+      },
+      mimeTypeIdx: {
+        keys: {mimeType: 1},
+      },
+      folderIdx: {
+        keys: {folder: 1},
+      },
+      createdAtIdx: {
+        keys: {createdAt: -1},
+      },
+    },
+  },
 })
 export class Media extends Entity {
   @property({
@@ -21,39 +35,80 @@ export class Media extends Entity {
 
   @property({
     type: 'string',
-    required: true
+    required: true,
   })
-  fileOriginalName: string;
+  filename: string;
 
   @property({
     type: 'string',
-    required: true
+    required: true,
   })
-  fileName: string;
+  originalName: string;
 
   @property({
     type: 'string',
-    required: true
+    required: true,
   })
-  fileUrl: string;
+  mimeType: string;
+
+  @property({
+    type: 'number',
+    required: true,
+  })
+  size: number;
+
+  @property({
+    type: 'number',
+  })
+  width?: number;
+
+  @property({
+    type: 'number',
+  })
+  height?: number;
 
   @property({
     type: 'string',
-    required: true
+    required: true,
   })
-  fileLocation: string;
+  url: string;
 
   @property({
     type: 'string',
-    required: true
   })
-  fileType: string;
+  thumbnailUrl?: string;
 
   @property({
-    type: 'boolean',
-    default: false,
+    type: 'string',
   })
-  isUsed?: boolean;
+  mediumUrl?: string;
+
+  @property({
+    type: 'string',
+  })
+  largeUrl?: string;
+
+  @property({
+    type: 'string',
+  })
+  altText?: string;
+
+  @property({
+    type: 'string',
+  })
+  caption?: string;
+
+  @property({
+    type: 'string',
+    default: '/',
+  })
+  folder: string;
+
+  @property({
+    type: 'array',
+    itemType: 'string',
+  })
+  tags?: string[];
 
   @property({
     type: 'date',
@@ -62,10 +117,10 @@ export class Media extends Entity {
   createdAt?: Date;
 
   @property({
-    type: 'date',
-    defaultFn: 'now',
+    type: 'string',
   })
-  updatedAt?: Date;
+  uploadedBy?: string;
+
   constructor(data?: Partial<Media>) {
     super(data);
   }
