@@ -17,6 +17,9 @@ export async function migrate(args: string[]) {
       'Media',
       'Otp',
       'RegistrationSessions',
+      'Page',
+      'Section',
+      'ContentVersion',
     ]
   });
 

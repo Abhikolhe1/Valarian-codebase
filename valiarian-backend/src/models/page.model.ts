@@ -9,17 +9,17 @@ import {Section} from './section.model';
       table: 'pages',
     },
     indexes: {
-      slugIdx: {
+      pagesSlugIdx: {
         keys: {slug: 1},
         options: {unique: true},
       },
-      statusIdx: {
+      pagesStatusIdx: {
         keys: {status: 1},
       },
-      publishedAtIdx: {
+      pagesPublishedAtIdx: {
         keys: {publishedAt: -1},
       },
-      createdAtIdx: {
+      pagesCreatedAtIdx: {
         keys: {createdAt: -1},
       },
     },

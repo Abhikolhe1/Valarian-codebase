@@ -8,13 +8,13 @@ import {Page} from './page.model';
       table: 'content_versions',
     },
     indexes: {
-      pageIdIdx: {
+      contentVersionsPageIdIdx: {
         keys: {pageId: 1},
       },
-      versionIdx: {
+      contentVersionsVersionIdx: {
         keys: {version: -1},
       },
-      createdAtIdx: {
+      contentVersionsCreatedAtIdx: {
         keys: {createdAt: -1},
       },
     },
@@ -54,6 +54,12 @@ export class ContentVersion extends Entity {
     defaultFn: 'now',
   })
   createdAt?: Date;
+
+  @property({
+    type: 'date',
+    defaultFn: 'now',
+  })
+  updatedAt?: Date;
 
   @property({
     type: 'string',

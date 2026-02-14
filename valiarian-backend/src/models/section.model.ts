@@ -8,13 +8,13 @@ import {Page} from './page.model';
       table: 'sections',
     },
     indexes: {
-      pageIdIdx: {
+      sectionsPageIdIdx: {
         keys: {pageId: 1},
       },
-      orderIdx: {
+      sectionsOrderIdx: {
         keys: {order: 1},
       },
-      typeIdx: {
+      sectionsTypeIdx: {
         keys: {type: 1},
       },
     },

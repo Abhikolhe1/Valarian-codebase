@@ -7,16 +7,16 @@ import {Entity, model, property} from '@loopback/repository';
       table: 'media',
     },
     indexes: {
-      filenameIdx: {
+      mediaFilenameIdx: {
         keys: {filename: 1},
       },
-      mimeTypeIdx: {
+      mediaMimeTypeIdx: {
         keys: {mimeType: 1},
       },
-      folderIdx: {
+      mediaFolderIdx: {
         keys: {folder: 1},
       },
-      createdAtIdx: {
+      mediaCreatedAtIdx: {
         keys: {createdAt: -1},
       },
     },
@@ -115,6 +115,12 @@ export class Media extends Entity {
     defaultFn: 'now',
   })
   createdAt?: Date;
+
+  @property({
+    type: 'date',
+    defaultFn: 'now',
+  })
+  updatedAt?: Date;
 
   @property({
     type: 'string',

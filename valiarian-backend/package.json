@@ -67,6 +67,8 @@
     "loopback-connector-postgresql": "^8.0.3",
     "multer": "^2.0.2",
     "nodemailer": "^7.0.10",
+    "redis": "^5.10.0",
+    "sharp": "^0.34.5",
     "tslib": "^2.0.0",
     "uuid": "^13.0.0"
   },
@@ -80,6 +82,8 @@
     "@types/multer": "^2.0.0",
     "@types/node": "^16.18.126",
     "@types/nodemailer": "^7.0.4",
+    "@types/redis": "^4.0.10",
+    "@types/sharp": "^0.31.1",
     "@types/uuid": "^10.0.0",
     "eslint": "^8.57.1",
     "source-map-support": "^0.5.21",
