@@ -4,7 +4,10 @@ import { HOST_API } from 'src/config-global';
 
 // ----------------------------------------------------------------------
 
-const axiosInstance = axios.create({ baseURL: HOST_API });
+const axiosInstance = axios.create({
+  baseURL: HOST_API,
+  timeout: 5000, // 5 second timeout
+});
 
 axiosInstance.interceptors.response.use(
   (res) => res,

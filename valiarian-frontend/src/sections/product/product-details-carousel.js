@@ -1,15 +1,15 @@
 import PropTypes from 'prop-types';
 import { useEffect } from 'react';
 // @mui
-import { alpha, useTheme, styled } from '@mui/material/styles';
-import Box from '@mui/material/Box';
 import Avatar from '@mui/material/Avatar';
+import Box from '@mui/material/Box';
+import { alpha, styled, useTheme } from '@mui/material/styles';
 // theme
 import { bgGradient } from 'src/theme/css';
 // components
+import Carousel, { CarouselArrowIndex, useCarousel } from 'src/components/carousel';
 import Image from 'src/components/image';
 import Lightbox, { useLightBox } from 'src/components/lightbox';
-import Carousel, { CarouselArrowIndex, useCarousel } from 'src/components/carousel';
 
 // ----------------------------------------------------------------------
 
@@ -61,10 +61,28 @@ const StyledThumbnailsContainer = styled('div')(({ length, theme }) => ({
 
 // ----------------------------------------------------------------------
 
-export default function ProductDetailsCarousel({ product }) {
+export default function ProductDetailsCarousel({ product, selectedColor }) {
   const theme = useTheme();
 
-  const slides = product.images.map((img) => ({
+  // Filter images based on selected color
+  // Assuming product has a colorImages structure like:
+  // colorImages: { '#FF0000': [img1, img2], '#00FF00': [img3, img4] }
+  // OR images array with all images (fallback)
+  const getImagesForColor = () => {
+    console.log('🎨 Selected Color:', selectedColor);
+    console.log('📦 Product colorImages:', product.colorImages);
+
+    // If product has colorImages mapping
+    if (product.colorImages && selectedColor && product.colorImages[selectedColor]) {
+      console.log('✅ Found images for color:', product.colorImages[selectedColor]);
+      return product.colorImages[selectedColor];
+    }
+    // Fallback to all images if no color-specific images
+    console.log('⚠️ Using fallback images:', product.images);
+    return product.images || [];
+  };
+
+  const slides = getImagesForColor().map((img) => ({
     src: img,
   }));
 
@@ -90,6 +108,20 @@ export default function ProductDetailsCarousel({ product }) {
     carouselLarge.onSetNav();
     carouselThumb.onSetNav();
   }, [carouselLarge, carouselThumb]);
+
+  // Reset carousel and reinitialize when color/slides change
+  useEffect(() => {
+    if (selectedColor && slides.length > 0) {
+      // Force carousel to go to first slide
+      if (carouselLarge.carouselRef.current) {
+        carouselLarge.carouselRef.current.slickGoTo(0);
+      }
+      if (carouselThumb.carouselRef.current) {
+        carouselThumb.carouselRef.current.slickGoTo(0);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedColor, slides.length]);
 
   useEffect(() => {
     if (lightbox.open) {
@@ -188,4 +220,5 @@ export default function ProductDetailsCarousel({ product }) {
 
 ProductDetailsCarousel.propTypes = {
   product: PropTypes.object,
+  selectedColor: PropTypes.string,
 };

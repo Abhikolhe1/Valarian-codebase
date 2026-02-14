@@ -1,26 +1,26 @@
 import PropTypes from 'prop-types';
-import { useEffect, useCallback } from 'react';
+import { useCallback, useEffect } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 // @mui
 import Box from '@mui/material/Box';
-import Link from '@mui/material/Link';
-import Stack from '@mui/material/Stack';
-import Rating from '@mui/material/Rating';
 import Button from '@mui/material/Button';
 import Divider from '@mui/material/Divider';
-import MenuItem from '@mui/material/MenuItem';
-import Typography from '@mui/material/Typography';
 import { formHelperTextClasses } from '@mui/material/FormHelperText';
+import Link from '@mui/material/Link';
+import MenuItem from '@mui/material/MenuItem';
+import Rating from '@mui/material/Rating';
+import Stack from '@mui/material/Stack';
+import Typography from '@mui/material/Typography';
 // routes
-import { paths } from 'src/routes/paths';
 import { useRouter } from 'src/routes/hook';
+import { paths } from 'src/routes/paths';
 // utils
-import { fShortenNumber, fCurrency } from 'src/utils/format-number';
+import { fCurrency, fShortenNumber } from 'src/utils/format-number';
 // components
-import Label from 'src/components/label';
-import Iconify from 'src/components/iconify';
 import { ColorPicker } from 'src/components/color-utils';
 import FormProvider, { RHFSelect } from 'src/components/hook-form';
+import Iconify from 'src/components/iconify';
+import Label from 'src/components/label';
 //
 import IncrementerButton from './common/incrementer-button';
 
@@ -32,6 +32,7 @@ export default function ProductDetailsSummary({
   onAddCart,
   onGotoStep,
   disabledActions,
+  onColorChange,
   ...other
 }) {
   const router = useRouter();
@@ -170,7 +171,13 @@ export default function ProductDetailsSummary({
           <ColorPicker
             colors={colors}
             selected={field.value}
-            onSelectColor={field.onChange}
+            onSelectColor={(color) => {
+              field.onChange(color);
+              // Notify parent component about color change
+              if (onColorChange) {
+                onColorChange(color);
+              }
+            }}
             limit={4}
           />
         )}
@@ -336,5 +343,6 @@ ProductDetailsSummary.propTypes = {
   disabledActions: PropTypes.bool,
   onAddCart: PropTypes.func,
   onGotoStep: PropTypes.func,
+  onColorChange: PropTypes.func,
   product: PropTypes.object,
 };

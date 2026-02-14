@@ -1,7 +1,7 @@
-import useSWR from 'swr';
 import { useMemo } from 'react';
+import useSWR from 'swr';
 // utils
-import { fetcher, endpoints } from 'src/utils/axios';
+import { endpoints, fetcher } from 'src/utils/axios';
 
 // ----------------------------------------------------------------------
 
@@ -29,7 +29,12 @@ export function useGetProducts() {
 export function useGetProduct(productId) {
   const URL = productId ? [endpoints.product.details, { params: { productId } }] : null;
 
-  const { data, isLoading, error, isValidating } = useSWR(URL, fetcher);
+  const { data, isLoading, error, isValidating } = useSWR(URL, fetcher, {
+    revalidateOnFocus: false,
+    revalidateOnReconnect: false,
+    shouldRetryOnError: false,
+    dedupingInterval: 5000,
+  });
 
   const memoizedValue = useMemo(
     () => ({

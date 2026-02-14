@@ -1,32 +1,32 @@
-import { useCallback, useState, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 // @mui
+import Box from '@mui/material/Box';
+import Button from '@mui/material/Button';
+import Card from '@mui/material/Card';
+import Container from '@mui/material/Container';
 import { alpha } from '@mui/material/styles';
 import Tab from '@mui/material/Tab';
-import Box from '@mui/material/Box';
 import Tabs from '@mui/material/Tabs';
-import Card from '@mui/material/Card';
-import Button from '@mui/material/Button';
-import Container from '@mui/material/Container';
-import Grid from '@mui/material/Unstable_Grid2';
 import Typography from '@mui/material/Typography';
+import Grid from '@mui/material/Unstable_Grid2';
 // routes
-import { paths } from 'src/routes/paths';
-import { useParams } from 'src/routes/hook';
-import { RouterLink } from 'src/routes/components';
 import { useGetProduct } from 'src/api/product';
+import { RouterLink } from 'src/routes/components';
+import { useParams } from 'src/routes/hook';
+import { paths } from 'src/routes/paths';
 // components
-import Iconify from 'src/components/iconify';
-import EmptyContent from 'src/components/empty-content';
-import { useSettingsContext } from 'src/components/settings';
 import CustomBreadcrumbs from 'src/components/custom-breadcrumbs';
+import EmptyContent from 'src/components/empty-content';
+import Iconify from 'src/components/iconify';
+import { useSettingsContext } from 'src/components/settings';
 //
-import { useCheckout } from '../hooks';
 import CartIcon from '../common/cart-icon';
-import ProductDetailsReview from '../product-details-review';
-import { ProductDetailsSkeleton } from '../product-skeleton';
-import ProductDetailsSummary from '../product-details-summary';
+import { useCheckout } from '../hooks';
 import ProductDetailsCarousel from '../product-details-carousel';
 import ProductDetailsDescription from '../product-details-description';
+import ProductDetailsReview from '../product-details-review';
+import ProductDetailsSummary from '../product-details-summary';
+import { ProductDetailsSkeleton } from '../product-skeleton';
 
 // ----------------------------------------------------------------------
 
@@ -302,15 +302,30 @@ export default function ProductShopDetailsView() {
 
   const [currentTab, setCurrentTab] = useState('description');
 
+  const [selectedColor, setSelectedColor] = useState('');
+
   const { product: apiProduct, productLoading, productError } = useGetProduct(`${id}`);
 
-  // Use dummy product if API doesn't return data
+  // Use dummy product if API doesn't return data - memoized to prevent recalculation
   const dummyProduct = useMemo(() => getDummyProductById(id), [id]);
-  const product = apiProduct || dummyProduct;
+
+  // Memoize the final product to prevent unnecessary re-renders
+  const product = useMemo(() => apiProduct || dummyProduct, [apiProduct, dummyProduct]);
 
   const handleChangeTab = useCallback((event, newValue) => {
     setCurrentTab(newValue);
   }, []);
+
+  const handleColorChange = useCallback((newColor) => {
+    setSelectedColor(newColor);
+  }, []);
+
+  // Initialize selected color when product loads - only run when product ID changes
+  useEffect(() => {
+    if (product?.colors?.length > 0) {
+      setSelectedColor(product.colors[0]);
+    }
+  }, [product?.id, product?.colors]);
 
   const renderSkeleton = <ProductDetailsSkeleton />;
 
@@ -348,7 +363,11 @@ export default function ProductShopDetailsView() {
 
       <Grid container spacing={{ xs: 3, md: 5, lg: 8 }}>
         <Grid xs={12} md={6} lg={7}>
-          <ProductDetailsCarousel product={product} />
+          <ProductDetailsCarousel
+            key={selectedColor}
+            product={product}
+            selectedColor={selectedColor}
+          />
         </Grid>
 
         <Grid xs={12} md={6} lg={5}>
@@ -357,6 +376,7 @@ export default function ProductShopDetailsView() {
             cart={checkout.cart}
             onAddCart={onAddCart}
             onGotoStep={onGotoStep}
+            onColorChange={handleColorChange}
           />
         </Grid>
       </Grid>
@@ -434,10 +454,10 @@ export default function ProductShopDetailsView() {
     >
       <CartIcon totalItems={checkout.totalItems} />
 
-      {productLoading && renderSkeleton}
+      {/* Show skeleton only if loading and no dummy product available yet */}
+      {productLoading && !dummyProduct && renderSkeleton}
 
-      {/* {productError && renderError} */}
-
+      {/* Show product immediately if dummy product is available, don't wait for API */}
       {product && renderProduct}
     </Container>
   );
