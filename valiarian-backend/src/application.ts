@@ -13,6 +13,9 @@ import path from 'path';
 import {JWTStrategy} from './authentication-strategy/jwt-strategy';
 import {EmailManagerBindings, FILE_UPLOAD_SERVICE, STORAGE_DIRECTORY} from './keys';
 import {MySequence} from './sequence';
+import {AuditService} from './services/audit.service';
+import {CacheService} from './services/cache.service';
+import {CMSService} from './services/cms.service';
 import {EmailService} from './services/email.service';
 import {BcryptHasher} from './services/hash.password.bcrypt';
 import {JWTService} from './services/jwt-service';
@@ -38,6 +41,10 @@ export class ValiarianBackendApplication extends BootMixin(
     // Set up default home page
     this.static('/', path.join(__dirname, '../public'));
 
+    // Serve uploaded media files
+    const uploadsPath = process.env.STORAGE_PATH || path.join(__dirname, '../uploads');
+    this.static('/media', path.join(uploadsPath, 'media'));
+
     // Customize @loopback/rest-explorer configuration here
     this.configure(RestExplorerBindings.COMPONENT).to({
       path: '/explorer',
@@ -61,6 +68,9 @@ export class ValiarianBackendApplication extends BootMixin(
   setUpBinding(): void {
     this.bind('service.hasher').toClass(BcryptHasher);
     this.bind('services.rbac').toClass(RbacService);
+    this.bind('services.cache').toClass(CacheService);
+    this.bind('services.cms').toClass(CMSService);
+    this.bind('services.audit').toClass(AuditService);
     this.bind('jwt.secret').to(process.env.JWT_SECRET!);
     this.bind('jwt.expiresIn').to(process.env.JWT_EXPIRES_IN ?? '7h');
     this.bind('service.jwt.service').toClass(JWTService);

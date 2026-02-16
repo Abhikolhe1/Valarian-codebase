@@ -1,3 +1,4 @@
+export * from './audit-log.model';
 export * from './content-version.model';
 export * from './media.model';
 export * from './navigation-menu.model';
