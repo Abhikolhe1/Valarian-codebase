@@ -50,4 +50,24 @@ export const endpoints = {
     details: '/api/product/details',
     search: '/api/product/search',
   },
+  cms: {
+    pages: {
+      list: '/api/cms/pages',
+      bySlug: (slug) => `/api/cms/pages/${slug}`,
+      byId: (id) => `/api/cms/pages/${id}`,
+      versions: (id) => `/api/cms/pages/${id}/versions`,
+    },
+    sections: {
+      list: '/api/cms/sections',
+      byId: (id) => `/api/cms/sections/${id}`,
+    },
+    media: {
+      list: '/api/cms/media',
+      byId: (id) => `/api/cms/media/${id}`,
+    },
+    navigation: {
+      byLocation: (location) => `/api/cms/navigation/${location}`,
+    },
+    settings: '/api/cms/settings',
+  },
 };

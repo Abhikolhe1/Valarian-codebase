@@ -17,6 +17,7 @@ import Scrollbar from 'src/components/scrollbar';
 import SvgColor from 'src/components/svg-color';
 // contexts
 import { useMobileMenu } from 'src/contexts/mobile-menu-context';
+// hooks
 //
 import NavItem from './nav-item';
 import NavList from './nav-list';
@@ -28,6 +29,9 @@ export default function NavMobile({ offsetTop, data, isTransparent }) {
   const { setIsMenuOpen } = useMobileMenu();
 
   const nav = useBoolean();
+
+  // Fetch mobile navigation from CMS
+  const { navigation: mobileNavigation, isLoading: navLoading } = useMobileNavigation();
 
   // Sync menu state with context
   useEffect(() => {
