@@ -13,7 +13,11 @@ import IconButton from '@mui/material/IconButton';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 // components
+import { Divider } from '@mui/material';
+import { useState } from 'react';
 import Iconify from 'src/components/iconify';
+import CMSTemplateLibraryDialog from './cms-template-library-dialog';
+//
 
 // ----------------------------------------------------------------------
 
@@ -71,82 +75,150 @@ const SECTION_TYPES = [
 // ----------------------------------------------------------------------
 
 export default function CMSSectionTypeSelector({ open, onClose, onSelect }) {
+  const [templateLibraryOpen, setTemplateLibraryOpen] = useState(false);
+
   const handleSelectType = (type) => {
     onSelect(type);
     onClose();
   };
 
+  const handleOpenTemplateLibrary = () => {
+    setTemplateLibraryOpen(true);
+  };
+
+  const handleCloseTemplateLibrary = () => {
+    setTemplateLibraryOpen(false);
+  };
+
+  const handleSelectTemplate = (template) => {
+    // Pass template data to parent
+    onSelect(template.type, template);
+    onClose();
+  };
+
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
-      <DialogTitle>
-        <Stack direction="row" alignItems="center" justifyContent="space-between">
-          <Typography variant="h6">Choose Section Type</Typography>
-          <IconButton onClick={onClose}>
-            <Iconify icon="mingcute:close-line" />
-          </IconButton>
-        </Stack>
-      </DialogTitle>
+    <>
+      <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
+        <DialogTitle>
+          <Stack direction="row" alignItems="center" justifyContent="space-between">
+            <Typography variant="h6">Choose Section Type</Typography>
+            <IconButton onClick={onClose}>
+              <Iconify icon="mingcute:close-line" />
+            </IconButton>
+          </Stack>
+        </DialogTitle>
 
-      <DialogContent>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-          Select a section type to add to your page
-        </Typography>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+            Select a section type to add to your page
+          </Typography>
 
-        <Grid container spacing={2}>
-          {SECTION_TYPES.map((section) => (
-            <Grid item xs={12} sm={6} md={4} key={section.type}>
-              <Card
-                sx={{
-                  height: '100%',
-                  transition: 'all 0.2s',
-                  '&:hover': {
-                    boxShadow: 8,
-                    transform: 'translateY(-4px)',
-                  },
-                }}
-              >
-                <CardActionArea onClick={() => handleSelectType(section.type)}>
+          {/* Template Library Button */}
+          <Card
+            sx={{
+              mb: 3,
+              bgcolor: 'primary.lighter',
+              border: (theme) => `2px dashed ${theme.palette.primary.main}`,
+            }}
+          >
+            <CardActionArea onClick={handleOpenTemplateLibrary}>
+              <CardContent>
+                <Stack direction="row" alignItems="center" spacing={2}>
                   <Box
                     sx={{
-                      height: 120,
-                      bgcolor: `${section.color}.lighter`,
+                      width: 56,
+                      height: 56,
+                      borderRadius: 1,
+                      bgcolor: 'primary.main',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      position: 'relative',
-                      overflow: 'hidden',
                     }}
                   >
-                    <Iconify
-                      icon={section.icon}
-                      width={64}
-                      sx={{
-                        color: `${section.color}.main`,
-                        opacity: 0.8,
-                      }}
-                    />
+                    <Iconify icon="solar:library-bold" width={32} sx={{ color: 'white' }} />
                   </Box>
-                  <CardContent>
+                  <Box sx={{ flex: 1 }}>
                     <Typography variant="subtitle1" gutterBottom>
-                      {section.label}
+                      Browse Template Library
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
-                      {section.description}
+                      Choose from pre-built templates to quickly add sections
                     </Typography>
-                  </CardContent>
-                </CardActionArea>
-              </Card>
-            </Grid>
-          ))}
-        </Grid>
+                  </Box>
+                  <Iconify icon="solar:alt-arrow-right-bold" width={24} />
+                </Stack>
+              </CardContent>
+            </CardActionArea>
+          </Card>
 
-        <Box sx={{ mt: 3, textAlign: 'right' }}>
-          <Button onClick={onClose} color="inherit">
-            Cancel
-          </Button>
-        </Box>
-      </DialogContent>
-    </Dialog>
+          <Divider sx={{ mb: 3 }}>
+            <Typography variant="caption" color="text.secondary">
+              OR START FROM SCRATCH
+            </Typography>
+          </Divider>
+
+          <Grid container spacing={2}>
+            {SECTION_TYPES.map((section) => (
+              <Grid item xs={12} sm={6} md={4} key={section.type}>
+                <Card
+                  sx={{
+                    height: '100%',
+                    transition: 'all 0.2s',
+                    '&:hover': {
+                      boxShadow: 8,
+                      transform: 'translateY(-4px)',
+                    },
+                  }}
+                >
+                  <CardActionArea onClick={() => handleSelectType(section.type)}>
+                    <Box
+                      sx={{
+                        height: 120,
+                        bgcolor: `${section.color}.lighter`,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        position: 'relative',
+                        overflow: 'hidden',
+                      }}
+                    >
+                      <Iconify
+                        icon={section.icon}
+                        width={64}
+                        sx={{
+                          color: `${section.color}.main`,
+                          opacity: 0.8,
+                        }}
+                      />
+                    </Box>
+                    <CardContent>
+                      <Typography variant="subtitle1" gutterBottom>
+                        {section.label}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        {section.description}
+                      </Typography>
+                    </CardContent>
+                  </CardActionArea>
+                </Card>
+              </Grid>
+            ))}
+          </Grid>
+
+          <Box sx={{ mt: 3, textAlign: 'right' }}>
+            <Button onClick={onClose} color="inherit">
+              Cancel
+            </Button>
+          </Box>
+        </DialogContent>
+      </Dialog>
+
+      <CMSTemplateLibraryDialog
+        open={templateLibraryOpen}
+        onClose={handleCloseTemplateLibrary}
+        onSelect={handleSelectTemplate}
+      />
+    </>
   );
 }
 

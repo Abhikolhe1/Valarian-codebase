@@ -40,15 +40,20 @@ const SECTION_TITLES = {
 
 // ----------------------------------------------------------------------
 
-export default function CMSSectionEditor({ open, onClose, section, sectionType, pageId, onSave }) {
+export default function CMSSectionEditor({ open, onClose, section, sectionType, template, pageId, onSave }) {
   const { enqueueSnackbar } = useSnackbar();
   const [isSaving, setIsSaving] = useState(false);
 
   const type = section?.type || sectionType;
   const EditorComponent = SECTION_EDITORS[type];
-  const title = section
-    ? `Edit ${SECTION_TITLES[type] || 'Section'}`
-    : `Create ${SECTION_TITLES[type] || 'Section'}`;
+
+  // Determine title based on context
+  let title = `Create ${SECTION_TITLES[type] || 'Section'}`;
+  if (section) {
+    title = `Edit ${SECTION_TITLES[type] || 'Section'}`;
+  } else if (template) {
+    title = `Create from Template: ${template.name}`;
+  }
 
   const handleSave = useCallback(
     async (sectionData) => {
@@ -108,6 +113,15 @@ export default function CMSSectionEditor({ open, onClose, section, sectionType, 
     return null;
   }
 
+  // Merge template default content with section data if template is provided
+  const initialSection = template
+    ? {
+      ...section,
+      type: template.type,
+      content: template.defaultContent,
+    }
+    : section;
+
   return (
     <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
       <DialogTitle>
@@ -120,7 +134,7 @@ export default function CMSSectionEditor({ open, onClose, section, sectionType, 
       </DialogTitle>
 
       <DialogContent>
-        <EditorComponent section={section} onSave={handleSave} onCancel={handleCancel} />
+        <EditorComponent section={initialSection} onSave={handleSave} onCancel={handleCancel} />
       </DialogContent>
     </Dialog>
   );
@@ -131,6 +145,11 @@ CMSSectionEditor.propTypes = {
   onClose: PropTypes.func,
   section: PropTypes.object,
   sectionType: PropTypes.string,
+  template: PropTypes.shape({
+    name: PropTypes.string,
+    type: PropTypes.string,
+    defaultContent: PropTypes.object,
+  }),
   pageId: PropTypes.string,
   onSave: PropTypes.func,
 };

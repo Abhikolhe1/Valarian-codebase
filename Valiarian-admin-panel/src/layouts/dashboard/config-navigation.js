@@ -98,6 +98,8 @@ export function useNavData() {
             children: [
               { title: t('Pages'), path: paths.dashboard.cms.pages.list },
               { title: t('Media Library'), path: paths.dashboard.cms.media.list },
+              { title: t('Navigation'), path: paths.dashboard.cms.navigation.root },
+              { title: t('Settings'), path: paths.dashboard.cms.settings.root },
             ],
           },
           // USER

@@ -56,6 +56,8 @@ const CMSPagesListPage = lazy(() => import('src/pages/dashboard/cms/pages-list')
 const CMSPageCreatePage = lazy(() => import('src/pages/dashboard/cms/pages-new'));
 const CMSPageEditPage = lazy(() => import('src/pages/dashboard/cms/pages-edit'));
 const CMSMediaListPage = lazy(() => import('src/pages/dashboard/cms/media-list'));
+const CMSNavigationPage = lazy(() => import('src/pages/dashboard/cms/navigation'));
+const CMSSettingsPage = lazy(() => import('src/pages/dashboard/cms/settings'));
 // FILE MANAGER
 const FileManagerPage = lazy(() => import('src/pages/dashboard/file-manager'));
 // APP
@@ -178,6 +180,14 @@ export const dashboardRoutes = [
               { element: <CMSMediaListPage />, index: true },
               { path: 'list', element: <CMSMediaListPage /> },
             ],
+          },
+          {
+            path: 'navigation',
+            element: <CMSNavigationPage />,
+          },
+          {
+            path: 'settings',
+            element: <CMSSettingsPage />,
           },
         ],
       },

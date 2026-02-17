@@ -37,6 +37,7 @@ import Iconify from 'src/components/iconify';
 import { useSnackbar } from 'src/components/snackbar';
 import { useRouter } from 'src/routes/hook';
 import CMSSectionList from './cms-section-list';
+import CMSVersionHistoryDialog from './cms-version-history-dialog';
 //
 
 // ----------------------------------------------------------------------
@@ -61,6 +62,7 @@ export default function CMSPageNewEditForm({ currentPage }) {
   const deleteConfirm = useBoolean();
   const duplicateDialog = useBoolean();
   const previewDialog = useBoolean();
+  const versionHistoryDialog = useBoolean();
 
   const [duplicateName, setDuplicateName] = useState('');
   const [isPublishing, setIsPublishing] = useState(false);
@@ -315,6 +317,24 @@ export default function CMSPageNewEditForm({ currentPage }) {
     }
   }, [currentPage, enqueueSnackbar, deleteConfirm, router]);
 
+  const handleVersionRevert = useCallback((revertedPage) => {
+    // Refresh the page data after reverting
+    reset({
+      title: revertedPage.title || '',
+      slug: revertedPage.slug || '',
+      description: revertedPage.description || '',
+      status: revertedPage.status || 'draft',
+      scheduledAt: revertedPage.scheduledAt || null,
+      seoTitle: revertedPage.seoTitle || '',
+      seoDescription: revertedPage.seoDescription || '',
+      seoKeywords: revertedPage.seoKeywords || [],
+      ogImage: revertedPage.ogImage || '',
+    });
+    // Refresh sections
+    fetchSections();
+    enqueueSnackbar('Page reverted successfully!');
+  }, [reset, fetchSections, enqueueSnackbar]);
+
   const renderBasicInfo = (
     <>
       {mdUp && (
@@ -493,6 +513,15 @@ export default function CMSPageNewEditForm({ currentPage }) {
               <Button
                 color="inherit"
                 variant="outlined"
+                startIcon={<Iconify icon="solar:history-bold" />}
+                onClick={versionHistoryDialog.onTrue}
+              >
+                Version History
+              </Button>
+
+              <Button
+                color="inherit"
+                variant="outlined"
                 startIcon={<Iconify icon="solar:eye-bold" />}
                 onClick={previewDialog.onTrue}
               >
@@ -665,6 +694,16 @@ export default function CMSPageNewEditForm({ currentPage }) {
           </Box>
         </DialogContent>
       </Dialog>
+
+      {/* Version History Dialog */}
+      {currentPage && (
+        <CMSVersionHistoryDialog
+          open={versionHistoryDialog.value}
+          onClose={versionHistoryDialog.onFalse}
+          pageId={currentPage.id}
+          onRevert={handleVersionRevert}
+        />
+      )}
     </>
   );
 }

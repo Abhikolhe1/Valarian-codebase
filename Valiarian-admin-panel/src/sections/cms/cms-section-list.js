@@ -15,6 +15,7 @@ import { DragDropContext, Draggable, Droppable } from '@hello-pangea/dnd';
 import { Button } from '@mui/material';
 import Iconify from 'src/components/iconify';
 import { useSnackbar } from 'src/components/snackbar';
+import CMSSaveTemplateDialog from './cms-save-template-dialog';
 import CMSSectionEditor from './cms-section-editor';
 import CMSSectionTypeSelector from './cms-section-type-selector';
 //
@@ -63,6 +64,9 @@ export default function CMSSectionList({ pageId, sections, onSectionsChange }) {
   const [editorOpen, setEditorOpen] = useState(false);
   const [selectedSection, setSelectedSection] = useState(null);
   const [selectedType, setSelectedType] = useState(null);
+  const [selectedTemplate, setSelectedTemplate] = useState(null);
+  const [saveTemplateOpen, setSaveTemplateOpen] = useState(false);
+  const [sectionToSave, setSectionToSave] = useState(null);
 
   const handleDragEnd = useCallback(
     async (result) => {
@@ -173,11 +177,28 @@ export default function CMSSectionList({ pageId, sections, onSectionsChange }) {
     setTypeSelectorOpen(true);
   }, []);
 
-  const handleTypeSelect = useCallback((type) => {
-    setSelectedType(type);
+  const handleTypeSelect = useCallback((type, template) => {
+    if (template) {
+      // User selected a template
+      setSelectedTemplate(template);
+      setSelectedType(type);
+    } else {
+      // User selected a blank section type
+      setSelectedType(type);
+      setSelectedTemplate(null);
+    }
     setSelectedSection(null);
     setEditorOpen(true);
   }, []);
+
+  const handleSaveAsTemplate = useCallback((section) => {
+    setSectionToSave(section);
+    setSaveTemplateOpen(true);
+  }, []);
+
+  const handleTemplateSaved = useCallback(() => {
+    enqueueSnackbar('Template saved successfully!');
+  }, [enqueueSnackbar]);
 
   const handleSectionSaved = useCallback(
     (savedSection) => {
@@ -321,6 +342,7 @@ export default function CMSSectionList({ pageId, sections, onSectionsChange }) {
                         onToggleEnabled={handleToggleEnabled}
                         onEdit={handleEditSection}
                         onDelete={handleDeleteSection}
+                        onSaveAsTemplate={handleSaveAsTemplate}
                         getSectionTypeConfig={getSectionTypeConfig}
                       />
                     )}
@@ -352,8 +374,16 @@ export default function CMSSectionList({ pageId, sections, onSectionsChange }) {
         onClose={handleCloseEditor}
         section={selectedSection}
         sectionType={selectedType}
+        template={selectedTemplate}
         pageId={pageId}
         onSave={handleSectionSaved}
+      />
+
+      <CMSSaveTemplateDialog
+        open={saveTemplateOpen}
+        onClose={() => setSaveTemplateOpen(false)}
+        section={sectionToSave}
+        onSave={handleTemplateSaved}
       />
     </>
   );
@@ -375,6 +405,7 @@ const SectionItem = ({
   onToggleEnabled,
   onEdit,
   onDelete,
+  onSaveAsTemplate,
   getSectionTypeConfig,
   innerRef,
 }) => {
@@ -465,13 +496,23 @@ const SectionItem = ({
             size="small"
             onClick={() => onEdit(section.id)}
             sx={{ color: 'text.secondary' }}
+            title="Edit section"
           >
             <Iconify icon="solar:pen-bold" width={20} />
           </IconButton>
           <IconButton
             size="small"
+            onClick={() => onSaveAsTemplate(section)}
+            sx={{ color: 'info.main' }}
+            title="Save as template"
+          >
+            <Iconify icon="solar:diskette-bold" width={20} />
+          </IconButton>
+          <IconButton
+            size="small"
             onClick={() => onDelete(section.id)}
             sx={{ color: 'error.main' }}
+            title="Delete section"
           >
             <Iconify icon="solar:trash-bin-trash-bold" width={20} />
           </IconButton>
@@ -489,6 +530,7 @@ SectionItem.propTypes = {
   onToggleEnabled: PropTypes.func,
   onEdit: PropTypes.func,
   onDelete: PropTypes.func,
+  onSaveAsTemplate: PropTypes.func,
   getSectionTypeConfig: PropTypes.func,
   innerRef: PropTypes.any,
 };

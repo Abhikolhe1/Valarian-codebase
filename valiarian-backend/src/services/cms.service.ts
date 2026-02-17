@@ -539,4 +539,117 @@ export class CMSService {
 
     return this.reorderSections(sectionOrders);
   }
+
+  /**
+   * Get version history for a page
+   * Returns all versions ordered by version number (latest first)
+   * @param pageId - The page ID
+   * @returns Array of content versions
+   */
+  async getVersionHistory(pageId: string): Promise<ContentVersion[]> {
+    // Verify page exists
+    await this.pageRepository.findById(pageId);
+
+    // Fetch all versions for this page, ordered by version descending
+    return this.contentVersionRepository.find({
+      where: {pageId},
+      order: ['version DESC'],
+    });
+  }
+
+  /**
+   * Revert a page to a specific version
+   * Restores the page and sections from the version snapshot
+   * Creates a new version after reverting
+   * @param pageId - The page ID to revert
+   * @param versionNumber - The version number to revert to
+   * @param userId - The user performing the action
+   * @param comment - Optional comment for the new version
+   * @returns The reverted page
+   */
+  async revertToVersion(
+    pageId: string,
+    versionNumber: number,
+    userId?: string,
+    comment?: string,
+  ): Promise<Page> {
+    // Verify page exists
+    const currentPage = await this.pageRepository.findById(pageId);
+
+    // Find the version to revert to
+    const version = await this.contentVersionRepository.findOne({
+      where: {
+        pageId,
+        version: versionNumber,
+      },
+    });
+
+    if (!version) {
+      throw new HttpErrors.NotFound(
+        `Version ${versionNumber} not found for page ${pageId}`,
+      );
+    }
+
+    // Extract page data from version snapshot
+    const versionContent = version.content as any;
+    const pageData = versionContent.page;
+    const sectionsData = versionContent.sections || [];
+
+    // Create version snapshot of current state before reverting
+    await this.createVersion(
+      pageId,
+      userId,
+      comment || `Reverting to version ${versionNumber}`,
+    );
+
+    // Update page with data from version
+    const now = new Date();
+    await this.pageRepository.updateById(pageId, {
+      slug: pageData.slug,
+      title: pageData.title,
+      description: pageData.description,
+      status: pageData.status,
+      seoTitle: pageData.seoTitle,
+      seoDescription: pageData.seoDescription,
+      seoKeywords: pageData.seoKeywords,
+      ogImage: pageData.ogImage,
+      ogImageAlt: pageData.ogImageAlt,
+      structuredData: pageData.structuredData,
+      version: currentPage.version + 1, // Increment version
+      updatedAt: now,
+      updatedBy: userId,
+    });
+
+    // Delete all current sections
+    const currentSections = await this.sectionRepository.find({
+      where: {pageId},
+    });
+
+    for (const section of currentSections) {
+      await this.sectionRepository.deleteById(section.id);
+    }
+
+    // Restore sections from version
+    for (const sectionData of sectionsData) {
+      const restoredSection = new Section({
+        id: uuidv4(),
+        pageId: pageId,
+        type: sectionData.type,
+        name: sectionData.name,
+        order: sectionData.order,
+        enabled: sectionData.enabled,
+        content: sectionData.content,
+        settings: sectionData.settings,
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      await this.sectionRepository.create(restoredSection);
+    }
+
+    // Return the reverted page with sections
+    return this.pageRepository.findById(pageId, {
+      include: [{relation: 'sections'}],
+    });
+  }
 }
