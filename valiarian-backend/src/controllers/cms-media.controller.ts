@@ -342,9 +342,115 @@ export class CMSMediaController {
 
   @authenticate('jwt')
   @authorize({roles: ['super_admin', 'admin', 'editor']})
-  @get('/api/cms/media/folders/list')
+  @get('/api/cms/media/folders')
   @response(200, {
     description: 'List of unique folders',
+    content: {
+      'application/json': {
+        schema: {
+          type: 'object',
+          properties: {
+            folders: {
+              type: 'array',
+              items: {type: 'string'},
+            },
+          },
+        },
+      },
+    },
+  })
+  async listFolders(): Promise<{folders: string[]}> {
+    // Get distinct folders from media
+    const media = await this.mediaRepository.find({
+      fields: {folder: true},
+    });
+
+    // Extract unique folders
+    const folders = new Set<string>();
+    media.forEach(m => {
+      if (m.folder && m.folder !== '/') {
+        folders.add(m.folder);
+      }
+    });
+
+    return {folders: Array.from(folders).sort()};
+  }
+
+  @authenticate('jwt')
+  @authorize({roles: ['super_admin', 'admin', 'editor']})
+  @post('/api/cms/media/bulk-move')
+  @response(200, {
+    description: 'Bulk move media to folder',
+    content: {
+      'application/json': {
+        schema: {
+          type: 'object',
+          properties: {
+            success: {type: 'boolean'},
+            message: {type: 'string'},
+            moved: {type: 'number'},
+          },
+        },
+      },
+    },
+  })
+  async bulkMove(
+    @inject(AuthenticationBindings.CURRENT_USER) currentUser: UserProfile,
+    @requestBody({
+      content: {
+        'application/json': {
+          schema: {
+            type: 'object',
+            required: ['mediaIds', 'folder'],
+            properties: {
+              mediaIds: {
+                type: 'array',
+                items: {type: 'string'},
+              },
+              folder: {type: 'string'},
+            },
+          },
+        },
+      },
+    })
+    body: {mediaIds: string[]; folder: string},
+  ): Promise<{success: boolean; message: string; moved: number}> {
+    if (!body.mediaIds || body.mediaIds.length === 0) {
+      throw new HttpErrors.BadRequest('No media IDs provided');
+    }
+
+    if (!body.folder) {
+      throw new HttpErrors.BadRequest('No folder specified');
+    }
+
+    const now = new Date();
+    let moved = 0;
+
+    // Update folder for each media item
+    for (const mediaId of body.mediaIds) {
+      try {
+        await this.mediaRepository.updateById(mediaId, {
+          folder: body.folder,
+          updatedAt: now,
+        });
+        moved++;
+      } catch (error) {
+        console.error(`Failed to move media ${mediaId}:`, error);
+      }
+    }
+
+    return {
+      success: true,
+      message: `Successfully moved ${moved} media files to ${body.folder}`,
+      moved,
+    };
+  }
+
+  @authenticate('jwt')
+  @authorize({roles: ['super_admin', 'admin', 'editor']})
+  @get('/api/cms/media/folders/list')
+  @response(200, {
+    description: 'List of unique folders (deprecated, use /api/cms/media/folders)',
     content: {
       'application/json': {
         schema: {
@@ -354,7 +460,7 @@ export class CMSMediaController {
       },
     },
   })
-  async listFolders(): Promise<string[]> {
+  async listFoldersDeprecated(): Promise<string[]> {
     // Get distinct folders from media
     const media = await this.mediaRepository.find({
       fields: {folder: true},

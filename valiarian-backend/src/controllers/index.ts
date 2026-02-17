@@ -2,7 +2,7 @@ export * from './audit-log.controller';
 export * from './auth.controller';
 export * from './cms-media.controller';
 export * from './cms-navigation.controller';
-// export * from './cms-pages.controller'; // Temporarily disabled due to file corruption
+export * from './cms-pages.controller';
 export * from './cms-sections.controller';
 export * from './cms-settings.controller';
 export * from './cms-template.controller';

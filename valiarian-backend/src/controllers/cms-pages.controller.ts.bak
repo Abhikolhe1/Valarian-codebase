@@ -1,0 +1,553 @@
+import {authenticate, AuthenticationBindings} from '@loopback/authentication';
+import {inject} from '@loopback/core';
+import {Filter, FilterExcludingWhere, repository} from '@loopback/repository';
+import {
+  get,
+  getModelSchemaRef,
+  HttpErrors,
+  param,
+  post,
+  patch,
+  requestBody,
+  response,
+} from '@loopback/rest';
+import {UserProfile} from '@loopback/security';
+import {v4 as uuidv4} from 'uuid';
+import {authorize} from '../authorization';
+import {Page} from '../models';
+import {PageRepository} from '../repositories';
+import {CacheService} from '../services/cache.service';
+import {CMSService} from '../services/cms.service';
+
+export class CMSPageController {
+  constructor(
+    @repository(PageRepository)
+    public pageRepository: PageRepository,
+    @inject('services.cache')
+    public cacheService: CacheService,
+    @inject('services.cms')
+    public cmsService: CMSService,
+  ) {}
+
+  @get('/api/cms/pages')
+  @response(200, {
+    description: 'Array of Page model instances',
+    content: {
+      'application/json': {
+        schema: {
+          type: 'object',
+          properties: {
+            data: {
+              type: 'array',
+              items: getModelSchemaRef(Page, {includeRelations: true}),
+            },
+            total: {type: 'number'},
+            page: {type: 'number'},
+            pageSize: {type: 'number'},
+          },
+        },
+      },
+    },
+  })
+  async find(
+    @param.filter(Page) filter?: Filter<Page>,
+    @param.query.string('status') status?: string,
+    @param.query.string('search') search?: string,
+    @param.query.number('page') page: number = 1,
+    @param.query.number('pageSize') pageSize: number = 10,
+  ): Promise<{
+    data: Page[];
+    total: number;
+    page: number;
+    pageSize: number;
+  }> {
+    const where: any = filter?.where || {};
+    if (status) {
+      where.status = status;
+    }
+    if (search) {
+      where.or = [
+        {title: {like: `%${search}%`, options: 'i'}},
+        {slug: {like: `%${search}%`, options: 'i'}},
+        {description: {like: `%${search}%`, options: 'i'}},
+      ];
+    }
+    const skip = (page - 1) * pageSize;
+    const limit = pageSize;
+    const finalFilter: Filter<Page> = {
+      ...filter,
+      where,
+      skip,
+      limit,
+      order: filter?.order || ['createdAt DESC'],
+    };
+    const total = await this.pageRepository.count(where);
+    const pages = await this.pageRepository.find(finalFilter);
+    return {
+      data: pages,
+      total: total.count,
+      page,
+      pageSize,
+    };
+  }
+
+  @get('/api/cms/pages/slug/{slug}')
+  @response(200, {
+    description: 'Page model instance by slug',
+    content: {
+      'application/json': {
+        schema: getModelSchemaRef(Page, {includeRelations: true}),
+      },
+    },
+  })
+  async findBySlug(
+    @param.path.string('slug') slug: string,
+    @param.query.boolean('includeSections') includeSections: boolean = true,
+  ): Promise<Page> {
+    const cachedPage = await this.cacheService.getCachedPage(slug);
+    if (cachedPage) {
+      return cachedPage;
+    }
+    const page = await this.pageRepository.findBySlug(slug, includeSections);
+    if (!page) {
+      throw new HttpErrors.NotFound(`Page with slug "${slug}" not found`);
+    }
+    if (page.status !== 'published') {
+      throw new HttpErrors.NotFound(`Page with slug "${slug}" not found`);
+    }
+    await this.cacheService.cachePage(slug, page);
+    return page;
+  }
+
+  @authenticate('jwt')
+  @authorize({roles: ['super_admin', 'admin', 'editor']})
+  @get('/api/cms/pages/{id}')
+  @response(200, {
+    description: 'Page model instance by ID',
+    content: {
+      'application/json': {
+        schema: getModelSchemaRef(Page, {includeRelations: true}),
+      },
+    },
+  })
+  async findById(
+    @param.path.string('id') id: string,
+    @param.filter(Page, {exclude: 'where'})
+    filter?: FilterExcludingWhere<Page>,
+  ): Promise<Page> {
+    const cachedPage = await this.cacheService.getCachedPageById(id);
+    if (cachedPage) {
+      return cachedPage;
+    }
+    const finalFilter: FilterExcludingWhere<Page> = filter || {
+      include: [
+        {
+          relation: 'sections',
+          scope: {
+            order: ['order ASC'],
+          },
+        },
+      ],
+    };
+    const page = await this.pageRepository.findById(id, finalFilter);
+    if (!page) {
+      throw new HttpErrors.NotFound(`Page with id "${id}" not found`);
+    }
+    await this.cacheService.cachePageById(id, page);
+    return page;
+  }
+
+  @authenticate('jwt')
+  @authorize({roles: ['super_admin', 'admin', 'editor']})
+  @post('/api/cms/pages')
+  @response(201, {
+    description: 'Page model instance created',
+    content: {
+      'application/json': {
+        schema: getModelSchemaRef(Page, {includeRelations: true}),
+      },
+    },
+  })
+  async create(
+    @inject(AuthenticationBindings.CURRENT_USER) currentUser: UserProfile,
+    @requestBody({
+      content: {
+        'application/json': {
+          schema: {
+            type: 'object',
+            required: ['slug', 'title'],
+            properties: {
+              slug: {type: 'string', minLength: 1, maxLength: 255},
+              title: {type: 'string', minLength: 1, maxLength: 500},
+              description: {type: 'string'},
+              status: {
+                type: 'string',
+                enum: ['draft', 'published', 'scheduled', 'archived'],
+                default: 'draft',
+              },
+              scheduledAt: {type: 'string', format: 'date-time'},
+              seoTitle: {type: 'string', maxLength: 500},
+              seoDescription: {type: 'string'},
+              seoKeywords: {type: 'array', items: {type: 'string'}},
+              ogImage: {type: 'string'},
+              ogImageAlt: {type: 'string', maxLength: 255},
+              structuredData: {type: 'object'},
+            },
+          },
+        },
+      },
+    })
+    pageData: Omit<
+      Page,
+      | 'id'
+      | 'version'
+      | 'createdAt'
+      | 'updatedAt'
+      | 'createdBy'
+      | 'updatedBy'
+    >,
+  ): Promise<Page> {
+    const existingPage = await this.pageRepository.findBySlug(pageData.slug);
+    if (existingPage) {
+      throw new HttpErrors.BadRequest(`A page with slug "${pageData.slug}" already exists`
+      );
+    }
+    if (pageData.status === 'scheduled') {
+      if (!pageData.scheduledAt) {
+        throw new HttpErrors.BadRequest(
+          'scheduledAt is required when status is "scheduled"',
+        );
+      }
+      const scheduledDate = new Date(pageData.scheduledAt);
+      if (scheduledDate <= new Date()) {
+        throw new HttpErrors.BadRequest('scheduledAt must be a future date');
+      }
+    }
+    const now = new Date();
+    const newPage = new Page({
+      id: uuidv4(),
+      ...pageData,
+      status: pageData.status || 'draft',
+      version: 1,
+      createdAt: now,
+      updatedAt: now,
+      createdBy: currentUser.id,
+      updatedBy: currentUser.id,
+    });
+    const createdPage = await this.pageRepository.create(newPage);
+    await this.cmsService.createVersion(
+      createdPage.id,
+      currentUser.id,
+      'Initial version',
+    );
+    return this.pageRepository.findById(createdPage.id, {
+      include: [{relation: 'sections'}],
+    });
+  }
+
+  @authenticate('jwt')
+  @authorize({roles: ['super_admin', 'admin', 'editor']})
+  @patch('/api/cms/pages/{id}')
+  @response(200, {
+    description: 'Page model instance updated',
+    content: {
+      'application/json': {
+        schema: getModelSchemaRef(Page, {includeRelations: true}),
+      },
+    },
+  })
+  async updateById(
+    @inject(AuthenticationBindings.CURRENT_USER) currentUser: UserProfile,
+    @param.path.string('id') id: string,
+    @requestBody({
+      content: {
+        'application/json': {
+          schema: {
+            type: 'object',
+            properties: {
+              slug: {type: 'string', minLength: 1, maxLength: 255},
+              title: {type: 'string', minLength: 1, maxLength: 500},
+              description: {type: 'string'},
+              status: {
+                type: 'string',
+                enum: ['draft', 'published', 'scheduled', 'archived'],
+              },
+              scheduledAt: {type: 'string', format: 'date-time'},
+              seoTitle: {type: 'string', maxLength: 500},
+              seoDescription: {type: 'string'},
+              seoKeywords: {type: 'array', items: {type: 'string'}},
+              ogImage: {type: 'string'},
+              ogImageAlt: {type: 'string', maxLength: 255},
+              structuredData: {type: 'object'},
+            },
+          },
+        },
+      },
+    })
+    pageData: Partial<Page>,
+    @param.query.string('comment') comment?: string,
+  ): Promise<Page> {
+    const existingPage = await this.pageRepository.findById(id);
+    if (!existingPage) {
+      throw new HttpErrors.NotFound(`Page with id "${id}" not found`);
+    }
+    if (pageData.slug && pageData.slug !== existingPage.slug) {
+      const pageWithSlug = await this.pageRepository.findBySlug(pageData.slug);
+      if (pageWithSlug) {
+        throw new HttpErrors.BadRequest(`A page with slug "${pageData.slug}" already exists`
+        );
+      }
+    }
+    if (pageData.status === 'scheduled') {
+      const scheduledAt = pageData.scheduledAt || existingPage.scheduledAt;
+      if (!scheduledAt) {
+        throw new HttpErrors.BadRequest(
+          'scheduledAt is required when status is "scheduled"',
+        );
+      }
+      const scheduledDate = new Date(scheduledAt);
+      if (scheduledDate <= new Date()) {
+        throw new HttpErrors.BadRequest('scheduledAt must be a future date');
+      }
+    }
+    if (pageData.status && pageData.status !== existingPage.status) {
+      const isValidTransition = this.cmsService.validateStatusTransition(
+        existingPage.status,
+        pageData.status,
+      );
+      if (!isValidTransition) {
+        throw new HttpErrors.BadRequest(`Invalid status transition from "${existingPage.status}" to "${pageData.status}",
+        );
+      }
+    }
+    await this.cmsService.updatePageWithVersion(
+      id,
+      pageData,
+      currentUser.id,
+      comment,
+    );
+    await this.cacheService.invalidatePage(id, existingPage.slug);
+    if (pageData.slug && pageData.slug !== existingPage.slug) {
+      await this.cacheService.invalidatePage(id, pageData.slug);
+    }
+    return this.pageRepository.findById(id, {
+      include: [{relation: 'sections'}],
+    });
+  }
+
+  @authenticate('jwt')
+  @authorize({roles: ['super_admin', 'admin', 'editor']})
+  @post('/api/cms/pages/{id}/publish')
+  @response(200, {
+    description: 'Page published successfully',
+    content: {
+      'application/json': {
+        schema: getModelSchemaRef(Page, {includeRelations: true}),
+      },
+    },
+  })
+  async publish(
+    @inject(AuthenticationBindings.CURRENT_USER) currentUser: UserProfile,
+    @param.path.string('id') id: string,
+    @requestBody({
+      content: {
+        'application/json': {
+          schema: {
+            type: 'object',
+            properties: {
+              comment: {type: 'string'},
+            },
+          },
+        },
+      },
+    })
+    body?: {comment?: string},
+  ): Promise<Page> {
+    const publishedPage = await this.cmsService.publishPage(
+      id,
+      currentUser.id,
+      body?.comment,
+    );
+    await this.cacheService.invalidatePage(id, publishedPage.slug);
+    return this.pageRepository.findById(id, {
+      include: [{relation: 'sections'}],
+    });
+  }
+
+  @authenticate('jwt')
+  @authorize({roles: ['super_admin', 'admin', 'editor']})
+  @post('/api/cms/pages/{id}/duplicate')
+  @response(201, {
+    description: 'Page duplicated successfully',
+    content: {
+      'application/json': {
+        schema: getModelSchemaRef(Page, {includeRelations: true}),
+      },
+    },
+  })
+  async duplicate(
+    @inject(AuthenticationBindings.CURRENT_USER) currentUser: UserProfile,
+    @param.path.string('id') id: string,
+    @requestBody({
+      content: {
+        'application/json': {
+          schema: {
+            type: 'object',
+            required: ['newSlug'],
+            properties: {
+              newSlug: {type: 'string', minLength: 1, maxLength: 255},
+              newTitle: {type: 'string', maxLength: 500},
+            },
+          },
+        },
+      },
+    })
+    body: {newSlug: string; newTitle?: string},
+  ): Promise<Page> {
+    const duplicatedPage = await this.cmsService.duplicatePage(
+      id,
+      body.newSlug,
+      body.newTitle,
+      currentUser.id,
+    );
+    return duplicatedPage;
+  }
+
+  @authenticate('jwt')
+  @authorize({roles: ['super_admin', 'admin', 'editor']})
+  @get('/api/cms/pages/{id}/versions')
+  @response(200, {
+    description: 'Array of page versions',
+    content: {
+      'application/json': {
+        schema: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              id: {type: 'string'},
+              pageId: {type: 'string'},
+              version: {type: 'number'},
+              content: {type: 'object'},
+              comment: {type: 'string'},
+              createdAt: {type: 'string', format: 'date-time'},
+              createdBy: {type: 'string'},
+            },
+          },
+        },
+      },
+    },
+  })
+  async getVersions(
+    @param.path.string('id') id: string,
+    @param.query.number('limit') limit: number = 10,
+    @param.query.number('skip') skip: number = 0,
+  ): Promise<any[]> {
+    const page = await this.pageRepository.findById(id);
+    if (!page) {
+      throw new HttpErrors.NotFound(`Page with id "${id}" not found`);
+    }
+    const versions = await this.cmsService.contentVersionRepository.find({
+      where: {pageId: id},
+      order: ['version DESC'],
+      limit,
+      skip,
+    });
+    return versions;
+  }
+
+  @authenticate('jwt')
+  @authorize({roles: ['super_admin', 'admin', 'editor']})
+  @post('/api/cms/pages/{id}/revert/{versionNumber}')
+  @response(200, {
+    description: 'Page reverted to specified version',
+    content: {
+      'application/json': {
+        schema: getModelSchemaRef(Page, {includeRelations: true}),
+      },
+    },
+  })
+  async revertToVersion(
+    @inject(AuthenticationBindings.CURRENT_USER) currentUser: UserProfile,
+    @param.path.string('id') id: string,
+    @param.path.number('versionNumber') versionNumber: number,
+    @requestBody({
+      content: {
+        'application/json': {
+          schema: {
+            type: 'object',
+            properties: {
+              comment: {type: 'string'},
+            },
+          },
+        },
+      },
+    })
+    body?: {comment?: string},
+  ): Promise<Page> {
+    const page = await this.pageRepository.findById(id);
+    if (!page) {
+      throw new HttpErrors.NotFound(`Page with id "${id}" not found`);
+    }
+    const version = await this.cmsService.contentVersionRepository.findOne({
+      where: {
+        pageId: id,
+        version: versionNumber,
+      },
+    });
+    if (!version) {
+      throw new HttpErrors.NotFound(`Version ${versionNumber} not found for page "${id}"`
+      );
+    }
+    await this.cmsService.createVersion(
+      id,
+      currentUser.id,
+      body?.comment || `Reverting to version ${versionNumber}`
+    );
+    const versionContent: any = version.content;
+    const pageData = versionContent.page;
+    const sectionsData = versionContent.sections || [];
+    const now = new Date();
+    await this.pageRepository.updateById(id, {
+      slug: pageData.slug,
+      title: pageData.title,
+      description: pageData.description,
+      status: pageData.status,
+      publishedAt: pageData.publishedAt,
+      scheduledAt: pageData.scheduledAt,
+      seoTitle: pageData.seoTitle,
+      seoDescription: pageData.seoDescription,
+      seoKeywords: pageData.seoKeywords,
+      ogImage: pageData.ogImage,
+      ogImageAlt: pageData.ogImageAlt,
+      structuredData: pageData.structuredData,
+      version: page.version + 1,
+      updatedAt: now,
+      updatedBy: currentUser.id,
+    });
+    const existingSections = await this.cmsService.sectionRepository.find({
+      where: {pageId: id},
+    });
+    for (const section of existingSections) {
+      await this.cmsService.sectionRepository.deleteById(section.id);
+    }
+    for (const sectionData of sectionsData) {
+      await this.cmsService.sectionRepository.create({
+        id: uuidv4(),
+        pageId: id,
+        type: sectionData.type,
+        name: sectionData.name,
+        order: sectionData.order,
+        enabled: sectionData.enabled,
+        content: sectionData.content,
+        settings: sectionData.settings,
+        createdAt: now,
+        updatedAt: now,
+      });
+    }
+    await this.cacheService.invalidatePage(id, page.slug);
+    return this.pageRepository.findById(id, {
+      include: [{relation: 'sections'}],
+    });
+  }
+}

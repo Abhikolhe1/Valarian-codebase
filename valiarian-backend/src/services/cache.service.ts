@@ -42,7 +42,7 @@ export class CacheService {
   }
 
   /**
-   * Initialize Redis connection
+   * Initialize Redis connection with timeout
    */
   private async initializeRedis(): Promise<void> {
     if (this.connectionPromise) {
@@ -52,11 +52,18 @@ export class CacheService {
     this.connectionPromise = (async () => {
       try {
         const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
+        const connectionTimeout = parseInt(process.env.REDIS_CONNECT_TIMEOUT || '2000', 10);
 
         this.client = createClient({
           url: redisUrl,
           socket: {
+            connectTimeout: connectionTimeout,
             reconnectStrategy: (retries: number) => {
+              // Stop reconnecting after 3 attempts
+              if (retries > 3) {
+                console.log('Redis reconnection attempts exhausted. Running without cache.');
+                return false;
+              }
               // Exponential backoff with max 3 seconds
               return Math.min(retries * 100, 3000);
             },
@@ -65,7 +72,7 @@ export class CacheService {
 
         // Error handling
         this.client.on('error', (err: Error) => {
-          console.error('Redis Client Error:', err);
+          console.error('Redis Client Error:', err.message);
           this.isConnected = false;
         });
 
@@ -79,13 +86,20 @@ export class CacheService {
           this.isConnected = false;
         });
 
-        // Connect to Redis
-        await this.client.connect();
+        // Connect to Redis with timeout
+        const connectPromise = this.client.connect();
+        const timeoutPromise = new Promise<never>((_, reject) => {
+          setTimeout(() => reject(new Error('Redis connection timeout')), connectionTimeout);
+        });
+
+        await Promise.race([connectPromise, timeoutPromise]);
         this.isConnected = true;
+        console.log('✓ Cache service initialized with Redis');
       } catch (error) {
-        console.error('Failed to connect to Redis:', error);
+        console.warn('⚠ Redis unavailable - running without cache:', (error as Error).message);
         this.isConnected = false;
         this.client = null;
+        // Don't throw - allow app to continue without cache
       }
     })();
 
@@ -94,14 +108,24 @@ export class CacheService {
 
   /**
    * Ensure Redis is connected
+   * Returns immediately if connection failed previously
    */
   private async ensureConnected(): Promise<boolean> {
     if (this.isConnected && this.client) {
       return true;
     }
 
-    await this.initializeRedis();
-    return this.isConnected && this.client !== null;
+    // If we already tried to connect and failed, don't retry
+    if (this.connectionPromise && !this.isConnected) {
+      return false;
+    }
+
+    try {
+      await this.initializeRedis();
+      return this.isConnected && this.client !== null;
+    } catch (error) {
+      return false;
+    }
   }
 
   /**

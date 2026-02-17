@@ -1,16 +1,16 @@
 import {authenticate, AuthenticationBindings} from '@loopback/authentication';
 import {inject} from '@loopback/core';
 import {repository} from '@loopback/repository';
-import { get, HttpErrors, post, requestBody } from '@loopback/rest';
-import { securityId, UserProfile } from '@loopback/security';
+import {get, HttpErrors, post, requestBody} from '@loopback/rest';
+import {securityId, UserProfile} from '@loopback/security';
 import _ from 'lodash';
-import { authorize } from '../authorization';
-import { OtpRepository, RegistrationSessionsRepository, RolesRepository, UserRolesRepository, UsersRepository } from '../repositories';
-import { BcryptHasher } from '../services/hash.password.bcrypt';
-import { JWTService } from '../services/jwt-service';
-import { MediaService } from '../services/media.service';
-import { RbacService } from '../services/rbac.service';
-import { MyUserService } from '../services/user-service';
+import {authorize} from '../authorization';
+import {OtpRepository, RegistrationSessionsRepository, RolesRepository, UserRolesRepository, UsersRepository} from '../repositories';
+import {BcryptHasher} from '../services/hash.password.bcrypt';
+import {JWTService} from '../services/jwt-service';
+import {MediaService} from '../services/media.service';
+import {RbacService} from '../services/rbac.service';
+import {MyUserService} from '../services/user-service';
 
 export class AuthController {
   constructor(
@@ -37,7 +37,7 @@ export class AuthController {
   ) { }
 
   // ---------------------------------------Super Admin Auth API's------------------------------------
-  @post('/auth/super-admin')
+  @post('/api/auth/super-admin')
   async createSuperAdmin(
     @requestBody({
       content: {
@@ -46,10 +46,10 @@ export class AuthController {
             type: 'object',
             required: ['email', 'phone', 'password', 'fullName'],
             properties: {
-              email: { type: 'string' },
-              phone: { type: 'string' },
-              password: { type: 'string' },
-              fullName: { type: 'string' },
+              email: {type: 'string'},
+              phone: {type: 'string'},
+              password: {type: 'string'},
+              fullName: {type: 'string'},
             },
           },
         },
@@ -61,9 +61,9 @@ export class AuthController {
       phone: string;
       password: string
     },
-  ): Promise<{ success: boolean; message: string; userId: string }> {
+  ): Promise<{success: boolean; message: string; userId: string}> {
     const superadminRole = await this.rolesRepository.findOne({
-      where: { value: 'super_admin' },
+      where: {value: 'super_admin'},
     });
 
     if (!superadminRole) {
@@ -73,7 +73,7 @@ export class AuthController {
     }
 
     const existingSuperadmin = await this.userRolesRepository.findOne({
-      where: { rolesId: superadminRole.id },
+      where: {rolesId: superadminRole.id},
     });
 
     if (existingSuperadmin) {
@@ -81,7 +81,7 @@ export class AuthController {
     }
 
     const existUser = await this.usersRepository.findOne({
-      where: { email: body.email },
+      where: {email: body.email},
     });
 
     if (existUser) {
@@ -110,7 +110,7 @@ export class AuthController {
     };
   }
 
-  @post('/auth/super-admin-login')
+  @post('/api/auth/super-admin-login')
   async superAdminLogin(
     @requestBody({
       content: {
@@ -119,21 +119,21 @@ export class AuthController {
             type: 'object',
             required: ['email', 'password', 'rememberMe'],
             properties: {
-              email: { type: 'string' },
-              password: { type: 'string' },
-              rememberMe: { type: 'boolean' }
+              email: {type: 'string'},
+              password: {type: 'string'},
+              rememberMe: {type: 'boolean'}
             }
           }
         }
       }
     })
-    body: { email: string; password: string; rememberMe: boolean }
-  ): Promise<{ success: boolean; message: string; accessToken: string; user: object }> {
+    body: {email: string; password: string; rememberMe: boolean}
+  ): Promise<{success: boolean; message: string; accessToken: string; user: object}> {
     const userData = await this.usersRepository.findOne({
       where: {
         and: [
-          { email: body.email },
-          { isDeleted: false }
+          {email: body.email},
+          {isDeleted: false}
         ]
       }
     });
@@ -144,7 +144,7 @@ export class AuthController {
 
     const user = await this.userService.verifyCredentials(body);
 
-    const { roles, permissions } = await this.rbacService.getUserRoleAndPermissionsByRole(user.id!, 'super_admin');
+    const {roles, permissions} = await this.rbacService.getUserRoleAndPermissionsByRole(user.id!, 'super_admin');
 
     if (!roles.includes('super_admin')) {
       throw new HttpErrors.Forbidden('Access denied. Only super_admin can login here.');
@@ -175,8 +175,8 @@ export class AuthController {
 
   // --------------------------------------------Comman Auth API's-------------------------------------
   @authenticate('jwt')
-  @authorize({ roles: ['super_admin'] })
-  @post('/auth/update-password')
+  @authorize({roles: ['super_admin']})
+  @post('/api/auth/update-password')
   async updatePassword(
     @inject(AuthenticationBindings.CURRENT_USER) currentUser: UserProfile,
     @requestBody({
@@ -186,8 +186,8 @@ export class AuthController {
             type: 'object',
             required: ['oldPassword', 'newPassword'],
             properties: {
-              oldPassword: { type: 'string' },
-              newPassword: { type: 'string' }
+              oldPassword: {type: 'string'},
+              newPassword: {type: 'string'}
             }
           }
         }
@@ -197,7 +197,7 @@ export class AuthController {
       oldPassword: string;
       newPassword: string;
     }
-  ): Promise<{ success: boolean; message: string }> {
+  ): Promise<{success: boolean; message: string}> {
     const user = await this.usersRepository.findById(currentUser.id);
 
     if (!user) {
@@ -213,7 +213,7 @@ export class AuthController {
 
     const hashedPassword = await this.hasher.hashPassword(body.newPassword);
 
-    await this.usersRepository.updateById(user.id, { password: hashedPassword });
+    await this.usersRepository.updateById(user.id, {password: hashedPassword});
 
     return {
       success: true,
@@ -222,7 +222,7 @@ export class AuthController {
   }
 
   @authenticate('jwt')
-  @get('/auth/me')
+  @get('/api/auth/me')
   async whoAmI(
     @inject(AuthenticationBindings.CURRENT_USER) currentUser: UserProfile,
   ): Promise<{}> {
@@ -231,16 +231,24 @@ export class AuthController {
         id: currentUser.id,
       },
     });
-    const userData = _.omit(user, 'password, fullName');
+
+    if (!user) {
+      throw new HttpErrors.NotFound('User not found');
+    }
+
+    const {roles, permissions} = await this.rbacService.getUserRolesAndPermissions(user.id!);
+
+    const userData = _.omit(user, ['password']);
+
     return Promise.resolve({
       ...userData,
-      roles: currentUser?.roles,
-      permissions: currentUser?.permissions || []
+      roles: roles || currentUser?.roles || [],
+      permissions: permissions || currentUser?.permissions || []
     });
   }
 
   // -----------------------------------------registration verification Otp's---------------------------
-  @post('/auth/send-phone-otp')
+  @post('/api/auth/send-phone-otp')
   async sendPhoneOtp(
     @requestBody({
       content: {
@@ -249,8 +257,8 @@ export class AuthController {
             type: 'object',
             required: ['phone', 'role'],
             properties: {
-              phone: { type: 'string' },
-              role: { type: 'string' }
+              phone: {type: 'string'},
+              role: {type: 'string'}
             }
           }
         }
@@ -260,14 +268,14 @@ export class AuthController {
       phone: string;
       role: string;
     }
-  ): Promise<{ success: boolean; message: string; sessionId: string }> {
+  ): Promise<{success: boolean; message: string; sessionId: string}> {
 
     const user = await this.usersRepository.findOne({
-      where: { phone: body.phone }
+      where: {phone: body.phone}
     });
 
     const role = await this.rolesRepository.findOne({
-      where: { value: body.role }
+      where: {value: body.role}
     });
 
     if (!role) {
@@ -279,7 +287,7 @@ export class AuthController {
 
     if (user) {
       const isUserRole = await this.userRolesRepository.findOne({
-        where: { usersId: user.id, rolesId: role.id }
+        where: {usersId: user.id, rolesId: role.id}
       });
 
       if (isUserRole) {
@@ -290,8 +298,8 @@ export class AuthController {
     }
 
     await this.otpRepository.updateAll(
-      { isUsed: true, expiresAt: new Date() },
-      { identifier: body.phone, type: 0 }
+      {isUsed: true, expiresAt: new Date()},
+      {identifier: body.phone, type: 0}
     );
 
     const otp = await this.otpRepository.create({
@@ -314,10 +322,10 @@ export class AuthController {
     const existingSession = await this.registrationSessionsRepository.findOne({
       where: {
         and: [
-          { phoneNumber: body.phone },
-          { roleValue: body.role },
-          { isActive: true },
-          { isDeleted: false }
+          {phoneNumber: body.phone},
+          {roleValue: body.role},
+          {isActive: true},
+          {isDeleted: false}
         ]
       }
     });
@@ -361,7 +369,7 @@ export class AuthController {
     };
   }
 
-  @post('/auth/verify-phone-otp')
+  @post('/api/auth/verify-phone-otp')
   async verifyPhoneOtp(
     @requestBody({
       content: {
@@ -370,16 +378,16 @@ export class AuthController {
             type: 'object',
             required: ['sessionId', 'otp'],
             properties: {
-              sessionId: { type: 'string' },
-              otp: { type: 'string' },
+              sessionId: {type: 'string'},
+              otp: {type: 'string'},
             },
           },
         },
       },
     })
-    body: { sessionId: string; otp: string },
-  ): Promise<{ success: boolean; message: string }> {
-    const { sessionId, otp } = body;
+    body: {sessionId: string; otp: string},
+  ): Promise<{success: boolean; message: string}> {
+    const {sessionId, otp} = body;
 
     const session = await this.registrationSessionsRepository.findById(
       sessionId,
@@ -448,7 +456,7 @@ export class AuthController {
     };
   }
 
-  @post('/auth/send-email-otp')
+  @post('/api/auth/send-email-otp')
   async sendEmailOtp(
     @requestBody({
       content: {
@@ -457,8 +465,8 @@ export class AuthController {
             type: 'object',
             required: ['sessionId', 'email'],
             properties: {
-              sessionId: { type: 'string' },
-              email: { type: 'string' },
+              sessionId: {type: 'string'},
+              email: {type: 'string'},
             }
           }
         }
@@ -468,7 +476,7 @@ export class AuthController {
       sessionId: string;
       email: string;
     }
-  ): Promise<{ success: boolean; message: string }> {
+  ): Promise<{success: boolean; message: string}> {
 
     const session = await this.registrationSessionsRepository.findById(
       body.sessionId,
@@ -487,11 +495,11 @@ export class AuthController {
     }
 
     const user = await this.usersRepository.findOne({
-      where: { email: body.email }
+      where: {email: body.email}
     });
 
     const role = await this.rolesRepository.findOne({
-      where: { value: session.roleValue }
+      where: {value: session.roleValue}
     });
 
     if (!role) {
@@ -509,7 +517,7 @@ export class AuthController {
       }
 
       const isUserRole = await this.userRolesRepository.findOne({
-        where: { usersId: user.id, rolesId: role.id }
+        where: {usersId: user.id, rolesId: role.id}
       });
 
       if (isUserRole) {
@@ -523,9 +531,9 @@ export class AuthController {
     const existingPhoneUser = await this.usersRepository.findOne({
       where: {
         and: [
-          { phone: session.phoneNumber },
-          { isActive: true },
-          { isDeleted: false }
+          {phone: session.phoneNumber},
+          {isActive: true},
+          {isDeleted: false}
         ]
       }
     });
@@ -537,8 +545,8 @@ export class AuthController {
     }
 
     await this.otpRepository.updateAll(
-      { isUsed: true, expiresAt: new Date() },
-      { identifier: body.email, type: 1 }
+      {isUsed: true, expiresAt: new Date()},
+      {identifier: body.email, type: 1}
     );
 
     const otp = await this.otpRepository.create({
@@ -569,7 +577,7 @@ export class AuthController {
     };
   }
 
-  @post('/auth/verify-email-otp')
+  @post('/api/auth/verify-email-otp')
   async verifyEmailOtp(
     @requestBody({
       content: {
@@ -578,16 +586,16 @@ export class AuthController {
             type: 'object',
             required: ['sessionId', 'otp'],
             properties: {
-              sessionId: { type: 'string' },
-              otp: { type: 'string' },
+              sessionId: {type: 'string'},
+              otp: {type: 'string'},
             },
           },
         },
       },
     })
-    body: { sessionId: string; otp: string; isAlreadyRegistered: boolean },
-  ): Promise<{ success: boolean; message: string }> {
-    const { sessionId, otp } = body;
+    body: {sessionId: string; otp: string; isAlreadyRegistered: boolean},
+  ): Promise<{success: boolean; message: string}> {
+    const {sessionId, otp} = body;
 
     const session = await this.registrationSessionsRepository.findById(
       sessionId,
@@ -657,7 +665,7 @@ export class AuthController {
   }
 
   // -----------------------------------------registration verification Otp's---------------------------
-  @post('/auth/forget-password/send-email-otp')
+  @post('/api/auth/forget-password/send-email-otp')
   async sendForgetPasswordEmailOtp(
     @requestBody({
       content: {
@@ -666,8 +674,8 @@ export class AuthController {
             type: 'object',
             required: ['email', 'role'],
             properties: {
-              email: { type: 'string' },
-              role: { type: 'string' },
+              email: {type: 'string'},
+              role: {type: 'string'},
             }
           }
         }
@@ -677,12 +685,12 @@ export class AuthController {
       email: string;
       role: string;
     }
-  ): Promise<{ success: boolean; message: string }> {
+  ): Promise<{success: boolean; message: string}> {
     const user = await this.usersRepository.findOne({
       where: {
         and: [
-          { email: body.email },
-          { isDeleted: false }
+          {email: body.email},
+          {isDeleted: false}
         ]
       }
     });
@@ -696,7 +704,7 @@ export class AuthController {
     }
 
     const role = await this.rolesRepository.findOne({
-      where: { value: body.role }
+      where: {value: body.role}
     });
 
     if (!role) {
@@ -704,7 +712,7 @@ export class AuthController {
     }
 
     const isUserRole = await this.userRolesRepository.findOne({
-      where: { usersId: user.id, rolesId: role.id }
+      where: {usersId: user.id, rolesId: role.id}
     });
 
     if (!isUserRole) {
@@ -712,8 +720,8 @@ export class AuthController {
     }
 
     await this.otpRepository.updateAll(
-      { isUsed: true, expiresAt: new Date() },
-      { identifier: body.email, type: 1 }
+      {isUsed: true, expiresAt: new Date()},
+      {identifier: body.email, type: 1}
     );
 
     const otp = await this.otpRepository.create({
@@ -739,7 +747,7 @@ export class AuthController {
     };
   }
 
-  @post('/auth/forget-password/verify-email-otp')
+  @post('/api/auth/forget-password/verify-email-otp')
   async verifyForgetPasswordEmailOtp(
     @requestBody({
       content: {
@@ -748,10 +756,10 @@ export class AuthController {
             type: 'object',
             required: ['email', 'role', 'otp', 'newPassword'],
             properties: {
-              email: { type: 'string' },
-              otp: { type: 'string' },
-              role: { type: 'string' },
-              newPassword: { type: 'string' },
+              email: {type: 'string'},
+              otp: {type: 'string'},
+              role: {type: 'string'},
+              newPassword: {type: 'string'},
             }
           }
         }
@@ -763,12 +771,12 @@ export class AuthController {
       role: string;
       newPassword: string;
     }
-  ): Promise<{ success: boolean; message: string }> {
+  ): Promise<{success: boolean; message: string}> {
     const user = await this.usersRepository.findOne({
       where: {
         and: [
-          { email: body.email },
-          { isDeleted: false }
+          {email: body.email},
+          {isDeleted: false}
         ]
       }
     });
@@ -782,7 +790,7 @@ export class AuthController {
     }
 
     const role = await this.rolesRepository.findOne({
-      where: { value: body.role }
+      where: {value: body.role}
     });
 
     if (!role) {
@@ -790,7 +798,7 @@ export class AuthController {
     }
 
     const isUserRole = await this.userRolesRepository.findOne({
-      where: { usersId: user.id, rolesId: role.id }
+      where: {usersId: user.id, rolesId: role.id}
     });
 
     if (!isUserRole) {
@@ -840,7 +848,7 @@ export class AuthController {
 
     const hashedPassword = await this.hasher.hashPassword(body.newPassword);
 
-    await this.usersRepository.updateById(user.id, { password: hashedPassword });
+    await this.usersRepository.updateById(user.id, {password: hashedPassword});
 
     return {
       success: true,
