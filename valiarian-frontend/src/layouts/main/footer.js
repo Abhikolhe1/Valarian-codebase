@@ -14,10 +14,10 @@ import { usePathname } from 'src/routes/hook';
 // components
 import Iconify from 'src/components/iconify';
 import Logo from 'src/components/logo';
+// contexts
+import { useSiteSettings } from 'src/contexts/SiteSettingsContext';
 // hooks
 import { useFooterNavigation } from './hooks/use-footer-navigation';
-// contexts
-import { useSiteSettings } from 'src/contexts';
 
 export default function Footer() {
   const pathname = usePathname();
@@ -27,6 +27,7 @@ export default function Footer() {
 
   // Fetch site settings from CMS
   const { settings } = useSiteSettings();
+  console.log('setting 123', settings);
 
   const isHome = pathname === '/';
 
@@ -81,29 +82,16 @@ export default function Footer() {
         <Grid container direction="row">
           <Grid item xs={12} md={6}>
             <Stack direction="row" alignItems="center" spacing={1.5} mb={2}>
-              {settings.general?.logo ? (
-                <Box
-                  component="img"
-                  src={settings.general.logo}
-                  alt={settings.general?.siteName || 'Logo'}
-                  sx={{
-                    width: 32,
-                    height: 32,
-                    objectFit: 'contain',
-                  }}
-                />
-              ) : (
-                <Box
-                  component="img"
-                  src="/logo/footer-logo.png"
-                  alt="Valiarian"
-                  sx={{
-                    width: 32,
-                    height: 32,
-                    objectFit: 'contain',
-                  }}
-                />
-              )}
+              <Box
+                component="img"
+                src={settings.general?.logo || '/logo/footer-logo.png'}
+                alt={settings.general?.siteName || 'Valiarian'}
+                sx={{
+                  width: 32,
+                  height: 32,
+                  objectFit: 'contain',
+                }}
+              />
 
               <Typography
                 sx={{

@@ -9,4 +9,5 @@ export * from './cms-template.controller';
 export * from './permissions.controller';
 export * from './ping.controller';
 export * from './roles.controller';
+export * from './sitemap.controller';
 

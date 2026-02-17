@@ -10,6 +10,7 @@ import Skeleton from '@mui/material/Skeleton';
 import { usePageBySlug } from 'src/api/cms-query';
 // components
 import { SectionList } from 'src/components/cms/section-renderer/SectionRenderer';
+import PageSEO from 'src/components/seo/PageSEO';
 
 // ----------------------------------------------------------------------
 

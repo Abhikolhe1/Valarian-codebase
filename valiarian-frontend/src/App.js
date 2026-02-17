@@ -48,6 +48,7 @@ import { AuthConsumer, AuthProvider } from 'src/auth/context/jwt';
 // react query
 import QueryProvider from 'src/api/query-provider';
 // contexts
+import { SiteSettingsProvider } from 'src/contexts/SiteSettingsContext';
 
 // ----------------------------------------------------------------------
 

@@ -1,6 +1,7 @@
 import { Icon } from '@iconify/react';
-import { Box, Typography, Stack, IconButton } from '@mui/material';
-import { LazyMotion, domAnimation, m, AnimatePresence } from 'framer-motion';
+import { Box, IconButton, Stack, Typography } from '@mui/material';
+import { AnimatePresence, LazyMotion, domAnimation, m } from 'framer-motion';
+import PropTypes from 'prop-types';
 import { useState } from 'react';
 
 const fabrics = [
@@ -164,7 +165,7 @@ export default function FabricDetail() {
               '&:hover': { backgroundColor: '#fff' },
             }}
           >
-             <Icon icon="mdi:chevron-right" width={22} />
+            <Icon icon="mdi:chevron-right" width={22} />
           </IconButton>
         </Box>
 
@@ -206,3 +207,8 @@ const Spec = ({ label, value }) => (
     <Typography sx={{ fontWeight: 600, color: '#1a1a1a' }}>{value}</Typography>
   </Box>
 );
+
+Spec.propTypes = {
+  label: PropTypes.string.isRequired,
+  value: PropTypes.string.isRequired,
+};

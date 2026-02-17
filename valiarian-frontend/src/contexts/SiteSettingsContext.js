@@ -1,5 +1,5 @@
 import PropTypes from 'prop-types';
-import { createContext, useContext, useEffect } from 'react';
+import { createContext, useContext, useEffect, useMemo } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { useSettings } from 'src/api/cms-query';
 
@@ -39,14 +39,18 @@ export function SiteSettingsProvider({ children }) {
     }
   }, [settings]);
 
-  const value = {
-    settings: settings || getDefaultSettings(),
-    isLoading,
-    error,
-    isFromCMS: !!settings,
-  };
+  const value = useMemo(
+    () => ({
+      settings: settings || getDefaultSettings(),
+      isLoading,
+      error,
+      isFromCMS: !!settings,
+    }),
+    [settings, isLoading, error]
+  );
 
   return (
+    // eslint-disable-next-line react/jsx-no-constructed-context-values
     <SiteSettingsContext.Provider value={value}>
       {settings && <SiteMetaTags settings={settings} />}
       {children}
@@ -139,7 +143,7 @@ function getDefaultSettings() {
     general: {
       siteName: 'Valiarian',
       siteDescription: 'Premium Fashion E-commerce',
-      logo: '/logo/logo_full.svg',
+      logo: '/logo/footer-logo.png',
       favicon: '/favicon/favicon.ico',
       contactEmail: 'support@valiarian.in',
       contactPhone: '',

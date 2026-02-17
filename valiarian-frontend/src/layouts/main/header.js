@@ -15,7 +15,6 @@ import { useMarqueeVisibility } from 'src/hooks/use-marquee-visibility';
 import { useOffSetTop } from 'src/hooks/use-off-set-top';
 import { useResponsive } from 'src/hooks/use-responsive';
 import { usePathname } from 'src/routes/hook';
-import { useHeaderNavigation } from './hooks/use-header-navigation';
 // theme
 import { bgBlur } from 'src/theme/css';
 // routes
@@ -29,6 +28,7 @@ import Logo from 'src/components/logo';
 import HeaderShadow from '../_common/header-shadow';
 import { HEADER } from '../config-layout';
 import { navConfig } from './config-navigation';
+import { useHeaderNavigation } from './hooks/use-header-navigation';
 import NavMobile from './nav/mobile';
 
 // ----------------------------------------------------------------------

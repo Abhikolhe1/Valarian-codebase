@@ -7,6 +7,7 @@ import IconButton from '@mui/material/IconButton';
 import List from '@mui/material/List';
 // hooks
 import { useBoolean } from 'src/hooks/use-boolean';
+import { useMobileNavigation } from 'src/layouts/main/hooks/use-mobile-navigation';
 // routes
 import { usePathname } from 'src/routes/hook';
 import { paths } from 'src/routes/paths';

@@ -1,3 +1,4 @@
+/* eslint-disable import/no-extraneous-dependencies */
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import axiosInstance, { endpoints } from 'src/utils/axios';
 
