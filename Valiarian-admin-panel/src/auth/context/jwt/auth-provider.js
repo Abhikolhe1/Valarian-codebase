@@ -1,5 +1,5 @@
 import PropTypes from 'prop-types';
-import { useEffect, useReducer, useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useReducer } from 'react';
 // utils
 import axios, { endpoints } from 'src/utils/axios';
 //
@@ -63,7 +63,8 @@ export function AuthProvider({ children }) {
 
         const response = await axios.get(endpoints.auth.me);
 
-        const { user } = response.data;
+        // The /api/auth/me endpoint returns user data directly, not wrapped in { user }
+        const user = response.data;
 
         dispatch({
           type: 'INITIAL',

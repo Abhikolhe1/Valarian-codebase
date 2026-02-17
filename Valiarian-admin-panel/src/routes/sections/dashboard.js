@@ -51,6 +51,11 @@ const TourDetailsPage = lazy(() => import('src/pages/dashboard/tour/details'));
 const TourListPage = lazy(() => import('src/pages/dashboard/tour/list'));
 const TourCreatePage = lazy(() => import('src/pages/dashboard/tour/new'));
 const TourEditPage = lazy(() => import('src/pages/dashboard/tour/edit'));
+// CMS
+const CMSPagesListPage = lazy(() => import('src/pages/dashboard/cms/pages-list'));
+const CMSPageCreatePage = lazy(() => import('src/pages/dashboard/cms/pages-new'));
+const CMSPageEditPage = lazy(() => import('src/pages/dashboard/cms/pages-edit'));
+const CMSMediaListPage = lazy(() => import('src/pages/dashboard/cms/media-list'));
 // FILE MANAGER
 const FileManagerPage = lazy(() => import('src/pages/dashboard/file-manager'));
 // APP
@@ -152,6 +157,28 @@ export const dashboardRoutes = [
           { path: ':id', element: <TourDetailsPage /> },
           { path: 'new', element: <TourCreatePage /> },
           { path: ':id/edit', element: <TourEditPage /> },
+        ],
+      },
+      {
+        path: 'cms',
+        children: [
+          { element: <CMSPagesListPage />, index: true },
+          {
+            path: 'pages',
+            children: [
+              { element: <CMSPagesListPage />, index: true },
+              { path: 'list', element: <CMSPagesListPage /> },
+              { path: 'new', element: <CMSPageCreatePage /> },
+              { path: ':id/edit', element: <CMSPageEditPage /> },
+            ],
+          },
+          {
+            path: 'media',
+            children: [
+              { element: <CMSMediaListPage />, index: true },
+              { path: 'list', element: <CMSMediaListPage /> },
+            ],
+          },
         ],
       },
       { path: 'file-manager', element: <FileManagerPage /> },

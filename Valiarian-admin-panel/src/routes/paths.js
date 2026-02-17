@@ -1,6 +1,6 @@
 // utils
-import { paramCase } from 'src/utils/change-case';
 import { _id, _postTitles } from 'src/_mock/assets';
+import { paramCase } from 'src/utils/change-case';
 
 // ----------------------------------------------------------------------
 
@@ -176,6 +176,26 @@ export const paths = {
       demo: {
         details: `${ROOTS.DASHBOARD}/tour/${MOCK_ID}`,
         edit: `${ROOTS.DASHBOARD}/tour/${MOCK_ID}/edit`,
+      },
+    },
+    cms: {
+      root: `${ROOTS.DASHBOARD}/cms`,
+      pages: {
+        root: `${ROOTS.DASHBOARD}/cms/pages`,
+        list: `${ROOTS.DASHBOARD}/cms/pages/list`,
+        new: `${ROOTS.DASHBOARD}/cms/pages/new`,
+        details: (id) => `${ROOTS.DASHBOARD}/cms/pages/${id}`,
+        edit: (id) => `${ROOTS.DASHBOARD}/cms/pages/${id}/edit`,
+      },
+      media: {
+        root: `${ROOTS.DASHBOARD}/cms/media`,
+        list: `${ROOTS.DASHBOARD}/cms/media/list`,
+      },
+      navigation: {
+        root: `${ROOTS.DASHBOARD}/cms/navigation`,
+      },
+      settings: {
+        root: `${ROOTS.DASHBOARD}/cms/settings`,
       },
     },
   },

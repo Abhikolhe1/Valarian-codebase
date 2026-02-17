@@ -4,8 +4,6 @@ import { paths } from 'src/routes/paths';
 // locales
 import { useLocales } from 'src/locales';
 // components
-import Label from 'src/components/label';
-import Iconify from 'src/components/iconify';
 import SvgColor from 'src/components/svg-color';
 
 // ----------------------------------------------------------------------
@@ -92,6 +90,16 @@ export function useNavData() {
       {
         subheader: t('management'),
         items: [
+          // CMS
+          {
+            title: t('CMS'),
+            path: paths.dashboard.cms.pages.list,
+            icon: ICONS.file,
+            children: [
+              { title: t('Pages'), path: paths.dashboard.cms.pages.list },
+              { title: t('Media Library'), path: paths.dashboard.cms.media.list },
+            ],
+          },
           // USER
           // {
           //   title: t('user'),
