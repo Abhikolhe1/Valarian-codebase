@@ -1,53 +1,44 @@
 // @mui
-import { alpha } from '@mui/material/styles';
+import { Grid, Skeleton } from '@mui/material';
 import Box from '@mui/material/Box';
+import Container from '@mui/material/Container';
+import Divider from '@mui/material/Divider';
+import IconButton from '@mui/material/IconButton';
 import Link from '@mui/material/Link';
 import Stack from '@mui/material/Stack';
-import Divider from '@mui/material/Divider';
-import Container from '@mui/material/Container';
-import IconButton from '@mui/material/IconButton';
+import { alpha } from '@mui/material/styles';
 import Typography from '@mui/material/Typography';
 // routes
-import { paths } from 'src/routes/paths';
-import { usePathname } from 'src/routes/hook';
 import { RouterLink } from 'src/routes/components';
-// _mock
-import { _socials } from 'src/_mock';
+import { usePathname } from 'src/routes/hook';
 // components
-import Logo from 'src/components/logo';
 import Iconify from 'src/components/iconify';
-import { Grid } from '@mui/material';
-
-// ----------------------------------------------------------------------
-
-const LINKS = [
-  {
-    headline: 'Valiarian',
-    children: [
-      { name: 'Products', href: paths.about },
-      { name: 'Our Story', href: paths.contact },
-      { name: 'FAQs', href: paths.faqs },
-    ],
-  },
-  {
-    headline: 'Legal',
-    children: [
-      { name: 'Terms and Condition', href: '#' },
-      { name: 'Privacy Policy', href: '#' },
-    ],
-  },
-  {
-    headline: 'Contact',
-    children: [{ name: 'support@valiarian.in', href: '#' }],
-  },
-];
-
-// ----------------------------------------------------------------------
+import Logo from 'src/components/logo';
+// hooks
+import { useFooterNavigation } from './hooks/use-footer-navigation';
+// contexts
+import { useSiteSettings } from 'src/contexts';
 
 export default function Footer() {
   const pathname = usePathname();
 
+  // Fetch footer navigation from CMS
+  const { navigation: footerLinks, isLoading: navLoading } = useFooterNavigation();
+
+  // Fetch site settings from CMS
+  const { settings } = useSiteSettings();
+
   const isHome = pathname === '/';
+
+  // Social media links from CMS settings
+  const socialLinks = [
+    { name: 'Facebook', icon: 'eva:facebook-fill', color: '#1877F2', url: settings.socialMedia?.facebook },
+    { name: 'Instagram', icon: 'ant-design:instagram-filled', color: '#E02D69', url: settings.socialMedia?.instagram },
+    { name: 'Twitter', icon: 'eva:twitter-fill', color: '#00AAEC', url: settings.socialMedia?.twitter },
+    { name: 'LinkedIn', icon: 'eva:linkedin-fill', color: '#007EBB', url: settings.socialMedia?.linkedin },
+    { name: 'YouTube', icon: 'eva:youtube-fill', color: '#FF0000', url: settings.socialMedia?.youtube },
+    { name: 'Pinterest', icon: 'ant-design:pinterest-filled', color: '#E60023', url: settings.socialMedia?.pinterest },
+  ].filter(social => social.url); // Only show social links that have URLs configured
 
   const simpleFooter = (
     <Box
@@ -63,9 +54,7 @@ export default function Footer() {
         <Logo sx={{ mb: 1, mx: 'auto' }} />
 
         <Typography variant="caption" component="div">
-          © All rights reserved
-          <br /> made by
-          <Link href="https://valiarian.cc/"> valiarian.cc </Link>
+          © {new Date().getFullYear()} {settings.general?.siteName || 'Valiarian'}. All rights reserved
         </Typography>
       </Container>
     </Box>
@@ -90,34 +79,46 @@ export default function Footer() {
         }}
       >
         <Grid container direction="row">
-        <Grid item xs={12} md={6}>
-          <Stack direction="row" alignItems="center" spacing={1.5} mb={2}>
-            <Box
-              component="img"
-              src="/logo/footer-logo.png"
-              alt="Valiarian"
-              sx={{
-                width: 32,
-                height: 32,
-                objectFit: 'contain',
-              }}
-            />
+          <Grid item xs={12} md={6}>
+            <Stack direction="row" alignItems="center" spacing={1.5} mb={2}>
+              {settings.general?.logo ? (
+                <Box
+                  component="img"
+                  src={settings.general.logo}
+                  alt={settings.general?.siteName || 'Logo'}
+                  sx={{
+                    width: 32,
+                    height: 32,
+                    objectFit: 'contain',
+                  }}
+                />
+              ) : (
+                <Box
+                  component="img"
+                  src="/logo/footer-logo.png"
+                  alt="Valiarian"
+                  sx={{
+                    width: 32,
+                    height: 32,
+                    objectFit: 'contain',
+                  }}
+                />
+              )}
 
-            <Typography
-              sx={{
-                fontFamily: '"Playfair Display", serif',
-                fontWeight: 900,
-                fontSize: '25px',
-                letterSpacing: '0.18em',
-                textTransform: 'uppercase',
-                lineHeight: 1,
-                color: 'text.primary',
-           
-              }}
-            >
-              VALIARIAN
-            </Typography>
-          </Stack>
+              <Typography
+                sx={{
+                  fontFamily: '"Playfair Display", serif',
+                  fontWeight: 900,
+                  fontSize: '25px',
+                  letterSpacing: '0.18em',
+                  textTransform: 'uppercase',
+                  lineHeight: 1,
+                  color: 'text.primary',
+                }}
+              >
+                {settings.general?.siteName || 'VALIARIAN'}
+              </Typography>
+            </Stack>
             <Typography
               variant="body2"
               sx={{
@@ -125,8 +126,7 @@ export default function Footer() {
                 mx: { xs: 'auto', md: 'unset' },
               }}
             >
-              The starting point for your next project with Valiarian UI Kit, built on the newest
-              version of Material-UI ©, ready to be customized to your style.
+              {settings.general?.siteDescription || 'The starting point for your next project with Valiarian UI Kit, built on the newest version of Material-UI ©, ready to be customized to your style.'}
             </Typography>
 
             <Stack
@@ -137,9 +137,13 @@ export default function Footer() {
                 mb: { xs: 5, md: 0 },
               }}
             >
-              {_socials.map((social) => (
+              {socialLinks.map((social) => (
                 <IconButton
                   key={social.name}
+                  component="a"
+                  href={social.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
                   sx={{
                     '&:hover': {
                       bgcolor: alpha(social.color, 0.08),
@@ -150,54 +154,62 @@ export default function Footer() {
                 </IconButton>
               ))}
             </Stack>
-        </Grid>
+          </Grid>
 
 
-        <Grid item xs={12} md={6}>
-          <Stack spacing={5} direction={{ xs: 'column', md: 'row' }}>
-            {LINKS.map((list) => (
-              <Stack
-                key={list.headline}
-                spacing={2}
-                alignItems={{ xs: 'center', md: 'flex-start' }}
-                sx={{ width: 1 }}
-              >
-                <Typography component="div" variant="overline">
-                  {list.headline}
-                </Typography>
-
-                {list.children.map((link) => (
-                  <Link
-                    key={link.name}
-                    component={RouterLink}
-                    href={link.href}
-                    color="inherit"
-                    variant="body2"
+          <Grid item xs={12} md={6}>
+            <Stack spacing={5} direction={{ xs: 'column', md: 'row' }}>
+              {navLoading ? (
+                // Loading skeleton for footer navigation
+                <>
+                  <Stack spacing={2} alignItems={{ xs: 'center', md: 'flex-start' }} sx={{ width: 1 }}>
+                    <Skeleton variant="text" width={100} height={24} />
+                    <Skeleton variant="text" width={120} height={20} />
+                    <Skeleton variant="text" width={120} height={20} />
+                    <Skeleton variant="text" width={120} height={20} />
+                  </Stack>
+                  <Stack spacing={2} alignItems={{ xs: 'center', md: 'flex-start' }} sx={{ width: 1 }}>
+                    <Skeleton variant="text" width={100} height={24} />
+                    <Skeleton variant="text" width={120} height={20} />
+                    <Skeleton variant="text" width={120} height={20} />
+                  </Stack>
+                  <Stack spacing={2} alignItems={{ xs: 'center', md: 'flex-start' }} sx={{ width: 1 }}>
+                    <Skeleton variant="text" width={100} height={24} />
+                    <Skeleton variant="text" width={120} height={20} />
+                  </Stack>
+                </>
+              ) : (
+                footerLinks.map((list) => (
+                  <Stack
+                    key={list.headline}
+                    spacing={2}
+                    alignItems={{ xs: 'center', md: 'flex-start' }}
+                    sx={{ width: 1 }}
                   >
-                    {link.name}
-                  </Link>
-                ))}
-              </Stack>
-            ))}
-          </Stack>
-        </Grid>
+                    <Typography component="div" variant="overline">
+                      {list.headline}
+                    </Typography>
+
+                    {list.children.map((link) => (
+                      <Link
+                        key={link.name}
+                        component={RouterLink}
+                        href={link.href}
+                        color="inherit"
+                        variant="body2"
+                      >
+                        {link.name}
+                      </Link>
+                    ))}
+                  </Stack>
+                ))
+              )}
+            </Stack>
+          </Grid>
         </Grid>
 
-        <Grid
-          container
-          justifyContent={{
-            xs: 'center',
-            md: 'space-between',
-          }}
-        >
-          {/* <Grid xs={8} md={3} >
-          
-          </Grid> */}
-
-        </Grid>
-
-        <Typography variant="body2" sx={{ mt: 2 }}>
-          © 2026. All rights reserved
+        <Typography variant="body2" sx={{ mt: 10, textAlign: 'center' }}>
+          © {new Date().getFullYear()} {settings.general?.siteName || 'Valiarian'}. All rights reserved
         </Typography>
       </Container>
     </Box>

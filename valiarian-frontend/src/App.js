@@ -5,9 +5,9 @@ import 'src/locales/i18n';
 import 'simplebar-react/dist/simplebar.min.css';
 
 // lightbox
-import 'yet-another-react-lightbox/styles.css';
 import 'yet-another-react-lightbox/plugins/captions.css';
 import 'yet-another-react-lightbox/plugins/thumbnails.css';
+import 'yet-another-react-lightbox/styles.css';
 
 // map
 import 'mapbox-gl/dist/mapbox-gl.css';
@@ -16,8 +16,8 @@ import 'mapbox-gl/dist/mapbox-gl.css';
 import 'react-quill/dist/quill.snow.css';
 
 // slick-carousel
-import 'slick-carousel/slick/slick.css';
 import 'slick-carousel/slick/slick-theme.css';
+import 'slick-carousel/slick/slick.css';
 
 // lazy image
 import 'react-lazy-load-image-component/src/effects/blur.css';
@@ -36,27 +36,30 @@ import ThemeProvider from 'src/theme';
 // hooks
 import { useScrollToTop } from 'src/hooks/use-scroll-to-top';
 // components
-import ProgressBar from 'src/components/progress-bar';
 import MotionLazy from 'src/components/animate/motion-lazy';
+import ProgressBar from 'src/components/progress-bar';
+import { SettingsDrawer, SettingsProvider } from 'src/components/settings';
 import SnackbarProvider from 'src/components/snackbar/snackbar-provider';
-import { SettingsProvider, SettingsDrawer } from 'src/components/settings';
 // auth
-import { AuthProvider, AuthConsumer } from 'src/auth/context/jwt';
+import { AuthConsumer, AuthProvider } from 'src/auth/context/jwt';
 // import { AuthProvider, AuthConsumer } from 'src/auth/context/auth0';
 // import { AuthProvider, AuthConsumer } from 'src/auth/context/amplify';
 // import { AuthProvider, AuthConsumer } from 'src/auth/context/firebase';
+// react query
+import QueryProvider from 'src/api/query-provider';
+// contexts
 
 // ----------------------------------------------------------------------
 
 export default function App() {
   const charAt = `
 
-  ░░░    ░░░ 
-  ▒▒▒▒  ▒▒▒▒ 
-  ▒▒ ▒▒▒▒ ▒▒ 
-  ▓▓  ▓▓  ▓▓ 
-  ██      ██ 
-  
+  ░░░    ░░░
+  ▒▒▒▒  ▒▒▒▒
+  ▒▒ ▒▒▒▒ ▒▒
+  ▓▓  ▓▓  ▓▓
+  ██      ██
+
   `;
 
   console.info(`%c${charAt}`, 'color: #5BE49B');
@@ -66,30 +69,34 @@ export default function App() {
   return (
     <AuthProvider>
       <ReduxProvider>
-        <LocalizationProvider dateAdapter={AdapterDateFns}>
-          <SettingsProvider
-            defaultSettings={{
-              themeMode: 'light', // 'light' | 'dark'
-              themeDirection: 'ltr', //  'rtl' | 'ltr'
-              themeContrast: 'default', // 'default' | 'bold'
-              themeLayout: 'vertical', // 'vertical' | 'horizontal' | 'mini'
-              themeColorPresets: 'default', // 'default' | 'cyan' | 'purple' | 'blue' | 'orange' | 'red'
-              themeStretch: false,
-            }}
-          >
-            <ThemeProvider>
-              <MotionLazy>
-                <SnackbarProvider>
-                  <SettingsDrawer />
-                  <ProgressBar />
-                  <AuthConsumer>
-                    <Router />
-                  </AuthConsumer>
-                </SnackbarProvider>
-              </MotionLazy>
-            </ThemeProvider>
-          </SettingsProvider>
-        </LocalizationProvider>
+        <QueryProvider>
+          <SiteSettingsProvider>
+            <LocalizationProvider dateAdapter={AdapterDateFns}>
+              <SettingsProvider
+                defaultSettings={{
+                  themeMode: 'light', // 'light' | 'dark'
+                  themeDirection: 'ltr', //  'rtl' | 'ltr'
+                  themeContrast: 'default', // 'default' | 'bold'
+                  themeLayout: 'vertical', // 'vertical' | 'horizontal' | 'mini'
+                  themeColorPresets: 'default', // 'default' | 'cyan' | 'purple' | 'blue' | 'orange' | 'red'
+                  themeStretch: false,
+                }}
+              >
+                <ThemeProvider>
+                  <MotionLazy>
+                    <SnackbarProvider>
+                      <SettingsDrawer />
+                      <ProgressBar />
+                      <AuthConsumer>
+                        <Router />
+                      </AuthConsumer>
+                    </SnackbarProvider>
+                  </MotionLazy>
+                </ThemeProvider>
+              </SettingsProvider>
+            </LocalizationProvider>
+          </SiteSettingsProvider>
+        </QueryProvider>
       </ReduxProvider>
     </AuthProvider>
   );

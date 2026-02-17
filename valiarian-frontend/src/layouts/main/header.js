@@ -15,6 +15,7 @@ import { useMarqueeVisibility } from 'src/hooks/use-marquee-visibility';
 import { useOffSetTop } from 'src/hooks/use-off-set-top';
 import { useResponsive } from 'src/hooks/use-responsive';
 import { usePathname } from 'src/routes/hook';
+import { useHeaderNavigation } from './hooks/use-header-navigation';
 // theme
 import { bgBlur } from 'src/theme/css';
 // routes
@@ -223,6 +224,9 @@ export default function Header() {
   const offsetTop = useOffSetTop(HEADER.H_DESKTOP);
   const marqueeVisible = useMarqueeVisibility();
 
+  // Fetch header navigation from CMS
+  const { navigation: headerNavigation, isLoading: navLoading } = useHeaderNavigation();
+
   const isHome = pathname === '/';
   const [showLogo, setShowLogo] = useState(!isHome);
   const [headerBgOpacity, setHeaderBgOpacity] = useState(isHome ? 0 : 1);
@@ -429,47 +433,65 @@ export default function Header() {
             {/* Navigation Links */}
             {mdUp && (
               <Stack direction="row" spacing={3} sx={{ mr: 2 }}>
-                <Box
-                  ref={categoryMenuAnchorRef}
-                  onClick={categoryMenuOpen.onToggle}
-                  sx={{
-                    position: 'relative',
-                  }}
-                >
-                  <StyledNavLink
-                    component="div"
-                    active={pathname === paths.product.root ? 1 : 0}
-                    isTransparent={headerBgOpacity === 0 ? 1 : 0}
-                    sx={{
-                      cursor: 'pointer',
-                      userSelect: 'none',
-                    }}
-                  >
-                    Category
-                  </StyledNavLink>
-                  <CategoryMegaMenu
-                    open={categoryMenuOpen.value}
-                    onClose={categoryMenuOpen.onFalse}
-                    anchorEl={categoryMenuAnchorRef.current}
-                    isTransparent={headerBgOpacity === 0}
-                  />
-                </Box>
-                <StyledNavLink
-                  component={RouterLink}
-                  href={paths.premium}
-                  active={pathname === paths.premium ? 1 : 0}
-                  isTransparent={headerBgOpacity === 0 ? 1 : 0}
-                >
-                  Premium
-                </StyledNavLink>
-                <StyledNavLink
-                  component={RouterLink}
-                  href={paths.about}
-                  active={pathname === paths.about ? 1 : 0}
-                  isTransparent={headerBgOpacity === 0 ? 1 : 0}
-                >
-                  About Us
-                </StyledNavLink>
+                {navLoading ? (
+                  // Loading skeleton for navigation
+                  <>
+                    <Box sx={{ width: 80, height: 20, bgcolor: 'action.hover', borderRadius: 1 }} />
+                    <Box sx={{ width: 80, height: 20, bgcolor: 'action.hover', borderRadius: 1 }} />
+                    <Box sx={{ width: 80, height: 20, bgcolor: 'action.hover', borderRadius: 1 }} />
+                  </>
+                ) : (
+                  <>
+                    {headerNavigation.map((item) => {
+                      // Special handling for Category menu (if it exists)
+                      if (item.title === 'Category') {
+                        return (
+                          <Box
+                            key={item.title}
+                            ref={categoryMenuAnchorRef}
+                            onClick={categoryMenuOpen.onToggle}
+                            sx={{
+                              position: 'relative',
+                            }}
+                          >
+                            <StyledNavLink
+                              component="div"
+                              active={pathname === paths.product.root ? 1 : 0}
+                              isTransparent={headerBgOpacity === 0 ? 1 : 0}
+                              sx={{
+                                cursor: 'pointer',
+                                userSelect: 'none',
+                              }}
+                            >
+                              {item.title}
+                            </StyledNavLink>
+                            <CategoryMegaMenu
+                              open={categoryMenuOpen.value}
+                              onClose={categoryMenuOpen.onFalse}
+                              anchorEl={categoryMenuAnchorRef.current}
+                              isTransparent={headerBgOpacity === 0}
+                            />
+                          </Box>
+                        );
+                      }
+
+                      // Regular navigation links
+                      return (
+                        <StyledNavLink
+                          key={item.title}
+                          component={RouterLink}
+                          href={item.path}
+                          active={pathname === item.path ? 1 : 0}
+                          isTransparent={headerBgOpacity === 0 ? 1 : 0}
+                          target={item.openInNewTab ? '_blank' : undefined}
+                          rel={item.openInNewTab ? 'noopener noreferrer' : undefined}
+                        >
+                          {item.title}
+                        </StyledNavLink>
+                      );
+                    })}
+                  </>
+                )}
               </Stack>
             )}
 
