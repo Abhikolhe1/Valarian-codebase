@@ -7,10 +7,12 @@ import {
   HttpErrors,
   param,
   patch,
+  post,
   requestBody,
   response
 } from '@loopback/rest';
 import {UserProfile} from '@loopback/security';
+import {v4 as uuid} from 'uuid';
 import {authorize} from '../authorization';
 import {NavigationMenu} from '../models';
 import {NavigationMenuRepository} from '../repositories';
@@ -68,6 +70,77 @@ export class CMSNavigationController {
   })
   async findAll(): Promise<NavigationMenu[]> {
     return this.navigationMenuRepository.findEnabled();
+  }
+
+  @authenticate('jwt')
+  @authorize({roles: ['super_admin', 'admin', 'editor']})
+  @post('/api/cms/navigation')
+  @response(201, {
+    description: 'NavigationMenu model instance created',
+    content: {
+      'application/json': {
+        schema: getModelSchemaRef(NavigationMenu),
+      },
+    },
+  })
+  async create(
+    @inject(AuthenticationBindings.CURRENT_USER) currentUser: UserProfile,
+    @requestBody({
+      content: {
+        'application/json': {
+          schema: {
+            type: 'object',
+            required: ['name', 'location'],
+            properties: {
+              name: {type: 'string'},
+              location: {
+                type: 'string',
+                enum: ['header', 'footer', 'sidebar', 'mobile'],
+              },
+              items: {
+                type: 'array',
+                items: {
+                  type: 'object',
+                  properties: {
+                    label: {type: 'string'},
+                    url: {type: 'string'},
+                    icon: {type: 'string'},
+                    order: {type: 'number'},
+                    parentId: {type: 'string'},
+                    openInNewTab: {type: 'boolean'},
+                    children: {type: 'array'},
+                  },
+                },
+              },
+              enabled: {type: 'boolean'},
+            },
+          },
+        },
+      },
+    })
+    menuData: Omit<NavigationMenu, 'id' | 'createdAt' | 'updatedAt'>,
+  ): Promise<NavigationMenu> {
+    // Check if a menu already exists for this location
+    const existingMenu = await this.navigationMenuRepository.findByLocation(
+      menuData.location,
+    );
+    if (existingMenu) {
+      throw new HttpErrors.BadRequest(
+        `A navigation menu already exists for location "${menuData.location}"`,
+      );
+    }
+
+    const now = new Date();
+    const newMenu = await this.navigationMenuRepository.create({
+      id: uuid(),
+      ...menuData,
+      enabled: menuData.enabled ?? true,
+      items: menuData.items || [],
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    return newMenu;
   }
 
   @authenticate('jwt')
