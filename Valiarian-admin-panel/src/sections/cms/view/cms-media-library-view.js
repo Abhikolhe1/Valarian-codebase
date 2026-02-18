@@ -13,6 +13,10 @@ import Typography from '@mui/material/Typography';
 import { paths } from 'src/routes/paths';
 // hooks
 import { useBoolean } from 'src/hooks/use-boolean';
+// api
+import { useGetMedia, useGetMediaFolders } from 'src/api/cms-media';
+// utils
+import axiosInstance, { endpoints } from 'src/utils/axios';
 // components
 import CustomBreadcrumbs from 'src/components/custom-breadcrumbs';
 import { ConfirmDialog } from 'src/components/custom-dialog';
@@ -34,18 +38,28 @@ export default function CMSMediaLibraryView() {
   const settings = useSettingsContext();
   const { enqueueSnackbar } = useSnackbar();
 
-  const [media, setMedia] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [selectedMedia, setSelectedMedia] = useState([]);
   const [currentMedia, setCurrentMedia] = useState(null);
-  const [folders, setFolders] = useState([]);
   const [filters, setFilters] = useState({
     search: '',
     folder: '',
     mimeType: '',
   });
+
+  // Use hooks to get media and folders
+  const { media: mediaData, mediaLoading, mediaMutate } = useGetMedia(filters);
+  const { folders } = useGetMediaFolders();
+
+  const [media, setMedia] = useState([]);
+
+  // Update media when data changes
+  useEffect(() => {
+    if (mediaData) {
+      setMedia(mediaData);
+    }
+  }, [mediaData]);
 
   const deleteConfirm = useBoolean();
   const uploadDialog = useBoolean();
@@ -63,43 +77,6 @@ export default function CMSMediaLibraryView() {
     }));
 
   const lightbox = useLightBox(slides);
-
-  // Fetch media from API
-  const fetchMedia = useCallback(async () => {
-    try {
-      setLoading(true);
-      const params = new URLSearchParams();
-
-      if (filters.search) params.append('search', filters.search);
-      if (filters.folder) params.append('folder', filters.folder);
-      if (filters.mimeType) params.append('mimeType', filters.mimeType);
-
-      const response = await fetch(`http://localhost:3035/api/cms/media?${params.toString()}`);
-      const data = await response.json();
-      setMedia(data.data || []);
-    } catch (error) {
-      console.error('Failed to fetch media:', error);
-      enqueueSnackbar('Failed to load media', { variant: 'error' });
-    } finally {
-      setLoading(false);
-    }
-  }, [filters, enqueueSnackbar]);
-
-  // Fetch folders
-  const fetchFolders = useCallback(async () => {
-    try {
-      const response = await fetch('http://localhost:3035/api/cms/media/folders');
-      const data = await response.json();
-      setFolders(data.folders || []);
-    } catch (error) {
-      console.error('Failed to fetch folders:', error);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchMedia();
-    fetchFolders();
-  }, [fetchMedia, fetchFolders]);
 
   const handleFilters = useCallback((name, value) => {
     setFilters((prev) => ({
@@ -139,80 +116,67 @@ export default function CMSMediaLibraryView() {
           formData.append('file', file);
           formData.append('folder', filters.folder || '/');
 
-          const response = await fetch('http://localhost:3035/api/cms/media/upload', {
-            method: 'POST',
-            body: formData,
+          await axiosInstance.post(endpoints.cms.media.upload, formData, {
+            headers: {
+              'Content-Type': 'multipart/form-data',
+            },
+            onUploadProgress: (progressEvent) => {
+              uploadedCount += 1;
+              setUploadProgress((uploadedCount / totalFiles) * 100);
+            }
           });
-
-          if (!response.ok) {
-            throw new Error(`Failed to upload ${file.name}`);
-          }
-
-          uploadedCount += 1;
-          setUploadProgress((uploadedCount / totalFiles) * 100);
         });
 
         await Promise.all(uploadPromises);
 
         enqueueSnackbar(`Successfully uploaded ${totalFiles} file(s)`, { variant: 'success' });
-        fetchMedia();
+        // Trigger SWR revalidation
+        mediaMutate();
         uploadDialog.onFalse();
       } catch (error) {
         console.error('Upload error:', error);
-        enqueueSnackbar(error.message || 'Failed to upload files', { variant: 'error' });
+        enqueueSnackbar(error?.error?.message || 'Failed to upload files', { variant: 'error' });
       } finally {
         setUploading(false);
         setUploadProgress(0);
       }
     },
-    [filters.folder, enqueueSnackbar, fetchMedia, uploadDialog]
+    [filters.folder, enqueueSnackbar, uploadDialog, mediaMutate]
   );
 
   const handleDeleteSelected = useCallback(async () => {
     try {
-      const response = await fetch('http://localhost:3035/api/cms/media/bulk-delete', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ mediaIds: selectedMedia }),
+      await axiosInstance.post(`${endpoints.cms.media.list}/bulk-delete`, {
+        mediaIds: selectedMedia
       });
-
-      if (!response.ok) {
-        throw new Error('Failed to delete media');
-      }
 
       enqueueSnackbar(`Successfully deleted ${selectedMedia.length} file(s)`, {
         variant: 'success',
       });
       setSelectedMedia([]);
-      fetchMedia();
+      // Trigger SWR revalidation
+      mediaMutate();
       deleteConfirm.onFalse();
     } catch (error) {
       console.error('Delete error:', error);
       enqueueSnackbar('Failed to delete media', { variant: 'error' });
     }
-  }, [selectedMedia, enqueueSnackbar, fetchMedia, deleteConfirm]);
+  }, [selectedMedia, enqueueSnackbar, deleteConfirm, mediaMutate]);
 
   const handleDeleteSingle = useCallback(
     async (mediaId) => {
       try {
-        const response = await fetch(`http://localhost:3035/api/cms/media/${mediaId}`, {
-          method: 'DELETE',
-        });
-
-        if (!response.ok) {
-          throw new Error('Failed to delete media');
-        }
+        await axiosInstance.delete(endpoints.cms.media.details(mediaId));
 
         enqueueSnackbar('Media deleted successfully', { variant: 'success' });
-        fetchMedia();
+        // Trigger SWR revalidation
+        mediaMutate();
       } catch (error) {
         console.error('Delete error:', error);
         enqueueSnackbar('Failed to delete media', { variant: 'error' });
       }
     },
-    [enqueueSnackbar, fetchMedia]
+    [enqueueSnackbar, mediaMutate]
   );
 
   const handleEditMedia = useCallback((mediaItem) => {
@@ -232,38 +196,28 @@ export default function CMSMediaLibraryView() {
 
   const handleCreateFolder = useCallback(async (folderName) => {
     // For now, folders are created implicitly when uploading to them
-    // This is a placeholder for future folder creation API
-    setFolders((prev) => [...prev, folderName]);
+    // SWR will automatically revalidate folders when needed
   }, []);
 
   const handleMoveToFolder = useCallback(async (targetFolder) => {
     try {
-      const response = await fetch('http://localhost:3035/api/cms/media/bulk-move', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          mediaIds: selectedMedia,
-          folder: targetFolder,
-        }),
+      await axiosInstance.post(`${endpoints.cms.media.list}/bulk-move`, {
+        mediaIds: selectedMedia,
+        folder: targetFolder,
       });
-
-      if (!response.ok) {
-        throw new Error('Failed to move files');
-      }
 
       enqueueSnackbar(`Successfully moved ${selectedMedia.length} file(s)`, {
         variant: 'success',
       });
       setSelectedMedia([]);
-      fetchMedia();
-      fetchFolders();
+      // Trigger SWR revalidation
+      mediaMutate();
     } catch (error) {
       console.error('Move error:', error);
+      enqueueSnackbar('Failed to move files', { variant: 'error' });
       throw error;
     }
-  }, [selectedMedia, enqueueSnackbar, fetchMedia, fetchFolders]);
+  }, [selectedMedia, enqueueSnackbar, mediaMutate]);
 
   return (
     <>
@@ -314,7 +268,7 @@ export default function CMSMediaLibraryView() {
           )}
 
           <CardContent>
-            {loading ? (
+            {mediaLoading ? (
               <Box sx={{ py: 10, textAlign: 'center' }}>
                 <Typography variant="body2" color="text.secondary">
                   Loading media...

@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
-import useSWR, { mutate } from 'swr';
+import useSWR from 'swr';
 // utils
-import axios, { endpoints, fetcher } from 'src/utils/axios';
+import { endpoints, fetcher } from 'src/utils/axios';
 
 // ----------------------------------------------------------------------
 
@@ -29,30 +29,4 @@ export function useGetNavigation(location) {
   );
 
   return memoizedValue;
-}
-
-// ----------------------------------------------------------------------
-
-export async function createNavigation(navigationData) {
-  const res = await axios.post(endpoints.cms.navigation.list, navigationData);
-
-  mutate(endpoints.cms.navigation.list);
-  if (navigationData.location) {
-    mutate(endpoints.cms.navigation.byLocation(navigationData.location));
-  }
-
-  return res.data;
-}
-
-// ----------------------------------------------------------------------
-
-export async function updateNavigation(navigationId, navigationData) {
-  const res = await axios.patch(endpoints.cms.navigation.details(navigationId), navigationData);
-
-  mutate(endpoints.cms.navigation.list);
-  if (navigationData.location) {
-    mutate(endpoints.cms.navigation.byLocation(navigationData.location));
-  }
-
-  return res.data;
 }

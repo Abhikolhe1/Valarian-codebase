@@ -1,11 +1,12 @@
 import { useMemo } from 'react';
-import useSWR, { mutate } from 'swr';
+import useSWR from 'swr';
 // utils
-import axios, { endpoints, fetcher } from 'src/utils/axios';
+import { endpoints, fetcher } from 'src/utils/axios';
 
 // ----------------------------------------------------------------------
 
 const URL = endpoints.cms.media.list;
+const FOLDERS_URL = endpoints.cms.media.folders;
 
 const options = {
   revalidateIfStale: false,
@@ -15,22 +16,36 @@ const options = {
 
 // ----------------------------------------------------------------------
 
-export function useGetMedia(params) {
-  const { data, isLoading, error, isValidating } = useSWR(
-    params ? [URL, { params }] : URL,
+export function useGetMedia(params, shouldFetch = true) {
+  // Build the SWR key - null means don't fetch
+  // Clean params: remove empty string values
+  const cleanParams = params ? Object.fromEntries(
+    Object.entries(params).filter(([_, value]) => value !== '' && value != null)
+  ) : null;
+
+  let swrKey = null;
+  if (shouldFetch) {
+    swrKey = cleanParams && Object.keys(cleanParams).length > 0
+      ? [URL, { params: cleanParams }]
+      : URL;
+  }
+
+  const { data, isLoading, error, isValidating, mutate } = useSWR(
+    swrKey,
     fetcher,
     options
   );
 
   const memoizedValue = useMemo(
     () => ({
-      media: data?.media || [],
+      media: data?.data || [],
       mediaLoading: isLoading,
       mediaError: error,
       mediaValidating: isValidating,
-      mediaEmpty: !isLoading && !data?.media?.length,
+      mediaEmpty: !isLoading && !data?.data?.length,
+      mediaMutate: mutate,
     }),
-    [data?.media, error, isLoading, isValidating]
+    [data?.data, error, isLoading, isValidating, mutate]
   );
 
   return memoizedValue;
@@ -38,34 +53,24 @@ export function useGetMedia(params) {
 
 // ----------------------------------------------------------------------
 
-export async function uploadMedia(formData, onUploadProgress) {
-  const res = await axios.post(endpoints.cms.media.upload, formData, {
-    headers: {
-      'Content-Type': 'multipart/form-data',
-    },
-    onUploadProgress,
-  });
+export function useGetMediaFolders() {
+  const { data, isLoading, error, isValidating, mutate } = useSWR(
+    FOLDERS_URL,
+    fetcher,
+    options
+  );
 
-  mutate(URL);
+  const memoizedValue = useMemo(
+    () => ({
+      folders: data?.folders || [],
+      foldersLoading: isLoading,
+      foldersError: error,
+      foldersValidating: isValidating,
+      foldersEmpty: !isLoading && !data?.folders?.length,
+      foldersMutate: mutate,
+    }),
+    [data?.folders, error, isLoading, isValidating, mutate]
+  );
 
-  return res.data;
-}
-
-// ----------------------------------------------------------------------
-
-export async function updateMedia(mediaId, mediaData) {
-  const res = await axios.put(endpoints.cms.media.details(mediaId), mediaData);
-
-  mutate(URL);
-  mutate(endpoints.cms.media.details(mediaId));
-
-  return res.data;
-}
-
-// ----------------------------------------------------------------------
-
-export async function deleteMedia(mediaId) {
-  await axios.delete(endpoints.cms.media.details(mediaId));
-
-  mutate(URL);
+  return memoizedValue;
 }

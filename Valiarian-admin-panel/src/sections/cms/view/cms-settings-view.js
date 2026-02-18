@@ -11,7 +11,9 @@ import Tabs from '@mui/material/Tabs';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 // api
-import { updateSettings, useGetSettings } from 'src/api/cms-settings';
+import { useGetSettings } from 'src/api/cms-settings';
+// utils
+import axiosInstance, { endpoints } from 'src/utils/axios';
 // components
 import CustomBreadcrumbs from 'src/components/custom-breadcrumbs';
 import FormProvider from 'src/components/hook-form';
@@ -87,6 +89,7 @@ export default function CMSSettingsView() {
     defaultValues,
   });
 
+
   const {
     reset,
     watch,
@@ -106,7 +109,7 @@ export default function CMSSettingsView() {
 
   const onSubmit = handleSubmit(async (data) => {
     try {
-      await updateSettings(data);
+      await axiosInstance.patch(endpoints.cms.settings, data);
       enqueueSnackbar('Site settings updated successfully', { variant: 'success' });
     } catch (error) {
       console.error('Error updating site settings:', error);
@@ -117,6 +120,8 @@ export default function CMSSettingsView() {
   const handleChangeTab = useCallback((event, newValue) => {
     setCurrentTab(newValue);
   }, []);
+
+  console.log('log',values.logo);
 
   const renderGeneral = (
     <Stack spacing={3}>
@@ -145,15 +150,21 @@ export default function CMSSettingsView() {
       <CMSMediaPickerField
         label="Logo"
         value={values.logo}
-        onChange={(media) => setValue('logo', media?.url || '')}
-        helperText="Upload your site logo"
+        onChange={(url) => setValue('logo', url)}
+        helperText="Upload your site logo (PNG, JPG, SVG, or WebP)"
+        accept={{
+          'image/*': ['.png', '.jpg', '.jpeg', '.svg', '.webp'],
+        }}
       />
 
       <CMSMediaPickerField
         label="Favicon"
         value={values.favicon}
-        onChange={(media) => setValue('favicon', media?.url || '')}
-        helperText="Upload your site favicon (recommended: 32x32 or 64x64 pixels)"
+        onChange={(url) => setValue('favicon', url)}
+        helperText="Upload your site favicon (recommended: 32x32 or 64x64 pixels, PNG or ICO format)"
+        accept={{
+          'image/*': ['.png', '.ico', '.svg'],
+        }}
       />
 
       <Typography variant="subtitle1" sx={{ mt: 2 }}>

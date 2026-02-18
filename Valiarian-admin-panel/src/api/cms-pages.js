@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
-import useSWR, { mutate } from 'swr';
+import useSWR from 'swr';
 // utils
-import axios, { endpoints, fetcher } from 'src/utils/axios';
+import { endpoints, fetcher } from 'src/utils/axios';
 
 // ----------------------------------------------------------------------
 
@@ -41,7 +41,7 @@ export function useGetPages(params) {
 export function useGetPage(pageId) {
   const URL_DETAILS = pageId ? endpoints.cms.pages.details(pageId) : null;
 
-  const { data, isLoading, error, isValidating } = useSWR(URL_DETAILS, fetcher, options);
+  const { data, isLoading, error, isValidating, mutate } = useSWR(URL_DETAILS, fetcher, options);
 
   const memoizedValue = useMemo(
     () => ({
@@ -49,61 +49,12 @@ export function useGetPage(pageId) {
       pageLoading: isLoading,
       pageError: error,
       pageValidating: isValidating,
+      pageMutate: mutate,
     }),
-    [data, error, isLoading, isValidating]
+    [data, error, isLoading, isValidating, mutate]
   );
 
   return memoizedValue;
-}
-
-// ----------------------------------------------------------------------
-
-export async function createPage(pageData) {
-  const res = await axios.post(URL, pageData);
-
-  mutate(URL);
-
-  return res.data;
-}
-
-// ----------------------------------------------------------------------
-
-export async function updatePage(pageId, pageData) {
-  const res = await axios.patch(endpoints.cms.pages.details(pageId), pageData);
-
-  mutate(URL);
-  mutate(endpoints.cms.pages.details(pageId));
-
-  return res.data;
-}
-
-// ----------------------------------------------------------------------
-
-export async function deletePage(pageId) {
-  await axios.delete(endpoints.cms.pages.details(pageId));
-
-  mutate(URL);
-}
-
-// ----------------------------------------------------------------------
-
-export async function publishPage(pageId) {
-  const res = await axios.post(endpoints.cms.pages.publish(pageId));
-
-  mutate(URL);
-  mutate(endpoints.cms.pages.details(pageId));
-
-  return res.data;
-}
-
-// ----------------------------------------------------------------------
-
-export async function duplicatePage(pageId, newTitle) {
-  const res = await axios.post(endpoints.cms.pages.duplicate(pageId), { newTitle });
-
-  mutate(URL);
-
-  return res.data;
 }
 
 // ----------------------------------------------------------------------
@@ -124,16 +75,4 @@ export function useGetPageVersions(pageId) {
   );
 
   return memoizedValue;
-}
-
-// ----------------------------------------------------------------------
-
-export async function revertToVersion(pageId, versionId) {
-  const res = await axios.post(endpoints.cms.pages.revert(pageId, versionId));
-
-  mutate(URL);
-  mutate(endpoints.cms.pages.details(pageId));
-  mutate(endpoints.cms.pages.versions(pageId));
-
-  return res.data;
 }

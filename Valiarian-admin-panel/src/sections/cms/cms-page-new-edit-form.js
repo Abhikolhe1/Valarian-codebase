@@ -25,6 +25,10 @@ import { paths } from 'src/routes/paths';
 // hooks
 import { useBoolean } from 'src/hooks/use-boolean';
 import { useResponsive } from 'src/hooks/use-responsive';
+// api
+import { useGetSections } from 'src/api/cms-sections';
+// utils
+import axiosInstance, { endpoints } from 'src/utils/axios';
 // components
 import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker';
 import { ConfirmDialog } from 'src/components/custom-dialog';
@@ -34,6 +38,7 @@ import FormProvider, {
   RHFTextField,
 } from 'src/components/hook-form';
 import Iconify from 'src/components/iconify';
+import { useGetPage } from 'src/api/cms-pages';
 import { useSnackbar } from 'src/components/snackbar';
 import { useRouter } from 'src/routes/hook';
 import CMSSectionList from './cms-section-list';
@@ -68,7 +73,23 @@ export default function CMSPageNewEditForm({ currentPage }) {
   const [isPublishing, setIsPublishing] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isDuplicating, setIsDuplicating] = useState(false);
+
+  // Use the hook to get sections
+  const { sections: sectionsData, sectionsLoading } = useGetSections(
+    currentPage?.id ? { filter: JSON.stringify({ where: { pageId: currentPage.id }, order: ['order ASC'] }) } : null
+  );
+
+  // Get the mutate function to revalidate page data
+  const { page: _, pageLoading: __, pageMutate } = useGetPage(currentPage?.id);
+
   const [sections, setSections] = useState([]);
+
+  // Update sections when data changes
+  useEffect(() => {
+    if (sectionsData) {
+      setSections(sectionsData);
+    }
+  }, [sectionsData]);
 
   const NewPageSchema = Yup.object().shape({
     title: Yup.string().required('Title is required'),
@@ -114,34 +135,11 @@ export default function CMSPageNewEditForm({ currentPage }) {
 
   const values = watch();
 
-  const fetchSections = useCallback(async () => {
-    if (!currentPage?.id) return;
-
-    try {
-      const response = await fetch(
-        `http://localhost:3035/api/cms/sections?filter=${encodeURIComponent(
-          JSON.stringify({ where: { pageId: currentPage.id }, order: ['order ASC'] })
-        )}`
-      );
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch sections');
-      }
-
-      const data = await response.json();
-      setSections(data);
-    } catch (error) {
-      console.error('Error fetching sections:', error);
-    }
-  }, [currentPage?.id]);
-
   useEffect(() => {
     if (currentPage) {
       reset(defaultValues);
-      // Fetch sections for this page
-      fetchSections();
     }
-  }, [currentPage, defaultValues, reset, fetchSections]);
+  }, [currentPage, defaultValues, reset]);
 
   const handleSectionsChange = useCallback((updatedSections) => {
     setSections(updatedSections);
@@ -160,26 +158,19 @@ export default function CMSPageNewEditForm({ currentPage }) {
 
   const onSubmit = handleSubmit(async (data) => {
     try {
-      const url = currentPage
-        ? `http://localhost:3035/api/cms/pages/${currentPage.id}`
-        : 'http://localhost:3035/api/cms/pages';
-
-      const method = currentPage ? 'PATCH' : 'POST';
-
-      const response = await fetch(url, {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(data),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to save page');
+      if (currentPage) {
+        await axiosInstance.patch(endpoints.cms.pages.details(currentPage.id), data);
+        enqueueSnackbar('Update success!', { variant: 'success' });
+        // Revalidate page data
+        if (pageMutate) {
+          pageMutate();
+        }
+      } else {
+        await axiosInstance.post(endpoints.cms.pages.list, data);
+        enqueueSnackbar('Create success!', { variant: 'success' });
       }
 
       reset();
-      enqueueSnackbar(currentPage ? 'Update success!' : 'Create success!');
       router.push(paths.dashboard.cms.pages.list);
     } catch (error) {
       console.error(error);
@@ -191,30 +182,22 @@ export default function CMSPageNewEditForm({ currentPage }) {
     try {
       const data = { ...values, status: 'draft' };
 
-      const url = currentPage
-        ? `http://localhost:3035/api/cms/pages/${currentPage.id}`
-        : 'http://localhost:3035/api/cms/pages';
-
-      const method = currentPage ? 'PATCH' : 'POST';
-
-      const response = await fetch(url, {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(data),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to save draft');
+      if (currentPage) {
+        await axiosInstance.patch(endpoints.cms.pages.details(currentPage.id), data);
+      } else {
+        await axiosInstance.post(endpoints.cms.pages.list, data);
       }
 
-      enqueueSnackbar('Draft saved!');
+      enqueueSnackbar('Draft saved!', { variant: 'success' });
+      // Revalidate page data
+      if (pageMutate) {
+        pageMutate();
+      }
     } catch (error) {
       console.error(error);
       enqueueSnackbar('Error saving draft', { variant: 'error' });
     }
-  }, [values, currentPage, enqueueSnackbar]);
+  }, [values, currentPage, enqueueSnackbar, pageMutate]);
 
   const handlePublish = useCallback(async () => {
     if (!currentPage) {
@@ -224,22 +207,15 @@ export default function CMSPageNewEditForm({ currentPage }) {
 
     try {
       setIsPublishing(true);
-      const response = await fetch(
-        `http://localhost:3035/api/cms/pages/${currentPage.id}/publish`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ comment: 'Published from admin panel' }),
-        }
-      );
+      await axiosInstance.post(endpoints.cms.pages.publish(currentPage.id), {
+        comment: 'Published from admin panel'
+      });
 
-      if (!response.ok) {
-        throw new Error('Failed to publish page');
+      enqueueSnackbar('Page published successfully!', { variant: 'success' });
+      // Revalidate page data
+      if (pageMutate) {
+        pageMutate();
       }
-
-      enqueueSnackbar('Page published successfully!');
       publishConfirm.onFalse();
       router.push(paths.dashboard.cms.pages.list);
     } catch (error) {
@@ -248,7 +224,7 @@ export default function CMSPageNewEditForm({ currentPage }) {
     } finally {
       setIsPublishing(false);
     }
-  }, [currentPage, enqueueSnackbar, publishConfirm, router]);
+  }, [currentPage, enqueueSnackbar, publishConfirm, router, pageMutate]);
 
   const handleDuplicate = useCallback(async () => {
     if (!currentPage) {
@@ -263,26 +239,14 @@ export default function CMSPageNewEditForm({ currentPage }) {
 
     try {
       setIsDuplicating(true);
-      const response = await fetch(
-        `http://localhost:3035/api/cms/pages/${currentPage.id}/duplicate`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ title: duplicateName }),
-        }
-      );
+      const response = await axiosInstance.post(endpoints.cms.pages.duplicate(currentPage.id), {
+        title: duplicateName
+      });
 
-      if (!response.ok) {
-        throw new Error('Failed to duplicate page');
-      }
-
-      const duplicatedPage = await response.json();
-      enqueueSnackbar('Page duplicated successfully!');
+      enqueueSnackbar('Page duplicated successfully!', { variant: 'success' });
       duplicateDialog.onFalse();
       setDuplicateName('');
-      router.push(paths.dashboard.cms.pages.edit(duplicatedPage.id));
+      router.push(paths.dashboard.cms.pages.edit(response.data.id));
     } catch (error) {
       console.error(error);
       enqueueSnackbar('Error duplicating page', { variant: 'error' });
@@ -298,15 +262,9 @@ export default function CMSPageNewEditForm({ currentPage }) {
 
     try {
       setIsDeleting(true);
-      const response = await fetch(`http://localhost:3035/api/cms/pages/${currentPage.id}`, {
-        method: 'DELETE',
-      });
+      await axiosInstance.delete(endpoints.cms.pages.details(currentPage.id));
 
-      if (!response.ok) {
-        throw new Error('Failed to delete page');
-      }
-
-      enqueueSnackbar('Page deleted successfully!');
+      enqueueSnackbar('Page deleted successfully!', { variant: 'success' });
       deleteConfirm.onFalse();
       router.push(paths.dashboard.cms.pages.list);
     } catch (error) {
@@ -330,15 +288,14 @@ export default function CMSPageNewEditForm({ currentPage }) {
       seoKeywords: revertedPage.seoKeywords || [],
       ogImage: revertedPage.ogImage || '',
     });
-    // Refresh sections
-    fetchSections();
-    enqueueSnackbar('Page reverted successfully!');
-  }, [reset, fetchSections, enqueueSnackbar]);
+    // Sections will be automatically refreshed by the useGetSections hook
+    enqueueSnackbar('Page reverted successfully!', { variant: 'success' });
+  }, [reset, enqueueSnackbar]);
 
   const renderBasicInfo = (
     <>
       {mdUp && (
-        <Grid md={4}>
+        <Grid md={12}>
           <Typography variant="h6" sx={{ mb: 0.5 }}>
             Basic Info
           </Typography>
@@ -348,7 +305,7 @@ export default function CMSPageNewEditForm({ currentPage }) {
         </Grid>
       )}
 
-      <Grid xs={12} md={8}>
+      <Grid xs={12} md={12}>
         <Card>
           {!mdUp && <CardHeader title="Basic Info" />}
 
@@ -398,7 +355,7 @@ export default function CMSPageNewEditForm({ currentPage }) {
   const renderSEO = (
     <>
       {mdUp && (
-        <Grid md={4}>
+        <Grid md={12}>
           <Typography variant="h6" sx={{ mb: 0.5 }}>
             SEO
           </Typography>
@@ -408,7 +365,7 @@ export default function CMSPageNewEditForm({ currentPage }) {
         </Grid>
       )}
 
-      <Grid xs={12} md={8}>
+      <Grid xs={12} md={12}>
         <Card>
           {!mdUp && <CardHeader title="SEO" />}
 
@@ -461,7 +418,7 @@ export default function CMSPageNewEditForm({ currentPage }) {
   const renderSections = currentPage && (
     <>
       {mdUp && (
-        <Grid md={4}>
+        <Grid md={12}>
           <Typography variant="h6" sx={{ mb: 0.5 }}>
             Page Sections
           </Typography>
@@ -471,7 +428,7 @@ export default function CMSPageNewEditForm({ currentPage }) {
         </Grid>
       )}
 
-      <Grid xs={12} md={8}>
+      <Grid xs={12} md={12}>
         <CMSSectionList
           pageId={currentPage.id}
           sections={sections}
@@ -483,9 +440,9 @@ export default function CMSPageNewEditForm({ currentPage }) {
 
   const renderActions = (
     <>
-      {mdUp && <Grid md={4} />}
-      <Grid xs={12} md={8}>
-        <Stack direction="row" spacing={2} justifyContent="space-between" alignItems="center">
+      {mdUp && <Grid />}
+      <Grid xs={12} md={12}>
+        <Stack direction="row" spacing={2} justifyContent="end" alignItems="center">
           {/* Left side actions (only in edit mode) */}
           {currentPage && (
             <Stack direction="row" spacing={1}>
@@ -531,7 +488,7 @@ export default function CMSPageNewEditForm({ currentPage }) {
           )}
 
           {/* Right side actions */}
-          <Stack direction="row" spacing={2} sx={{ ml: 'auto' }}>
+          <Stack direction="row" spacing={2} >
             <Button
               color="inherit"
               variant="outlined"

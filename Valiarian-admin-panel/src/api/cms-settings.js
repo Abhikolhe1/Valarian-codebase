@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
-import useSWR, { mutate } from 'swr';
+import useSWR from 'swr';
 // utils
-import axios, { endpoints, fetcher } from 'src/utils/axios';
+import { endpoints, fetcher } from 'src/utils/axios';
 
 // ----------------------------------------------------------------------
 
@@ -29,14 +29,4 @@ export function useGetSettings() {
   );
 
   return memoizedValue;
-}
-
-// ----------------------------------------------------------------------
-
-export async function updateSettings(settingsData) {
-  const res = await axios.patch(URL, settingsData);
-
-  mutate(URL);
-
-  return res.data;
 }

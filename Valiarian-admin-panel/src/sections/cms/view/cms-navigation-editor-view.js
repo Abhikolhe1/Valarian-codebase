@@ -17,6 +17,9 @@ import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 // dnd
 import { DragDropContext, Draggable, Droppable } from '@hello-pangea/dnd';
+// utils
+import axiosInstance, { endpoints } from 'src/utils/axios';
+// api
 // components
 import CustomBreadcrumbs from 'src/components/custom-breadcrumbs';
 import Iconify from 'src/components/iconify';
@@ -25,6 +28,7 @@ import { useSnackbar } from 'src/components/snackbar';
 // routes
 import { paths } from 'src/routes/paths';
 //
+import { useGetNavigation } from 'src/api/cms-navigation';
 import CMSMenuItemDialog from '../cms-menu-item-dialog';
 
 // ----------------------------------------------------------------------
@@ -45,56 +49,29 @@ export default function CMSNavigationEditorView() {
   const [selectedLocation, setSelectedLocation] = useState('header');
   const [navigationMenu, setNavigationMenu] = useState(null);
   const [menuItems, setMenuItems] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [itemDialogOpen, setItemDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
   const [editingIndex, setEditingIndex] = useState(null);
 
-  // Fetch navigation menu for selected location
-  const fetchNavigationMenu = useCallback(async () => {
-    try {
-      setLoading(true);
-      const response = await fetch(
-        `http://localhost:3035/api/cms/navigation/${selectedLocation}`
-      );
+  // Use the hook to get navigation menu
+  const { navigation, navigationLoading } = useGetNavigation(selectedLocation);
 
-      if (response.ok) {
-        const data = await response.json();
-        setNavigationMenu(data);
-        setMenuItems(data.items || []);
-      } else if (response.status === 404) {
-        // No menu exists for this location yet
-        setNavigationMenu(null);
-        setMenuItems([]);
-      } else {
-        throw new Error('Failed to fetch navigation menu');
-      }
-    } catch (error) {
-      console.error('Error fetching navigation menu:', error);
-      enqueueSnackbar('Failed to load navigation menu', { variant: 'error' });
-    } finally {
-      setLoading(false);
-    }
-  }, [selectedLocation, enqueueSnackbar]);
-
+  // Update menu when navigation data changes
   useEffect(() => {
-    fetchNavigationMenu();
-  }, [fetchNavigationMenu]);
+    if (navigation) {
+      setNavigationMenu(navigation);
+      setMenuItems(navigation.items || []);
+    } else {
+      setNavigationMenu(null);
+      setMenuItems([]);
+    }
+  }, [navigation]);
 
   // Save navigation menu
   const handleSave = useCallback(async () => {
     try {
       setSaving(true);
-
-      // Get auth token
-      const token = localStorage.getItem('accessToken');
-      if (!token) {
-        enqueueSnackbar('You must be logged in to save navigation menus', {
-          variant: 'error',
-        });
-        return;
-      }
 
       const menuData = {
         name: `${selectedLocation.charAt(0).toUpperCase() + selectedLocation.slice(1)} Menu`,
@@ -103,27 +80,13 @@ export default function CMSNavigationEditorView() {
         enabled: true,
       };
 
-      const url = navigationMenu
-        ? `http://localhost:3035/api/cms/navigation/${navigationMenu.id}`
-        : 'http://localhost:3035/api/cms/navigation';
-
-      const method = navigationMenu ? 'PATCH' : 'POST';
-
-      const response = await fetch(url, {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(menuData),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to save navigation menu');
+      if (navigationMenu) {
+        await axiosInstance.patch(endpoints.cms.navigation.details(navigationMenu.id), menuData);
+      } else {
+        const response = await axiosInstance.post(endpoints.cms.navigation.list, menuData);
+        setNavigationMenu(response.data);
       }
 
-      const savedMenu = await response.json();
-      setNavigationMenu(savedMenu);
       enqueueSnackbar('Navigation menu saved successfully', { variant: 'success' });
     } catch (error) {
       console.error('Error saving navigation menu:', error);
@@ -253,7 +216,7 @@ export default function CMSNavigationEditorView() {
                 variant="contained"
                 startIcon={<Iconify icon="solar:diskette-bold" />}
                 onClick={handleSave}
-                disabled={saving || loading}
+                disabled={saving || navigationLoading}
               >
                 Save Menu
               </Button>
@@ -262,7 +225,7 @@ export default function CMSNavigationEditorView() {
         />
 
         <CardContent>
-          {loading ? (
+          {navigationLoading ? (
             <Box sx={{ py: 5, textAlign: 'center' }}>
               <Typography variant="body2" color="text.secondary">
                 Loading menu...

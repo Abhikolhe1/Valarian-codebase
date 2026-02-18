@@ -7,6 +7,8 @@ import DialogTitle from '@mui/material/DialogTitle';
 import IconButton from '@mui/material/IconButton';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
+// utils
+import axiosInstance, { endpoints } from 'src/utils/axios';
 // components
 import Iconify from 'src/components/iconify';
 import { useSnackbar } from 'src/components/snackbar';
@@ -60,12 +62,6 @@ export default function CMSSectionEditor({ open, onClose, section, sectionType, 
       try {
         setIsSaving(true);
 
-        const url = section
-          ? `http://localhost:3035/api/cms/sections/${section.id}`
-          : 'http://localhost:3035/api/cms/sections';
-
-        const method = section ? 'PATCH' : 'POST';
-
         const payload = section
           ? sectionData
           : {
@@ -74,21 +70,19 @@ export default function CMSSectionEditor({ open, onClose, section, sectionType, 
             enabled: true,
           };
 
-        const response = await fetch(url, {
-          method,
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(payload),
-        });
-
-        if (!response.ok) {
-          throw new Error('Failed to save section');
+        let savedSection;
+        if (section) {
+          const response = await axiosInstance.patch(endpoints.cms.sections.details(section.id), payload);
+          savedSection = response.data;
+        } else {
+          const response = await axiosInstance.post(endpoints.cms.sections.list, payload);
+          savedSection = response.data;
         }
 
-        const savedSection = await response.json();
-
-        enqueueSnackbar(section ? 'Section updated successfully!' : 'Section created successfully!');
+        enqueueSnackbar(
+          section ? 'Section updated successfully!' : 'Section created successfully!',
+          { variant: 'success' }
+        );
 
         if (onSave) {
           onSave(savedSection);

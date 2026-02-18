@@ -15,6 +15,10 @@ import Tabs from '@mui/material/Tabs';
 import Typography from '@mui/material/Typography';
 // hooks
 import { useBoolean } from 'src/hooks/use-boolean';
+// api
+import { useGetMedia, useGetMediaFolders } from 'src/api/cms-media';
+// utils
+import axiosInstance, { endpoints } from 'src/utils/axios';
 // components
 import Iconify from 'src/components/iconify';
 import Lightbox, { useLightBox } from 'src/components/lightbox';
@@ -39,13 +43,10 @@ export default function CMSMediaPicker({
 }) {
   const { enqueueSnackbar } = useSnackbar();
 
-  const [media, setMedia] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [selected, setSelected] = useState(selectedMedia);
   const [currentTab, setCurrentTab] = useState('library');
-  const [folders, setFolders] = useState([]);
   const [filters, setFilters] = useState({
     search: '',
     folder: '',
@@ -53,6 +54,10 @@ export default function CMSMediaPicker({
   });
 
   const uploadDialog = useBoolean();
+
+  // Use hooks to get media and folders
+  const { media, mediaLoading, mediaMutate } = useGetMedia(filters, open);
+  const { folders } = useGetMediaFolders();
 
   // Prepare slides for lightbox
   const slides = media
@@ -65,45 +70,11 @@ export default function CMSMediaPicker({
 
   const lightbox = useLightBox(slides);
 
-  // Fetch media from API
-  const fetchMedia = useCallback(async () => {
-    try {
-      setLoading(true);
-      const params = new URLSearchParams();
-
-      if (filters.search) params.append('search', filters.search);
-      if (filters.folder) params.append('folder', filters.folder);
-      if (filters.mimeType) params.append('mimeType', filters.mimeType);
-
-      const response = await fetch(`http://localhost:3035/api/cms/media?${params.toString()}`);
-      const data = await response.json();
-      setMedia(data.data || []);
-    } catch (error) {
-      console.error('Failed to fetch media:', error);
-      enqueueSnackbar('Failed to load media', { variant: 'error' });
-    } finally {
-      setLoading(false);
-    }
-  }, [filters, enqueueSnackbar]);
-
-  // Fetch folders
-  const fetchFolders = useCallback(async () => {
-    try {
-      const response = await fetch('http://localhost:3035/api/cms/media/folders');
-      const data = await response.json();
-      setFolders(data.folders || []);
-    } catch (error) {
-      console.error('Failed to fetch folders:', error);
-    }
-  }, []);
-
   useEffect(() => {
     if (open) {
-      fetchMedia();
-      fetchFolders();
       setSelected(selectedMedia);
     }
-  }, [open, fetchMedia, fetchFolders, selectedMedia]);
+  }, [open, selectedMedia]);
 
   const handleFilters = useCallback((name, value) => {
     setFilters((prev) => ({
@@ -150,33 +121,32 @@ export default function CMSMediaPicker({
           formData.append('file', file);
           formData.append('folder', filters.folder || '/');
 
-          const response = await fetch('http://localhost:3035/api/cms/media/upload', {
-            method: 'POST',
-            body: formData,
+          await axiosInstance.post(endpoints.cms.media.upload, formData, {
+            headers: {
+              'Content-Type': 'multipart/form-data',
+            },
+            onUploadProgress: () => {
+              uploadedCount += 1;
+              setUploadProgress((uploadedCount / totalFiles) * 100);
+            }
           });
-
-          if (!response.ok) {
-            throw new Error(`Failed to upload ${file.name}`);
-          }
-
-          uploadedCount += 1;
-          setUploadProgress((uploadedCount / totalFiles) * 100);
         });
 
         await Promise.all(uploadPromises);
 
         enqueueSnackbar(`Successfully uploaded ${totalFiles} file(s)`, { variant: 'success' });
-        fetchMedia();
+        // Trigger SWR revalidation
+        mediaMutate();
         setCurrentTab('library');
       } catch (error) {
         console.error('Upload error:', error);
-        enqueueSnackbar(error.message || 'Failed to upload files', { variant: 'error' });
+        enqueueSnackbar(error?.error?.message || 'Failed to upload files', { variant: 'error' });
       } finally {
         setUploading(false);
         setUploadProgress(0);
       }
     },
-    [filters.folder, enqueueSnackbar, fetchMedia]
+    [filters.folder, enqueueSnackbar, mediaMutate]
   );
 
   const handlePreviewMedia = useCallback(
@@ -235,7 +205,7 @@ export default function CMSMediaPicker({
                 folders={folders}
               />
 
-              {loading ? (
+              {mediaLoading ? (
                 <Box sx={{ py: 10, textAlign: 'center' }}>
                   <Typography variant="body2" color="text.secondary">
                     Loading media...

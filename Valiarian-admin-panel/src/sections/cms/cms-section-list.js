@@ -11,6 +11,8 @@ import Switch from '@mui/material/Switch';
 import Typography from '@mui/material/Typography';
 // dnd
 import { DragDropContext, Draggable, Droppable } from '@hello-pangea/dnd';
+// utils
+import axiosInstance, { endpoints } from 'src/utils/axios';
 // components
 import { Button } from '@mui/material';
 import Iconify from 'src/components/iconify';
@@ -100,25 +102,12 @@ export default function CMSSectionList({ pageId, sections, onSectionsChange }) {
         setIsReordering(true);
         const sectionIds = updatedSections.map((section) => section.id);
 
-        const response = await fetch(
-          'http://localhost:3035/api/cms/sections/reorder',
-          {
-            method: 'PATCH',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              pageId,
-              sectionIds
-            }),
-          }
-        );
+        await axiosInstance.patch(endpoints.cms.sections.reorder, {
+          pageId,
+          sectionIds
+        });
 
-        if (!response.ok) {
-          throw new Error('Failed to reorder sections');
-        }
-
-        enqueueSnackbar('Section reordered successfully');
+        enqueueSnackbar('Section reordered successfully', { variant: 'success' });
       } catch (error) {
         console.error('Error reordering sections:', error);
         enqueueSnackbar('Failed to reorder section', { variant: 'error' });
@@ -134,28 +123,19 @@ export default function CMSSectionList({ pageId, sections, onSectionsChange }) {
   const handleToggleEnabled = useCallback(
     async (sectionId, currentEnabled) => {
       try {
-        const response = await fetch(`http://localhost:3035/api/cms/sections/${sectionId}`, {
-          method: 'PATCH',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ enabled: !currentEnabled }),
+        const response = await axiosInstance.patch(endpoints.cms.sections.details(sectionId), {
+          enabled: !currentEnabled
         });
-
-        if (!response.ok) {
-          throw new Error('Failed to update section');
-        }
-
-        const updatedSection = await response.json();
 
         // Update local state
         const updatedSections = sections.map((section) =>
-          section.id === sectionId ? { ...section, enabled: updatedSection.enabled } : section
+          section.id === sectionId ? { ...section, enabled: response.data.enabled } : section
         );
         onSectionsChange(updatedSections);
 
         enqueueSnackbar(
-          `Section ${updatedSection.enabled ? 'enabled' : 'disabled'} successfully`
+          `Section ${response.data.enabled ? 'enabled' : 'disabled'} successfully`,
+          { variant: 'success' }
         );
       } catch (error) {
         console.error('Error toggling section:', error);
@@ -230,19 +210,13 @@ export default function CMSSectionList({ pageId, sections, onSectionsChange }) {
       }
 
       try {
-        const response = await fetch(`http://localhost:3035/api/cms/sections/${sectionId}`, {
-          method: 'DELETE',
-        });
-
-        if (!response.ok) {
-          throw new Error('Failed to delete section');
-        }
+        await axiosInstance.delete(endpoints.cms.sections.details(sectionId));
 
         // Update local state
         const updatedSections = sections.filter((section) => section.id !== sectionId);
         onSectionsChange(updatedSections);
 
-        enqueueSnackbar('Section deleted successfully');
+        enqueueSnackbar('Section deleted successfully', { variant: 'success' });
       } catch (error) {
         console.error('Error deleting section:', error);
         enqueueSnackbar('Failed to delete section', { variant: 'error' });

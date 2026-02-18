@@ -11,6 +11,8 @@ import DialogContent from '@mui/material/DialogContent';
 import DialogTitle from '@mui/material/DialogTitle';
 import Stack from '@mui/material/Stack';
 import TextField from '@mui/material/TextField';
+// utils
+import axiosInstance, { endpoints } from 'src/utils/axios';
 // components
 import FormProvider from 'src/components/hook-form';
 import { useSnackbar } from 'src/components/snackbar';
@@ -76,21 +78,10 @@ export default function CMSMediaMetadataDialog({ open, onClose, media, onUpdate 
 
   const onSubmit = handleSubmit(async (data) => {
     try {
-      const response = await fetch(`http://localhost:3035/api/cms/media/${media.id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(data),
-      });
+      const response = await axiosInstance.patch(endpoints.cms.media.details(media.id), data);
 
-      if (!response.ok) {
-        throw new Error('Failed to update media metadata');
-      }
-
-      const updatedMedia = await response.json();
       enqueueSnackbar('Media metadata updated successfully', { variant: 'success' });
-      onUpdate(updatedMedia);
+      onUpdate(response.data);
       onClose();
     } catch (error) {
       console.error('Update error:', error);
