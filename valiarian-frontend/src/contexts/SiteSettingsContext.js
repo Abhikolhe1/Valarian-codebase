@@ -1,7 +1,8 @@
 import PropTypes from 'prop-types';
 import { createContext, useContext, useEffect, useMemo } from 'react';
 import { Helmet } from 'react-helmet-async';
-import { useSettings } from 'src/api/cms-query';
+// Import useSiteSettings from API and alias it to avoid naming conflict with context hook
+import { useSiteSettings as useSiteSettingsAPI } from 'src/api/cms-query';
 
 // ----------------------------------------------------------------------
 
@@ -22,7 +23,7 @@ SiteSettingsProvider.propTypes = {
 };
 
 export function SiteSettingsProvider({ children }) {
-  const { data: settings, isLoading, error } = useSettings();
+  const { settings, settingsLoading: isLoading, settingsError: error } = useSiteSettingsAPI();
 
   // Inject analytics scripts when settings are loaded
   useEffect(() => {
