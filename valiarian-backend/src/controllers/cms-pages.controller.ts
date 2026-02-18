@@ -1,8 +1,7 @@
-import {authenticate, AuthenticationBindings} from '@loopback/authentication';
+import {authenticate} from '@loopback/authentication';
 import {inject} from '@loopback/core';
-import {Filter, repository} from '@loopback/repository';
-import {get, getModelSchemaRef, HttpErrors, param, patch, post, requestBody, response} from '@loopback/rest';
-import {UserProfile} from '@loopback/security';
+import {repository} from '@loopback/repository';
+import {get, HttpErrors, param, patch, post, requestBody, response} from '@loopback/rest';
 import {v4 as uuidv4} from 'uuid';
 import {authorize} from '../authorization';
 import {Page} from '../models';
@@ -15,7 +14,7 @@ export class CMSPageController {
     @repository(PageRepository) public pageRepository: PageRepository,
     @inject('services.cache') public cacheService: CacheService,
     @inject('services.cms') public cmsService: CMSService,
-  ) {}
+  ) { }
 
   @get('/api/cms/pages')
   @response(200, {description: 'Array of Page model instances'})
@@ -32,7 +31,7 @@ export class CMSPageController {
   @get('/api/cms/pages/slug/{slug}')
   @response(200, {description: 'Page by slug'})
   async findBySlug(@param.path.string('slug') slug: string): Promise<Page> {
-    const page = await this.pageRepository.findBySlug(slug);
+    const page = await this.pageRepository.findBySlug(slug, true); // Include sections
     if (!page) throw new HttpErrors.NotFound('Page not found');
     return page;
   }

@@ -30,10 +30,36 @@ export class CMSSettingsController {
     },
   })
   async get(): Promise<SiteSettings> {
-    const settings = await this.siteSettingsRepository.getSingleton();
+    let settings = await this.siteSettingsRepository.getSingleton();
+
+    // If no settings exist, create default settings
     if (!settings) {
-      throw new HttpErrors.NotFound('Site settings not found');
+      const defaultSettings = {
+        siteName: 'Valiarian',
+        siteDescription: 'Welcome to Valiarian',
+        logo: '/logo/logo_full.svg',
+        favicon: '/favicon/favicon.ico',
+        contactEmail: 'contact@valiarian.com',
+        contactPhone: '',
+        socialMedia: {
+          facebook: '',
+          instagram: '',
+          twitter: '',
+          linkedin: '',
+          youtube: '',
+          pinterest: ''
+        },
+        footerText: '',
+        copyrightText: '© 2024 Valiarian. All rights reserved.',
+        gtmId: '',
+        gaId: '',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      settings = await this.siteSettingsRepository.create(defaultSettings);
     }
+
     return settings;
   }
 

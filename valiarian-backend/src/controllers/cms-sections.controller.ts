@@ -37,8 +37,13 @@ export class CMSSectionController {
     content: {
       'application/json': {
         schema: {
-          type: 'array',
-          items: getModelSchemaRef(Section, {includeRelations: true}),
+          type: 'object',
+          properties: {
+            sections: {
+              type: 'array',
+              items: getModelSchemaRef(Section, {includeRelations: true}),
+            },
+          },
         },
       },
     },
@@ -48,34 +53,65 @@ export class CMSSectionController {
     @param.query.string('pageId') pageId?: string,
     @param.query.string('type') type?: string,
     @param.query.boolean('includeDisabled') includeDisabled: boolean = true,
-  ): Promise<Section[]> {
+  ): Promise<{sections: Section[]}> {
+    let sections: Section[];
+
     // If pageId is provided, use the repository method
     if (pageId) {
       if (type) {
-        return this.sectionRepository.findByPageIdAndType(
+        sections = await this.sectionRepository.findByPageIdAndType(
           pageId,
           type as Section['type'],
         );
+      } else {
+        sections = await this.sectionRepository.findByPageId(pageId, includeDisabled);
       }
-      return this.sectionRepository.findByPageId(pageId, includeDisabled);
     }
-
     // If type is provided without pageId
-    if (type) {
-      return this.sectionRepository.findByType(type as Section['type']);
+    else if (type) {
+      sections = await this.sectionRepository.findByType(type as Section['type']);
     }
-
     // Default filter-based query
-    const where: any = filter?.where || {};
-    if (!includeDisabled) {
-      where.enabled = true;
+    else {
+      const where: any = filter?.where || {};
+      if (!includeDisabled) {
+        where.enabled = true;
+      }
+
+      sections = await this.sectionRepository.find({
+        ...filter,
+        where,
+        order: filter?.order || ['order ASC'],
+      });
     }
 
-    return this.sectionRepository.find({
-      ...filter,
-      where,
-      order: filter?.order || ['order ASC'],
-    });
+    return {sections};
+  }
+
+  // Public endpoint to fetch sections by page slug
+  @get('/api/cms/pages/slug/{slug}/sections')
+  @response(200, {
+    description: 'Array of Section model instances for a page by slug',
+    content: {
+      'application/json': {
+        schema: {
+          type: 'array',
+          items: getModelSchemaRef(Section, {includeRelations: true}),
+        },
+      },
+    },
+  })
+  async findByPageSlug(
+    @param.path.string('slug') slug: string,
+  ): Promise<Section[]> {
+    // Find the page by slug
+    const page = await this.pageRepository.findOne({where: {slug}});
+    if (!page) {
+      throw new HttpErrors.NotFound(`Page with slug "${slug}" not found`);
+    }
+
+    // Only return enabled sections for public endpoint
+    return this.sectionRepository.findByPageId(page.id, false);
   }
 
   @authenticate('jwt')

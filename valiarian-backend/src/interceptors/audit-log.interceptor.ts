@@ -42,8 +42,15 @@ export class AuditLogInterceptor implements Provider<Interceptor> {
       return next();
     }
 
-    // Get current user
-    const currentUser = await this.getCurrentUser();
+    // Get current user (may not exist for public endpoints)
+    let currentUser: CurrentUser | undefined;
+    try {
+      currentUser = await this.getCurrentUser();
+    } catch (error) {
+      // No authenticated user - skip audit logging for public endpoints
+      return next();
+    }
+
     if (!currentUser) {
       return next();
     }

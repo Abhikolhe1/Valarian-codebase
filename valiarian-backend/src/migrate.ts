@@ -20,6 +20,9 @@ export async function migrate(args: string[]) {
       'Page',
       'Section',
       'ContentVersion',
+      'SectionTemplate',
+      'NavigationMenu',
+      'SiteSettings',
     ]
   });
 
