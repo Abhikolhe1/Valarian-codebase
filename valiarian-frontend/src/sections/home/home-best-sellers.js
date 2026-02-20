@@ -1,13 +1,13 @@
+import orderBy from 'lodash/orderBy';
 import PropTypes from 'prop-types';
 import { useMemo, useState } from 'react';
-import orderBy from 'lodash/orderBy';
 // @mui
-import { useTheme } from '@mui/material/styles';
 import Box from '@mui/material/Box';
-import Stack from '@mui/material/Stack';
-import Typography from '@mui/material/Typography';
-import Container from '@mui/material/Container';
 import Button from '@mui/material/Button';
+import Container from '@mui/material/Container';
+import Stack from '@mui/material/Stack';
+import { useTheme } from '@mui/material/styles';
+import Typography from '@mui/material/Typography';
 import useMediaQuery from '@mui/material/useMediaQuery';
 // api
 import { useGetProducts } from 'src/api/product';
@@ -135,7 +135,7 @@ const DUMMY_BEST_SELLERS = [
 
 // ----------------------------------------------------------------------
 
-export default function HomeBestSellers({ products: propProducts, ...other }) {
+export default function HomeBestSellers({ products: propProducts, cmsData, ...other }) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md')); // Mobile: below md breakpoint
 
@@ -144,6 +144,10 @@ export default function HomeBestSellers({ products: propProducts, ...other }) {
 
   // Fetch products if not provided as prop
   const { products: fetchedProducts, productsLoading } = useGetProducts();
+
+  // Use CMS data for title and subtitle
+  const title = cmsData?.content?.title || 'Best Sellers';
+  const subtitle = cmsData?.content?.subtitle || 'Our most beloved pieces, chosen by customers for their exceptional quality and timeless appeal.';
 
   // Get best seller products (sorted by soldCount, limited to 8)
   const products = useMemo(() => {
@@ -222,7 +226,7 @@ export default function HomeBestSellers({ products: propProducts, ...other }) {
               mb: 2,
             }}
           >
-            Best Sellers
+            {title}
           </Typography>
           <Typography
             variant="body1"
@@ -234,8 +238,7 @@ export default function HomeBestSellers({ products: propProducts, ...other }) {
               mb: { xs: 2, md: 3 },
             }}
           >
-            Our most beloved pieces, chosen by customers for their exceptional quality and timeless
-            appeal.
+            {subtitle}
           </Typography>
         </Stack>
 
@@ -319,4 +322,10 @@ export default function HomeBestSellers({ products: propProducts, ...other }) {
 
 HomeBestSellers.propTypes = {
   products: PropTypes.array,
+  cmsData: PropTypes.shape({
+    content: PropTypes.shape({
+      title: PropTypes.string,
+      subtitle: PropTypes.string,
+    }),
+  }),
 };

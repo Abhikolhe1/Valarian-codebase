@@ -30,30 +30,65 @@ const SECTION_TYPE_CONFIG = {
     color: 'primary',
     icon: 'solar:star-bold',
   },
+  'scroll-animated': {
+    label: 'Scroll Animated',
+    color: 'info',
+    icon: 'solar:mouse-minimalistic-bold',
+  },
+  'new-arrivals': {
+    label: 'New Arrivals',
+    color: 'success',
+    icon: 'solar:bag-bold',
+  },
+  'collection-hero': {
+    label: 'Collection Hero',
+    color: 'warning',
+    icon: 'solar:gallery-bold',
+  },
+  'best-sellers': {
+    label: 'Best Sellers',
+    color: 'error',
+    icon: 'solar:fire-bold',
+  },
+  'fabric-info': {
+    label: 'Fabric Info',
+    color: 'primary',
+    icon: 'solar:t-shirt-bold',
+  },
+  'social-media': {
+    label: 'Social Media',
+    color: 'info',
+    icon: 'solar:share-bold',
+  },
   features: {
     label: 'Features',
-    color: 'info',
+    color: 'success',
     icon: 'solar:widget-bold',
   },
   testimonials: {
     label: 'Testimonials',
-    color: 'success',
+    color: 'warning',
     icon: 'solar:chat-round-like-bold',
   },
   gallery: {
     label: 'Gallery',
-    color: 'warning',
+    color: 'error',
     icon: 'solar:gallery-bold',
   },
   cta: {
     label: 'CTA',
-    color: 'error',
+    color: 'primary',
     icon: 'solar:hand-shake-bold',
   },
   text: {
     label: 'Text',
     color: 'default',
     icon: 'solar:text-bold',
+  },
+  custom: {
+    label: 'Custom',
+    color: 'default',
+    icon: 'solar:code-bold',
   },
 };
 

@@ -1,13 +1,13 @@
+import { AnimatePresence, m, useScroll, useSpring, useTransform } from 'framer-motion';
 import PropTypes from 'prop-types';
-import { useRef, useState, useEffect, useMemo } from 'react';
-import { m, useScroll, useTransform, useSpring, AnimatePresence } from 'framer-motion';
+import { useEffect, useRef, useState } from 'react';
 // @mui
-import { useTheme } from '@mui/material/styles';
 import Box from '@mui/material/Box';
-import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
-import Typography from '@mui/material/Typography';
 import Container from '@mui/material/Container';
+import Stack from '@mui/material/Stack';
+import { useTheme } from '@mui/material/styles';
+import Typography from '@mui/material/Typography';
 import useMediaQuery from '@mui/material/useMediaQuery';
 // components
 import Image from 'src/components/image';
@@ -76,14 +76,14 @@ function ImageItem({ product, index: imageIndex, smoothIndex, isMobile }) {
     (latest) => {
       const currentIndex = Math.floor(latest);
       const nextIndex = currentIndex + 1;
-      
+
       // This is the main/active image (currentIndex)
       if (imageIndex === currentIndex) {
         const progress = latest - currentIndex;
         // Fade out as it transitions out
         return Math.max(0, 1 - progress * 2);
       }
-      
+
       // This is the NEXT image (nextIndex) that should be visible in background
       if (imageIndex === nextIndex) {
         const progress = latest - currentIndex;
@@ -91,7 +91,7 @@ function ImageItem({ product, index: imageIndex, smoothIndex, isMobile }) {
         if (progress < 0) return 0; // Not visible yet
         return Math.min(1, 0.3 + progress * 0.7); // 0.3 to 1.0
       }
-      
+
       return 0;
     }
   );
@@ -104,7 +104,7 @@ function ImageItem({ product, index: imageIndex, smoothIndex, isMobile }) {
     (latest) => {
       const currentIndex = Math.floor(latest);
       const nextIndex = currentIndex + 1;
-      
+
       // This is the main/active image (currentIndex)
       if (imageIndex === currentIndex) {
         const progress = latest - currentIndex;
@@ -112,7 +112,7 @@ function ImageItem({ product, index: imageIndex, smoothIndex, isMobile }) {
         // Scale down slightly as it transitions out
         return Math.max(0.85, mainScale - progress * (mainScale - 0.85) * 0.15);
       }
-      
+
       // This is the NEXT image (nextIndex) coming forward
       if (imageIndex === nextIndex) {
         const progress = latest - currentIndex;
@@ -121,7 +121,7 @@ function ImageItem({ product, index: imageIndex, smoothIndex, isMobile }) {
         if (progress < 0) return startScale; // Start at small scale
         return startScale + Math.min(1, progress) * (endScale - startScale);
       }
-      
+
       return isMobile ? 0.6 : 0.5; // Smaller default scale
     }
   );
@@ -134,14 +134,14 @@ function ImageItem({ product, index: imageIndex, smoothIndex, isMobile }) {
     (latest) => {
       const currentIndex = Math.floor(latest);
       const nextIndex = currentIndex + 1;
-      
+
       // This is the main/active image (currentIndex)
       if (imageIndex === currentIndex) {
         const progress = latest - currentIndex;
         // Slight blur as it fades out
         return progress * 4;
       }
-      
+
       // This is the NEXT image (nextIndex) coming forward
       if (imageIndex === nextIndex) {
         const progress = latest - currentIndex;
@@ -150,7 +150,7 @@ function ImageItem({ product, index: imageIndex, smoothIndex, isMobile }) {
         if (progress < 0) return startBlur; // Start blurred
         return startBlur - Math.min(1, progress) * startBlur; // 12px to 0px
       }
-      
+
       return isMobile ? 8 : 12;
     }
   );
@@ -163,12 +163,12 @@ function ImageItem({ product, index: imageIndex, smoothIndex, isMobile }) {
     (latest) => {
       const currentIndex = Math.floor(latest);
       const nextIndex = currentIndex + 1;
-      
+
       // This is the main/active image (currentIndex)
       if (imageIndex === currentIndex) {
         return 10; // On top
       }
-      
+
       // This is the NEXT image (nextIndex) coming forward
       if (imageIndex === nextIndex) {
         const progress = latest - currentIndex;
@@ -176,7 +176,7 @@ function ImageItem({ product, index: imageIndex, smoothIndex, isMobile }) {
         if (progress < 0) return 5; // Start behind
         return 5 + Math.round(Math.min(1, progress) * 5); // 5 to 10
       }
-      
+
       return 1;
     }
   );
@@ -189,13 +189,13 @@ function ImageItem({ product, index: imageIndex, smoothIndex, isMobile }) {
   // Desktop: Blurred image: top: 8%, left: 50%, translateX(-29.9%), translateY(-0.05%)
   // Mobile: Main image: centered (top: 50%, left: 50%, translateX(-50%), translateY(-50%))
   // Mobile: Blurred image: right side, slightly top (top: 10%, right: 10%)
-  
+
   const positionTop = useTransform(
     smoothIndex,
     (latest) => {
       const currentIndex = Math.floor(latest);
       const nextIndex = currentIndex + 1;
-      
+
       // This is the main/active image (currentIndex)
       if (imageIndex === currentIndex) {
         if (isMobile) {
@@ -203,7 +203,7 @@ function ImageItem({ product, index: imageIndex, smoothIndex, isMobile }) {
         }
         return '30%'; // Desktop: top: 30%
       }
-      
+
       // This is the NEXT image (nextIndex) coming forward
       if (imageIndex === nextIndex) {
         const progress = latest - currentIndex;
@@ -220,12 +220,12 @@ function ImageItem({ product, index: imageIndex, smoothIndex, isMobile }) {
         const currentTop = startTop + (endTop - startTop) * progress;
         return `${currentTop}%`;
       }
-      
+
       // Default: blurred image position (for next image when visible)
       if (imageIndex === nextIndex) {
         return isMobile ? '10%' : '8%';
       }
-      
+
       return '0%';
     }
   );
@@ -235,7 +235,7 @@ function ImageItem({ product, index: imageIndex, smoothIndex, isMobile }) {
     (latest) => {
       const currentIndex = Math.floor(latest);
       const nextIndex = currentIndex + 1;
-      
+
       // This is the main/active image (currentIndex)
       if (imageIndex === currentIndex) {
         if (isMobile) {
@@ -243,7 +243,7 @@ function ImageItem({ product, index: imageIndex, smoothIndex, isMobile }) {
         }
         return '16%'; // Desktop: left: 16%
       }
-      
+
       // This is the NEXT image (nextIndex) coming forward
       if (imageIndex === nextIndex) {
         const progress = latest - currentIndex;
@@ -261,7 +261,7 @@ function ImageItem({ product, index: imageIndex, smoothIndex, isMobile }) {
         const currentLeft = startLeft + (endLeft - startLeft) * Math.min(1, Math.max(0, progress));
         return `${currentLeft}%`;
       }
-      
+
       // Default: blurred image position (for next image when visible)
       if (imageIndex === nextIndex) {
         if (isMobile) {
@@ -269,7 +269,7 @@ function ImageItem({ product, index: imageIndex, smoothIndex, isMobile }) {
         }
         return '50%'; // Desktop
       }
-      
+
       return '0%';
     }
   );
@@ -278,15 +278,15 @@ function ImageItem({ product, index: imageIndex, smoothIndex, isMobile }) {
     smoothIndex,
     (latest) => {
       if (!isMobile) return 'auto'; // Desktop uses left positioning
-      
+
       const currentIndex = Math.floor(latest);
       const nextIndex = currentIndex + 1;
-      
+
       // This is the main/active image (currentIndex)
       if (imageIndex === currentIndex) {
         return 'auto'; // Centered, use left instead
       }
-      
+
       // This is the NEXT image (nextIndex) coming forward
       if (imageIndex === nextIndex) {
         const progress = latest - currentIndex;
@@ -295,12 +295,12 @@ function ImageItem({ product, index: imageIndex, smoothIndex, isMobile }) {
         }
         return 'auto'; // Switch to left positioning
       }
-      
+
       // Default: blurred image on right (for next image when visible)
       if (imageIndex === nextIndex) {
         return '10%';
       }
-      
+
       return 'auto';
     }
   );
@@ -310,7 +310,7 @@ function ImageItem({ product, index: imageIndex, smoothIndex, isMobile }) {
     (latest) => {
       const currentIndex = Math.floor(latest);
       const nextIndex = currentIndex + 1;
-      
+
       // This is the main/active image (currentIndex)
       if (imageIndex === currentIndex) {
         if (isMobile) {
@@ -318,7 +318,7 @@ function ImageItem({ product, index: imageIndex, smoothIndex, isMobile }) {
         }
         return '-30%'; // Desktop: translateX(-30%)
       }
-      
+
       // This is the NEXT image (nextIndex) coming forward
       if (imageIndex === nextIndex) {
         const progress = latest - currentIndex;
@@ -335,7 +335,7 @@ function ImageItem({ product, index: imageIndex, smoothIndex, isMobile }) {
         const currentX = startX + (endX - startX) * Math.min(1, Math.max(0, progress));
         return `${currentX}%`;
       }
-      
+
       // Default: blurred image translateX (for next image when visible)
       if (imageIndex === nextIndex) {
         if (isMobile) {
@@ -343,7 +343,7 @@ function ImageItem({ product, index: imageIndex, smoothIndex, isMobile }) {
         }
         return '-29.9%'; // Desktop
       }
-      
+
       return '0%';
     }
   );
@@ -353,7 +353,7 @@ function ImageItem({ product, index: imageIndex, smoothIndex, isMobile }) {
     (latest) => {
       const currentIndex = Math.floor(latest);
       const nextIndex = currentIndex + 1;
-      
+
       // This is the main/active image (currentIndex)
       if (imageIndex === currentIndex) {
         if (isMobile) {
@@ -361,7 +361,7 @@ function ImageItem({ product, index: imageIndex, smoothIndex, isMobile }) {
         }
         return '0%'; // Desktop: translateY(0%)
       }
-      
+
       // This is the NEXT image (nextIndex) coming forward
       if (imageIndex === nextIndex) {
         const progress = latest - currentIndex;
@@ -378,7 +378,7 @@ function ImageItem({ product, index: imageIndex, smoothIndex, isMobile }) {
         const currentY = startY + (endY - startY) * Math.min(1, Math.max(0, progress));
         return `${currentY}%`;
       }
-      
+
       // Default: blurred image translateY (for next image when visible)
       if (imageIndex === nextIndex) {
         if (isMobile) {
@@ -386,7 +386,7 @@ function ImageItem({ product, index: imageIndex, smoothIndex, isMobile }) {
         }
         return '-0.05%'; // Desktop
       }
-      
+
       return '0%';
     }
   );
@@ -397,22 +397,22 @@ function ImageItem({ product, index: imageIndex, smoothIndex, isMobile }) {
     (latest) => {
       const currentIndex = Math.floor(latest);
       const nextIndex = currentIndex + 1;
-      
+
       // This is the main/active image (currentIndex)
       if (imageIndex === currentIndex) {
         return '85%'; // Main image: max-width/max-height: 85%
       }
-      
+
       // This is the NEXT image (nextIndex) coming forward
       if (imageIndex === nextIndex && latest >= currentIndex && latest < nextIndex + 0.5) {
         return '40%'; // Blurred image: max-width/max-height: 40%
       }
-      
+
       // Default for next image
       if (imageIndex === nextIndex) {
         return '40%';
       }
-      
+
       return '40%';
     }
   );
@@ -422,12 +422,12 @@ function ImageItem({ product, index: imageIndex, smoothIndex, isMobile }) {
     smoothIndex,
     (latest) => {
       const currentIndex = Math.floor(latest);
-      
+
       // This is the main/active image (currentIndex)
       if (imageIndex === currentIndex) {
         return '350px'; // Main image: width: 350px
       }
-      
+
       return 'auto'; // Blurred image: width: auto
     }
   );
@@ -484,7 +484,7 @@ ImageItem.propTypes = {
 
 // ----------------------------------------------------------------------
 
-export default function HomeScrollAnimated({ products = PRODUCTS, ...other }) {
+export default function HomeScrollAnimated({ products: propProducts, cmsData, ...other }) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
@@ -492,6 +492,9 @@ export default function HomeScrollAnimated({ products = PRODUCTS, ...other }) {
   const spacerRef = useRef(null);
   const containerRef = useRef(null);
   const [currentProductIndex, setCurrentProductIndex] = useState(0);
+
+  // Use CMS data if available, otherwise use prop products, fallback to PRODUCTS
+  const products = cmsData?.content?.products || propProducts || PRODUCTS;
 
   // Number of products
   const productCount = products.length;
@@ -707,4 +710,17 @@ HomeScrollAnimated.propTypes = {
       buttonLink: PropTypes.string.isRequired,
     })
   ),
+  cmsData: PropTypes.shape({
+    content: PropTypes.shape({
+      products: PropTypes.arrayOf(
+        PropTypes.shape({
+          title: PropTypes.string.isRequired,
+          description: PropTypes.string.isRequired,
+          image: PropTypes.string.isRequired,
+          buttonText: PropTypes.string.isRequired,
+          buttonLink: PropTypes.string.isRequired,
+        })
+      ),
+    }),
+  }),
 };

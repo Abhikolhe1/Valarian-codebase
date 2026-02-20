@@ -158,6 +158,12 @@ export class CMSSectionController {
                 type: 'string',
                 enum: [
                   'hero',
+                  'scroll-animated',
+                  'new-arrivals',
+                  'collection-hero',
+                  'best-sellers',
+                  'fabric-info',
+                  'social-media',
                   'features',
                   'testimonials',
                   'gallery',
@@ -239,6 +245,12 @@ export class CMSSectionController {
                 type: 'string',
                 enum: [
                   'hero',
+                  'scroll-animated',
+                  'new-arrivals',
+                  'collection-hero',
+                  'best-sellers',
+                  'fabric-info',
+                  'social-media',
                   'features',
                   'testimonials',
                   'gallery',
@@ -376,3 +388,4 @@ export class CMSSectionController {
     }
   }
 }
+

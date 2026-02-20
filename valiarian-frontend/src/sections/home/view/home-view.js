@@ -1,25 +1,18 @@
 import { useScroll } from 'framer-motion';
 // @mui
 import { styled } from '@mui/material/styles';
-import Box from '@mui/material/Box';
 // components
 import ScrollProgress from 'src/components/scroll-progress';
+// CMS
+import { usePageSectionsBySlug } from 'src/api/cms-query';
 //
-import HomeHero from '../home-hero';
-import HomeScrollAnimated from '../home-scroll-animated';
-import HomeNewArrivals from '../home-new-arrivals';
-import HomeCollectionHero from '../home-collection-hero';
 import HomeBestSellers from '../home-best-sellers';
+import HomeCollectionHero from '../home-collection-hero';
 import HomeFabricSection from '../home-fabric-section';
+import HomeHero from '../home-hero';
+import HomeNewArrivals from '../home-new-arrivals';
+import HomeScrollAnimated from '../home-scroll-animated';
 import HomeSocialMedia from '../home-social-media';
-import HomePricing from '../home-pricing';
-import HomeDarkMode from '../home-dark-mode';
-import HomeLookingFor from '../home-looking-for';
-import HomeForDesigner from '../home-for-designer';
-import HomeColorPresets from '../home-color-presets';
-import HomeAdvertisement from '../home-advertisement';
-import HomeCleanInterfaces from '../home-clean-interfaces';
-import HomeHugePackElements from '../home-hugepack-elements';
 
 // ----------------------------------------------------------------------
 
@@ -48,23 +41,48 @@ const StyledPolygon = styled('div')(({ anchor = 'top', theme }) => ({
 export default function HomeView() {
   const { scrollYProgress } = useScroll();
 
+  // Fetch all CMS sections for homepage
+  const { sections, sectionsLoading } = usePageSectionsBySlug('home');
+
+  // Filter sections by type
+  const heroSection = sections?.find((s) => s.type === 'hero');
+  const scrollAnimatedSection = sections?.find((s) => s.type === 'scroll-animated');
+  const newArrivalsSection = sections?.find((s) => s.type === 'new-arrivals');
+  const collectionHeroSection = sections?.find((s) => s.type === 'collection-hero');
+  const bestSellersSection = sections?.find((s) => s.type === 'best-sellers');
+  const fabricSection = sections?.find((s) => s.type === 'fabric-info');
+  const socialMediaSection = sections?.find((s) => s.type === 'social-media');
+
   return (
     <>
       <ScrollProgress scrollYProgress={scrollYProgress} />
 
-      <HomeHero imageSrc="/assets/images/home/hero/valiarian-hero.png" />
+      {/* Hero Section - Pass CMS data */}
+      <HomeHero
+        imageSrc={heroSection?.content?.backgroundImage || "/assets/images/home/hero/valiarian-hero.png"}
+        cmsData={heroSection}
+      />
 
-      <HomeScrollAnimated />
+      {/* Scroll Animated Section - Pass CMS data */}
+      <HomeScrollAnimated cmsData={scrollAnimatedSection} />
 
-      <HomeNewArrivals />
+      {/* New Arrivals - Pass CMS data */}
+      <HomeNewArrivals cmsData={newArrivalsSection} />
 
-      <HomeCollectionHero imageSrc="/assets/images/home/new-arrival/new-arrival-hero.jpeg" />
+      {/* Collection Hero - Pass CMS data */}
+      <HomeCollectionHero
+        imageSrc={collectionHeroSection?.content?.backgroundImage || "/assets/images/home/new-arrival/new-arrival-hero.jpeg"}
+        cmsData={collectionHeroSection}
+      />
 
-      <HomeBestSellers />
+      {/* Best Sellers - Pass CMS data */}
+      <HomeBestSellers cmsData={bestSellersSection} />
 
-      <HomeFabricSection />
+      {/* Fabric Section - Pass CMS data */}
+      <HomeFabricSection cmsData={fabricSection} />
 
-      <HomeSocialMedia />
+      {/* Social Media - Pass CMS data */}
+      <HomeSocialMedia cmsData={socialMediaSection} />
 
       {/* <Box
         sx={{

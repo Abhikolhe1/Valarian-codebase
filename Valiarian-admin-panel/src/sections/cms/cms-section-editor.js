@@ -12,6 +12,7 @@ import axiosInstance, { endpoints } from 'src/utils/axios';
 // components
 import Iconify from 'src/components/iconify';
 import { useSnackbar } from 'src/components/snackbar';
+import { useSWRConfig } from 'swr';
 //
 import CTASectionEditor from './section-editors/cta-section-editor';
 import FeaturesSectionEditor from './section-editors/features-section-editor';
@@ -19,31 +20,53 @@ import GallerySectionEditor from './section-editors/gallery-section-editor';
 import HeroSectionEditor from './section-editors/hero-section-editor';
 import TestimonialsSectionEditor from './section-editors/testimonials-section-editor';
 import TextSectionEditor from './section-editors/text-section-editor';
+// New section editors
+import BestSellersSectionEditor from './section-editors/best-sellers-section-editor';
+import CollectionHeroSectionEditor from './section-editors/collection-hero-section-editor';
+import FabricInfoSectionEditor from './section-editors/fabric-info-section-editor';
+import NewArrivalsSectionEditor from './section-editors/new-arrivals-section-editor';
+import ScrollAnimatedSectionEditor from './section-editors/scroll-animated-section-editor';
+import SocialMediaSectionEditor from './section-editors/social-media-section-editor';
 
 // ----------------------------------------------------------------------
 
 const SECTION_EDITORS = {
   hero: HeroSectionEditor,
+  'scroll-animated': ScrollAnimatedSectionEditor,
+  'new-arrivals': NewArrivalsSectionEditor,
+  'collection-hero': CollectionHeroSectionEditor,
+  'best-sellers': BestSellersSectionEditor,
+  'fabric-info': FabricInfoSectionEditor,
+  'social-media': SocialMediaSectionEditor,
   features: FeaturesSectionEditor,
   testimonials: TestimonialsSectionEditor,
   gallery: GallerySectionEditor,
   cta: CTASectionEditor,
   text: TextSectionEditor,
+  custom: TextSectionEditor, // Use text editor for custom sections
 };
 
 const SECTION_TITLES = {
   hero: 'Hero Section',
+  'scroll-animated': 'Scroll Animated Section',
+  'new-arrivals': 'New Arrivals Section',
+  'collection-hero': 'Collection Hero Section',
+  'best-sellers': 'Best Sellers Section',
+  'fabric-info': 'Fabric Information Section',
+  'social-media': 'Social Media Section',
   features: 'Features Section',
   testimonials: 'Testimonials Section',
   gallery: 'Gallery Section',
   cta: 'Call to Action Section',
   text: 'Text Section',
+  custom: 'Custom Section',
 };
 
 // ----------------------------------------------------------------------
 
 export default function CMSSectionEditor({ open, onClose, section, sectionType, template, pageId, onSave }) {
   const { enqueueSnackbar } = useSnackbar();
+  const { mutate } = useSWRConfig();
   const [isSaving, setIsSaving] = useState(false);
 
   const type = section?.type || sectionType;
@@ -79,6 +102,13 @@ export default function CMSSectionEditor({ open, onClose, section, sectionType, 
           savedSection = response.data;
         }
 
+        // Revalidate sections cache to refresh the list
+        await mutate(
+          (key) => Array.isArray(key) && key[0] === endpoints.cms.sections.list,
+          undefined,
+          { revalidate: true }
+        );
+
         enqueueSnackbar(
           section ? 'Section updated successfully!' : 'Section created successfully!',
           { variant: 'success' }
@@ -96,7 +126,7 @@ export default function CMSSectionEditor({ open, onClose, section, sectionType, 
         setIsSaving(false);
       }
     },
-    [section, pageId, onSave, onClose, enqueueSnackbar]
+    [section, pageId, onSave, onClose, enqueueSnackbar, mutate]
   );
 
   const handleCancel = useCallback(() => {

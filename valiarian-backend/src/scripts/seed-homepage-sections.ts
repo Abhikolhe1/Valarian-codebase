@@ -3,7 +3,7 @@ import {PageRepository, SectionRepository} from '../repositories';
 
 /**
  * Seed homepage sections
- * Creates hero, below hero, and new arrivals sections for the homepage
+ * Creates sections that map to existing frontend components
  */
 export async function seedHomepageSections(app: ValiarianBackendApplication) {
   const pageRepository = await app.getRepository(PageRepository);
@@ -39,7 +39,7 @@ export async function seedHomepageSections(app: ValiarianBackendApplication) {
   await sectionRepository.deleteAll({pageId: homepage.id});
   console.log('🗑️  Cleared existing sections');
 
-  // Create Hero Section
+  // 1. Hero Section (maps to HomeHero component)
   const heroSection = await sectionRepository.create({
     pageId: homepage.id,
     name: 'Hero Section',
@@ -47,185 +47,192 @@ export async function seedHomepageSections(app: ValiarianBackendApplication) {
     order: 1,
     enabled: true,
     content: {
-      title: 'Welcome to Valiarian',
-      subtitle: 'Discover Amazing Products',
-      description: 'Shop the latest trends and exclusive collections',
-      ctaText: 'Shop Now',
+      title: 'Premium Cotton Polos.',
+      ctaText: 'Explore Collection',
       ctaLink: '/products',
-      backgroundImage: '/assets/images/hero-bg.jpg',
-      overlayOpacity: 0.5,
+      backgroundImage: '/assets/images/home/hero/valiarian-hero.png',
     },
     settings: {
       backgroundColor: '#000000',
       textColor: '#ffffff',
-      height: 'full',
-      alignment: 'center',
     },
     createdAt: new Date(),
     updatedAt: new Date(),
   });
-
   console.log(`✅ Created Hero Section: ${heroSection.id}`);
 
-  // Create Below Hero Section (Features/Benefits)
-  const belowHeroSection = await sectionRepository.create({
+  // 2. Scroll Animated Section (maps to HomeScrollAnimated component)
+  const scrollSection = await sectionRepository.create({
     pageId: homepage.id,
-    name: 'Features Section',
-    type: 'features',
+    name: 'Scroll Animated Section',
+    type: 'scroll-animated',
     order: 2,
     enabled: true,
     content: {
-      title: 'Why Choose Us',
-      subtitle: 'The Best Shopping Experience',
-      features: [
+      products: [
         {
-          icon: 'solar:delivery-bold',
-          title: 'Free Shipping',
-          description: 'Free shipping on orders over $50',
+          title: 'Premium Classic T-Shirt',
+          description: 'Crafted with premium cotton for ultimate comfort and style. Perfect for everyday wear.',
+          image: '/assets/images/home/scroll-animation/tshirt1-removebg-preview.png',
+          buttonText: 'Shop Now',
+          buttonLink: '/products',
         },
         {
-          icon: 'solar:shield-check-bold',
-          title: 'Secure Payment',
-          description: '100% secure payment methods',
+          title: 'Essential Comfort Fit',
+          description: 'Experience the perfect blend of comfort and durability. Made to last, designed to impress.',
+          image: '/assets/images/home/scroll-animation/tshirt2-removebg-preview.png',
+          buttonText: 'Explore',
+          buttonLink: '/products',
         },
         {
-          icon: 'solar:refresh-bold',
-          title: 'Easy Returns',
-          description: '30-day return policy',
+          title: 'Modern Fit Premium',
+          description: 'Contemporary design meets classic elegance. Elevate your wardrobe with this timeless piece.',
+          image: '/assets/images/home/scroll-animation/tshirt3-removebg-preview.png',
+          buttonText: 'Discover',
+          buttonLink: '/products',
         },
         {
-          icon: 'solar:chat-round-call-bold',
-          title: '24/7 Support',
-          description: 'Dedicated customer support',
+          title: 'Signature Collection',
+          description: 'Our signature piece that defines quality and style. A must-have for the modern wardrobe.',
+          image: '/assets/images/home/scroll-animation/tshirt2-removebg-preview.png',
+          buttonText: 'View Collection',
+          buttonLink: '/products',
         },
       ],
-    },
-    settings: {
-      backgroundColor: '#f9fafb',
-      columns: 4,
-      spacing: 3,
-    },
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  });
-
-  console.log(`✅ Created Features Section: ${belowHeroSection.id}`);
-
-  // Create New Arrivals Section
-  const newArrivalsSection = await sectionRepository.create({
-    pageId: homepage.id,
-    name: 'New Arrivals',
-    type: 'custom',
-    order: 3,
-    enabled: true,
-    content: {
-      sectionType: 'product-grid',
-      title: 'New Arrivals',
-      subtitle: 'Check out our latest products',
-      ctaText: 'View All',
-      ctaLink: '/products/new',
-      displayType: 'grid',
-      itemsPerRow: 4,
-      maxItems: 8,
-      showPrice: true,
-      showRating: true,
-      showQuickView: true,
-      // Products will be fetched dynamically from product API
-      productFilter: {
-        category: 'new-arrivals',
-        sortBy: 'createdAt',
-        order: 'desc',
-      },
     },
     settings: {
       backgroundColor: '#ffffff',
-      spacing: 3,
-      cardStyle: 'elevated',
     },
     createdAt: new Date(),
     updatedAt: new Date(),
   });
+  console.log(`✅ Created Scroll Animated Section: ${scrollSection.id}`);
 
+  // 3. New Arrivals Section (maps to HomeNewArrivals component)
+  const newArrivalsSection = await sectionRepository.create({
+    pageId: homepage.id,
+    name: 'New Arrivals',
+    type: 'new-arrivals',
+    order: 3,
+    enabled: true,
+    content: {
+      title: 'New Arrivals',
+      subtitle: 'Discover our latest collection of premium cotton polos, crafted with the same attention to detail and commitment to quality.',
+    },
+    settings: {
+      backgroundColor: '#ffffff',
+    },
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  });
   console.log(`✅ Created New Arrivals Section: ${newArrivalsSection.id}`);
 
-  // Create Featured Categories Section
-  const categoriesSection = await sectionRepository.create({
+  // 4. Collection Hero Section (maps to HomeCollectionHero component)
+  const collectionHeroSection = await sectionRepository.create({
     pageId: homepage.id,
-    name: 'Featured Categories',
-    type: 'custom',
+    name: 'Collection Hero',
+    type: 'collection-hero',
     order: 4,
     enabled: true,
     content: {
-      sectionType: 'category-grid',
-      title: 'Shop by Category',
-      subtitle: 'Explore our collections',
-      categories: [
+      title: 'New Collection',
+      subtitle: 'Explore our latest designs',
+      backgroundImage: '/assets/images/home/new-arrival/new-arrival-hero.jpeg',
+    },
+    settings: {
+      backgroundColor: '#000000',
+    },
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  });
+  console.log(`✅ Created Collection Hero Section: ${collectionHeroSection.id}`);
+
+  // 5. Best Sellers Section (maps to HomeBestSellers component)
+  const bestSellersSection = await sectionRepository.create({
+    pageId: homepage.id,
+    name: 'Best Sellers',
+    type: 'best-sellers',
+    order: 5,
+    enabled: true,
+    content: {
+      title: 'Best Sellers',
+      subtitle: 'Our most popular products that customers love',
+    },
+    settings: {
+      backgroundColor: '#f9fafb',
+    },
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  });
+  console.log(`✅ Created Best Sellers Section: ${bestSellersSection.id}`);
+
+  // 6. Fabric Section (maps to HomeFabricSection component)
+  const fabricSection = await sectionRepository.create({
+    pageId: homepage.id,
+    name: 'Fabric Information',
+    type: 'fabric-info',
+    order: 6,
+    enabled: true,
+    content: {
+      title: 'Premium Fabric',
+      subtitle: 'Quality you can feel',
+      description: 'Made with the finest cotton for ultimate comfort and durability',
+      features: [
         {
-          name: 'Men',
-          image: '/assets/images/category-men.jpg',
-          link: '/products/men',
+          title: 'Breathable',
+          description: 'Natural cotton fibers allow air circulation',
+          icon: 'solar:wind-bold',
         },
         {
-          name: 'Women',
-          image: '/assets/images/category-women.jpg',
-          link: '/products/women',
+          title: 'Durable',
+          description: 'Long-lasting quality that withstands wear',
+          icon: 'solar:shield-check-bold',
         },
         {
-          name: 'Accessories',
-          image: '/assets/images/category-accessories.jpg',
-          link: '/products/accessories',
-        },
-        {
-          name: 'Sale',
-          image: '/assets/images/category-sale.jpg',
-          link: '/products/sale',
+          title: 'Soft',
+          description: 'Gentle on skin with premium softness',
+          icon: 'solar:heart-bold',
         },
       ],
     },
     settings: {
-      backgroundColor: '#f9fafb',
-      columns: 4,
-      imageRatio: '4:3',
+      backgroundColor: '#ffffff',
     },
     createdAt: new Date(),
     updatedAt: new Date(),
   });
+  console.log(`✅ Created Fabric Section: ${fabricSection.id}`);
 
-  console.log(`✅ Created Categories Section: ${categoriesSection.id}`);
-
-  // Create Newsletter Section
-  const newsletterSection = await sectionRepository.create({
+  // 7. Social Media Section (maps to HomeSocialMedia component)
+  const socialMediaSection = await sectionRepository.create({
     pageId: homepage.id,
-    name: 'Newsletter Signup',
-    type: 'custom',
-    order: 5,
+    name: 'Social Media',
+    type: 'social-media',
+    order: 7,
     enabled: true,
     content: {
-      sectionType: 'newsletter',
-      title: 'Stay Updated',
-      subtitle: 'Subscribe to our newsletter for exclusive offers',
-      placeholder: 'Enter your email',
-      ctaText: 'Subscribe',
-      successMessage: 'Thank you for subscribing!',
-      privacyText: 'We respect your privacy. Unsubscribe at any time.',
+      title: 'Follow Us',
+      subtitle: 'Stay connected with Valiarian',
+      instagram: 'valiarian',
+      facebook: 'valiarian',
+      twitter: 'valiarian',
     },
     settings: {
-      backgroundColor: '#1a1a1a',
-      textColor: '#ffffff',
-      alignment: 'center',
+      backgroundColor: '#f9fafb',
     },
     createdAt: new Date(),
     updatedAt: new Date(),
   });
-
-  console.log(`✅ Created Newsletter Section: ${newsletterSection.id}`);
+  console.log(`✅ Created Social Media Section: ${socialMediaSection.id}`);
 
   console.log('✅ Homepage sections seeded successfully!');
   console.log(`   - Hero Section (order: 1)`);
-  console.log(`   - Features Section (order: 2)`);
+  console.log(`   - Scroll Animated Section (order: 2)`);
   console.log(`   - New Arrivals (order: 3)`);
-  console.log(`   - Featured Categories (order: 4)`);
-  console.log(`   - Newsletter (order: 5)`);
+  console.log(`   - Collection Hero (order: 4)`);
+  console.log(`   - Best Sellers (order: 5)`);
+  console.log(`   - Fabric Information (order: 6)`);
+  console.log(`   - Social Media (order: 7)`);
 }
 
 // Run if executed directly

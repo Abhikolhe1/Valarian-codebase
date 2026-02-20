@@ -1,22 +1,27 @@
-import PropTypes from 'prop-types';
 import { m } from 'framer-motion';
+import PropTypes from 'prop-types';
 // @mui
 import Box from '@mui/material/Box';
-import Container from '@mui/material/Container';
-import Grid from '@mui/material/Unstable_Grid2';
 import Button from '@mui/material/Button';
+import Container from '@mui/material/Container';
 import Typography from '@mui/material/Typography';
+import Grid from '@mui/material/Unstable_Grid2';
 // routes
 import { paths } from 'src/routes/paths';
 // components
-import { RouterLink } from 'src/routes/components';
 import { MotionContainer, varFade } from 'src/components/animate';
+import { RouterLink } from 'src/routes/components';
 
 // ----------------------------------------------------------------------
 
-export default function HomeCollectionHero({ imageSrc, videoSrc, ...other }) {
+export default function HomeCollectionHero({ imageSrc, videoSrc, cmsData, ...other }) {
+  // Use CMS data if available
+  const title = cmsData?.content?.title || 'COLLECTION';
+  const subtitle = cmsData?.content?.subtitle || 'Explore our latest designs';
+  const backgroundImage = cmsData?.content?.backgroundImage || imageSrc || '/assets/images/home/new-arrival/new-arrival-hero.jpeg';
+
   const hasVideo = Boolean(videoSrc);
-  const hasImage = Boolean(imageSrc);
+  const hasImage = Boolean(backgroundImage);
 
   const renderMedia = () => {
     const mediaStyles = {
@@ -53,7 +58,7 @@ export default function HomeCollectionHero({ imageSrc, videoSrc, ...other }) {
       return (
         <Box
           component="img"
-          src={imageSrc}
+          src={backgroundImage}
           alt="Collection"
           sx={mediaStyles}
           onError={(e) => {
@@ -155,7 +160,7 @@ export default function HomeCollectionHero({ imageSrc, videoSrc, ...other }) {
                           textShadow: '2px 2px 8px rgba(0, 0, 0, 0.5)',
                         }}
                       >
-                        COLLECTION
+                        {title}
                       </Typography>
                     </m.div>
                   </Grid>
@@ -200,4 +205,11 @@ export default function HomeCollectionHero({ imageSrc, videoSrc, ...other }) {
 HomeCollectionHero.propTypes = {
   imageSrc: PropTypes.string,
   videoSrc: PropTypes.string,
+  cmsData: PropTypes.shape({
+    content: PropTypes.shape({
+      title: PropTypes.string,
+      subtitle: PropTypes.string,
+      backgroundImage: PropTypes.string,
+    }),
+  }),
 };

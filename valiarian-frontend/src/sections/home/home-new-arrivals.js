@@ -1,12 +1,12 @@
+import orderBy from 'lodash/orderBy';
 import PropTypes from 'prop-types';
 import { useMemo } from 'react';
-import orderBy from 'lodash/orderBy';
 // @mui
-import { useTheme } from '@mui/material/styles';
 import Box from '@mui/material/Box';
-import Stack from '@mui/material/Stack';
-import Typography from '@mui/material/Typography';
 import Container from '@mui/material/Container';
+import Stack from '@mui/material/Stack';
+import { useTheme } from '@mui/material/styles';
+import Typography from '@mui/material/Typography';
 import useMediaQuery from '@mui/material/useMediaQuery';
 // api
 import { useGetProducts } from 'src/api/product';
@@ -153,13 +153,17 @@ const DUMMY_NEW_ARRIVALS = [
 
 // ----------------------------------------------------------------------
 
-export default function HomeNewArrivals({ products: propProducts, ...other }) {
+export default function HomeNewArrivals({ products: propProducts, cmsData, ...other }) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const isTablet = useMediaQuery(theme.breakpoints.down('md'));
 
   // Fetch products if not provided as prop
   const { products: fetchedProducts, productsLoading, productsError } = useGetProducts();
+
+  // Use CMS data if available
+  const title = cmsData?.content?.title || 'New Arrivals';
+  const subtitle = cmsData?.content?.subtitle || 'Discover our latest collection of premium cotton polos, crafted with the same attention to detail and commitment to quality.';
 
   // Get newest products (sorted by createdAt, no limit - show all products)
   const products = useMemo(() => {
@@ -247,7 +251,7 @@ export default function HomeNewArrivals({ products: propProducts, ...other }) {
               fontSize: { xs: '2rem', md: undefined },
             }}
           >
-            New Arrivals
+            {title}
           </Typography>
           <Typography
             variant="body1"
@@ -259,8 +263,7 @@ export default function HomeNewArrivals({ products: propProducts, ...other }) {
               mb: { xs: 2, md: 3 },
             }}
           >
-            Discover our latest collection of premium cotton polos, crafted with the same attention
-            to detail and commitment to quality.
+            {subtitle}
           </Typography>
         </Stack>
 
@@ -341,5 +344,6 @@ export default function HomeNewArrivals({ products: propProducts, ...other }) {
 
 HomeNewArrivals.propTypes = {
   products: PropTypes.array,
+  cmsData: PropTypes.object,
 };
 

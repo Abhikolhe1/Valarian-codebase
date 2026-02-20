@@ -415,7 +415,7 @@ FabricItem.propTypes = {
 
 // ----------------------------------------------------------------------
 
-export default function HomeFabricSection({ fabrics = FABRICS, ...other }) {
+export default function HomeFabricSection({ fabrics: propFabrics, cmsData, ...other }) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
@@ -423,6 +423,13 @@ export default function HomeFabricSection({ fabrics = FABRICS, ...other }) {
   const wrapperRef = useRef(null);
   const containerRef = useRef(null);
   const spacerRef = useRef(null);
+
+  // Use CMS data for title and subtitle
+  const title = cmsData?.content?.title || 'Premium Fabrics';
+  const subtitle = cmsData?.content?.subtitle || 'Discover the exceptional materials that make our clothing extraordinary';
+
+  // Use prop fabrics if provided, otherwise use FABRICS
+  const fabrics = propFabrics || FABRICS;
 
   // Calculate scroll progress - track the wrapper
   const { scrollYProgress } = useScroll({
@@ -462,10 +469,10 @@ export default function HomeFabricSection({ fabrics = FABRICS, ...other }) {
           {/* Header */}
           <Stack spacing={2} sx={{ mb: { xs: 6, sm: 8 }, textAlign: 'center' }}>
             <Typography variant="h2" component="h1">
-              Premium Fabrics
+              {title}
             </Typography>
             <Typography variant="body1" color="text.secondary" sx={{ maxWidth: 600, mx: 'auto' }}>
-              Discover the exceptional materials that make our clothing extraordinary
+              {subtitle}
             </Typography>
           </Stack>
 
@@ -530,10 +537,10 @@ export default function HomeFabricSection({ fabrics = FABRICS, ...other }) {
           <Container maxWidth="lg" sx={{ mb: 8 }}>
             <Stack spacing={2} sx={{ textAlign: 'center' }}>
               <Typography variant="h2" component="h1">
-                Premium Fabrics
+                {title}
               </Typography>
               <Typography variant="body1" color="text.secondary" sx={{ maxWidth: 600, mx: 'auto' }}>
-                Discover the exceptional materials that make our clothing extraordinary
+                {subtitle}
               </Typography>
             </Stack>
           </Container>
@@ -574,4 +581,11 @@ HomeFabricSection.propTypes = {
       tags: PropTypes.arrayOf(PropTypes.string),
     })
   ),
+  cmsData: PropTypes.shape({
+    content: PropTypes.shape({
+      title: PropTypes.string,
+      subtitle: PropTypes.string,
+      description: PropTypes.string,
+    }),
+  }),
 };

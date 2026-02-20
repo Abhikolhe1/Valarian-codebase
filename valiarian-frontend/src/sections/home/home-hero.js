@@ -1,18 +1,15 @@
-import PropTypes from 'prop-types';
 import { m } from 'framer-motion';
+import PropTypes from 'prop-types';
 // @mui
-import { styled, alpha } from '@mui/material/styles';
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
-import Button from '@mui/material/Button';
+import { alpha, styled } from '@mui/material/styles';
 import Typography from '@mui/material/Typography';
 // routes
 import { paths } from 'src/routes/paths';
 // layouts
 import { HEADER } from 'src/layouts/config-layout';
 // components
-import Iconify from 'src/components/iconify';
-import { RouterLink } from 'src/routes/components';
 import { MotionContainer, varFade } from 'src/components/animate';
 import LogoAnimated from 'src/components/logo/logo-animated';
 import TransparentCard from 'src/components/transparent-card';
@@ -122,9 +119,14 @@ const ContentPosition = styled(Box)(({ theme }) => ({
 
 // ----------------------------------------------------------------------
 
-export default function HomeHero({ imageSrc, videoSrc, ...other }) {
+export default function HomeHero({ imageSrc, videoSrc, cmsData, ...other }) {
   const hasVideo = Boolean(videoSrc);
   const hasImage = Boolean(imageSrc);
+
+  // Use CMS data if available, otherwise use defaults
+  const title = cmsData?.content?.title || 'Premium Cotton Polos.';
+  const ctaText = cmsData?.content?.ctaText || 'Explore Collection';
+  const ctaLink = cmsData?.content?.ctaLink || paths.product.root;
 
   const renderMedia = () => {
     if (hasVideo) {
@@ -236,9 +238,9 @@ export default function HomeHero({ imageSrc, videoSrc, ...other }) {
         <ContentPosition>
           <m.div variants={varFade().in}>
             <TransparentCard
-              title="Premium Cotton Polos."
-              buttonLabel="Explore Collection"
-              buttonHref={paths.product.root}
+              title={title}
+              buttonLabel={ctaText}
+              buttonHref={ctaLink}
             />
           </m.div>
         </ContentPosition>
@@ -250,4 +252,5 @@ export default function HomeHero({ imageSrc, videoSrc, ...other }) {
 HomeHero.propTypes = {
   imageSrc: PropTypes.string,
   videoSrc: PropTypes.string,
+  cmsData: PropTypes.object,
 };
