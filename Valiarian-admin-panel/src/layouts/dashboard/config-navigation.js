@@ -116,18 +116,16 @@ export function useNavData() {
           //     { title: t('account'), path: paths.dashboard.user.account },
           //   ],
           // },
-          // // PRODUCT
-          // {
-          //   title: t('product'),
-          //   path: paths.dashboard.product.root,
-          //   icon: ICONS.product,
-          //   children: [
-          //     { title: t('list'), path: paths.dashboard.product.root },
-          //     { title: t('details'), path: paths.dashboard.product.demo.details },
-          //     { title: t('create'), path: paths.dashboard.product.new },
-          //     { title: t('edit'), path: paths.dashboard.product.demo.edit },
-          //   ],
-          // },
+          // PRODUCT
+          {
+            title: t('Products'),
+            path: paths.dashboard.product.root,
+            icon: ICONS.product,
+            children: [
+              { title: t('List'), path: paths.dashboard.product.root },
+              { title: t('Create'), path: paths.dashboard.product.new },
+            ],
+          },
           // // ORDER
           // {
           //   title: t('order'),

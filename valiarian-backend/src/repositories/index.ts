@@ -5,6 +5,7 @@ export * from './navigation-menu.repository';
 export * from './otp.repository';
 export * from './page.repository';
 export * from './permissions.repository';
+export * from './product.repository';
 export * from './registration-sessions.repository';
 export * from './role-permissions.repository';
 export * from './roles.repository';

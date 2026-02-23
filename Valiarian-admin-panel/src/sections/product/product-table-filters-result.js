@@ -1,9 +1,9 @@
 import PropTypes from 'prop-types';
 // @mui
 import Box from '@mui/material/Box';
+import Button from '@mui/material/Button';
 import Chip from '@mui/material/Chip';
 import Paper from '@mui/material/Paper';
-import Button from '@mui/material/Button';
 import Stack from '@mui/material/Stack';
 // components
 import Iconify from 'src/components/iconify';
@@ -24,9 +24,9 @@ export default function ProductTableFiltersResult({
     onFilters('stock', newValue);
   };
 
-  const handleRemovePublish = (inputValue) => {
-    const newValue = filters.publish.filter((item) => item !== inputValue);
-    onFilters('publish', newValue);
+  const handleRemoveStatus = (inputValue) => {
+    const newValue = filters.status.filter((item) => item !== inputValue);
+    onFilters('status', newValue);
   };
 
   return (
@@ -47,14 +47,14 @@ export default function ProductTableFiltersResult({
           </Block>
         )}
 
-        {!!filters.publish.length && (
-          <Block label="Publish:">
-            {filters.publish.map((item) => (
+        {!!filters.status.length && (
+          <Block label="Status:">
+            {filters.status.map((item) => (
               <Chip
                 key={item}
                 label={item}
                 size="small"
-                onDelete={() => handleRemovePublish(item)}
+                onDelete={() => handleRemoveStatus(item)}
               />
             ))}
           </Block>

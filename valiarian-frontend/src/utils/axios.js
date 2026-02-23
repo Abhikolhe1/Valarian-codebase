@@ -45,10 +45,12 @@ export const endpoints = {
     latest: '/api/post/latest',
     search: '/api/post/search',
   },
-  product: {
-    list: '/api/product/list',
-    details: '/api/product/details',
-    search: '/api/product/search',
+  products: {
+    list: '/api/public/products',
+    details: (slug) => `/api/public/products/${slug}`,
+    newArrivals: '/api/public/products/new-arrivals',
+    bestSellers: '/api/public/products/best-sellers',
+    featured: '/api/public/products/featured',
   },
   cms: {
     pages: {

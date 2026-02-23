@@ -8,6 +8,8 @@ export * from './cms-settings.controller';
 export * from './cms-template.controller';
 export * from './permissions.controller';
 export * from './ping.controller';
+export * from './product.controller';
+export * from './public-product.controller';
 export * from './roles.controller';
 export * from './sitemap.controller';
 

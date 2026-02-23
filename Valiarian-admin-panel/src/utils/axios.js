@@ -59,10 +59,23 @@ export const endpoints = {
     latest: '/api/post/latest',
     search: '/api/post/search',
   },
-  product: {
-    list: '/api/product/list',
-    details: '/api/product/details',
-    search: '/api/product/search',
+  products: {
+    list: '/api/products',
+    details: (id) => `/api/products/${id}`,
+    create: '/api/products',
+    update: (id) => `/api/products/${id}`,
+    delete: (id) => `/api/products/${id}`,
+    publish: (id) => `/api/products/${id}/publish`,
+    archive: (id) => `/api/products/${id}/archive`,
+    variants: {
+      list: (productId) => `/api/products/${productId}/variants`,
+      details: (productId, variantId) => `/api/products/${productId}/variants/${variantId}`,
+      create: (productId) => `/api/products/${productId}/variants`,
+      update: (productId, variantId) => `/api/products/${productId}/variants/${variantId}`,
+      delete: (productId, variantId) => `/api/products/${productId}/variants/${variantId}`,
+      updateStock: (productId, variantId) => `/api/products/${productId}/variants/${variantId}/stock`,
+      availability: (productId, variantId) => `/api/products/${productId}/variants/${variantId}/availability`,
+    },
   },
   cms: {
     pages: {

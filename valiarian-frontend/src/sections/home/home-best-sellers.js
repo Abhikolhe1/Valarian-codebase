@@ -1,4 +1,3 @@
-import orderBy from 'lodash/orderBy';
 import PropTypes from 'prop-types';
 import { useMemo, useState } from 'react';
 // @mui
@@ -10,174 +9,33 @@ import { useTheme } from '@mui/material/styles';
 import Typography from '@mui/material/Typography';
 import useMediaQuery from '@mui/material/useMediaQuery';
 // api
-import { useGetProducts } from 'src/api/product';
+import { useBestSellers } from 'src/api/products';
 // components
 import { ProductItemSkeleton } from 'src/sections/product/product-skeleton';
 import HomeNewArrivalsCard from './home-new-arrivals-card';
 
 // ----------------------------------------------------------------------
 
-// Dummy products data for Best Sellers section
-const DUMMY_BEST_SELLERS = [
-  {
-    id: 'best-seller-1',
-    name: 'Nike Air Force 1 NDESTRUKT',
-    coverUrl: '/assets/images/home/new-arrival/t-shirt1.jpeg',
-    price: 5200.84,
-    priceSale: 3500.71,
-    colors: ['#8E33FF', '#FFD700', '#1890FF'],
-    sizes: ['S', 'M', 'L', 'XL'],
-    available: true,
-    newLabel: { enabled: false, content: '' },
-    saleLabel: { enabled: true, content: 'Sale' },
-    createdAt: new Date(Date.now() - 2592000000), // 30 days ago
-    soldCount: 150,
-  },
-  {
-    id: 'best-seller-2',
-    name: 'Foundations Matte Flip Flop',
-    coverUrl: '/assets/images/home/new-arrival/t-shirt1.jpeg',
-    price: 2800.22,
-    priceSale: 0,
-    colors: ['#000000', '#FFFFFF', '#FF4842'],
-    sizes: ['S', 'M', 'L', 'XL'],
-    available: true,
-    newLabel: { enabled: false, content: '' },
-    saleLabel: { enabled: false, content: '' },
-    createdAt: new Date(Date.now() - 3456000000), // 40 days ago
-    soldCount: 120,
-  },
-  {
-    id: 'best-seller-3',
-    name: 'Arizona Soft Footbed Sandal',
-    coverUrl: '/assets/images/home/new-arrival/t-shirt1.jpeg',
-    price: 3200.5,
-    priceSale: 0,
-    colors: ['#00AB55', '#FFC107', '#1890FF'],
-    sizes: ['S', 'M', 'L', 'XL'],
-    available: true,
-    newLabel: { enabled: false, content: '' },
-    saleLabel: { enabled: false, content: '' },
-    createdAt: new Date(Date.now() - 4320000000), // 50 days ago
-    soldCount: 110,
-  },
-  {
-    id: 'best-seller-4',
-    name: 'Gazelle Vintage low-top sneakers',
-    coverUrl: '/assets/images/home/new-arrival/t-shirt1.jpeg',
-    price: 4500.0,
-    priceSale: 0,
-    colors: ['#000000', '#FFFFFF', '#8B4513'],
-    sizes: ['S', 'M', 'L', 'XL'],
-    available: true,
-    newLabel: { enabled: false, content: '' },
-    saleLabel: { enabled: false, content: '' },
-    createdAt: new Date(Date.now() - 5184000000), // 60 days ago
-    soldCount: 95,
-  },
-  {
-    id: 'best-seller-5',
-    name: 'Boston Soft Footbed Sandal',
-    coverUrl: '/assets/images/home/new-arrival/t-shirt1.jpeg',
-    price: 3800.75,
-    priceSale: 0,
-    colors: ['#FF6B6B', '#4ECDC4', '#000000'],
-    sizes: ['M', 'L', 'XL', 'XXL'],
-    available: true,
-    newLabel: { enabled: false, content: '' },
-    saleLabel: { enabled: false, content: '' },
-    createdAt: new Date(Date.now() - 6048000000), // 70 days ago
-    soldCount: 88,
-  },
-  {
-    id: 'best-seller-6',
-    name: 'Jordan Delta',
-    coverUrl: '/assets/images/home/new-arrival/t-shirt1.jpeg',
-    price: 4300.83,
-    priceSale: 2800.22,
-    colors: ['#000000', '#FFFFFF', '#FFD700'],
-    sizes: ['S', 'M', 'L', 'XL'],
-    available: true,
-    newLabel: { enabled: false, content: '' },
-    saleLabel: { enabled: true, content: 'Sale' },
-    createdAt: new Date(Date.now() - 6912000000), // 80 days ago
-    soldCount: 85,
-  },
-  {
-    id: 'best-seller-7',
-    name: 'Nike Air Zoom Pegasus 37 A.I.R.',
-    coverUrl: '/assets/images/home/new-arrival/t-shirt1.jpeg',
-    price: 5500.0,
-    priceSale: 0,
-    colors: ['#8B0000', '#000000', '#FFFFFF'],
-    sizes: ['S', 'M', 'L', 'XL', 'XXL'],
-    available: true,
-    newLabel: { enabled: false, content: '' },
-    saleLabel: { enabled: false, content: '' },
-    createdAt: new Date(Date.now() - 7776000000), // 90 days ago
-    soldCount: 75,
-  },
-  {
-    id: 'best-seller-8',
-    name: 'Boston Soft Footbed Sandal',
-    coverUrl: '/assets/images/home/new-arrival/t-shirt1.jpeg',
-    price: 3600.5,
-    priceSale: 0,
-    colors: ['#FFFFFF', '#000000', '#9370DB'],
-    sizes: ['S', 'M', 'L', 'XL'],
-    available: true,
-    newLabel: { enabled: false, content: '' },
-    saleLabel: { enabled: false, content: '' },
-    createdAt: new Date(Date.now() - 8640000000), // 100 days ago
-    soldCount: 70,
-  },
-];
-
-// ----------------------------------------------------------------------
-
-export default function HomeBestSellers({ products: propProducts, cmsData, ...other }) {
+export default function HomeBestSellers({ cmsData, ...other }) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md')); // Mobile: below md breakpoint
 
   // State for mobile view: number of visible cards (4, 6, or 8)
   const [visibleCardsMobile, setVisibleCardsMobile] = useState(4);
 
-  // Fetch products if not provided as prop
-  const { products: fetchedProducts, productsLoading } = useGetProducts();
+  // Fetch real products from API
+  const { products, isLoading, error } = useBestSellers(10);
 
   // Use CMS data for title and subtitle
   const title = cmsData?.content?.title || 'Best Sellers';
   const subtitle = cmsData?.content?.subtitle || 'Our most beloved pieces, chosen by customers for their exceptional quality and timeless appeal.';
 
-  // Get best seller products (sorted by soldCount, limited to 8)
-  const products = useMemo(() => {
-    // Use prop products if provided, otherwise use fetched products, fallback to dummy data
-    let allProducts = [];
-    if (propProducts && propProducts.length > 0) {
-      allProducts = propProducts;
-    } else if (fetchedProducts && fetchedProducts.length > 0) {
-      allProducts = fetchedProducts;
-    } else {
-      allProducts = DUMMY_BEST_SELLERS;
-    }
-
-    if (!allProducts.length) return [];
-
-    // Sort by soldCount (or createdAt if soldCount doesn't exist) and limit to 8
-    const sorted = orderBy(
-      allProducts,
-      [(product) => product.soldCount || 0, 'createdAt'],
-      ['desc', 'desc']
-    );
-    return sorted.slice(0, 8);
-  }, [propProducts, fetchedProducts]);
-
-  // Get products to display: on mobile, limit to visibleCardsMobile; on desktop, show all
+  // Get products to display: on mobile, limit to visibleCardsMobile; on desktop, show all (max 8)
   const displayedProducts = useMemo(() => {
     if (isMobile) {
       return products.slice(0, visibleCardsMobile);
     }
-    return products;
+    return products.slice(0, 8); // Limit to 8 on desktop
   }, [products, visibleCardsMobile, isMobile]);
 
   // Handle "View More" button click: add 2 more cards (max 8)
@@ -243,11 +101,31 @@ export default function HomeBestSellers({ products: propProducts, cmsData, ...ot
         </Stack>
 
         {(() => {
-          // Show skeleton only if loading AND no dummy data available
-          if (productsLoading && !DUMMY_BEST_SELLERS.length) {
+          // Show skeleton while loading
+          if (isLoading) {
             return renderSkeleton;
           }
 
+          // Show error state
+          if (error) {
+            return (
+              <Box
+                sx={{
+                  py: 10,
+                  textAlign: 'center',
+                }}
+              >
+                <Typography variant="h6" color="error" gutterBottom>
+                  Failed to load products
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Please try again later
+                </Typography>
+              </Box>
+            );
+          }
+
+          // Show empty state
           if (!products.length) {
             return (
               <Box
@@ -321,7 +199,6 @@ export default function HomeBestSellers({ products: propProducts, cmsData, ...ot
 }
 
 HomeBestSellers.propTypes = {
-  products: PropTypes.array,
   cmsData: PropTypes.shape({
     content: PropTypes.shape({
       title: PropTypes.string,

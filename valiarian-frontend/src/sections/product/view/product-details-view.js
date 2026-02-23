@@ -1,34 +1,34 @@
-import { useEffect, useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 // @mui
+import Box from '@mui/material/Box';
+import Button from '@mui/material/Button';
+import Card from '@mui/material/Card';
+import Container from '@mui/material/Container';
 import { alpha } from '@mui/material/styles';
 import Tab from '@mui/material/Tab';
-import Box from '@mui/material/Box';
 import Tabs from '@mui/material/Tabs';
-import Card from '@mui/material/Card';
-import Button from '@mui/material/Button';
-import Container from '@mui/material/Container';
-import Grid from '@mui/material/Unstable_Grid2';
 import Typography from '@mui/material/Typography';
+import Grid from '@mui/material/Unstable_Grid2';
 // _mock
 import { PRODUCT_PUBLISH_OPTIONS } from 'src/_mock';
 // routes
-import { paths } from 'src/routes/paths';
-import { useParams } from 'src/routes/hook';
 import { RouterLink } from 'src/routes/components';
+import { useParams } from 'src/routes/hook';
+import { paths } from 'src/routes/paths';
 // api
 import { useGetProduct } from 'src/api/product';
 // components
-import Iconify from 'src/components/iconify';
 import EmptyContent from 'src/components/empty-content';
+import Iconify from 'src/components/iconify';
 import { useSettingsContext } from 'src/components/settings';
 //
 import { useCheckout } from '../hooks';
-import { ProductDetailsSkeleton } from '../product-skeleton';
+import ProductDetailsCarousel from '../product-details-carousel';
+import ProductDetailsDescription from '../product-details-description';
 import ProductDetailsReview from '../product-details-review';
 import ProductDetailsSummary from '../product-details-summary';
 import ProductDetailsToolbar from '../product-details-toolbar';
-import ProductDetailsCarousel from '../product-details-carousel';
-import ProductDetailsDescription from '../product-details-description';
+import { ProductDetailsSkeleton } from '../product-skeleton';
 
 // ----------------------------------------------------------------------
 
@@ -65,6 +65,8 @@ export default function ProductDetailsView() {
 
   const [publish, setPublish] = useState('');
 
+  const [selectedVariant, setSelectedVariant] = useState(null);
+
   const { checkout, onAddCart, onGotoStep } = useCheckout();
 
   useEffect(() => {
@@ -79,6 +81,10 @@ export default function ProductDetailsView() {
 
   const handleChangeTab = useCallback((event, newValue) => {
     setCurrentTab(newValue);
+  }, []);
+
+  const handleVariantChange = useCallback((variant) => {
+    setSelectedVariant(variant);
   }, []);
 
   const renderSkeleton = <ProductDetailsSkeleton />;
@@ -114,7 +120,7 @@ export default function ProductDetailsView() {
 
       <Grid container spacing={{ xs: 3, md: 5, lg: 8 }}>
         <Grid xs={12} md={6} lg={7}>
-          <ProductDetailsCarousel product={product} />
+          <ProductDetailsCarousel product={product} selectedVariant={selectedVariant} />
         </Grid>
 
         <Grid xs={12} md={6} lg={5}>
@@ -124,6 +130,7 @@ export default function ProductDetailsView() {
             cart={checkout.cart}
             onAddCart={onAddCart}
             onGotoStep={onGotoStep}
+            onVariantChange={handleVariantChange}
           />
         </Grid>
       </Grid>

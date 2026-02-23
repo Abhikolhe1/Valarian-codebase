@@ -1,15 +1,15 @@
 import PropTypes from 'prop-types';
 import { useEffect } from 'react';
 // @mui
-import { alpha, useTheme, styled } from '@mui/material/styles';
-import Box from '@mui/material/Box';
 import Avatar from '@mui/material/Avatar';
+import Box from '@mui/material/Box';
+import { alpha, styled, useTheme } from '@mui/material/styles';
 // theme
 import { bgGradient } from 'src/theme/css';
 // components
+import Carousel, { CarouselArrowIndex, useCarousel } from 'src/components/carousel';
 import Image from 'src/components/image';
 import Lightbox, { useLightBox } from 'src/components/lightbox';
-import Carousel, { CarouselArrowIndex, useCarousel } from 'src/components/carousel';
 
 // ----------------------------------------------------------------------
 
@@ -61,10 +61,15 @@ const StyledThumbnailsContainer = styled('div')(({ length, theme }) => ({
 
 // ----------------------------------------------------------------------
 
-export default function ProductDetailsCarousel({ product }) {
+export default function ProductDetailsCarousel({ product, selectedVariant }) {
   const theme = useTheme();
 
-  const slides = product.images.map((img) => ({
+  // Use variant images if available, otherwise fallback to product images
+  const images = selectedVariant?.images?.length > 0
+    ? selectedVariant.images
+    : (product.images || []);
+
+  const slides = images.map((img) => ({
     src: img,
   }));
 
@@ -96,6 +101,14 @@ export default function ProductDetailsCarousel({ product }) {
       carouselLarge.onTogo(lightbox.selected);
     }
   }, [carouselLarge, lightbox.open, lightbox.selected]);
+
+  // Reset carousel to first slide when variant changes
+  useEffect(() => {
+    if (selectedVariant) {
+      carouselLarge.onTogo(0);
+      carouselThumb.onTogo(0);
+    }
+  }, [selectedVariant, carouselLarge, carouselThumb]);
 
   const renderLargeImg = (
     <Box
@@ -188,4 +201,5 @@ export default function ProductDetailsCarousel({ product }) {
 
 ProductDetailsCarousel.propTypes = {
   product: PropTypes.object,
+  selectedVariant: PropTypes.object,
 };

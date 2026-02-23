@@ -1,4 +1,3 @@
-import orderBy from 'lodash/orderBy';
 import PropTypes from 'prop-types';
 import { useMemo } from 'react';
 // @mui
@@ -9,7 +8,7 @@ import { useTheme } from '@mui/material/styles';
 import Typography from '@mui/material/Typography';
 import useMediaQuery from '@mui/material/useMediaQuery';
 // api
-import { useGetProducts } from 'src/api/product';
+import { useNewArrivals } from 'src/api/products';
 // components
 import Carousel, { CarouselArrows, useCarousel } from 'src/components/carousel';
 import { ProductItemSkeleton } from 'src/sections/product/product-skeleton';
@@ -17,171 +16,17 @@ import HomeNewArrivalsCard from './home-new-arrivals-card';
 
 // ----------------------------------------------------------------------
 
-// Dummy products data for New Arrivals section
-const DUMMY_NEW_ARRIVALS = [
-  {
-    id: 'new-arrival-1',
-    name: 'Premium Cotton Classic T-Shirt',
-    coverUrl: '/assets/images/home/new-arrival/t-shirt1.jpeg',
-    price: 1299,
-    priceSale: 0,
-    colors: ['#000000', '#FFFFFF', '#1890FF'],
-    sizes: ['S', 'M', 'L', 'XL'],
-    available: true,
-    newLabel: { enabled: true, content: 'New' },
-    saleLabel: { enabled: false, content: '' },
-    createdAt: new Date(),
-  },
-  {
-    id: 'new-arrival-2',
-    name: 'Essential Comfort Fit T-Shirt',
-    coverUrl: '/assets/images/home/new-arrival/t-shirt1.jpeg',
-    price: 1499,
-    priceSale: 1199,
-    colors: ['#FF4842', '#00AB55', '#FFC107'],
-    sizes: ['S', 'M', 'L', 'XL', 'XXL'],
-    available: true,
-    newLabel: { enabled: true, content: 'New' },
-    saleLabel: { enabled: true, content: 'Sale' },
-    createdAt: new Date(Date.now() - 86400000), // 1 day ago
-  },
-  {
-    id: 'new-arrival-3',
-    name: 'Modern Fit Premium T-Shirt',
-    coverUrl: '/assets/images/home/new-arrival/t-shirt1.jpeg',
-    price: 1599,
-    priceSale: 0,
-    colors: ['#000000', '#FFFFFF', '#94D82D'],
-    sizes: ['M', 'L', 'XL'],
-    available: true,
-    newLabel: { enabled: true, content: 'New' },
-    saleLabel: { enabled: false, content: '' },
-    createdAt: new Date(Date.now() - 172800000), // 2 days ago
-  },
-  {
-    id: 'new-arrival-4',
-    name: 'Classic Crew Neck T-Shirt',
-    coverUrl: '/assets/images/home/new-arrival/t-shirt1.jpeg',
-    price: 1399,
-    priceSale: 1099,
-    colors: ['#1890FF', '#FFC0CB', '#000000'],
-    sizes: ['S', 'M', 'L', 'XL'],
-    available: true,
-    newLabel: { enabled: true, content: 'New' },
-    saleLabel: { enabled: true, content: 'Sale' },
-    createdAt: new Date(Date.now() - 259200000), // 3 days ago
-  },
-  {
-    id: 'new-arrival-5',
-    name: 'Premium Quality Basic T-Shirt',
-    coverUrl: '/assets/images/home/new-arrival/t-shirt1.jpeg',
-    price: 1199,
-    priceSale: 0,
-    colors: ['#FFFFFF', '#000000', '#FF4842'],
-    sizes: ['S', 'M', 'L', 'XL', 'XXL'],
-    available: true,
-    newLabel: { enabled: true, content: 'New' },
-    saleLabel: { enabled: false, content: '' },
-    createdAt: new Date(Date.now() - 345600000), // 4 days ago
-  },
-  {
-    id: 'new-arrival-6',
-    name: 'Slim Fit Premium T-Shirt',
-    coverUrl: '/assets/images/home/new-arrival/t-shirt1.jpeg',
-    price: 1699,
-    priceSale: 1399,
-    colors: ['#000000', '#FFFFFF', '#8B4513'],
-    sizes: ['S', 'M', 'L', 'XL'],
-    available: true,
-    newLabel: { enabled: true, content: 'New' },
-    saleLabel: { enabled: true, content: 'Sale' },
-    createdAt: new Date(Date.now() - 432000000), // 5 days ago
-  },
-  {
-    id: 'new-arrival-7',
-    name: 'Relaxed Fit Comfort T-Shirt',
-    coverUrl: '/assets/images/home/new-arrival/t-shirt1.jpeg',
-    price: 1299,
-    priceSale: 0,
-    colors: ['#FF6B6B', '#4ECDC4', '#000000'],
-    sizes: ['M', 'L', 'XL', 'XXL'],
-    available: true,
-    newLabel: { enabled: true, content: 'New' },
-    saleLabel: { enabled: false, content: '' },
-    createdAt: new Date(Date.now() - 518400000), // 6 days ago
-  },
-  {
-    id: 'new-arrival-8',
-    name: 'Athletic Performance T-Shirt',
-    coverUrl: '/assets/images/home/new-arrival/t-shirt1.jpeg',
-    price: 1799,
-    priceSale: 1499,
-    colors: ['#000000', '#FFFFFF', '#FFD700'],
-    sizes: ['S', 'M', 'L', 'XL'],
-    available: true,
-    newLabel: { enabled: true, content: 'New' },
-    saleLabel: { enabled: true, content: 'Sale' },
-    createdAt: new Date(Date.now() - 604800000), // 7 days ago
-  },
-  {
-    id: 'new-arrival-9',
-    name: 'Vintage Style Classic T-Shirt',
-    coverUrl: '/assets/images/home/new-arrival/t-shirt1.jpeg',
-    price: 1399,
-    priceSale: 0,
-    colors: ['#8B0000', '#000000', '#FFFFFF'],
-    sizes: ['S', 'M', 'L', 'XL', 'XXL'],
-    available: true,
-    newLabel: { enabled: true, content: 'New' },
-    saleLabel: { enabled: false, content: '' },
-    createdAt: new Date(Date.now() - 691200000), // 8 days ago
-  },
-  {
-    id: 'new-arrival-10',
-    name: 'Ultra Soft Premium T-Shirt',
-    coverUrl: '/assets/images/home/new-arrival/t-shirt1.jpeg',
-    price: 1599,
-    priceSale: 1299,
-    colors: ['#FFFFFF', '#000000', '#9370DB'],
-    sizes: ['S', 'M', 'L', 'XL'],
-    available: true,
-    newLabel: { enabled: true, content: 'New' },
-    saleLabel: { enabled: true, content: 'Sale' },
-    createdAt: new Date(Date.now() - 777600000), // 9 days ago
-  },
-];
-
-// ----------------------------------------------------------------------
-
-export default function HomeNewArrivals({ products: propProducts, cmsData, ...other }) {
+export default function HomeNewArrivals({ cmsData, ...other }) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const isTablet = useMediaQuery(theme.breakpoints.down('md'));
 
-  // Fetch products if not provided as prop
-  const { products: fetchedProducts, productsLoading, productsError } = useGetProducts();
+  // Fetch real products from API
+  const { products, isLoading, error } = useNewArrivals(10);
 
   // Use CMS data if available
   const title = cmsData?.content?.title || 'New Arrivals';
   const subtitle = cmsData?.content?.subtitle || 'Discover our latest collection of premium cotton polos, crafted with the same attention to detail and commitment to quality.';
-
-  // Get newest products (sorted by createdAt, no limit - show all products)
-  const products = useMemo(() => {
-    // Use prop products if provided, otherwise use fetched products, fallback to dummy data
-    let allProducts = [];
-    if (propProducts && propProducts.length > 0) {
-      allProducts = propProducts;
-    } else if (fetchedProducts && fetchedProducts.length > 0) {
-      allProducts = fetchedProducts;
-    } else {
-      allProducts = DUMMY_NEW_ARRIVALS;
-    }
-
-    if (!allProducts.length) return [];
-    const sorted = orderBy(allProducts, ['createdAt'], ['desc']);
-    return sorted; // Show all products, no limit
-  }, [propProducts, fetchedProducts]);
-
 
   // Always use carousel if we have products
   const needsCarousel = products.length > 0;
@@ -268,11 +113,31 @@ export default function HomeNewArrivals({ products: propProducts, cmsData, ...ot
         </Stack>
 
         {(() => {
-          // Show skeleton only if loading AND no dummy data available
-          if (productsLoading && !DUMMY_NEW_ARRIVALS.length) {
+          // Show skeleton while loading
+          if (isLoading) {
             return renderSkeleton;
           }
 
+          // Show error state
+          if (error) {
+            return (
+              <Box
+                sx={{
+                  py: 10,
+                  textAlign: 'center',
+                }}
+              >
+                <Typography variant="h6" color="error" gutterBottom>
+                  Failed to load products
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Please try again later
+                </Typography>
+              </Box>
+            );
+          }
+
+          // Show empty state
           if (!products.length) {
             return (
               <Box
@@ -343,7 +208,6 @@ export default function HomeNewArrivals({ products: propProducts, cmsData, ...ot
 }
 
 HomeNewArrivals.propTypes = {
-  products: PropTypes.array,
   cmsData: PropTypes.object,
 };
 

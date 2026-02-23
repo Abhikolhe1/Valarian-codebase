@@ -1,26 +1,26 @@
 import PropTypes from 'prop-types';
-import { useEffect, useCallback } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 // @mui
 import Box from '@mui/material/Box';
-import Link from '@mui/material/Link';
-import Stack from '@mui/material/Stack';
-import Rating from '@mui/material/Rating';
 import Button from '@mui/material/Button';
 import Divider from '@mui/material/Divider';
-import MenuItem from '@mui/material/MenuItem';
-import Typography from '@mui/material/Typography';
 import { formHelperTextClasses } from '@mui/material/FormHelperText';
+import Link from '@mui/material/Link';
+import MenuItem from '@mui/material/MenuItem';
+import Rating from '@mui/material/Rating';
+import Stack from '@mui/material/Stack';
+import Typography from '@mui/material/Typography';
 // routes
-import { paths } from 'src/routes/paths';
 import { useRouter } from 'src/routes/hook';
+import { paths } from 'src/routes/paths';
 // utils
-import { fShortenNumber, fCurrency } from 'src/utils/format-number';
+import { fCurrency, fShortenNumber } from 'src/utils/format-number';
 // components
-import Label from 'src/components/label';
-import Iconify from 'src/components/iconify';
 import { ColorPicker } from 'src/components/color-utils';
 import FormProvider, { RHFSelect } from 'src/components/hook-form';
+import Iconify from 'src/components/iconify';
+import Label from 'src/components/label';
 //
 import IncrementerButton from './common/incrementer-button';
 
@@ -32,6 +32,7 @@ export default function ProductDetailsSummary({
   onAddCart,
   onGotoStep,
   disabledActions,
+  onVariantChange,
   ...other
 }) {
   const router = useRouter();
@@ -41,32 +42,81 @@ export default function ProductDetailsSummary({
     name,
     sizes,
     price,
-    coverUrl,
+    coverImage,
     colors,
-    newLabel,
-    available,
-    priceSale,
-    saleLabel,
-    totalRatings,
-    totalReviews,
-    inventoryType,
-    subDescription,
+    inStock,
+    stockQuantity,
+    salePrice,
+    isNewArrival,
+    isBestSeller,
+    description,
+    shortDescription,
+    variants,
   } = product;
+
+  // State for selected variant
+  const [selectedVariant, setSelectedVariant] = useState(null);
+
+  // Set default variant on component mount
+  useEffect(() => {
+    if (variants && variants.length > 0) {
+      const defaultVariant = variants.find(v => v.isDefault) || variants[0];
+      setSelectedVariant(defaultVariant);
+      if (onVariantChange) {
+        onVariantChange(defaultVariant);
+      }
+    }
+  }, [variants, onVariantChange]);
+
+  // Get variant-specific values or fallback to product values
+  const currentPrice = selectedVariant?.price || (salePrice && salePrice < price ? salePrice : price);
+  const available = selectedVariant?.stockQuantity ?? stockQuantity ?? 0;
+  const variantInStock = selectedVariant?.inStock ?? inStock;
+  const variantSKU = selectedVariant?.sku;
+
+  // Map our product structure to what the component expects
+  const coverUrl = coverImage;
+  const priceSale = salePrice && salePrice < price ? price : null; // Original price when on sale
+  const subDescription = shortDescription || '';
+  const totalRatings = product.rating || 0;
+  const totalReviews = product.totalReviews || 0;
+
+  // Determine inventory type without nested ternary
+  let inventoryType = 'in stock';
+  if (!variantInStock) {
+    inventoryType = 'out of stock';
+  } else if (available < 10) {
+    inventoryType = 'low stock';
+  }
+
+  // Create label objects from our boolean fields
+  const newLabel = { enabled: isNewArrival || false, content: 'New' };
+  const saleLabel = { enabled: !!(salePrice && salePrice < price), content: 'Sale' };
 
   const existProduct = cart.map((item) => item.id).includes(id);
 
   const isMaxQuantity =
     cart.filter((item) => item.id === id).map((item) => item.quantity)[0] >= available;
 
+  // Get available colors and sizes from variants
+  const availableColors = variants && variants.length > 0
+    ? [...new Set(variants.map(v => v.color))]
+    : (colors || []);
+
+  const availableSizes = variants && variants.length > 0
+    ? [...new Set(variants.map(v => v.size))]
+    : (sizes || []);
+
   const defaultValues = {
     id,
     name,
     coverUrl,
     available,
-    price,
-    colors: colors[0],
-    size: sizes[4],
+    price: currentPrice,
+    colors: selectedVariant?.color || (availableColors.length > 0 ? availableColors[0] : '#000000'),
+    size: selectedVariant?.size || (availableSizes.length > 0 ? availableSizes[0] : 'M'),
     quantity: available < 1 ? 0 : 1,
+    variantId: selectedVariant?.id,
   };
 
   const methods = useForm({
@@ -82,7 +132,62 @@ export default function ProductDetailsSummary({
       reset(defaultValues);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [product]);
+  }, [product, selectedVariant]);
+
+  // Handle color change - find matching variant
+  const handleColorChange = useCallback((color) => {
+    if (variants && variants.length > 0) {
+      const variant = variants.find(v =>
+        v.color === color && v.size === values.size
+      );
+      if (variant) {
+        setSelectedVariant(variant);
+        setValue('colors', color);
+        setValue('variantId', variant.id);
+        setValue('price', variant.price || currentPrice);
+        setValue('available', variant.stockQuantity);
+        setValue('quantity', variant.stockQuantity < 1 ? 0 : Math.min(values.quantity, variant.stockQuantity));
+        if (onVariantChange) {
+          onVariantChange(variant);
+        }
+      }
+    } else {
+      setValue('colors', color);
+    }
+  }, [variants, values.size, values.quantity, setValue, currentPrice, onVariantChange]);
+
+  // Handle size change - find matching variant
+  const handleSizeChange = useCallback((size) => {
+    if (variants && variants.length > 0) {
+      const variant = variants.find(v =>
+        v.color === values.colors && v.size === size
+      );
+      if (variant) {
+        setSelectedVariant(variant);
+        setValue('size', size);
+        setValue('variantId', variant.id);
+        setValue('price', variant.price || currentPrice);
+        setValue('available', variant.stockQuantity);
+        setValue('quantity', variant.stockQuantity < 1 ? 0 : Math.min(values.quantity, variant.stockQuantity));
+        if (onVariantChange) {
+          onVariantChange(variant);
+        }
+      }
+    } else {
+      setValue('size', size);
+    }
+  }, [variants, values.colors, values.quantity, setValue, currentPrice, onVariantChange]);
+
+  // Check if a color/size combination is available
+  const isColorAvailable = useCallback((color) => {
+    if (!variants || variants.length === 0) return true;
+    return variants.some(v => v.color === color && v.inStock);
+  }, [variants]);
+
+  const isSizeAvailable = useCallback((size) => {
+    if (!variants || variants.length === 0) return true;
+    return variants.some(v => v.size === size && v.color === values.colors && v.inStock);
+  }, [variants, values.colors]);
 
   const onSubmit = handleSubmit(async (data) => {
     try {
@@ -91,6 +196,7 @@ export default function ProductDetailsSummary({
           ...data,
           colors: [values.colors],
           subTotal: data.price * data.quantity,
+          variantId: selectedVariant?.id,
         });
       }
       onGotoStep(0);
@@ -106,11 +212,12 @@ export default function ProductDetailsSummary({
         ...values,
         colors: [values.colors],
         subTotal: values.price * values.quantity,
+        variantId: selectedVariant?.id,
       });
     } catch (error) {
       console.error(error);
     }
-  }, [onAddCart, values]);
+  }, [onAddCart, values, selectedVariant]);
 
   // ----------------------------------------------------------------------
 
@@ -125,7 +232,7 @@ export default function ProductDetailsSummary({
         </Box>
       )}
 
-      {fCurrency(price)}
+      {fCurrency(currentPrice)}
     </Box>
   );
 
@@ -157,7 +264,7 @@ export default function ProductDetailsSummary({
     </Stack>
   );
 
-  const renderColorOptions = (
+  const renderColorOptions = availableColors && availableColors.length > 0 && (
     <Stack direction="row">
       <Typography variant="subtitle2" sx={{ flexGrow: 1 }}>
         Color
@@ -168,17 +275,28 @@ export default function ProductDetailsSummary({
         control={control}
         render={({ field }) => (
           <ColorPicker
-            colors={colors}
+            colors={availableColors}
             selected={field.value}
-            onSelectColor={field.onChange}
+            onSelectColor={(color) => {
+              field.onChange(color);
+              handleColorChange(color);
+            }}
             limit={4}
+            sx={{
+              '& .MuiButtonBase-root': {
+                opacity: (theme) => {
+                  const color = theme.palette.mode === 'light' ? field.value : field.value;
+                  return isColorAvailable(color) ? 1 : 0.3;
+                },
+              },
+            }}
           />
         )}
       />
     </Stack>
   );
 
-  const renderSizeOptions = (
+  const renderSizeOptions = availableSizes && availableSizes.length > 0 && (
     <Stack direction="row">
       <Typography variant="subtitle2" sx={{ flexGrow: 1 }}>
         Size
@@ -187,6 +305,7 @@ export default function ProductDetailsSummary({
       <RHFSelect
         name="size"
         size="small"
+        onChange={(e) => handleSizeChange(e.target.value)}
         helperText={
           <Link underline="always" color="textPrimary">
             Size Chart
@@ -201,8 +320,8 @@ export default function ProductDetailsSummary({
           },
         }}
       >
-        {sizes.map((size) => (
-          <MenuItem key={size} value={size}>
+        {availableSizes.map((size) => (
+          <MenuItem key={size} value={size} disabled={!isSizeAvailable(size)}>
             {size}
           </MenuItem>
         ))}
@@ -237,7 +356,7 @@ export default function ProductDetailsSummary({
     <Stack direction="row" spacing={2}>
       <Button
         fullWidth
-        disabled={isMaxQuantity || disabledActions}
+        disabled={isMaxQuantity || disabledActions || !variantInStock || available < 1}
         size="large"
         color="warning"
         variant="contained"
@@ -245,10 +364,16 @@ export default function ProductDetailsSummary({
         onClick={handleAddCart}
         sx={{ whiteSpace: 'nowrap' }}
       >
-        Add to Cart
+        {!variantInStock || available < 1 ? 'Out of Stock' : 'Add to Cart'}
       </Button>
 
-      <Button fullWidth size="large" type="submit" variant="contained" disabled={disabledActions}>
+      <Button
+        fullWidth
+        size="large"
+        type="submit"
+        variant="contained"
+        disabled={disabledActions || !variantInStock || available < 1}
+      >
         Buy Now
       </Button>
     </Stack>
@@ -282,18 +407,25 @@ export default function ProductDetailsSummary({
   );
 
   const renderInventoryType = (
-    <Box
-      component="span"
-      sx={{
-        typography: 'overline',
-        color:
-          (inventoryType === 'out of stock' && 'error.main') ||
-          (inventoryType === 'low stock' && 'warning.main') ||
-          'success.main',
-      }}
-    >
-      {inventoryType}
-    </Box>
+    <Stack direction="row" spacing={2} alignItems="center">
+      <Box
+        component="span"
+        sx={{
+          typography: 'overline',
+          color:
+            (inventoryType === 'out of stock' && 'error.main') ||
+            (inventoryType === 'low stock' && 'warning.main') ||
+            'success.main',
+        }}
+      >
+        {inventoryType}
+      </Box>
+      {variantSKU && (
+        <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+          SKU: {variantSKU}
+        </Typography>
+      )}
+    </Stack>
   );
 
   return (
@@ -336,5 +468,6 @@ ProductDetailsSummary.propTypes = {
   disabledActions: PropTypes.bool,
   onAddCart: PropTypes.func,
   onGotoStep: PropTypes.func,
+  onVariantChange: PropTypes.func,
   product: PropTypes.object,
 };

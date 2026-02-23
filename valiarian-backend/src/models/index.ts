@@ -5,6 +5,7 @@ export * from './navigation-menu.model';
 export * from './otp.model';
 export * from './page.model';
 export * from './permissions.model';
+export * from './product.model';
 export * from './registration-sessions.model';
 export * from './role-permissions.model';
 export * from './roles.model';

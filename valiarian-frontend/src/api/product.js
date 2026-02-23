@@ -1,12 +1,12 @@
-import useSWR from 'swr';
 import { useMemo } from 'react';
+import useSWR from 'swr';
 // utils
-import { fetcher, endpoints } from 'src/utils/axios';
+import { endpoints, fetcher } from 'src/utils/axios';
 
 // ----------------------------------------------------------------------
 
 export function useGetProducts() {
-  const URL = endpoints.product.list;
+  const URL = endpoints.products.list;
 
   const { data, isLoading, error, isValidating } = useSWR(URL, fetcher);
 
@@ -26,19 +26,19 @@ export function useGetProducts() {
 
 // ----------------------------------------------------------------------
 
-export function useGetProduct(productId) {
-  const URL = productId ? [endpoints.product.details, { params: { productId } }] : null;
+export function useGetProduct(productSlug) {
+  const URL = productSlug ? endpoints.products.details(productSlug) : null;
 
   const { data, isLoading, error, isValidating } = useSWR(URL, fetcher);
 
   const memoizedValue = useMemo(
     () => ({
-      product: data?.product,
+      product: data,
       productLoading: isLoading,
       productError: error,
       productValidating: isValidating,
     }),
-    [data?.product, error, isLoading, isValidating]
+    [data, error, isLoading, isValidating]
   );
 
   return memoizedValue;
@@ -47,7 +47,7 @@ export function useGetProduct(productId) {
 // ----------------------------------------------------------------------
 
 export function useSearchProducts(query) {
-  const URL = query ? [endpoints.product.search, { params: { query } }] : null;
+  const URL = query ? `${endpoints.products.list}?search=${query}` : null;
 
   const { data, isLoading, error, isValidating } = useSWR(URL, fetcher, {
     keepPreviousData: true,
@@ -55,13 +55,13 @@ export function useSearchProducts(query) {
 
   const memoizedValue = useMemo(
     () => ({
-      searchResults: data?.results || [],
+      searchResults: data?.products || [],
       searchLoading: isLoading,
       searchError: error,
       searchValidating: isValidating,
-      searchEmpty: !isLoading && !data?.results.length,
+      searchEmpty: !isLoading && !data?.products.length,
     }),
-    [data?.results, error, isLoading, isValidating]
+    [data?.products, error, isLoading, isValidating]
   );
 
   return memoizedValue;

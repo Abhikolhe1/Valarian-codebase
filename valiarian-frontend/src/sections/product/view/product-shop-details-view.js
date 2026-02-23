@@ -1,32 +1,32 @@
-import { useCallback, useState, useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 // @mui
+import Box from '@mui/material/Box';
+import Button from '@mui/material/Button';
+import Card from '@mui/material/Card';
+import Container from '@mui/material/Container';
 import { alpha } from '@mui/material/styles';
 import Tab from '@mui/material/Tab';
-import Box from '@mui/material/Box';
 import Tabs from '@mui/material/Tabs';
-import Card from '@mui/material/Card';
-import Button from '@mui/material/Button';
-import Container from '@mui/material/Container';
-import Grid from '@mui/material/Unstable_Grid2';
 import Typography from '@mui/material/Typography';
+import Grid from '@mui/material/Unstable_Grid2';
 // routes
-import { paths } from 'src/routes/paths';
-import { useParams } from 'src/routes/hook';
-import { RouterLink } from 'src/routes/components';
 import { useGetProduct } from 'src/api/product';
+import { RouterLink } from 'src/routes/components';
+import { useParams } from 'src/routes/hook';
+import { paths } from 'src/routes/paths';
 // components
-import Iconify from 'src/components/iconify';
-import EmptyContent from 'src/components/empty-content';
-import { useSettingsContext } from 'src/components/settings';
 import CustomBreadcrumbs from 'src/components/custom-breadcrumbs';
+import EmptyContent from 'src/components/empty-content';
+import Iconify from 'src/components/iconify';
+import { useSettingsContext } from 'src/components/settings';
 //
-import { useCheckout } from '../hooks';
 import CartIcon from '../common/cart-icon';
-import ProductDetailsReview from '../product-details-review';
-import { ProductDetailsSkeleton } from '../product-skeleton';
-import ProductDetailsSummary from '../product-details-summary';
+import { useCheckout } from '../hooks';
 import ProductDetailsCarousel from '../product-details-carousel';
 import ProductDetailsDescription from '../product-details-description';
+import ProductDetailsReview from '../product-details-review';
+import ProductDetailsSummary from '../product-details-summary';
+import { ProductDetailsSkeleton } from '../product-skeleton';
 
 // ----------------------------------------------------------------------
 
@@ -301,6 +301,7 @@ export default function ProductShopDetailsView() {
   const { checkout, onAddCart, onGotoStep } = useCheckout();
 
   const [currentTab, setCurrentTab] = useState('description');
+  const [selectedVariant, setSelectedVariant] = useState(null);
 
   const { product: apiProduct, productLoading, productError } = useGetProduct(`${id}`);
 
@@ -310,6 +311,10 @@ export default function ProductShopDetailsView() {
 
   const handleChangeTab = useCallback((event, newValue) => {
     setCurrentTab(newValue);
+  }, []);
+
+  const handleVariantChange = useCallback((variant) => {
+    setSelectedVariant(variant);
   }, []);
 
   const renderSkeleton = <ProductDetailsSkeleton />;
@@ -348,7 +353,7 @@ export default function ProductShopDetailsView() {
 
       <Grid container spacing={{ xs: 3, md: 5, lg: 8 }}>
         <Grid xs={12} md={6} lg={7}>
-          <ProductDetailsCarousel product={product} />
+          <ProductDetailsCarousel product={product} selectedVariant={selectedVariant} />
         </Grid>
 
         <Grid xs={12} md={6} lg={5}>
@@ -357,6 +362,7 @@ export default function ProductShopDetailsView() {
             cart={checkout.cart}
             onAddCart={onAddCart}
             onGotoStep={onGotoStep}
+            onVariantChange={handleVariantChange}
           />
         </Grid>
       </Grid>

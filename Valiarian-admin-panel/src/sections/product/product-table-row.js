@@ -1,26 +1,24 @@
 import PropTypes from 'prop-types';
-import { format } from 'date-fns';
 // @mui
-import Box from '@mui/material/Box';
-import Link from '@mui/material/Link';
-import Button from '@mui/material/Button';
 import Avatar from '@mui/material/Avatar';
-import MenuItem from '@mui/material/MenuItem';
-import TableRow from '@mui/material/TableRow';
+import Box from '@mui/material/Box';
+import Button from '@mui/material/Button';
 import Checkbox from '@mui/material/Checkbox';
-import TableCell from '@mui/material/TableCell';
 import IconButton from '@mui/material/IconButton';
+import Link from '@mui/material/Link';
 import ListItemText from '@mui/material/ListItemText';
-import LinearProgress from '@mui/material/LinearProgress';
+import MenuItem from '@mui/material/MenuItem';
+import TableCell from '@mui/material/TableCell';
+import TableRow from '@mui/material/TableRow';
 // utils
 import { fCurrency } from 'src/utils/format-number';
 // hooks
 import { useBoolean } from 'src/hooks/use-boolean';
 // components
-import Label from 'src/components/label';
-import Iconify from 'src/components/iconify';
 import { ConfirmDialog } from 'src/components/custom-dialog';
 import CustomPopover, { usePopover } from 'src/components/custom-popover';
+import Iconify from 'src/components/iconify';
+import Label from 'src/components/label';
 
 // ----------------------------------------------------------------------
 
@@ -35,18 +33,22 @@ export default function ProductTableRow({
   const {
     name,
     price,
-    publish,
-    coverUrl,
-    category,
-    quantity,
-    createdAt,
-    available,
-    inventoryType,
+    salePrice,
+    status,
+    coverImage,
+    categories,
+    stockQuantity,
+    inStock,
+    isNewArrival,
+    isBestSeller,
+    isFeatured,
   } = row;
 
   const confirm = useBoolean();
 
   const popover = usePopover();
+
+  const hasDiscount = salePrice && salePrice < price;
 
   return (
     <>
@@ -58,7 +60,7 @@ export default function ProductTableRow({
         <TableCell sx={{ display: 'flex', alignItems: 'center' }}>
           <Avatar
             alt={name}
-            src={coverUrl}
+            src={coverImage}
             variant="rounded"
             sx={{ width: 64, height: 64, mr: 2 }}
           />
@@ -78,44 +80,65 @@ export default function ProductTableRow({
             }
             secondary={
               <Box component="div" sx={{ typography: 'body2', color: 'text.disabled' }}>
-                {category}
+                {categories && categories.length > 0 ? categories[0] : '-'}
               </Box>
             }
           />
         </TableCell>
 
-        <TableCell>
-          <ListItemText
-            primary={format(new Date(createdAt), 'dd MMM yyyy')}
-            secondary={format(new Date(createdAt), 'p')}
-            primaryTypographyProps={{ typography: 'body2', noWrap: true }}
-            secondaryTypographyProps={{
-              mt: 0.5,
-              component: 'span',
-              typography: 'caption',
-            }}
-          />
-        </TableCell>
-
-        <TableCell sx={{ typography: 'caption', color: 'text.secondary' }}>
-          <LinearProgress
-            value={(available * 100) / quantity}
-            variant="determinate"
-            color={
-              (inventoryType === 'out of stock' && 'error') ||
-              (inventoryType === 'low stock' && 'warning') ||
-              'success'
-            }
-            sx={{ mb: 1, height: 6, maxWidth: 80 }}
-          />
-          {!!available && available} {inventoryType}
-        </TableCell>
-
         <TableCell>{fCurrency(price)}</TableCell>
 
         <TableCell>
-          <Label variant="soft" color={(publish === 'published' && 'info') || 'default'}>
-            {publish}
+          {hasDiscount ? (
+            <Box sx={{ color: 'error.main' }}>{fCurrency(salePrice)}</Box>
+          ) : (
+            '-'
+          )}
+        </TableCell>
+
+        <TableCell>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Box sx={{ typography: 'body2' }}>{stockQuantity || 0}</Box>
+            <Label
+              variant="soft"
+              color={inStock ? 'success' : 'error'}
+            >
+              {inStock ? 'In Stock' : 'Out of Stock'}
+            </Label>
+          </Box>
+        </TableCell>
+
+        <TableCell>
+          <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
+            {isNewArrival && (
+              <Label variant="soft" color="info" sx={{ fontSize: 10 }}>
+                New
+              </Label>
+            )}
+            {isBestSeller && (
+              <Label variant="soft" color="success" sx={{ fontSize: 10 }}>
+                Best
+              </Label>
+            )}
+            {isFeatured && (
+              <Label variant="soft" color="warning" sx={{ fontSize: 10 }}>
+                Featured
+              </Label>
+            )}
+            {!isNewArrival && !isBestSeller && !isFeatured && '-'}
+          </Box>
+        </TableCell>
+
+        <TableCell>
+          <Label
+            variant="soft"
+            color={
+              (status === 'published' && 'success') ||
+              (status === 'draft' && 'default') ||
+              'error'
+            }
+          >
+            {status}
           </Label>
         </TableCell>
 

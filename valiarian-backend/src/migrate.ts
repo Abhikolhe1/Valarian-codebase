@@ -23,6 +23,7 @@ export async function migrate(args: string[]) {
       'SectionTemplate',
       'NavigationMenu',
       'SiteSettings',
+      'Product',
     ]
   });
 
