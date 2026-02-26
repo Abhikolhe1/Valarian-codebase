@@ -37,6 +37,7 @@ import ThemeProvider from 'src/theme';
 import { useScrollToTop } from 'src/hooks/use-scroll-to-top';
 // components
 import MotionLazy from 'src/components/animate/motion-lazy';
+import CartInitializer from 'src/components/cart-initializer';
 import ProgressBar from 'src/components/progress-bar';
 import { SettingsDrawer, SettingsProvider } from 'src/components/settings';
 import SnackbarProvider from 'src/components/snackbar/snackbar-provider';
@@ -86,11 +87,15 @@ export default function App() {
                 <ThemeProvider>
                   <MotionLazy>
                     <SnackbarProvider>
-                      <SettingsDrawer />
-                      <ProgressBar />
-                      <AuthConsumer>
-                        <Router />
-                      </AuthConsumer>
+                      <ErrorBoundary>
+                        <SettingsDrawer />
+                        <ProgressBar />
+                        <AuthConsumer>
+                          <CartInitializer>
+                            <Router />
+                          </CartInitializer>
+                        </AuthConsumer>
+                      </ErrorBoundary>
                     </SnackbarProvider>
                   </MotionLazy>
                 </ThemeProvider>

@@ -36,6 +36,12 @@ export const paths = {
   freeUI: 'https://mui.com/store/items/minimal-dashboard-free/',
   figma:
     'https://www.figma.com/file/kAYnYYdib0aQPNKZpgJT6J/%5BPreview%5D-Minimal-Web.v5.0.0?type=design&node-id=0%3A1&t=Al4jScQq97Aly0Mn-1',
+  favorites: '/favorites',
+  order: {
+    history: '/orders/history',
+    tracking: (id) => `/orders/tracking/${id}`,
+    details: (id) => `/orders/${id}`,
+  },
   product: {
     root: `/products`,
     checkout: `/products/checkout`,

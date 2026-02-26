@@ -25,6 +25,11 @@ const MaintenancePage = lazy(() => import('src/pages/maintenance'));
 const ProductListPage = lazy(() => import('src/pages/product/list'));
 const ProductDetailsPage = lazy(() => import('src/pages/product/details'));
 const ProductCheckoutPage = lazy(() => import('src/pages/product/checkout'));
+// FAVORITES
+const FavoritesPage = lazy(() => import('src/pages/favorites'));
+// ORDERS
+const OrderHistoryPage = lazy(() => import('src/pages/order-history'));
+const OrderTrackingPage = lazy(() => import('src/pages/order-tracking'));
 // BLOG
 const PostListPage = lazy(() => import('src/pages/post/list'));
 const PostDetailsPage = lazy(() => import('src/pages/post/details'));
@@ -45,6 +50,14 @@ export const mainRoutes = [
       { path: 'contact-us', element: <ContactPage /> },
       { path: 'faqs', element: <FaqsPage /> },
       { path: 'premium', element: <PremiumPage /> },
+      { path: 'favorites', element: <FavoritesPage /> },
+      {
+        path: 'orders',
+        children: [
+          { path: 'history', element: <OrderHistoryPage /> },
+          { path: 'tracking/:id', element: <OrderTrackingPage /> },
+        ],
+      },
       {
         path: 'products',
         children: [

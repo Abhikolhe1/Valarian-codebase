@@ -1,22 +1,23 @@
-import { useEffect, useCallback } from 'react';
+import { useCallback, useEffect } from 'react';
 // @mui
 import Container from '@mui/material/Container';
-import Grid from '@mui/material/Unstable_Grid2';
 import Typography from '@mui/material/Typography';
+import Grid from '@mui/material/Unstable_Grid2';
 // redux
-import { useDispatch } from 'src/redux/store';
 import { getCart } from 'src/redux/slices/checkout';
+import { useDispatch } from 'src/redux/store';
 // _mock
 import { PRODUCT_CHECKOUT_STEPS } from 'src/_mock/_product';
 // components
 import { useSettingsContext } from 'src/components/settings';
 //
 import { useCheckout } from '../../hooks';
-import CheckoutCart from '../checkout-cart';
-import CheckoutSteps from '../checkout-steps';
-import CheckoutPayment from '../checkout-payment';
-import CheckoutOrderComplete from '../checkout-order-complete';
+import CheckoutAuthGate from '../checkout-auth-gate';
 import CheckoutBillingAddress from '../checkout-billing-address';
+import CheckoutCart from '../checkout-cart';
+import CheckoutOrderComplete from '../checkout-order-complete';
+import CheckoutPayment from '../checkout-payment';
+import CheckoutSteps from '../checkout-steps';
 
 // ----------------------------------------------------------------------
 
@@ -78,7 +79,7 @@ export default function CheckoutView() {
       </Grid>
 
       {completed ? (
-        <CheckoutOrderComplete open={completed} onReset={onResetAll} onDownloadPDF={() => {}} />
+        <CheckoutOrderComplete open={completed} onReset={onResetAll} onDownloadPDF={() => { }} />
       ) : (
         <>
           {activeStep === 0 && (
@@ -100,7 +101,14 @@ export default function CheckoutView() {
             />
           )}
 
-          {activeStep === 2 && billing && (
+          {activeStep === 2 && (
+            <CheckoutAuthGate
+              onNextStep={onNextStep}
+              onBackStep={onBackStep}
+            />
+          )}
+
+          {activeStep === 3 && billing && (
             <CheckoutPayment
               checkout={checkout}
               onNextStep={onNextStep}

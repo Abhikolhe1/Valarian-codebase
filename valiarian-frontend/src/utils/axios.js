@@ -52,6 +52,17 @@ export const endpoints = {
     bestSellers: '/api/public/products/best-sellers',
     featured: '/api/public/products/featured',
   },
+  cart: {
+    get: (userId) => `/api/cart/${userId}`,
+  },
+  favorites: {
+    get: (userId) => `/api/favorites/${userId}`,
+  },
+  orders: {
+    user: (userId) => `/api/orders/user/${userId}`,
+    details: (orderId) => `/api/orders/${orderId}`,
+    tracking: (orderId) => `/api/orders/${orderId}/tracking`,
+  },
   cms: {
     pages: {
       list: '/api/cms/pages',

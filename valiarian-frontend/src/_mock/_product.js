@@ -76,4 +76,4 @@ export const PRODUCT_CATEGORY_GROUP_OPTIONS = [
   { group: 'Accessories', classify: ['Shoes', 'Backpacks and bags', 'Bracelets', 'Face masks'] },
 ];
 
-export const PRODUCT_CHECKOUT_STEPS = ['Cart', 'Billing & address', 'Payment'];
+export const PRODUCT_CHECKOUT_STEPS = ['Cart', 'Billing & address', 'Authentication', 'Payment'];

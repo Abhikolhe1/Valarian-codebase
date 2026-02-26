@@ -1,19 +1,36 @@
-import PropTypes from 'prop-types';
-import * as Yup from 'yup';
-import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
+import PropTypes from 'prop-types';
+import { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import * as Yup from 'yup';
 // @mui
-import Button from '@mui/material/Button';
-import Grid from '@mui/material/Unstable_Grid2';
 import LoadingButton from '@mui/lab/LoadingButton';
+import Alert from '@mui/material/Alert';
+import Button from '@mui/material/Button';
+import Dialog from '@mui/material/Dialog';
+import DialogActions from '@mui/material/DialogActions';
+import DialogContent from '@mui/material/DialogContent';
+import DialogContentText from '@mui/material/DialogContentText';
+import DialogTitle from '@mui/material/DialogTitle';
+import List from '@mui/material/List';
+import ListItem from '@mui/material/ListItem';
+import ListItemText from '@mui/material/ListItemText';
+import Grid from '@mui/material/Unstable_Grid2';
+// auth
+import { useAuthContext } from 'src/auth/hooks';
+// redux
+import { resetCart } from 'src/redux/slices/checkout';
+import { useDispatch } from 'src/redux/store';
+// utils
+import { createOrder, handleOrderError } from 'src/utils/order-creation';
 // components
-import Iconify from 'src/components/iconify';
 import FormProvider from 'src/components/hook-form';
+import Iconify from 'src/components/iconify';
 //
-import CheckoutSummary from './checkout-summary';
-import CheckoutDelivery from './checkout-delivery';
 import CheckoutBillingInfo from './checkout-billing-info';
+import CheckoutDelivery from './checkout-delivery';
 import CheckoutPaymentMethods from './checkout-payment-methods';
+import CheckoutSummary from './checkout-summary';
 
 // ----------------------------------------------------------------------
 
@@ -67,7 +84,12 @@ export default function CheckoutPayment({
   onGotoStep,
   onApplyShipping,
 }) {
-  const { total, discount, subTotal, shipping, billing } = checkout;
+  const { total, discount, subTotal, shipping, billing, cart } = checkout;
+  const { user } = useAuthContext();
+  const dispatch = useDispatch();
+
+  const [orderError, setOrderError] = useState(null);
+  const [errorDialogOpen, setErrorDialogOpen] = useState(false);
 
   const PaymentSchema = Yup.object().shape({
     payment: Yup.string().required('Payment is required!'),
@@ -88,62 +110,163 @@ export default function CheckoutPayment({
     formState: { isSubmitting },
   } = methods;
 
+  const handleCloseErrorDialog = () => {
+    setErrorDialogOpen(false);
+    setOrderError(null);
+  };
+
+  const handleRetry = () => {
+    handleCloseErrorDialog();
+    // User can retry by submitting the form again
+  };
+
+  const handleUpdateCart = () => {
+    handleCloseErrorDialog();
+    onGotoStep(0); // Go back to cart
+  };
+
+  const handleCheckHistory = () => {
+    handleCloseErrorDialog();
+    // Navigate to order history
+    window.location.href = '/orders/history';
+  };
+
   const onSubmit = handleSubmit(async (data) => {
     try {
+      setOrderError(null);
+
+      // Validate user is authenticated
+      if (!user || !user.id) {
+        throw new Error('User not authenticated');
+      }
+
+      // Create order
+      const order = await createOrder({
+        userId: user.id,
+        cartItems: cart,
+        billingAddress: billing,
+        paymentMethod: data.payment,
+        paymentDetails: {
+          // Add payment details based on payment method
+          cardNumber: data.cardNumber || null,
+          cardHolder: data.cardHolder || null,
+        },
+        discount,
+        shipping,
+      });
+
+      console.log('Order created successfully:', order);
+
+      // Clear cart from Redux
+      dispatch(resetCart());
+
+      // Move to confirmation step
       onNextStep();
       onReset();
-      console.info('DATA', data);
     } catch (error) {
-      console.error(error);
+      console.error('Order creation error:', error);
+
+      // Handle error and show appropriate message
+      const errorDetails = handleOrderError(error);
+      setOrderError(errorDetails);
+      setErrorDialogOpen(true);
     }
   });
 
   return (
-    <FormProvider methods={methods} onSubmit={onSubmit}>
-      <Grid container spacing={3}>
-        <Grid xs={12} md={8}>
-          <CheckoutDelivery onApplyShipping={onApplyShipping} options={DELIVERY_OPTIONS} />
+    <>
+      <FormProvider methods={methods} onSubmit={onSubmit}>
+        <Grid container spacing={3}>
+          <Grid xs={12} md={8}>
+            {orderError && orderError.type === 'payment' && (
+              <Alert severity="error" sx={{ mb: 3 }}>
+                {orderError.message}
+              </Alert>
+            )}
 
-          <CheckoutPaymentMethods
-            cardOptions={CARDS_OPTIONS}
-            options={PAYMENT_OPTIONS}
-            sx={{ my: 3 }}
-          />
+            <CheckoutDelivery onApplyShipping={onApplyShipping} options={DELIVERY_OPTIONS} />
 
-          <Button
-            size="small"
-            color="inherit"
-            onClick={onBackStep}
-            startIcon={<Iconify icon="eva:arrow-ios-back-fill" />}
-          >
-            Back
-          </Button>
+            <CheckoutPaymentMethods
+              cardOptions={CARDS_OPTIONS}
+              options={PAYMENT_OPTIONS}
+              sx={{ my: 3 }}
+            />
+
+            <Button
+              size="small"
+              color="inherit"
+              onClick={onBackStep}
+              startIcon={<Iconify icon="eva:arrow-ios-back-fill" />}
+            >
+              Back
+            </Button>
+          </Grid>
+
+          <Grid xs={12} md={4}>
+            <CheckoutBillingInfo onBackStep={onBackStep} billing={billing} />
+
+            <CheckoutSummary
+              enableEdit
+              total={total}
+              subTotal={subTotal}
+              discount={discount}
+              shipping={shipping}
+              onEdit={() => onGotoStep(0)}
+            />
+
+            <LoadingButton
+              fullWidth
+              size="large"
+              type="submit"
+              variant="contained"
+              loading={isSubmitting}
+            >
+              Complete Order
+            </LoadingButton>
+          </Grid>
         </Grid>
+      </FormProvider>
 
-        <Grid xs={12} md={4}>
-          <CheckoutBillingInfo onBackStep={onBackStep} billing={billing} />
+      {/* Error Dialog */}
+      <Dialog open={errorDialogOpen} onClose={handleCloseErrorDialog}>
+        <DialogTitle>{orderError?.title || 'Error'}</DialogTitle>
+        <DialogContent>
+          <DialogContentText>{orderError?.message}</DialogContentText>
 
-          <CheckoutSummary
-            enableEdit
-            total={total}
-            subTotal={subTotal}
-            discount={discount}
-            shipping={shipping}
-            onEdit={() => onGotoStep(0)}
-          />
-
-          <LoadingButton
-            fullWidth
-            size="large"
-            type="submit"
-            variant="contained"
-            loading={isSubmitting}
-          >
-            Complete Order
-          </LoadingButton>
-        </Grid>
-      </Grid>
-    </FormProvider>
+          {/* Show out of stock items */}
+          {orderError?.type === 'stock' && orderError.outOfStockItems?.length > 0 && (
+            <List sx={{ mt: 2 }}>
+              {orderError.outOfStockItems.map((item) => (
+                <ListItem key={item.id}>
+                  <ListItemText
+                    primary={item.name}
+                    secondary={`Requested: ${item.requested}, Available: ${item.available}`}
+                  />
+                </ListItem>
+              ))}
+            </List>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseErrorDialog}>Close</Button>
+          {orderError?.action === 'retry_payment' && (
+            <Button onClick={handleRetry} variant="contained">
+              Retry Payment
+            </Button>
+          )}
+          {orderError?.action === 'update_cart' && (
+            <Button onClick={handleUpdateCart} variant="contained">
+              Update Cart
+            </Button>
+          )}
+          {orderError?.action === 'check_history' && (
+            <Button onClick={handleCheckHistory} variant="contained">
+              Check Order History
+            </Button>
+          )}
+        </DialogActions>
+      </Dialog>
+    </>
   );
 }
 

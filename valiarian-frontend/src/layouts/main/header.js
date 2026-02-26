@@ -14,22 +14,28 @@ import { useBoolean } from 'src/hooks/use-boolean';
 import { useMarqueeVisibility } from 'src/hooks/use-marquee-visibility';
 import { useOffSetTop } from 'src/hooks/use-off-set-top';
 import { useResponsive } from 'src/hooks/use-responsive';
-import { usePathname } from 'src/routes/hook';
+import { usePathname, useRouter } from 'src/routes/hook';
 // theme
 import { bgBlur } from 'src/theme/css';
 // routes
 import { RouterLink } from 'src/routes/components';
 import { paths } from 'src/routes/paths';
+// redux
+import { useDispatch, useSelector } from 'src/redux/store';
+// auth
+import { useAuthContext } from 'src/auth/hooks';
 // components
 import CategoryMegaMenu from 'src/components/category-mega-menu';
 import Iconify from 'src/components/iconify';
 import Logo from 'src/components/logo';
+import { Badge } from '@mui/material';
 //
 import HeaderShadow from '../_common/header-shadow';
 import { HEADER } from '../config-layout';
 import { navConfig } from './config-navigation';
 import { useHeaderNavigation } from './hooks/use-header-navigation';
 import NavMobile from './nav/mobile';
+import UserDropdownMenu from './user-dropdown-menu';
 
 // ----------------------------------------------------------------------
 
@@ -219,10 +225,19 @@ const StyledMobileSearchInput = styled('input')(({ theme }) => ({
 
 export default function Header() {
   const theme = useTheme();
+  const router = useRouter();
   const pathname = usePathname();
   const mdUp = useResponsive('up', 'md');
   const offsetTop = useOffSetTop(HEADER.H_DESKTOP);
   const marqueeVisible = useMarqueeVisibility();
+
+  // Redux - Get cart count and favorites
+  const cartCount = useSelector((state) => state.checkout.totalItems);
+  const favoritesCount = useSelector((state) => state.favorites.items.length);
+
+  // Auth
+  const { authenticated, user } = useAuthContext();
+  const dispatch = useDispatch();
 
   // Fetch header navigation from CMS
   const { navigation: headerNavigation, isLoading: navLoading } = useHeaderNavigation();
@@ -237,6 +252,10 @@ export default function Header() {
   // Category mega menu state
   const categoryMenuOpen = useBoolean();
   const categoryMenuAnchorRef = useRef(null);
+
+  // User dropdown menu state
+  const [userMenuAnchor, setUserMenuAnchor] = useState(null);
+  const userMenuOpen = Boolean(userMenuAnchor);
 
   // Marquee height: 36px desktop, 32px mobile
   const marqueeHeight = mdUp ? 36 : 32;
@@ -293,6 +312,31 @@ export default function Header() {
     if (event.key === 'Escape') {
       handleSearchClose();
     }
+  };
+
+  // Favorites handler
+  const handleFavoritesClick = () => {
+    if (!authenticated) {
+      // Redirect to login if not authenticated
+      router.push(paths.auth.jwt.login);
+    } else {
+      // Navigate to favorites page
+      router.push('/favorites');
+    }
+  };
+
+  // User menu handlers
+  const handleUserMenuOpen = (event) => {
+    if (!authenticated) {
+      // Redirect to login if not authenticated
+      router.push(paths.auth.jwt.login);
+    } else {
+      setUserMenuAnchor(event.currentTarget);
+    }
+  };
+
+  const handleUserMenuClose = () => {
+    setUserMenuAnchor(null);
   };
 
   // Mobile: Handle search overlay
@@ -497,40 +541,67 @@ export default function Header() {
 
             {/* Action Icons */}
             <Stack direction="row" spacing={0.5}>
-              {/* Heart Icon - Hidden on Mobile */}
-              <IconButton
-                size="small"
+              {/* Favorites Icon with Badge - Hidden on Mobile */}
+              <Badge
+                badgeContent={favoritesCount}
+                color="error"
                 sx={{
-                  color: headerBgOpacity > 0 ? 'text.primary' : 'common.white',
                   display: { xs: 'none', md: 'inline-flex' },
-                  transition: theme.transitions.create('color', {
-                    duration: theme.transitions.duration.standard,
-                  }),
-                  '&:hover': {
-                    backgroundColor: headerBgOpacity > 0 ? 'action.hover' : 'rgba(255, 255, 255, 0.1)',
+                  '& .MuiBadge-badge': {
+                    right: 2,
+                    top: 2,
                   },
                 }}
               >
-                <Iconify icon="eva:heart-fill" width={20} />
-              </IconButton>
+                <IconButton
+                  size="small"
+                  onClick={handleFavoritesClick}
+                  sx={{
+                    color: headerBgOpacity > 0 ? 'text.primary' : 'common.white',
+                    transition: theme.transitions.create('color', {
+                      duration: theme.transitions.duration.standard,
+                    }),
+                    '&:hover': {
+                      backgroundColor: headerBgOpacity > 0 ? 'action.hover' : 'rgba(255, 255, 255, 0.1)',
+                    },
+                  }}
+                >
+                  <Iconify icon="eva:heart-fill" width={20} />
+                </IconButton>
+              </Badge>
 
-              <IconButton
-                size="small"
+              {/* Cart Icon with Badge */}
+              <Badge
+                badgeContent={cartCount}
+                color="error"
                 sx={{
-                  color: headerBgOpacity > 0 ? 'text.primary' : 'common.white',
-                  transition: theme.transitions.create('color', {
-                    duration: theme.transitions.duration.standard,
-                  }),
-                  '&:hover': {
-                    backgroundColor: headerBgOpacity > 0 ? 'action.hover' : 'rgba(255, 255, 255, 0.1)',
+                  '& .MuiBadge-badge': {
+                    right: 2,
+                    top: 2,
                   },
                 }}
               >
-                <Iconify icon="eva:shopping-cart-fill" width={20} />
-              </IconButton>
+                <IconButton
+                  size="small"
+                  onClick={() => router.push(paths.product.checkout)}
+                  sx={{
+                    color: headerBgOpacity > 0 ? 'text.primary' : 'common.white',
+                    transition: theme.transitions.create('color', {
+                      duration: theme.transitions.duration.standard,
+                    }),
+                    '&:hover': {
+                      backgroundColor: headerBgOpacity > 0 ? 'action.hover' : 'rgba(255, 255, 255, 0.1)',
+                    },
+                  }}
+                >
+                  <Iconify icon="eva:shopping-cart-fill" width={20} />
+                </IconButton>
+              </Badge>
 
+              {/* User Profile Icon - Conditional */}
               <IconButton
                 size="small"
+                onClick={handleUserMenuOpen}
                 sx={{
                   color: headerBgOpacity > 0 ? 'text.primary' : 'common.white',
                   display: { xs: 'none', md: 'inline-flex' }, // Hidden on mobile, shown on desktop
@@ -591,6 +662,16 @@ export default function Header() {
             </IconButton>
           </StyledMobileSearchOverlay>
         </ClickAwayListener>
+      )}
+
+      {/* User Dropdown Menu */}
+      {authenticated && user && (
+        <UserDropdownMenu
+          anchorEl={userMenuAnchor}
+          open={userMenuOpen}
+          onClose={handleUserMenuClose}
+          user={user}
+        />
       )}
     </AppBar>
   );
