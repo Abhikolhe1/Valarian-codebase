@@ -30,6 +30,13 @@
 
   <!-- Site Settings Loader - Loads before React -->
   <script src="%PUBLIC_URL%/site-settings.js"></script>
+
+  <!-- Disable automatic scroll restoration -->
+  <script>
+    if ('scrollRestoration' in history) {
+      history.scrollRestoration = 'manual';
+    }
+  </script>
 </head>
 
 <body>

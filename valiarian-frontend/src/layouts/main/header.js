@@ -25,10 +25,10 @@ import { useDispatch, useSelector } from 'src/redux/store';
 // auth
 import { useAuthContext } from 'src/auth/hooks';
 // components
+import { Badge } from '@mui/material';
 import CategoryMegaMenu from 'src/components/category-mega-menu';
 import Iconify from 'src/components/iconify';
 import Logo from 'src/components/logo';
-import { Badge } from '@mui/material';
 //
 import HeaderShadow from '../_common/header-shadow';
 import { HEADER } from '../config-layout';
@@ -599,22 +599,42 @@ export default function Header() {
               </Badge>
 
               {/* User Profile Icon - Conditional */}
-              <IconButton
-                size="small"
-                onClick={handleUserMenuOpen}
-                sx={{
-                  color: headerBgOpacity > 0 ? 'text.primary' : 'common.white',
-                  display: { xs: 'none', md: 'inline-flex' }, // Hidden on mobile, shown on desktop
-                  transition: theme.transitions.create('color', {
-                    duration: theme.transitions.duration.standard,
-                  }),
-                  '&:hover': {
-                    backgroundColor: headerBgOpacity > 0 ? 'action.hover' : 'rgba(255, 255, 255, 0.1)',
-                  },
-                }}
-              >
-                <Iconify icon="eva:person-fill" width={20} />
-              </IconButton>
+              {authenticated ? (
+                <IconButton
+                  size="small"
+                  onClick={handleUserMenuOpen}
+                  sx={{
+                    color: headerBgOpacity > 0 ? 'text.primary' : 'common.white',
+                    display: { xs: 'none', md: 'inline-flex' },
+                    transition: theme.transitions.create('color', {
+                      duration: theme.transitions.duration.standard,
+                    }),
+                    '&:hover': {
+                      backgroundColor: headerBgOpacity > 0 ? 'action.hover' : 'rgba(255, 255, 255, 0.1)',
+                    },
+                  }}
+                >
+                  <Iconify icon="eva:person-fill" width={20} />
+                </IconButton>
+              ) : (
+                <IconButton
+                  size="small"
+                  onClick={() => router.push(paths.auth.jwt.login)}
+                  sx={{
+                    color: headerBgOpacity > 0 ? 'text.primary' : 'common.white',
+                    display: { xs: 'none', md: 'inline-flex' },
+                    transition: theme.transitions.create('color', {
+                      duration: theme.transitions.duration.standard,
+                    }),
+                    '&:hover': {
+                      backgroundColor: headerBgOpacity > 0 ? 'action.hover' : 'rgba(255, 255, 255, 0.1)',
+                    },
+                  }}
+                  title="Login"
+                >
+                  <Iconify icon="eva:log-in-fill" width={20} />
+                </IconButton>
+              )}
 
               {/* Mobile Menu */}
               {!mdUp && (

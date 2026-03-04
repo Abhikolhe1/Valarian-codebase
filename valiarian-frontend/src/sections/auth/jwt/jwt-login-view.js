@@ -1,19 +1,20 @@
-import * as Yup from 'yup';
-import { useForm } from 'react-hook-form';
-import { useState } from 'react';
 import { yupResolver } from '@hookform/resolvers/yup';
+import { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import * as Yup from 'yup';
 // @mui
 import LoadingButton from '@mui/lab/LoadingButton';
-import Link from '@mui/material/Link';
 import Alert from '@mui/material/Alert';
-import Stack from '@mui/material/Stack';
 import IconButton from '@mui/material/IconButton';
-import Typography from '@mui/material/Typography';
 import InputAdornment from '@mui/material/InputAdornment';
+import Link from '@mui/material/Link';
+import Stack from '@mui/material/Stack';
+import Typography from '@mui/material/Typography';
+import { Divider } from '@mui/material';
 // routes
-import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
-import { useSearchParams, useRouter } from 'src/routes/hook';
+import { useRouter, useSearchParams } from 'src/routes/hook';
+import { paths } from 'src/routes/paths';
 // config
 import { PATH_AFTER_LOGIN } from 'src/config-global';
 // hooks
@@ -21,8 +22,9 @@ import { useBoolean } from 'src/hooks/use-boolean';
 // auth
 import { useAuthContext } from 'src/auth/hooks';
 // components
+import FormProvider, { RHFCheckbox, RHFTextField } from 'src/components/hook-form';
 import Iconify from 'src/components/iconify';
-import FormProvider, { RHFTextField } from 'src/components/hook-form';
+import GoogleLoginButton from './google-login-button';
 
 // ----------------------------------------------------------------------
 
@@ -40,13 +42,24 @@ export default function JwtLoginView() {
   const password = useBoolean();
 
   const LoginSchema = Yup.object().shape({
-    email: Yup.string().required('Email is required').email('Email must be a valid email address'),
+    identifier: Yup.string()
+      .required('Mobile number or email is required')
+      .test('mobile-or-email', 'Must be a valid mobile number (10 digits) or email address', (value) => {
+        if (!value) return false;
+        // Check if it's a valid mobile number (10 digits)
+        const mobileRegex = /^[0-9]{10}$/;
+        // Check if it's a valid email
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        return mobileRegex.test(value) || emailRegex.test(value);
+      }),
     password: Yup.string().required('Password is required'),
+    rememberMe: Yup.boolean(),
   });
 
   const defaultValues = {
-    email: 'demo@valiarian.cc',
-    password: 'demo1234',
+    identifier: '',
+    password: '',
+    rememberMe: false,
   };
 
   const methods = useForm({
@@ -62,12 +75,52 @@ export default function JwtLoginView() {
 
   const onSubmit = handleSubmit(async (data) => {
     try {
-      await login?.(data.email, data.password);
+      setErrorMsg('');
 
+      // Call backend login API
+      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:3001'}/api/auth/user/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          identifier: data.identifier,
+          password: data.password,
+          rememberMe: data.rememberMe,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        // Handle specific error cases
+        if (response.status === 403) {
+          if (result.message?.includes('locked')) {
+            throw new Error(result.message);
+          }
+          if (result.message?.includes('not verified')) {
+            throw new Error('Your account is not verified. Please verify your mobile number or email.');
+          }
+          if (result.message?.includes('not active')) {
+            throw new Error('Your account is not active. Please contact support.');
+          }
+        }
+        throw new Error(result.message || 'Login failed');
+      }
+
+      // Store JWT token
+      sessionStorage.setItem('accessToken', result.accessToken);
+
+      // Store user data if needed
+      if (result.user) {
+        sessionStorage.setItem('user', JSON.stringify(result.user));
+      }
+
+      // Redirect to return URL or default path
       router.push(returnTo || PATH_AFTER_LOGIN);
+
     } catch (error) {
       console.error(error);
-      reset();
       setErrorMsg(typeof error === 'string' ? error : error.message);
     }
   });
@@ -90,7 +143,22 @@ export default function JwtLoginView() {
     <Stack spacing={2.5}>
       {!!errorMsg && <Alert severity="error">{errorMsg}</Alert>}
 
-      <RHFTextField name="email" label="Email address" />
+      {/* Google Login Button */}
+      <GoogleLoginButton />
+
+      {/* OR Divider */}
+      <Divider sx={{ my: 2 }}>
+        <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+          OR
+        </Typography>
+      </Divider>
+
+      <RHFTextField
+        name="identifier"
+        label="Mobile number or Email address"
+        placeholder="Enter your mobile number or email"
+        helperText="You can use either your 10-digit mobile number or email address"
+      />
 
       <RHFTextField
         name="password"
@@ -107,9 +175,19 @@ export default function JwtLoginView() {
         }}
       />
 
-      <Link variant="body2" color="inherit" underline="always" sx={{ alignSelf: 'flex-end' }}>
-        Forgot password?
-      </Link>
+      <Stack direction="row" alignItems="center" justifyContent="space-between">
+        <RHFCheckbox name="rememberMe" label="Remember me" />
+
+        <Link
+          component={RouterLink}
+          href={paths.auth.jwt.forgotPassword || '#'}
+          variant="body2"
+          color="inherit"
+          underline="always"
+        >
+          Forgot password?
+        </Link>
+      </Stack>
 
       <LoadingButton
         fullWidth
@@ -127,10 +205,6 @@ export default function JwtLoginView() {
   return (
     <FormProvider methods={methods} onSubmit={onSubmit}>
       {renderHead}
-
-      <Alert severity="info" sx={{ mb: 3 }}>
-        Use email : <strong>demo@valiarian.cc</strong> / password :<strong> demo1234</strong>
-      </Alert>
 
       {renderForm}
     </FormProvider>

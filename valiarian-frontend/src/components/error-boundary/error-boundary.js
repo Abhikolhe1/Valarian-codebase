@@ -40,7 +40,10 @@ export default class ErrorBoundary extends Component {
   };
 
   render() {
-    if (this.state.hasError) {
+    const { hasError, error, errorInfo } = this.state;
+    const { children } = this.props;
+
+    if (hasError) {
       return (
         <Container maxWidth="md">
           <Box
@@ -72,11 +75,11 @@ export default class ErrorBoundary extends Component {
             </Typography>
 
             <Typography variant="body1" color="text.secondary" sx={{ mb: 4, maxWidth: 480 }}>
-              We're sorry for the inconvenience. An unexpected error has occurred. Please try
+              We&apos;re sorry for the inconvenience. An unexpected error has occurred. Please try
               refreshing the page or return to the homepage.
             </Typography>
 
-            {process.env.NODE_ENV === 'development' && this.state.error && (
+            {process.env.NODE_ENV === 'development' && error && (
               <Box
                 sx={{
                   p: 2,
@@ -92,8 +95,8 @@ export default class ErrorBoundary extends Component {
                   Error Details (Development Only):
                 </Typography>
                 <Typography variant="caption" component="pre" sx={{ whiteSpace: 'pre-wrap' }}>
-                  {this.state.error.toString()}
-                  {this.state.errorInfo?.componentStack}
+                  {error.toString()}
+                  {errorInfo?.componentStack}
                 </Typography>
               </Box>
             )}
@@ -121,7 +124,7 @@ export default class ErrorBoundary extends Component {
       );
     }
 
-    return this.props.children;
+    return children;
   }
 }
 

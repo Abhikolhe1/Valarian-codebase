@@ -2,7 +2,8 @@ import {AuthenticationStrategy} from '@loopback/authentication';
 import {inject} from '@loopback/core';
 import {HttpErrors, Request} from '@loopback/rest';
 import {UserProfile} from '@loopback/security';
-import { JWTService } from '../services/jwt-service';
+import {JWTService} from '../services/jwt-service';
+import {TokenBlacklistService} from '../services/token-blacklist.service';
 
 export class JWTStrategy implements AuthenticationStrategy {
   name = 'jwt';
@@ -10,10 +11,18 @@ export class JWTStrategy implements AuthenticationStrategy {
   constructor(
     @inject('service.jwt.service')
     public jwtService: JWTService,
-  ) {}
+    @inject('services.token-blacklist')
+    public tokenBlacklistService: TokenBlacklistService,
+  ) { }
 
   async authenticate(request: Request): Promise<UserProfile | undefined> {
     const token = this.extractCredentials(request);
+
+    // Check if token is blacklisted
+    if (this.tokenBlacklistService.isBlacklisted(token)) {
+      throw new HttpErrors.Unauthorized('Token has been revoked');
+    }
+
     const userProfile = await this.jwtService.verifyToken(token);
     return userProfile;
   }

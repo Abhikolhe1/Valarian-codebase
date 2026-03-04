@@ -17,7 +17,7 @@ import Iconify from 'src/components/iconify';
 
 export default function UserDropdownMenu({ anchorEl, open, onClose, user }) {
   const router = useRouter();
-  const { logout } = useAuthContext();
+  const { logout, userLogout } = useAuthContext();
 
   const handleMenuItemClick = (path) => {
     onClose();
@@ -28,7 +28,12 @@ export default function UserDropdownMenu({ anchorEl, open, onClose, user }) {
 
   const handleLogout = async () => {
     try {
-      await logout();
+      // Use userLogout if available (for regular users), otherwise use generic logout
+      if (userLogout) {
+        await userLogout();
+      } else {
+        await logout();
+      }
       onClose();
       router.push(paths.auth.jwt.login);
     } catch (error) {
@@ -38,29 +43,19 @@ export default function UserDropdownMenu({ anchorEl, open, onClose, user }) {
 
   const menuItems = [
     {
-      label: 'Profile',
+      label: 'My Profile',
       icon: 'eva:person-fill',
-      path: '/account/profile',
-    },
-    {
-      label: 'User Settings',
-      icon: 'eva:settings-2-fill',
-      path: '/account/settings',
+      path: paths.profile,
     },
     {
       label: 'Order History',
       icon: 'eva:file-text-fill',
-      path: '/account/orders',
-    },
-    {
-      label: 'Order Tracking',
-      icon: 'eva:navigation-2-fill',
-      path: '/account/tracking',
+      path: paths.order.history,
     },
     {
       label: 'Favorites',
       icon: 'eva:heart-fill',
-      path: '/favorites',
+      path: paths.favorites,
     },
   ];
 
@@ -90,8 +85,8 @@ export default function UserDropdownMenu({ anchorEl, open, onClose, user }) {
         <>
           <MenuItem disabled sx={{ py: 1.5 }}>
             <ListItemText
-              primary={`${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email}
-              secondary={user.email}
+              primary={user.fullName || user.email || user.phone || 'User'}
+              secondary={user.email || user.phone || ''}
               primaryTypographyProps={{
                 variant: 'subtitle2',
                 noWrap: true,

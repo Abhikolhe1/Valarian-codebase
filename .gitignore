@@ -37,5 +37,8 @@ yarn-error.log*
 package-lock.json
 yarn.lock
 
-
+# Kiro configuration and documentation files
+.config.kiro
+.kiro
 *.md
+*.txt

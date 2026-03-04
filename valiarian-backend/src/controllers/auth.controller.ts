@@ -1,16 +1,24 @@
 import {authenticate, AuthenticationBindings} from '@loopback/authentication';
 import {inject} from '@loopback/core';
 import {repository} from '@loopback/repository';
-import {get, HttpErrors, post, requestBody} from '@loopback/rest';
+import {del, get, HttpErrors, param, patch, post, Request, requestBody, RestBindings} from '@loopback/rest';
 import {securityId, UserProfile} from '@loopback/security';
+import * as crypto from 'crypto';
 import _ from 'lodash';
 import {authorize} from '../authorization';
-import {OtpRepository, RegistrationSessionsRepository, RolesRepository, UserRolesRepository, UsersRepository} from '../repositories';
+import {OtpRepository, RefreshTokenRepository, RegistrationSessionsRepository, RolesRepository, UserRolesRepository, UsersRepository} from '../repositories';
+import {CacheService} from '../services/cache.service';
+import {GoogleOAuthService} from '../services/google-oauth.service';
 import {BcryptHasher} from '../services/hash.password.bcrypt';
 import {JWTService} from '../services/jwt-service';
 import {MediaService} from '../services/media.service';
+import {OtpNotificationService} from '../services/otp-notification.service';
+import {RateLimiterService} from '../services/rate-limiter.service';
 import {RbacService} from '../services/rbac.service';
+import {UserProfileService} from '../services/user-profile.service';
 import {MyUserService} from '../services/user-service';
+import {formatDeviceInfo, parseDeviceInfo} from '../utils/device-info.utils';
+import {sanitizeInput, validateAndCheckPassword, validateAndSanitizeEmail, validateAndSanitizeMobile} from '../utils/validation.utils';
 
 export class AuthController {
   constructor(
@@ -24,6 +32,8 @@ export class AuthController {
     private otpRepository: OtpRepository,
     @repository(RegistrationSessionsRepository)
     private registrationSessionsRepository: RegistrationSessionsRepository,
+    @repository(RefreshTokenRepository)
+    private refreshTokenRepository: RefreshTokenRepository,
     @inject('service.hasher')
     private hasher: BcryptHasher,
     @inject('service.user.service')
@@ -33,8 +43,29 @@ export class AuthController {
     @inject('services.rbac')
     public rbacService: RbacService,
     @inject('service.media.service')
-    private mediaService: MediaService
+    private mediaService: MediaService,
+    @inject('service.google.oauth')
+    private googleOAuthService: GoogleOAuthService,
+    @inject('service.user.profile')
+    private userProfileService: UserProfileService,
+    @inject('service.rate.limiter')
+    private rateLimiterService: RateLimiterService,
+    @inject('services.otp.notification')
+    private otpNotificationService: OtpNotificationService,
+    @inject('services.cache')
+    private cacheService: CacheService,
+    @inject(RestBindings.Http.REQUEST)
+    private request: Request,
   ) { }
+
+  // Helper method to get client IP address
+  private getClientIp(): string {
+    const forwarded = this.request.headers['x-forwarded-for'];
+    if (forwarded) {
+      return (forwarded as string).split(',')[0].trim();
+    }
+    return this.request.socket.remoteAddress || '127.0.0.1';
+  }
 
   // ---------------------------------------Super Admin Auth API's------------------------------------
   @post('/api/auth/super-admin')
@@ -129,6 +160,10 @@ export class AuthController {
     })
     body: {email: string; password: string; rememberMe: boolean}
   ): Promise<{success: boolean; message: string; accessToken: string; user: object}> {
+    // Rate limiting: 5 login attempts per 15 minutes per IP
+    const clientIp = this.getClientIp();
+    this.rateLimiterService.checkLoginAttempt(clientIp);
+
     const userData = await this.usersRepository.findOne({
       where: {
         and: [
@@ -150,6 +185,9 @@ export class AuthController {
       throw new HttpErrors.Forbidden('Access denied. Only super_admin can login here.');
     }
 
+    // Reset login attempts on successful login
+    this.rateLimiterService.resetLoginAttempts(clientIp);
+
     const userProfile: UserProfile & {
       roles: string[];
       permissions: string[];
@@ -165,6 +203,31 @@ export class AuthController {
 
     const token = await this.jwtService.generateToken(userProfile);
     const profile = await this.rbacService.returnSuperAdminProfile(user.id, roles, permissions);
+
+    // Parse device info from user-agent
+    const userAgent = this.request.headers['user-agent'] || 'Unknown';
+    const deviceInfo = parseDeviceInfo(userAgent);
+    const formattedDeviceInfo = formatDeviceInfo(deviceInfo);
+
+    // Create refresh token
+    const refreshToken = crypto.randomBytes(32).toString('hex');
+    await this.refreshTokenRepository.create({
+      userId: user.id,
+      token: refreshToken,
+      deviceInfo: formattedDeviceInfo,
+      ipAddress: this.getClientIp(),
+      expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
+      isRevoked: false,
+    });
+
+    // Set refresh token as httpOnly cookie
+    this.request.res?.cookie('refreshToken', refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+    });
+
     return {
       success: true,
       message: "Super Admin login successful",
@@ -198,6 +261,9 @@ export class AuthController {
       newPassword: string;
     }
   ): Promise<{success: boolean; message: string}> {
+    // Validate new password strength
+    validateAndCheckPassword(body.newPassword);
+
     const user = await this.usersRepository.findById(currentUser.id);
 
     if (!user) {
@@ -269,9 +335,14 @@ export class AuthController {
       role: string;
     }
   ): Promise<{success: boolean; message: string; sessionId: string}> {
+    // Validate and sanitize mobile number
+    const sanitizedPhone = validateAndSanitizeMobile(body.phone);
+
+    // Rate limiting: 3 OTP requests per hour per phone number
+    this.rateLimiterService.checkOtpRequest(sanitizedPhone);
 
     const user = await this.usersRepository.findOne({
-      where: {phone: body.phone}
+      where: {phone: sanitizedPhone}
     });
 
     const role = await this.rolesRepository.findOne({
@@ -299,16 +370,19 @@ export class AuthController {
 
     await this.otpRepository.updateAll(
       {isUsed: true, expiresAt: new Date()},
-      {identifier: body.phone, type: 0}
+      {identifier: sanitizedPhone, type: 0}
     );
 
+    // Generate random 4-digit OTP
+    const otpCode = Math.floor(1000 + Math.random() * 9000).toString();
+
     const otp = await this.otpRepository.create({
-      otp: '1234',
+      otp: otpCode,
       type: 0,
-      identifier: body.phone,
+      identifier: sanitizedPhone,
       attempts: 0,
       isUsed: false,
-      expiresAt: new Date(Date.now() + 5 * 60 * 1000) // 5 min
+      expiresAt: new Date(Date.now() + 10 * 60 * 1000) // 10 min
     });
 
     if (!otp) {
@@ -319,10 +393,21 @@ export class AuthController {
       );
     }
 
+    // Send OTP via SMS
+    try {
+      await this.otpNotificationService.sendSmsOtp(sanitizedPhone, otpCode, 'registration');
+    } catch (error) {
+      console.error('Failed to send SMS OTP:', error);
+      // Don't fail the request if SMS sending fails in development
+      if (process.env.NODE_ENV !== 'development' && process.env.NODE_ENV !== 'dev') {
+        throw new HttpErrors.InternalServerError('Failed to send OTP. Please try again.');
+      }
+    }
+
     const existingSession = await this.registrationSessionsRepository.findOne({
       where: {
         and: [
-          {phoneNumber: body.phone},
+          {phoneNumber: sanitizedPhone},
           {roleValue: body.role},
           {isActive: true},
           {isDeleted: false}
@@ -345,7 +430,7 @@ export class AuthController {
     }
 
     const session = await this.registrationSessionsRepository.create({
-      phoneNumber: body.phone,
+      phoneNumber: sanitizedPhone,
       phoneVerified: false,
       emailVerified: false,
       roleValue: body.role,
@@ -477,6 +562,11 @@ export class AuthController {
       email: string;
     }
   ): Promise<{success: boolean; message: string}> {
+    // Validate and sanitize email
+    const sanitizedEmail = validateAndSanitizeEmail(body.email);
+
+    // Rate limiting: 3 OTP requests per hour per email
+    this.rateLimiterService.checkOtpRequest(sanitizedEmail);
 
     const session = await this.registrationSessionsRepository.findById(
       body.sessionId,
@@ -495,7 +585,7 @@ export class AuthController {
     }
 
     const user = await this.usersRepository.findOne({
-      where: {email: body.email}
+      where: {email: sanitizedEmail}
     });
 
     const role = await this.rolesRepository.findOne({
@@ -538,7 +628,7 @@ export class AuthController {
       }
     });
 
-    if (existingPhoneUser && (existingPhoneUser.email !== body.email)) {
+    if (existingPhoneUser && (existingPhoneUser.email !== sanitizedEmail)) {
       throw new HttpErrors.BadRequest(
         `Phone is already registered with another email`
       );
@@ -546,16 +636,19 @@ export class AuthController {
 
     await this.otpRepository.updateAll(
       {isUsed: true, expiresAt: new Date()},
-      {identifier: body.email, type: 1}
+      {identifier: sanitizedEmail, type: 1}
     );
 
+    // Generate random 4-digit OTP
+    const otpCode = Math.floor(1000 + Math.random() * 9000).toString();
+
     const otp = await this.otpRepository.create({
-      otp: '4321',
+      otp: otpCode,
       type: 1,
-      identifier: body.email,
+      identifier: sanitizedEmail,
       attempts: 0,
       isUsed: false,
-      expiresAt: new Date(Date.now() + 5 * 60 * 1000) // 5 min
+      expiresAt: new Date(Date.now() + 10 * 60 * 1000) // 10 min
     });
 
     if (!otp) {
@@ -566,8 +659,16 @@ export class AuthController {
       );
     }
 
+    // Send OTP via Email
+    try {
+      await this.otpNotificationService.sendEmailOtp(sanitizedEmail, otpCode, 'registration');
+    } catch (error) {
+      console.error('Failed to send email OTP:', error);
+      throw new HttpErrors.InternalServerError('Failed to send OTP email. Please try again.');
+    }
+
     await this.registrationSessionsRepository.updateById(body.sessionId, {
-      email: body.email,
+      email: sanitizedEmail,
       emailVerified: false,
     });
 
@@ -686,10 +787,16 @@ export class AuthController {
       role: string;
     }
   ): Promise<{success: boolean; message: string}> {
+    // Validate and sanitize email
+    const sanitizedEmail = validateAndSanitizeEmail(body.email);
+
+    // Rate limiting: 3 password reset requests per hour per email
+    this.rateLimiterService.checkPasswordResetRequest(sanitizedEmail);
+
     const user = await this.usersRepository.findOne({
       where: {
         and: [
-          {email: body.email},
+          {email: sanitizedEmail},
           {isDeleted: false}
         ]
       }
@@ -721,16 +828,19 @@ export class AuthController {
 
     await this.otpRepository.updateAll(
       {isUsed: true, expiresAt: new Date()},
-      {identifier: body.email, type: 1}
+      {identifier: sanitizedEmail, type: 1}
     );
 
+    // Generate random 4-digit OTP
+    const otpCode = Math.floor(1000 + Math.random() * 9000).toString();
+
     const otp = await this.otpRepository.create({
-      otp: '3421',
+      otp: otpCode,
       type: 1,
-      identifier: body.email,
+      identifier: sanitizedEmail,
       attempts: 0,
       isUsed: false,
-      expiresAt: new Date(Date.now() + 5 * 60 * 1000) // 5 min
+      expiresAt: new Date(Date.now() + 10 * 60 * 1000) // 10 min
     });
 
     if (!otp) {
@@ -739,6 +849,14 @@ export class AuthController {
           ? "Failed to create otp"
           : "Something went wrong"
       );
+    }
+
+    // Send OTP via Email
+    try {
+      await this.otpNotificationService.sendEmailOtp(sanitizedEmail, otpCode, 'password_reset');
+    } catch (error) {
+      console.error('Failed to send password reset email OTP:', error);
+      throw new HttpErrors.InternalServerError('Failed to send OTP email. Please try again.');
     }
 
     return {
@@ -772,10 +890,16 @@ export class AuthController {
       newPassword: string;
     }
   ): Promise<{success: boolean; message: string}> {
+    // Validate and sanitize email
+    const sanitizedEmail = validateAndSanitizeEmail(body.email);
+
+    // Validate password strength
+    validateAndCheckPassword(body.newPassword);
+
     const user = await this.usersRepository.findOne({
       where: {
         and: [
-          {email: body.email},
+          {email: sanitizedEmail},
           {isDeleted: false}
         ]
       }
@@ -807,7 +931,7 @@ export class AuthController {
 
     const otpEntry = await this.otpRepository.findOne({
       where: {
-        identifier: body.email,
+        identifier: sanitizedEmail,
         type: 1,
         isUsed: false,
       },
@@ -1074,5 +1198,296 @@ export class AuthController {
   //     user: profile
   //   };
   // }
+
+  // ---------------------------------------Google OAuth API's----------------------------------------
+  @get('/auth/google', {
+    responses: {
+      '302': {
+        description: 'Redirect to Google OAuth',
+      },
+    },
+  })
+  async googleAuth(): Promise<void> {
+    // Generate random state for CSRF protection
+    const state = crypto.randomBytes(32).toString('hex');
+
+    // Store state in cache with 10-minute expiration
+    await this.cacheService.set(`oauth:state:${state}`, true, 600); // 10 minutes TTL
+
+    const authUrl = this.googleOAuthService.getAuthorizationUrl(state);
+
+    // Redirect to Google OAuth
+    this.request.res?.redirect(authUrl);
+  }
+
+  @get('/auth/google/callback', {
+    responses: {
+      '302': {
+        description: 'Redirect to frontend with token',
+      },
+    },
+  })
+  async googleCallback(
+    @param.query.string('code') code: string,
+    @param.query.string('state') state: string,
+  ): Promise<void> {
+    if (!code) {
+      // Redirect to frontend with error
+      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+      this.request.res?.redirect(`${frontendUrl}/auth/google/callback?error=no_code`);
+      return;
+    }
+
+    // Validate state parameter for CSRF protection
+    if (!state) {
+      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+      this.request.res?.redirect(`${frontendUrl}/auth/google/callback?error=invalid_state`);
+      return;
+    }
+
+    const storedState = await this.cacheService.get<boolean>(`oauth:state:${state}`);
+    if (!storedState) {
+      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+      this.request.res?.redirect(`${frontendUrl}/auth/google/callback?error=invalid_state`);
+      return;
+    }
+
+    // Delete state after validation (one-time use)
+    await this.cacheService.delete(`oauth:state:${state}`);
+
+    try {
+      // Exchange code for access token
+      const accessToken = await this.googleOAuthService.getAccessToken(code);
+
+      // Get user info from Google
+      const googleUser = await this.googleOAuthService.getUserInfo(accessToken);
+
+      // Find or create user
+      const user = await this.googleOAuthService.findOrCreateUser(googleUser);
+
+      // Generate JWT token
+      const token = await this.googleOAuthService.generateToken(
+        user,
+        this.jwtService,
+        this.rbacService,
+      );
+
+      // Parse device info from user-agent
+      const userAgent = this.request.headers['user-agent'] || 'Unknown';
+      const deviceInfo = parseDeviceInfo(userAgent);
+      const formattedDeviceInfo = formatDeviceInfo(deviceInfo);
+
+      // Create refresh token
+      const refreshToken = crypto.randomBytes(32).toString('hex');
+      await this.refreshTokenRepository.create({
+        userId: user.id,
+        token: refreshToken,
+        deviceInfo: formattedDeviceInfo,
+        ipAddress: this.getClientIp(),
+        expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
+        isRevoked: false,
+      });
+
+      // Set refresh token as httpOnly cookie
+      this.request.res?.cookie('refreshToken', refreshToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+        maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+      });
+
+      // Redirect to frontend with token
+      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+      this.request.res?.redirect(
+        `${frontendUrl}/auth/google/callback?token=${token}&user=${encodeURIComponent(JSON.stringify({
+          id: user.id,
+          email: user.email,
+          fullName: user.fullName,
+          phone: user.phone,
+          profilePicture: user.profilePicture,
+          authProvider: user.authProvider,
+        }))}`
+      );
+    } catch (error) {
+      console.error('Google OAuth error:', error);
+      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+      this.request.res?.redirect(`${frontendUrl}/auth/google/callback?error=auth_failed`);
+    }
+  }
+
+  // ---------------------------------------User Profile Management API's----------------------------------------
+  @authenticate('jwt')
+  @authorize({roles: ['user']})
+  @get('/api/users/profile')
+  async getUserProfile(
+    @inject(AuthenticationBindings.CURRENT_USER) currentUser: UserProfile,
+  ): Promise<object> {
+    return this.userProfileService.getUserProfile(currentUser.id);
+  }
+
+  @authenticate('jwt')
+  @authorize({roles: ['user']})
+  @patch('/api/users/profile')
+  async updateProfile(
+    @inject(AuthenticationBindings.CURRENT_USER) currentUser: UserProfile,
+    @requestBody({
+      content: {
+        'application/json': {
+          schema: {
+            type: 'object',
+            properties: {
+              fullName: {type: 'string'},
+              address: {type: 'string'},
+              city: {type: 'string'},
+              state: {type: 'string'},
+              country: {type: 'string'},
+              zipCode: {type: 'string'},
+            },
+          },
+        },
+      },
+    })
+    data: {
+      fullName?: string;
+      address?: string;
+      city?: string;
+      state?: string;
+      country?: string;
+      zipCode?: string;
+    },
+  ): Promise<object> {
+    // Sanitize all text inputs to prevent XSS
+    const sanitizedData = {
+      fullName: data.fullName ? sanitizeInput(data.fullName) : undefined,
+      address: data.address ? sanitizeInput(data.address) : undefined,
+      city: data.city ? sanitizeInput(data.city) : undefined,
+      state: data.state ? sanitizeInput(data.state) : undefined,
+      country: data.country ? sanitizeInput(data.country) : undefined,
+      zipCode: data.zipCode ? sanitizeInput(data.zipCode) : undefined,
+    };
+
+    return this.userProfileService.updateProfile(currentUser.id, sanitizedData);
+  }
+
+  @authenticate('jwt')
+  @authorize({roles: ['user']})
+  @post('/api/users/profile/email/send-otp')
+  async sendEmailUpdateOtp(
+    @inject(AuthenticationBindings.CURRENT_USER) currentUser: UserProfile,
+    @requestBody({
+      content: {
+        'application/json': {
+          schema: {
+            type: 'object',
+            required: ['newEmail'],
+            properties: {
+              newEmail: {type: 'string'},
+            },
+          },
+        },
+      },
+    })
+    body: {newEmail: string},
+  ): Promise<{success: boolean; message: string; otpId?: string}> {
+    return this.userProfileService.initiateEmailUpdate(
+      currentUser.id,
+      body.newEmail,
+      this.hasher,
+    );
+  }
+
+  @authenticate('jwt')
+  @authorize({roles: ['user']})
+  @patch('/api/users/profile/email')
+  async updateEmail(
+    @inject(AuthenticationBindings.CURRENT_USER) currentUser: UserProfile,
+    @requestBody({
+      content: {
+        'application/json': {
+          schema: {
+            type: 'object',
+            required: ['newEmail', 'otp'],
+            properties: {
+              newEmail: {type: 'string'},
+              otp: {type: 'string'},
+            },
+          },
+        },
+      },
+    })
+    body: {newEmail: string; otp: string},
+  ): Promise<{success: boolean; message: string}> {
+    return this.userProfileService.verifyAndUpdateEmail(
+      currentUser.id,
+      body.newEmail,
+      body.otp,
+      this.hasher,
+    );
+  }
+
+  @authenticate('jwt')
+  @authorize({roles: ['user']})
+  @post('/api/users/profile/mobile/send-otp')
+  async sendMobileUpdateOtp(
+    @inject(AuthenticationBindings.CURRENT_USER) currentUser: UserProfile,
+    @requestBody({
+      content: {
+        'application/json': {
+          schema: {
+            type: 'object',
+            required: ['newMobile'],
+            properties: {
+              newMobile: {type: 'string'},
+            },
+          },
+        },
+      },
+    })
+    body: {newMobile: string},
+  ): Promise<{success: boolean; message: string; otpId?: string}> {
+    return this.userProfileService.initiateMobileUpdate(
+      currentUser.id,
+      body.newMobile,
+      this.hasher,
+    );
+  }
+
+  @authenticate('jwt')
+  @authorize({roles: ['user']})
+  @patch('/api/users/profile/mobile')
+  async updateMobile(
+    @inject(AuthenticationBindings.CURRENT_USER) currentUser: UserProfile,
+    @requestBody({
+      content: {
+        'application/json': {
+          schema: {
+            type: 'object',
+            required: ['newMobile', 'otp'],
+            properties: {
+              newMobile: {type: 'string'},
+              otp: {type: 'string'},
+            },
+          },
+        },
+      },
+    })
+    body: {newMobile: string; otp: string},
+  ): Promise<{success: boolean; message: string}> {
+    return this.userProfileService.verifyAndUpdateMobile(
+      currentUser.id,
+      body.newMobile,
+      body.otp,
+      this.hasher,
+    );
+  }
+
+  @authenticate('jwt')
+  @authorize({roles: ['user']})
+  @del('/api/users/account')
+  async deleteAccount(
+    @inject(AuthenticationBindings.CURRENT_USER) currentUser: UserProfile,
+  ): Promise<{success: boolean; message: string}> {
+    return this.userProfileService.deleteAccount(currentUser.id);
+  }
 }
 

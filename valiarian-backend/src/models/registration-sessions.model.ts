@@ -50,6 +50,18 @@ export class RegistrationSessions extends Entity {
   roleValue?: string;
 
   @property({
+    type: 'string',
+    required: false,
+  })
+  fullName?: string;
+
+  @property({
+    type: 'string',
+    required: false,
+  })
+  password?: string;
+
+  @property({
     type: 'date',
     required: true,
   })

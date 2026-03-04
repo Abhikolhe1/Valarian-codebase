@@ -17,12 +17,17 @@ import {AuditService} from './services/audit.service';
 import {CacheService} from './services/cache.service';
 import {CMSService} from './services/cms.service';
 import {EmailService} from './services/email.service';
+import {GoogleOAuthService} from './services/google-oauth.service';
 import {BcryptHasher} from './services/hash.password.bcrypt';
 import {JWTService} from './services/jwt-service';
 import {MediaService} from './services/media.service';
+import {OtpNotificationService} from './services/otp-notification.service';
+import {RateLimiterService} from './services/rate-limiter.service';
 import {RbacService} from './services/rbac.service';
 import {SessionService} from './services/session.service';
 import {SlugService} from './services/slug.service';
+import {TokenBlacklistService} from './services/token-blacklist.service';
+import {UserProfileService} from './services/user-profile.service';
 import {MyUserService} from './services/user-service';
 
 export {ApplicationConfig};
@@ -73,13 +78,19 @@ export class ValiarianBackendApplication extends BootMixin(
     this.bind('services.cms').toClass(CMSService);
     this.bind('services.audit').toClass(AuditService);
     this.bind('services.SlugService').toClass(SlugService);
+    this.bind('service.rate.limiter').toClass(RateLimiterService);
+    this.bind('services.token-blacklist').toClass(TokenBlacklistService);
+    this.bind('service.user.profile').toClass(UserProfileService);
     this.bind('jwt.secret').to(process.env.JWT_SECRET!);
     this.bind('jwt.expiresIn').to(process.env.JWT_EXPIRES_IN ?? '7h');
     this.bind('service.jwt.service').toClass(JWTService);
     this.bind('service.user.service').toClass(MyUserService);
     this.bind('service.media.service').toClass(MediaService);
     this.bind('service.session.service').toClass(SessionService);
+    this.bind('service.google.oauth').toClass(GoogleOAuthService);
     this.bind(EmailManagerBindings.SEND_MAIL).toClass(EmailService);
+    this.bind('services.email').toClass(EmailService);
+    this.bind('services.otp.notification').toClass(OtpNotificationService);
   }
 
   protected configureFileUpload(destination?: string) {

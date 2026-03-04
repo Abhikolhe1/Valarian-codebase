@@ -1,5 +1,5 @@
 import PropTypes from 'prop-types';
-import { useEffect, useReducer, useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useReducer } from 'react';
 // utils
 import axios, { endpoints } from 'src/utils/axios';
 //
@@ -115,6 +115,33 @@ export function AuthProvider({ children }) {
     });
   }, []);
 
+  // USER LOGIN (for regular users, not admin)
+  const userLogin = useCallback(async (identifier, password, rememberMe = false) => {
+    const data = {
+      identifier,
+      password,
+      rememberMe,
+    };
+
+    const response = await axios.post('/api/auth/user/login', data);
+
+    const { accessToken, user } = response.data;
+
+    setSession(accessToken);
+
+    // Store user data
+    sessionStorage.setItem('user', JSON.stringify(user));
+
+    dispatch({
+      type: 'LOGIN',
+      payload: {
+        user,
+      },
+    });
+
+    return { accessToken, user };
+  }, []);
+
   // REGISTER
   const register = useCallback(async (email, password, firstName, lastName) => {
     const data = {
@@ -138,12 +165,50 @@ export function AuthProvider({ children }) {
     });
   }, []);
 
+  // USER REGISTER (for regular users, not admin)
+  const userRegister = useCallback(async (userData) => {
+    // userData should contain: phone, email (optional), password, fullName, sessionId
+    const response = await axios.post('/api/auth/user/register', userData);
+
+    const { accessToken, user } = response.data;
+
+    setSession(accessToken);
+
+    // Store user data
+    sessionStorage.setItem('user', JSON.stringify(user));
+
+    dispatch({
+      type: 'REGISTER',
+      payload: {
+        user,
+      },
+    });
+
+    return { accessToken, user };
+  }, []);
+
   // LOGOUT
   const logout = useCallback(async () => {
     setSession(null);
     dispatch({
       type: 'LOGOUT',
     });
+  }, []);
+
+  // USER LOGOUT (for regular users, revokes refresh token)
+  const userLogout = useCallback(async () => {
+    try {
+      // Call backend to revoke refresh token
+      await axios.post('/api/auth/user/logout');
+    } catch (error) {
+      console.error('Logout error:', error);
+    } finally {
+      setSession(null);
+      sessionStorage.removeItem('user');
+      dispatch({
+        type: 'LOGOUT',
+      });
+    }
   }, []);
 
   // ----------------------------------------------------------------------
@@ -163,8 +228,12 @@ export function AuthProvider({ children }) {
       login,
       register,
       logout,
+      // User-specific methods
+      userLogin,
+      userRegister,
+      userLogout,
     }),
-    [login, logout, register, state.user, status]
+    [login, logout, register, userLogin, userRegister, userLogout, state.user, status]
   );
 
   return <AuthContext.Provider value={memoizedValue}>{children}</AuthContext.Provider>;

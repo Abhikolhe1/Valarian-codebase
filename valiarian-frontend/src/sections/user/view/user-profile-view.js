@@ -1,134 +1,277 @@
-import { useState, useCallback } from 'react';
-// @mui
-import Tab from '@mui/material/Tab';
+import { yupResolver } from '@hookform/resolvers/yup';
+import LoadingButton from '@mui/lab/LoadingButton';
+import Alert from '@mui/material/Alert';
+import Box from '@mui/material/Box';
+import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
+import CardContent from '@mui/material/CardContent';
 import Container from '@mui/material/Container';
-import Tabs, { tabsClasses } from '@mui/material/Tabs';
-// routes
-import { paths } from 'src/routes/paths';
-// hooks
-import { useMockedUser } from 'src/hooks/use-mocked-user';
-// _mock
-import { _userAbout, _userFeeds, _userFriends, _userGallery, _userFollowers } from 'src/_mock';
-// components
+import Grid from '@mui/material/Grid';
+import Stack from '@mui/material/Stack';
+import Typography from '@mui/material/Typography';
+import PropTypes from 'prop-types';
+import { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { useAuthContext } from 'src/auth/hooks';
+import FormProvider, { RHFTextField } from 'src/components/hook-form';
 import Iconify from 'src/components/iconify';
-import { useSettingsContext } from 'src/components/settings';
-import CustomBreadcrumbs from 'src/components/custom-breadcrumbs';
-//
-import ProfileHome from '../profile-home';
-import ProfileCover from '../profile-cover';
-import ProfileFriends from '../profile-friends';
-import ProfileGallery from '../profile-gallery';
-import ProfileFollowers from '../profile-followers';
-
-// ----------------------------------------------------------------------
-
-const TABS = [
-  {
-    value: 'profile',
-    label: 'Profile',
-    icon: <Iconify icon="solar:user-id-bold" width={24} />,
-  },
-  {
-    value: 'followers',
-    label: 'Followers',
-    icon: <Iconify icon="solar:heart-bold" width={24} />,
-  },
-  {
-    value: 'friends',
-    label: 'Friends',
-    icon: <Iconify icon="solar:users-group-rounded-bold" width={24} />,
-  },
-  {
-    value: 'gallery',
-    label: 'Gallery',
-    icon: <Iconify icon="solar:gallery-wide-bold" width={24} />,
-  },
-];
-
-// ----------------------------------------------------------------------
+import { useRouter } from 'src/routes/hook';
+import { paths } from 'src/routes/paths';
+import * as Yup from 'yup';
 
 export default function UserProfileView() {
-  const settings = useSettingsContext();
+  const { user } = useAuthContext();
+  const router = useRouter();
+  const [editMode, setEditMode] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
 
-  const { user } = useMockedUser();
+  if (!user) {
+    router.push(paths.auth.jwt.login);
+    return null;
+  }
 
-  const [searchFriends, setSearchFriends] = useState('');
+  const handleEditToggle = () => {
+    setEditMode(!editMode);
+    setErrorMsg('');
+    setSuccessMsg('');
+  };
 
-  const [currentTab, setCurrentTab] = useState('profile');
-
-  const handleChangeTab = useCallback((event, newValue) => {
-    setCurrentTab(newValue);
-  }, []);
-
-  const handleSearchFriends = useCallback((event) => {
-    setSearchFriends(event.target.value);
-  }, []);
+  const handleChangePassword = () => {
+    router.push(paths.auth.jwt.forgotPassword);
+  };
 
   return (
-    <Container maxWidth={settings.themeStretch ? false : 'lg'}>
-      <CustomBreadcrumbs
-        heading="Profile"
-        links={[
-          { name: 'Dashboard', href: paths.dashboard.root },
-          { name: 'User', href: paths.dashboard.user.root },
-          { name: user?.displayName },
-        ]}
-        sx={{
-          mb: { xs: 3, md: 5 },
-        }}
-      />
+    <Container maxWidth="lg">
+      <Stack spacing={3} sx={{ py: 5 }}>
+        <Typography variant="h3">My Profile</Typography>
 
-      <Card
-        sx={{
-          mb: 3,
-          height: 290,
-        }}
-      >
-        <ProfileCover
-          role={_userAbout.role}
-          name={user?.displayName}
-          avatarUrl={user?.photoURL}
-          coverUrl={_userAbout.coverUrl}
-        />
+        {errorMsg && <Alert severity="error">{errorMsg}</Alert>}
+        {successMsg && <Alert severity="success">{successMsg}</Alert>}
 
-        <Tabs
-          value={currentTab}
-          onChange={handleChangeTab}
-          sx={{
-            width: 1,
-            bottom: 0,
-            zIndex: 9,
-            position: 'absolute',
-            bgcolor: 'background.paper',
-            [`& .${tabsClasses.flexContainer}`]: {
-              pr: { md: 3 },
-              justifyContent: {
-                sm: 'center',
-                md: 'flex-end',
-              },
-            },
-          }}
-        >
-          {TABS.map((tab) => (
-            <Tab key={tab.value} value={tab.value} icon={tab.icon} label={tab.label} />
-          ))}
-        </Tabs>
-      </Card>
+        <Grid container spacing={3}>
+          <Grid item xs={12} md={4}>
+            <Card>
+              <CardContent>
+                <Stack spacing={2} alignItems="center">
+                  <Box
+                    sx={{
+                      width: 120,
+                      height: 120,
+                      borderRadius: '50%',
+                      bgcolor: 'primary.lighter',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <Iconify icon="solar:user-bold" width={60} color="primary.main" />
+                  </Box>
+                  <Typography variant="h5">{user.fullName || 'User'}</Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    {user.email || user.phone}
+                  </Typography>
+                </Stack>
+              </CardContent>
+            </Card>
 
-      {currentTab === 'profile' && <ProfileHome info={_userAbout} posts={_userFeeds} />}
+            <Card sx={{ mt: 2 }}>
+              <CardContent>
+                <Stack spacing={2}>
+                  <Button
+                    fullWidth
+                    variant="outlined"
+                    startIcon={<Iconify icon="solar:pen-bold" />}
+                    onClick={handleEditToggle}
+                  >
+                    {editMode ? 'Cancel Edit' : 'Edit Profile'}
+                  </Button>
+                  <Button
+                    fullWidth
+                    variant="outlined"
+                    startIcon={<Iconify icon="solar:lock-password-bold" />}
+                    onClick={handleChangePassword}
+                  >
+                    Change Password
+                  </Button>
+                </Stack>
+              </CardContent>
+            </Card>
+          </Grid>
 
-      {currentTab === 'followers' && <ProfileFollowers followers={_userFollowers} />}
-
-      {currentTab === 'friends' && (
-        <ProfileFriends
-          friends={_userFriends}
-          searchFriends={searchFriends}
-          onSearchFriends={handleSearchFriends}
-        />
-      )}
-
-      {currentTab === 'gallery' && <ProfileGallery gallery={_userGallery} />}
+          <Grid item xs={12} md={8}>
+            {!editMode ? (
+              <ProfileDisplay user={user} />
+            ) : (
+              <ProfileEditForm
+                user={user}
+                onCancel={handleEditToggle}
+                setErrorMsg={setErrorMsg}
+                setSuccessMsg={setSuccessMsg}
+              />
+            )}
+          </Grid>
+        </Grid>
+      </Stack>
     </Container>
   );
 }
+
+function ProfileDisplay({ user }) {
+  return (
+    <Card>
+      <CardContent>
+        <Typography variant="h6" sx={{ mb: 3 }}>
+          Profile Information
+        </Typography>
+        <Stack spacing={2}>
+          <InfoRow label="Full Name" value={user.fullName || '-'} />
+          <InfoRow label="Email" value={user.email || '-'} />
+          <InfoRow label="Mobile" value={user.phone || '-'} />
+          <InfoRow label="Address" value={user.address || '-'} />
+          <InfoRow label="City" value={user.city || '-'} />
+          <InfoRow label="State" value={user.state || '-'} />
+          <InfoRow label="Country" value={user.country || '-'} />
+          <InfoRow label="Zip Code" value={user.zipCode || '-'} />
+        </Stack>
+      </CardContent>
+    </Card>
+  );
+}
+
+ProfileDisplay.propTypes = {
+  user: PropTypes.object,
+};
+
+function InfoRow({ label, value }) {
+  return (
+    <Stack direction="row" spacing={2}>
+      <Typography variant="body2" color="text.secondary" sx={{ minWidth: 120 }}>
+        {label}:
+      </Typography>
+      <Typography variant="body2">{value}</Typography>
+    </Stack>
+  );
+}
+
+InfoRow.propTypes = {
+  label: PropTypes.string,
+  value: PropTypes.string,
+};
+
+function ProfileEditForm({ user, onCancel, setErrorMsg, setSuccessMsg }) {
+  const ProfileSchema = Yup.object().shape({
+    fullName: Yup.string().required('Full name is required'),
+    address: Yup.string(),
+    city: Yup.string(),
+    state: Yup.string(),
+    country: Yup.string(),
+    zipCode: Yup.string(),
+  });
+
+  const methods = useForm({
+    resolver: yupResolver(ProfileSchema),
+    defaultValues: {
+      fullName: user.fullName || '',
+      address: user.address || '',
+      city: user.city || '',
+      state: user.state || '',
+      country: user.country || '',
+      zipCode: user.zipCode || '',
+    },
+  });
+
+  const {
+    handleSubmit,
+    formState: { isSubmitting },
+  } = methods;
+
+  const onSubmit = handleSubmit(async (data) => {
+    try {
+      setErrorMsg('');
+      setSuccessMsg('');
+
+      const token = sessionStorage.getItem('accessToken');
+      const response = await fetch('http://localhost:3035/api/users/profile', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(data),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.message || 'Failed to update profile');
+      }
+
+      setSuccessMsg('Profile updated successfully!');
+
+      // Update user data in session
+      const updatedUser = { ...user, ...data };
+      sessionStorage.setItem('user', JSON.stringify(updatedUser));
+
+      setTimeout(() => {
+        onCancel();
+      }, 1500);
+    } catch (error) {
+      console.error(error);
+      setErrorMsg(typeof error === 'string' ? error : error.message);
+    }
+  });
+
+  return (
+    <Card>
+      <CardContent>
+        <Typography variant="h6" sx={{ mb: 3 }}>
+          Edit Profile
+        </Typography>
+        <FormProvider methods={methods} onSubmit={onSubmit}>
+          <Stack spacing={3}>
+            <RHFTextField name="fullName" label="Full Name" />
+            <RHFTextField name="address" label="Address" multiline rows={2} />
+            <Grid container spacing={2}>
+              <Grid item xs={12} sm={6}>
+                <RHFTextField name="city" label="City" />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <RHFTextField name="state" label="State" />
+              </Grid>
+            </Grid>
+            <Grid container spacing={2}>
+              <Grid item xs={12} sm={6}>
+                <RHFTextField name="country" label="Country" />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <RHFTextField name="zipCode" label="Zip Code" />
+              </Grid>
+            </Grid>
+            <Stack direction="row" spacing={2}>
+              <LoadingButton
+                type="submit"
+                variant="contained"
+                loading={isSubmitting}
+                sx={{ flex: 1 }}
+              >
+                Save Changes
+              </LoadingButton>
+              <Button variant="outlined" onClick={onCancel} sx={{ flex: 1 }}>
+                Cancel
+              </Button>
+            </Stack>
+          </Stack>
+        </FormProvider>
+      </CardContent>
+    </Card>
+  );
+}
+
+ProfileEditForm.propTypes = {
+  user: PropTypes.object,
+  onCancel: PropTypes.func,
+  setErrorMsg: PropTypes.func,
+  setSuccessMsg: PropTypes.func,
+};
+

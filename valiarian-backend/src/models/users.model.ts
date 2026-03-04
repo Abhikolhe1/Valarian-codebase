@@ -1,4 +1,4 @@
-import {Entity, model, property, hasMany} from '@loopback/repository';
+import {Entity, hasMany, model, property} from '@loopback/repository';
 import {Roles} from './roles.model';
 import {UserRoles} from './user-roles.model';
 
@@ -56,6 +56,46 @@ export class Users extends Entity {
 
   @property({
     type: 'boolean',
+    default: false,
+  })
+  isEmailVerified?: boolean;
+
+  @property({
+    type: 'boolean',
+    default: false,
+  })
+  isMobileVerified?: boolean;
+
+  @property({
+    type: 'array',
+    itemType: 'string',
+    default: [],
+  })
+  passwordHistory?: string[];
+
+  @property({
+    type: 'number',
+    default: 0,
+  })
+  failedLoginAttempts?: number;
+
+  @property({
+    type: 'date',
+  })
+  lockedUntil?: Date;
+
+  @property({
+    type: 'date',
+  })
+  lastLoginAt?: Date;
+
+  @property({
+    type: 'date',
+  })
+  passwordChangedAt?: Date;
+
+  @property({
+    type: 'boolean',
     default: true,
   })
   isActive?: boolean;
@@ -82,6 +122,22 @@ export class Users extends Entity {
     type: 'date',
   })
   deletedAt?: Date;
+
+  @property({
+    type: 'string',
+  })
+  googleId?: string;
+
+  @property({
+    type: 'string',
+  })
+  profilePicture?: string;
+
+  @property({
+    type: 'string',
+    default: 'local',
+  })
+  authProvider?: string;
 
   @hasMany(() => Roles, {through: {model: () => UserRoles}})
   roles: Roles[];

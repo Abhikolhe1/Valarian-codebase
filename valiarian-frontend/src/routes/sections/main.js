@@ -1,11 +1,13 @@
 import { lazy, Suspense } from 'react';
 import { Outlet } from 'react-router-dom';
+// auth
 // layouts
 import CompactLayout from 'src/layouts/compact';
 import MainLayout from 'src/layouts/main';
 import SimpleLayout from 'src/layouts/simple';
 // components
 import { SplashScreen } from 'src/components/loading-screen';
+import { AuthGuard } from 'src/auth/guard';
 
 // ----------------------------------------------------------------------
 
@@ -30,6 +32,8 @@ const FavoritesPage = lazy(() => import('src/pages/favorites'));
 // ORDERS
 const OrderHistoryPage = lazy(() => import('src/pages/order-history'));
 const OrderTrackingPage = lazy(() => import('src/pages/order-tracking'));
+// USER
+const UserProfilePage = lazy(() => import('src/pages/user/profile'));
 // BLOG
 const PostListPage = lazy(() => import('src/pages/post/list'));
 const PostDetailsPage = lazy(() => import('src/pages/post/details'));
@@ -50,12 +54,41 @@ export const mainRoutes = [
       { path: 'contact-us', element: <ContactPage /> },
       { path: 'faqs', element: <FaqsPage /> },
       { path: 'premium', element: <PremiumPage /> },
-      { path: 'favorites', element: <FavoritesPage /> },
+      {
+        path: 'favorites',
+        element: (
+          <AuthGuard>
+            <FavoritesPage />
+          </AuthGuard>
+        ),
+      },
+      {
+        path: 'profile',
+        element: (
+          <AuthGuard>
+            <UserProfilePage />
+          </AuthGuard>
+        ),
+      },
       {
         path: 'orders',
         children: [
-          { path: 'history', element: <OrderHistoryPage /> },
-          { path: 'tracking/:id', element: <OrderTrackingPage /> },
+          {
+            path: 'history',
+            element: (
+              <AuthGuard>
+                <OrderHistoryPage />
+              </AuthGuard>
+            ),
+          },
+          {
+            path: 'tracking/:id',
+            element: (
+              <AuthGuard>
+                <OrderTrackingPage />
+              </AuthGuard>
+            ),
+          },
         ],
       },
       {
@@ -64,7 +97,14 @@ export const mainRoutes = [
           { element: <ProductListPage />, index: true },
           { path: 'list', element: <ProductListPage /> },
           { path: ':id', element: <ProductDetailsPage /> },
-          { path: 'checkout', element: <ProductCheckoutPage /> },
+          {
+            path: 'checkout',
+            element: (
+              <AuthGuard>
+                <ProductCheckoutPage />
+              </AuthGuard>
+            ),
+          },
         ],
       },
       {

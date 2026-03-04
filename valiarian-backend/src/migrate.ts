@@ -17,6 +17,7 @@ export async function migrate(args: string[]) {
       'Media',
       'Otp',
       'RegistrationSessions',
+      'RefreshToken',
       'Page',
       'Section',
       'ContentVersion',
@@ -24,6 +25,8 @@ export async function migrate(args: string[]) {
       'NavigationMenu',
       'SiteSettings',
       'Product',
+      'Order',
+      'OrderStatusHistory',
     ]
   });
 

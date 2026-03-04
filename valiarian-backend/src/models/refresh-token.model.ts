@@ -3,12 +3,20 @@ import {Entity, model, property} from '@loopback/repository';
 @model({
   settings: {
     postgresql: {
-      table: 'otp',
+      table: 'refresh_tokens',
       schema: 'public',
+    },
+    indexes: {
+      userIdIndex: {
+        keys: {userId: 1},
+      },
+      tokenIndex: {
+        keys: {token: 1},
+      },
     },
   },
 })
-export class Otp extends Entity {
+export class RefreshToken extends Entity {
   @property({
     type: 'string',
     id: true,
@@ -21,47 +29,40 @@ export class Otp extends Entity {
 
   @property({
     type: 'string',
+    required: true,
     postgresql: {
       dataType: 'uuid',
     },
   })
-  userId?: string;
-
-  @property({
-    type: 'number',
-    required: true
-  })
-  type: number; // 0 => phone, 1=> email
+  userId: string;
 
   @property({
     type: 'string',
-    required: true
+    required: true,
   })
-  identifier: string;
+  token: string;
 
   @property({
-    type: 'number',
-    required: true
+    type: 'string',
   })
-  attempts: number;
+  deviceInfo?: string;
+
+  @property({
+    type: 'string',
+  })
+  ipAddress?: string;
 
   @property({
     type: 'date',
-    required: true
+    required: true,
   })
   expiresAt: Date;
 
   @property({
-    type: 'string',
-    required: true
-  })
-  otp: string;
-
-  @property({
     type: 'boolean',
-    default: true,
+    default: false,
   })
-  isUsed?: boolean;
+  isRevoked?: boolean;
 
   @property({
     type: 'date',
@@ -74,13 +75,14 @@ export class Otp extends Entity {
     defaultFn: 'now',
   })
   updatedAt?: Date;
-  constructor(data?: Partial<Otp>) {
+
+  constructor(data?: Partial<RefreshToken>) {
     super(data);
   }
 }
 
-export interface OtpRelations {
+export interface RefreshTokenRelations {
   // describe navigational properties here
 }
 
-export type OtpWithRelations = Otp & OtpRelations;
+export type RefreshTokenWithRelations = RefreshToken & RefreshTokenRelations;

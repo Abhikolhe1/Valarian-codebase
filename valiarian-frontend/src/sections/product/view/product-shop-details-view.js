@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useLayoutEffect, useMemo, useState } from 'react';
 // @mui
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
@@ -308,6 +308,12 @@ export default function ProductShopDetailsView() {
   // Use dummy product if API doesn't return data
   const dummyProduct = useMemo(() => getDummyProductById(id), [id]);
   const product = apiProduct || dummyProduct;
+
+  // Scroll to top when component mounts or product ID changes
+  // Using useLayoutEffect to ensure scroll happens before paint
+  useLayoutEffect(() => {
+    window.scrollTo(0, 0);
+  }, [id]);
 
   const handleChangeTab = useCallback((event, newValue) => {
     setCurrentTab(newValue);
