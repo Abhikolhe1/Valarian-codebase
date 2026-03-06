@@ -58,10 +58,15 @@ export function AuthProvider({ children }) {
     try {
       const accessToken = sessionStorage.getItem(STORAGE_KEY);
 
+      console.log('Initializing auth, token exists:', !!accessToken);
+
       if (accessToken && isValidToken(accessToken)) {
+        console.log('Token is valid, setting session and fetching user');
         setSession(accessToken);
 
         const response = await axios.get(endpoints.auth.me);
+
+        console.log('User data fetched:', response.data);
 
         // The /api/auth/me endpoint returns user data directly, not wrapped in { user }
         const user = response.data;
@@ -73,6 +78,7 @@ export function AuthProvider({ children }) {
           },
         });
       } else {
+        console.log('No valid token found');
         dispatch({
           type: 'INITIAL',
           payload: {
@@ -81,7 +87,8 @@ export function AuthProvider({ children }) {
         });
       }
     } catch (error) {
-      console.error(error);
+      console.error('Auth initialization error:', error);
+      console.error('Error response:', error.response?.data);
       dispatch({
         type: 'INITIAL',
         payload: {
@@ -103,10 +110,15 @@ export function AuthProvider({ children }) {
       rememberMe,
     };
 
+    console.log('Attempting login with:', { email, rememberMe });
+
     const response = await axios.post(endpoints.auth.adminLogin, data);
+
+    console.log('Login response:', response.data);
 
     const { accessToken, user } = response.data;
 
+    console.log('Setting session with token');
     setSession(accessToken);
 
     dispatch({
@@ -115,6 +127,8 @@ export function AuthProvider({ children }) {
         user,
       },
     });
+
+    console.log('Login successful, user:', user);
   }, []);
 
   // REGISTER

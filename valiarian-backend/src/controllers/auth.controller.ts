@@ -5,6 +5,7 @@ import {del, get, HttpErrors, param, patch, post, Request, requestBody, RestBind
 import {securityId, UserProfile} from '@loopback/security';
 import * as crypto from 'crypto';
 import _ from 'lodash';
+import {v4 as uuidv4} from 'uuid';
 import {authorize} from '../authorization';
 import {OtpRepository, RefreshTokenRepository, RegistrationSessionsRepository, RolesRepository, UserRolesRepository, UsersRepository} from '../repositories';
 import {CacheService} from '../services/cache.service';
@@ -209,24 +210,30 @@ export class AuthController {
     const deviceInfo = parseDeviceInfo(userAgent);
     const formattedDeviceInfo = formatDeviceInfo(deviceInfo);
 
-    // Create refresh token
-    const refreshToken = crypto.randomBytes(32).toString('hex');
-    await this.refreshTokenRepository.create({
-      userId: user.id,
-      token: refreshToken,
-      deviceInfo: formattedDeviceInfo,
-      ipAddress: this.getClientIp(),
-      expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
-      isRevoked: false,
-    });
+    // Create refresh token (optional - won't break login if it fails)
+    try {
+      const refreshToken = crypto.randomBytes(32).toString('hex');
+      await this.refreshTokenRepository.create({
+        id: uuidv4(),
+        userId: user.id,
+        token: refreshToken,
+        deviceInfo: formattedDeviceInfo,
+        ipAddress: this.getClientIp(),
+        expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
+        isRevoked: false,
+      });
 
-    // Set refresh token as httpOnly cookie
-    this.request.res?.cookie('refreshToken', refreshToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
-    });
+      // Set refresh token as httpOnly cookie
+      this.request.res?.cookie('refreshToken', refreshToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+        maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+      });
+    } catch (refreshTokenError) {
+      console.error('Failed to create refresh token:', refreshTokenError);
+      // Continue with login even if refresh token creation fails
+    }
 
     return {
       success: true,
@@ -1277,24 +1284,30 @@ export class AuthController {
       const deviceInfo = parseDeviceInfo(userAgent);
       const formattedDeviceInfo = formatDeviceInfo(deviceInfo);
 
-      // Create refresh token
-      const refreshToken = crypto.randomBytes(32).toString('hex');
-      await this.refreshTokenRepository.create({
-        userId: user.id,
-        token: refreshToken,
-        deviceInfo: formattedDeviceInfo,
-        ipAddress: this.getClientIp(),
-        expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
-        isRevoked: false,
-      });
+      // Create refresh token (optional - won't break login if it fails)
+      try {
+        const refreshToken = crypto.randomBytes(32).toString('hex');
+        await this.refreshTokenRepository.create({
+          id: uuidv4(),
+          userId: user.id,
+          token: refreshToken,
+          deviceInfo: formattedDeviceInfo,
+          ipAddress: this.getClientIp(),
+          expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
+          isRevoked: false,
+        });
 
-      // Set refresh token as httpOnly cookie
-      this.request.res?.cookie('refreshToken', refreshToken, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
-        maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
-      });
+        // Set refresh token as httpOnly cookie
+        this.request.res?.cookie('refreshToken', refreshToken, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: 'strict',
+          maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+        });
+      } catch (refreshTokenError) {
+        console.error('Failed to create refresh token:', refreshTokenError);
+        // Continue with login even if refresh token creation fails
+      }
 
       // Redirect to frontend with token
       const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';

@@ -126,16 +126,17 @@ export function useNavData() {
               { title: t('Create'), path: paths.dashboard.product.new },
             ],
           },
-          // // ORDER
-          // {
-          //   title: t('order'),
-          //   path: paths.dashboard.order.root,
-          //   icon: ICONS.order,
-          //   children: [
-          //     { title: t('list'), path: paths.dashboard.order.root },
-          //     { title: t('details'), path: paths.dashboard.order.demo.details },
-          //   ],
-          // },
+          // ORDER
+          {
+            title: t('Orders'),
+            path: paths.dashboard.order.root,
+            icon: ICONS.order,
+            roles: ['super_admin', 'admin'],
+            children: [
+              { title: t('List'), path: paths.dashboard.order.root },
+              { title: t('Details'), path: paths.dashboard.order.demo.details },
+            ],
+          },
           // // INVOICE
           // {
           //   title: t('invoice'),

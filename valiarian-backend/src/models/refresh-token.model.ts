@@ -20,7 +20,7 @@ export class RefreshToken extends Entity {
   @property({
     type: 'string',
     id: true,
-    generated: false,
+    generated: true,
     postgresql: {
       dataType: 'uuid',
     },

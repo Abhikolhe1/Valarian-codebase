@@ -1,15 +1,9 @@
 import {Constructor, Getter, inject} from '@loopback/core';
-import {
-  DefaultCrudRepository,
-  Filter,
-  HasManyRepositoryFactory,
-  Where,
-  repository,
-} from '@loopback/repository';
+import {BelongsToAccessor, DefaultCrudRepository, Filter, repository, Where} from '@loopback/repository';
 import {ValiarianDataSource} from '../datasources';
 import {TimeStampRepositoryMixin} from '../mixins/timestamp-repository-mixin';
-import {Order, OrderRelations, OrderStatusHistory} from '../models';
-import {OrderStatusHistoryRepository} from './order-status-history.repository';
+import {Order, OrderRelations, Users} from '../models';
+import {UsersRepository} from './users.repository';
 
 export interface OrderSearchOptions {
   search?: string;
@@ -37,22 +31,17 @@ export class OrderRepository extends TimeStampRepositoryMixin<
     DefaultCrudRepository<Order, typeof Order.prototype.id, OrderRelations>
   >
 >(DefaultCrudRepository) {
-  public readonly statusHistory: HasManyRepositoryFactory<
-    OrderStatusHistory,
-    typeof Order.prototype.id
-  >;
+
+  public readonly user: BelongsToAccessor<Users, typeof Order.prototype.id>;
 
   constructor(
     @inject('datasources.valiarian') dataSource: ValiarianDataSource,
-    @repository.getter('OrderStatusHistoryRepository')
-    protected orderStatusHistoryRepositoryGetter: Getter<OrderStatusHistoryRepository>,
+    @repository.getter('UsersRepository')
+    protected usersRepositoryGetter: Getter<UsersRepository>,
   ) {
     super(Order, dataSource);
-
-    this.statusHistory = this.createHasManyRepositoryFactoryFor(
-      'statusHistory',
-      orderStatusHistoryRepositoryGetter,
-    );
+    this.user = this.createBelongsToAccessorFor('user', usersRepositoryGetter);
+    this.registerInclusionResolver('user', this.user.inclusionResolver);
   }
 
   async generateOrderNumber(prefix = 'ORD'): Promise<string> {

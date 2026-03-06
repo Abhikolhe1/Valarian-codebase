@@ -2,6 +2,7 @@ import { yupResolver } from '@hookform/resolvers/yup';
 import PropTypes from 'prop-types';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
+import { useNavigate } from 'react-router-dom';
 import * as Yup from 'yup';
 // @mui
 import LoadingButton from '@mui/lab/LoadingButton';
@@ -22,7 +23,7 @@ import { useAuthContext } from 'src/auth/hooks';
 import { resetCart } from 'src/redux/slices/checkout';
 import { useDispatch } from 'src/redux/store';
 // utils
-import { createOrder, handleOrderError } from 'src/utils/order-creation';
+import axios from 'src/utils/axios';
 // components
 import FormProvider from 'src/components/hook-form';
 import Iconify from 'src/components/iconify';
@@ -54,27 +55,18 @@ const DELIVERY_OPTIONS = [
 
 const PAYMENT_OPTIONS = [
   {
-    value: 'paypal',
-    label: 'Pay with Paypal',
-    description: 'You will be redirected to PayPal website to complete your purchase securely.',
+    value: 'razorpay',
+    label: 'Razorpay (UPI, Cards, Wallets)',
+    description: 'Pay securely using UPI, Credit/Debit Cards, or Wallets via Razorpay.',
   },
   {
-    value: 'credit',
-    label: 'Credit / Debit Card',
-    description: 'We support Mastercard, Visa, Discover and Stripe.',
-  },
-  {
-    value: 'cash',
-    label: 'Cash',
+    value: 'cod',
+    label: 'Cash on Delivery',
     description: 'Pay with cash when your order is delivered.',
   },
 ];
 
-const CARDS_OPTIONS = [
-  { value: 'ViSa1', label: '**** **** **** 1212 - Jimmy Holland' },
-  { value: 'ViSa2', label: '**** **** **** 2424 - Shawn Stokes' },
-  { value: 'MasterCard', label: '**** **** **** 4545 - Cole Armstrong' },
-];
+const RAZORPAY_KEY_ID = process.env.REACT_APP_RAZORPAY_KEY_ID || 'rzp_test_key';
 
 export default function CheckoutPayment({
   checkout,
@@ -87,12 +79,13 @@ export default function CheckoutPayment({
   const { total, discount, subTotal, shipping, billing, cart } = checkout;
   const { user } = useAuthContext();
   const dispatch = useDispatch();
+  const navigate = useNavigate();
 
   const [orderError, setOrderError] = useState(null);
   const [errorDialogOpen, setErrorDialogOpen] = useState(false);
 
   const PaymentSchema = Yup.object().shape({
-    payment: Yup.string().required('Payment is required!'),
+    payment: Yup.string().required('Payment method is required!'),
   });
 
   const defaultValues = {
@@ -117,58 +110,193 @@ export default function CheckoutPayment({
 
   const handleRetry = () => {
     handleCloseErrorDialog();
-    // User can retry by submitting the form again
   };
 
   const handleUpdateCart = () => {
     handleCloseErrorDialog();
-    onGotoStep(0); // Go back to cart
+    onGotoStep(0);
   };
 
   const handleCheckHistory = () => {
     handleCloseErrorDialog();
-    // Navigate to order history
-    window.location.href = '/orders/history';
+    navigate('/orders/history');
+  };
+
+  const calculateTax = (subtotal, discountAmount) => {
+    const taxableAmount = Math.max(0, subtotal - discountAmount);
+    return Number((taxableAmount * 0.18).toFixed(2)); // 18% GST
+  };
+
+  const handleRazorpayPayment = async (orderData) => {
+    try {
+      // Create order on backend
+      const createResponse = await axios.post('/api/orders/create', orderData);
+      const { order, razorpayOrderId } = createResponse.data;
+
+      if (!razorpayOrderId) {
+        throw new Error('Failed to create Razorpay order');
+      }
+
+      // Initialize Razorpay
+      const options = {
+        key: RAZORPAY_KEY_ID,
+        amount: Math.round(order.total * 100), // Amount in paise
+        currency: order.currency || 'INR',
+        name: 'Valiarian',
+        description: `Order #${order.orderNumber}`,
+        order_id: razorpayOrderId,
+        handler: async (response) => {
+          try {
+            // Verify payment on backend
+            const verifyResponse = await axios.post('/api/orders/verify-payment', {
+              orderId: order.id,
+              razorpayOrderId: response.razorpay_order_id,
+              razorpayPaymentId: response.razorpay_payment_id,
+              razorpaySignature: response.razorpay_signature,
+            });
+
+            if (verifyResponse.data.verified) {
+              // Clear cart
+              dispatch(resetCart());
+
+              // Navigate to order confirmation
+              navigate(`/orders/confirmation/${order.id}`);
+            } else {
+              throw new Error('Payment verification failed');
+            }
+          } catch (error) {
+            console.error('Payment verification error:', error);
+            setOrderError({
+              type: 'payment',
+              title: 'Payment Verification Failed',
+              message: error.response?.data?.message || 'Failed to verify payment. Please contact support.',
+              action: 'check_history',
+            });
+            setErrorDialogOpen(true);
+          }
+        },
+        prefill: {
+          name: billing.fullName || user.name,
+          email: billing.email || user.email,
+          contact: billing.phone || user.phone,
+        },
+        theme: {
+          color: '#3399cc',
+        },
+        modal: {
+          ondismiss: () => {
+            console.log('Payment cancelled by user');
+          },
+        },
+      };
+
+      const rzp = new window.Razorpay(options);
+
+      rzp.on('payment.failed', (response) => {
+        console.error('Payment failed:', response.error);
+        setOrderError({
+          type: 'payment',
+          title: 'Payment Failed',
+          message: response.error.description || 'Payment failed. Please try again.',
+          action: 'retry_payment',
+        });
+        setErrorDialogOpen(true);
+      });
+
+      rzp.open();
+    } catch (error) {
+      console.error('Razorpay payment error:', error);
+      throw error;
+    }
+  };
+
+  const handleCODOrder = async (orderData) => {
+    try {
+      const response = await axios.post('/api/orders/create', orderData);
+      const { order } = response.data;
+
+      // Clear cart
+      dispatch(resetCart());
+
+      // Navigate to order confirmation
+      navigate(`/orders/confirmation/${order.id}`);
+    } catch (error) {
+      console.error('COD order error:', error);
+      throw error;
+    }
   };
 
   const onSubmit = handleSubmit(async (data) => {
     try {
       setOrderError(null);
 
-      // Validate user is authenticated
       if (!user || !user.id) {
         throw new Error('User not authenticated');
       }
 
-      // Create order
-      const order = await createOrder({
-        userId: user.id,
-        cartItems: cart,
-        billingAddress: billing,
-        paymentMethod: data.payment,
-        paymentDetails: {
-          // Add payment details based on payment method
-          cardNumber: data.cardNumber || null,
-          cardHolder: data.cardHolder || null,
+      if (!cart || cart.length === 0) {
+        throw new Error('Cart is empty');
+      }
+
+      // Calculate tax
+      const tax = calculateTax(subTotal, discount);
+
+      // Prepare cart items
+      const cartItems = cart.map((item) => ({
+        productId: item.id,
+        variantId: item.variantId || null,
+        quantity: item.quantity,
+        price: item.price,
+      }));
+
+      // Prepare order data
+      const orderData = {
+        cartItems,
+        billingAddress: {
+          fullName: billing.fullName || billing.name,
+          phone: billing.phone,
+          email: billing.email || user.email,
+          address: billing.address,
+          city: billing.city,
+          state: billing.state,
+          zipCode: billing.zipCode || billing.zip,
+          country: billing.country || 'India',
         },
+        shippingAddress: {
+          fullName: billing.fullName || billing.name,
+          phone: billing.phone,
+          email: billing.email || user.email,
+          address: billing.address,
+          city: billing.city,
+          state: billing.state,
+          zipCode: billing.zipCode || billing.zip,
+          country: billing.country || 'India',
+        },
+        paymentMethod: data.payment,
         discount,
         shipping,
-      });
+        tax,
+      };
 
-      console.log('Order created successfully:', order);
-
-      // Clear cart from Redux
-      dispatch(resetCart());
-
-      // Move to confirmation step
-      onNextStep();
-      onReset();
+      // Handle payment based on method
+      if (data.payment === 'razorpay') {
+        await handleRazorpayPayment(orderData);
+      } else if (data.payment === 'cod') {
+        await handleCODOrder(orderData);
+      } else {
+        throw new Error('Invalid payment method');
+      }
     } catch (error) {
       console.error('Order creation error:', error);
 
-      // Handle error and show appropriate message
-      const errorDetails = handleOrderError(error);
-      setOrderError(errorDetails);
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to create order';
+
+      setOrderError({
+        type: 'generic',
+        title: 'Order Creation Failed',
+        message: errorMessage,
+        action: 'retry',
+      });
       setErrorDialogOpen(true);
     }
   });
@@ -186,11 +314,7 @@ export default function CheckoutPayment({
 
             <CheckoutDelivery onApplyShipping={onApplyShipping} options={DELIVERY_OPTIONS} />
 
-            <CheckoutPaymentMethods
-              cardOptions={CARDS_OPTIONS}
-              options={PAYMENT_OPTIONS}
-              sx={{ my: 3 }}
-            />
+            <CheckoutPaymentMethods options={PAYMENT_OPTIONS} sx={{ my: 3 }} />
 
             <Button
               size="small"

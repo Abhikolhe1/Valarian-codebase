@@ -23,6 +23,7 @@ import {JWTService} from './services/jwt-service';
 import {MediaService} from './services/media.service';
 import {OtpNotificationService} from './services/otp-notification.service';
 import {RateLimiterService} from './services/rate-limiter.service';
+import {RazorpayService} from './services/razorpay.service';
 import {RbacService} from './services/rbac.service';
 import {SessionService} from './services/session.service';
 import {SlugService} from './services/slug.service';
@@ -81,6 +82,7 @@ export class ValiarianBackendApplication extends BootMixin(
     this.bind('service.rate.limiter').toClass(RateLimiterService);
     this.bind('services.token-blacklist').toClass(TokenBlacklistService);
     this.bind('service.user.profile').toClass(UserProfileService);
+    this.bind('services.razorpay').toClass(RazorpayService);
     this.bind('jwt.secret').to(process.env.JWT_SECRET!);
     this.bind('jwt.expiresIn').to(process.env.JWT_EXPIRES_IN ?? '7h');
     this.bind('service.jwt.service').toClass(JWTService);

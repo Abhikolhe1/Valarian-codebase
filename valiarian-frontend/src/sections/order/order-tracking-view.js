@@ -23,10 +23,10 @@ import { useAuthContext } from 'src/auth/hooks';
 // utils
 import axios from 'src/utils/axios';
 // components
+import PropTypes from 'prop-types';
 import Iconify from 'src/components/iconify';
 import Label from 'src/components/label';
 import { useSettingsContext } from 'src/components/settings';
-import PropTypes from 'prop-types';
 
 // ----------------------------------------------------------------------
 
@@ -116,7 +116,7 @@ export default function OrderTrackingView() {
         setLoading(true);
         setError(null);
         const response = await axios.get(`/api/orders/${id}/tracking`);
-        setTracking(response.data);
+        setTracking(response.data.tracking);
       } catch (err) {
         console.error('Error loading tracking information:', err);
         setError(err.message || 'Failed to load tracking information');
@@ -198,7 +198,7 @@ export default function OrderTrackingView() {
                   <Box>
                     <Typography variant="h6">Order #{tracking.orderNumber}</Typography>
                     <Typography variant="body2" color="text.secondary">
-                      Placed on {format(new Date(tracking.createdAt), 'MMM dd, yyyy')}
+                      Placed on {tracking.createdAt ? format(new Date(tracking.createdAt), 'MMM dd, yyyy') : 'N/A'}
                     </Typography>
                   </Box>
                   <Label
@@ -310,10 +310,11 @@ export default function OrderTrackingView() {
                           }}
                         />
                         <Box sx={{ flexGrow: 1 }}>
-                          <Typography variant="body2">{event.description}</Typography>
+                          <Typography variant="body2" sx={{ textTransform: 'capitalize' }}>
+                            {event.status} {event.comment && `- ${event.comment}`}
+                          </Typography>
                           <Typography variant="caption" color="text.secondary">
                             {format(new Date(event.timestamp), 'MMM dd, yyyy - h:mm a')}
-                            {event.location && ` • ${event.location}`}
                           </Typography>
                         </Box>
                       </Stack>
@@ -357,6 +358,6 @@ export default function OrderTrackingView() {
 }
 
 
-OrderTrackingView.propTypes ={
+OrderTrackingView.propTypes = {
   active: PropTypes.bool,
 }

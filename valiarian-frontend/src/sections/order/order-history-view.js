@@ -1,4 +1,5 @@
 import { format } from 'date-fns';
+import PropTypes from 'prop-types';
 import { useEffect, useState } from 'react';
 // @mui
 import Box from '@mui/material/Box';

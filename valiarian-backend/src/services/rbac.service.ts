@@ -119,14 +119,21 @@ export class RbacService {
   // -------------------------------------------Return profiles--------------------------------------
   async returnSuperAdminProfile(userId: string, roles: string[], permissions: string[]) {
     const user = await this.usersRepository.findById(userId);
-    return {
+    const userData = {
+      id: user.id,
       fullName: user.fullName,
+      name: user.fullName, // Add name alias
       email: user.email,
       phone: user.phone,
+      phoneNumber: user.phone, // Add phoneNumber alias
       isActive: user.isActive,
+      profilePicture: user.profilePicture,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
       roles,
       permissions
-    }
+    };
+    return userData;
   }
 
   // Get all roles and permissions for a user (without filtering by specific role)
