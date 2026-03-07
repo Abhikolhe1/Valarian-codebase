@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      line-height: 1.6;
+      color: #333;
+      margin: 0;
+      padding: 0;
+      background-color: #f4f4f4;
+    }
+
+    .container {
+      max-width: 600px;
+      margin: 20px auto;
+      background-color: #ffffff;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .header {
+      background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%);
+      color: white;
+      padding: 30px 20px;
+      text-align: center;
+    }
+
+    .header h1 {
+      margin: 0;
+      font-size: 28px;
+      font-weight: 600;
+    }
+
+    .header .icon {
+      font-size: 48px;
+      margin-bottom: 10px;
+    }
+
+    .content {
+      padding: 30px;
+    }
+
+    .status-message {
+      background-color: #fff3cd;
+      color: #856404;
+      padding: 20px;
+      border-radius: 5px;
+      text-align: center;
+      margin: 20px 0;
+      border-left: 4px solid #ff9800;
+    }
+
+    .status-message h2 {
+      margin: 0 0 10px 0;
+      font-size: 22px;
+    }
+
+    .order-info {
+      background-color: #f8f9fa;
+      padding: 20px;
+      border-radius: 5px;
+      margin: 20px 0;
+      border-left: 4px solid #ff9800;
+    }
+
+    .order-info p {
+      margin: 10px 0;
+    }
+
+    .order-info strong {
+      color: #ff9800;
+      display: inline-block;
+      min-width: 150px;
+    }
+
+    .reason-box {
+      background-color: #e7f3ff;
+      padding: 15px;
+      border-radius: 5px;
+      margin: 20px 0;
+      border-left: 4px solid #2196F3;
+    }
+
+    .reason-box p {
+      margin: 5px 0;
+      color: #0d47a1;
+    }
+
+    .timeline {
+      margin: 30px 0;
+    }
+
+    .timeline-item {
+      display: flex;
+      margin-bottom: 20px;
+      position: relative;
+    }
+
+    .timeline-item:not(:last-child)::after {
+      content: '';
+      position: absolute;
+      left: 15px;
+      top: 40px;
+      width: 2px;
+      height: calc(100% + 10px);
+      background-color: #e9ecef;
+    }
+
+    .timeline-dot {
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      background-color: #ff9800;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-weight: bold;
+      margin-right: 15px;
+      flex-shrink: 0;
+      z-index: 1;
+    }
+
+    .timeline-dot.inactive {
+      background-color: #e9ecef;
+      color: #6c757d;
+    }
+
+    .timeline-content {
+      flex: 1;
+    }
+
+    .timeline-title {
+      font-weight: 600;
+      color: #333;
+      margin-bottom: 5px;
+    }
+
+    .timeline-desc {
+      color: #6c757d;
+      font-size: 14px;
+    }
+
+    .item {
+      display: flex;
+      padding: 12px 0;
+      border-bottom: 1px solid #e9ecef;
+    }
+
+    .item:last-child {
+      border-bottom: none;
+    }
+
+    .item-details {
+      flex: 1;
+    }
+
+    .item-name {
+      font-weight: 600;
+      color: #333;
+    }
+
+    .item-quantity {
+      color: #6c757d;
+      font-size: 14px;
+    }
+
+    .info-box {
+      background-color: #d1ecf1;
+      padding: 15px;
+      border-radius: 5px;
+      margin: 20px 0;
+      border-left: 4px solid #17a2b8;
+    }
+
+    .info-box p {
+      margin: 5px 0;
+      color: #0c5460;
+    }
+
+    .button {
+      display: inline-block;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 12px 30px;
+      text-decoration: none;
+      border-radius: 5px;
+      margin: 20px 0;
+      font-weight: 600;
+    }
+
+    .footer {
+      background-color: #f8f9fa;
+      text-align: center;
+      padding: 20px;
+      font-size: 12px;
+      color: #6c757d;
+    }
+
+    @media only screen and (max-width: 600px) {
+      .container {
+        margin: 0;
+        border-radius: 0;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <div class="header">
+      <div class="icon">📦</div>
+      <h1>Return Request Received</h1>
+      <p>We've received your return request</p>
+    </div>
+
+    <div class="content">
+      <p>Dear {{customerName}},</p>
+
+      <div class="status-message">
+        <h2>Return Request Submitted</h2>
+        <p>We're reviewing your return request</p>
+      </div>
+
+      <div class="order-info">
+        <p><strong>Order Number:</strong> {{orderNumber}}</p>
+        <p><strong>Return Request ID:</strong> {{returnRequestId}}</p>
+        <p><strong>Request Date:</strong> {{requestDate}}</p>
+        <p><strong>Order Total:</strong> ₹{{total}}</p>
+      </div>
+
+      {{#if returnReason}}
+      <div class="reason-box">
+        <p><strong>Return Reason:</strong></p>
+        <p>{{returnReason}}</p>
+      </div>
+      {{/if}}
+
+      <div style="margin: 25px 0;">
+        <h3 style="color: #ff9800; margin-bottom: 15px;">Items to Return</h3>
+        {{#each items}}
+        <div class="item">
+          <div class="item-details">
+            <div class="item-name">{{this.name}}</div>
+            <div class="item-quantity">Quantity: {{this.quantity}}</div>
+          </div>
+        </div>
+        {{/each}}
+      </div>
+
+      <div class="timeline">
+        <h3 style="color: #ff9800; margin-bottom: 20px;">Return Process</h3>
+
+        <div class="timeline-item">
+          <div class="timeline-dot">✓</div>
+          <div class="timeline-content">
+            <div class="timeline-title">Request Submitted</div>
+            <div class="timeline-desc">Your return request has been received</div>
+          </div>
+        </div>
+
+        <div class="timeline-item">
+          <div class="timeline-dot inactive">2</div>
+          <div class="timeline-content">
+            <div class="timeline-title">Under Review</div>
+            <div class="timeline-desc">We'll review your request within 24-48 hours</div>
+          </div>
+        </div>
+
+        <div class="timeline-item">
+          <div class="timeline-dot inactive">3</div>
+          <div class="timeline-content">
+            <div class="timeline-title">Pickup Scheduled</div>
+            <div class="timeline-desc">If approved, we'll schedule a pickup</div>
+          </div>
+        </div>
+
+        <div class="timeline-item">
+          <div class="timeline-dot inactive">4</div>
+          <div class="timeline-content">
+            <div class="timeline-title">Refund Processed</div>
+            <div class="timeline-desc">Refund will be initiated after inspection</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="info-box">
+        <p><strong>📋 What's Next?</strong></p>
+        <p>• Our team will review your return request within 24-48 hours</p>
+        <p>• You'll receive an email once your request is approved or rejected</p>
+        <p>• If approved, we'll schedule a pickup at your convenience</p>
+        <p>• Keep the items in their original condition and packaging</p>
+      </div>
+
+      <div style="text-align: center;">
+        <a href="{{returnStatusUrl}}" class="button">Check Return Status</a>
+      </div>
+    </div>
+
+    <div class="footer">
+      <p>Thank you for your patience!</p>
+      <p>If you have any questions, please contact our support team.</p>
+      <p>&copy; {{year}} {{companyName}}. All rights reserved.</p>
+    </div>
+  </div>
+</body>
+
+</html>

@@ -24,8 +24,8 @@ import { useAuthContext } from 'src/auth/hooks';
 import { Box, Divider, LinearProgress } from '@mui/material';
 import FormProvider, { RHFTextField } from 'src/components/hook-form';
 import Iconify from 'src/components/iconify';
-import OtpVerificationModal from './otp-verification-modal';
 import GoogleLoginButton from './google-login-button';
+import OtpVerificationModal from './otp-verification-modal';
 
 // ----------------------------------------------------------------------
 
@@ -123,13 +123,14 @@ export default function JwtRegisterView() {
       setRegistrationData(data);
 
       // Send OTP to mobile (required)
-      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:3001'}/api/auth/send-phone-otp`, {
+      const response = await fetch(`${process.env.REACT_APP_HOST_API || 'http://localhost:3001'}/api/auth/send-phone-otp`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           phone: data.mobile,
+          role: 'user',
         }),
       });
 
@@ -152,7 +153,7 @@ export default function JwtRegisterView() {
   const handleOtpVerified = async (otp) => {
     try {
       // Verify OTP
-      const verifyResponse = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:3001'}/api/auth/verify-phone-otp`, {
+      const verifyResponse = await fetch(`${process.env.REACT_APP_HOST_API || 'http://localhost:3001'}/api/auth/verify-phone-otp`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -170,7 +171,7 @@ export default function JwtRegisterView() {
       }
 
       // Complete registration
-      const registerResponse = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:3001'}/api/auth/user/register`, {
+      const registerResponse = await fetch(`${process.env.REACT_APP_HOST_API || 'http://localhost:3001'}/api/auth/user/register`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

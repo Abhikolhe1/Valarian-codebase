@@ -2,22 +2,34 @@ import { format } from 'date-fns';
 import PropTypes from 'prop-types';
 // @mui
 import IconButton from '@mui/material/IconButton';
-import MenuItem from '@mui/material/MenuItem';
 import TableCell from '@mui/material/TableCell';
 import TableRow from '@mui/material/TableRow';
 // utils
 import { fCurrency } from 'src/utils/format-number';
 // components
-import CustomPopover, { usePopover } from 'src/components/custom-popover';
 import Iconify from 'src/components/iconify';
 import Label from 'src/components/label';
+
+// NOTE: Popover menu has been replaced with direct eye button for better UX
+// To re-enable popover menu, uncomment the imports and code sections marked with "COMMENTED OUT"
+// Imports needed: MenuItem, CustomPopover, usePopover
 
 // ----------------------------------------------------------------------
 
 export default function OrderTableRow({ row, onViewRow, onEditRow }) {
   const { orderNumber, createdAt, status, paymentStatus, total, user } = row;
 
-  const popover = usePopover();
+  // Debug: Log row data
+  console.log('📋 OrderTableRow data:', {
+    id: row.id,
+    orderNumber: row.orderNumber,
+    status: row.status,
+    hasUser: !!user,
+    userFullName: user?.fullName
+  });
+
+  // COMMENTED OUT: Popover menu - can be re-enabled if needed
+  // const popover = usePopover();
 
   const getStatusColor = (orderStatus) => {
     switch (orderStatus) {
@@ -42,7 +54,7 @@ export default function OrderTableRow({ row, onViewRow, onEditRow }) {
   };
 
   const getPaymentStatusColor = () => {
-    switch (status) {
+    switch (paymentStatus) {
       case 'paid':
         return 'success';
       case 'pending':
@@ -63,7 +75,7 @@ export default function OrderTableRow({ row, onViewRow, onEditRow }) {
         <TableCell sx={{ whiteSpace: 'nowrap' }}>#{orderNumber}</TableCell>
 
         <TableCell sx={{ whiteSpace: 'nowrap' }}>
-          {user?.name || user?.email || 'N/A'}
+          {user?.fullName || user?.email || 'N/A'}
         </TableCell>
 
         <TableCell sx={{ whiteSpace: 'nowrap' }}>
@@ -92,13 +104,24 @@ export default function OrderTableRow({ row, onViewRow, onEditRow }) {
 
         <TableCell>{fCurrency(total)}</TableCell>
 
-        <TableCell align="right" sx={{ px: 1, whiteSpace: 'nowrap' }}>
+        <TableCell align="center" sx={{ px: 1, whiteSpace: 'nowrap' }}>
+          {/* Direct eye button for view */}
+          <IconButton
+            onClick={onViewRow}
+            title="View Order Details"
+          >
+            <Iconify icon="solar:eye-bold" />
+          </IconButton>
+
+          {/* COMMENTED OUT: Popover menu - can be re-enabled if needed
           <IconButton color={popover.open ? 'inherit' : 'default'} onClick={popover.onOpen}>
             <Iconify icon="eva:more-vertical-fill" />
           </IconButton>
+          */}
         </TableCell>
       </TableRow>
 
+      {/* COMMENTED OUT: Popover menu - can be re-enabled if needed
       <CustomPopover
         open={popover.open}
         onClose={popover.onClose}
@@ -125,6 +148,7 @@ export default function OrderTableRow({ row, onViewRow, onEditRow }) {
           Edit
         </MenuItem>
       </CustomPopover>
+      */}
     </>
   );
 }

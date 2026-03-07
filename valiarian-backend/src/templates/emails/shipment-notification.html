@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      line-height: 1.6;
+      color: #333;
+      margin: 0;
+      padding: 0;
+      background-color: #f4f4f4;
+    }
+
+    .container {
+      max-width: 600px;
+      margin: 20px auto;
+      background-color: #ffffff;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 30px 20px;
+      text-align: center;
+    }
+
+    .header h1 {
+      margin: 0;
+      font-size: 28px;
+      font-weight: 600;
+    }
+
+    .header .icon {
+      font-size: 48px;
+      margin-bottom: 10px;
+    }
+
+    .content {
+      padding: 30px;
+    }
+
+    .highlight-box {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 25px;
+      border-radius: 8px;
+      text-align: center;
+      margin: 25px 0;
+    }
+
+    .highlight-box h2 {
+      margin: 0 0 10px 0;
+      font-size: 24px;
+    }
+
+    .highlight-box p {
+      margin: 5px 0;
+      font-size: 16px;
+    }
+
+    .tracking-info {
+      background-color: #f8f9fa;
+      padding: 20px;
+      border-radius: 5px;
+      margin: 20px 0;
+      border-left: 4px solid #667eea;
+    }
+
+    .tracking-info p {
+      margin: 10px 0;
+    }
+
+    .tracking-info strong {
+      color: #667eea;
+      display: inline-block;
+      min-width: 150px;
+    }
+
+    .order-summary {
+      margin: 25px 0;
+    }
+
+    .order-summary h3 {
+      color: #667eea;
+      margin-bottom: 15px;
+    }
+
+    .item {
+      display: flex;
+      padding: 12px 0;
+      border-bottom: 1px solid #e9ecef;
+    }
+
+    .item:last-child {
+      border-bottom: none;
+    }
+
+    .item-details {
+      flex: 1;
+    }
+
+    .item-name {
+      font-weight: 600;
+      color: #333;
+    }
+
+    .item-quantity {
+      color: #6c757d;
+      font-size: 14px;
+    }
+
+    .shipping-address {
+      background-color: #f8f9fa;
+      padding: 20px;
+      border-radius: 5px;
+      margin: 20px 0;
+    }
+
+    .shipping-address h4 {
+      color: #667eea;
+      margin-top: 0;
+      margin-bottom: 10px;
+    }
+
+    .shipping-address p {
+      margin: 5px 0;
+      color: #495057;
+    }
+
+    .button {
+      display: inline-block;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 12px 30px;
+      text-decoration: none;
+      border-radius: 5px;
+      margin: 20px 0;
+      font-weight: 600;
+    }
+
+    .info-box {
+      background-color: #e7f3ff;
+      padding: 15px;
+      border-radius: 5px;
+      margin: 20px 0;
+      border-left: 4px solid #2196F3;
+    }
+
+    .info-box p {
+      margin: 5px 0;
+      color: #0d47a1;
+    }
+
+    .footer {
+      background-color: #f8f9fa;
+      text-align: center;
+      padding: 20px;
+      font-size: 12px;
+      color: #6c757d;
+    }
+
+    @media only screen and (max-width: 600px) {
+      .container {
+        margin: 0;
+        border-radius: 0;
+      }
+
+      .item {
+        flex-direction: column;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <div class="header">
+      <div class="icon">🚚</div>
+      <h1>Your Order Has Shipped!</h1>
+      <p>Your package is on its way</p>
+    </div>
+
+    <div class="content">
+      <p>Dear {{customerName}},</p>
+      <p>Great news! Your order has been shipped and is on its way to you.</p>
+
+      <div class="highlight-box">
+        <h2>Estimated Delivery</h2>
+        <p style="font-size: 20px; font-weight: 600;">{{estimatedDelivery}}</p>
+      </div>
+
+      <div class="tracking-info">
+        <p><strong>Order Number:</strong> {{orderNumber}}</p>
+        <p><strong>Tracking Number:</strong> {{trackingNumber}}</p>
+        <p><strong>Carrier:</strong> {{carrier}}</p>
+        <p><strong>Shipped Date:</strong> {{shippedDate}}</p>
+      </div>
+
+      <div style="text-align: center;">
+        <a href="{{trackingUrl}}" class="button">Track Your Package</a>
+      </div>
+
+      <div class="order-summary">
+        <h3>Order Items</h3>
+        {{#each items}}
+        <div class="item">
+          <div class="item-details">
+            <div class="item-name">{{this.name}}</div>
+            <div class="item-quantity">Quantity: {{this.quantity}}</div>
+          </div>
+        </div>
+        {{/each}}
+      </div>
+
+      <div class="shipping-address">
+        <h4>Shipping To</h4>
+        <p><strong>{{shippingAddress.fullName}}</strong></p>
+        <p>{{shippingAddress.addressLine1}}</p>
+        {{#if shippingAddress.addressLine2}}
+        <p>{{shippingAddress.addressLine2}}</p>
+        {{/if}}
+        <p>{{shippingAddress.city}}, {{shippingAddress.state}} {{shippingAddress.postalCode}}</p>
+        <p>Phone: {{shippingAddress.phone}}</p>
+      </div>
+
+      <div class="info-box">
+        <p><strong>📦 What's Next?</strong></p>
+        <p>• You'll receive updates as your package moves</p>
+        <p>• Make sure someone is available to receive the delivery</p>
+        <p>• Check the tracking link for real-time updates</p>
+      </div>
+    </div>
+
+    <div class="footer">
+      <p>Thank you for shopping with us!</p>
+      <p>If you have any questions, please contact our support team.</p>
+      <p>&copy; {{year}} {{companyName}}. All rights reserved.</p>
+    </div>
+  </div>
+</body>
+
+</html>

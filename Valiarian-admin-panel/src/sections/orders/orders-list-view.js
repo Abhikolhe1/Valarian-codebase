@@ -20,12 +20,11 @@ import Iconify from 'src/components/iconify';
 import Scrollbar from 'src/components/scrollbar';
 import { useSettingsContext } from 'src/components/settings';
 import {
-  emptyRows,
   TableEmptyRows,
   TableHeadCustom,
   TableNoData,
   TablePaginationCustom,
-  useTable,
+  useTable
 } from 'src/components/table';
 //
 import OrderTableRow from './order-table-row';
@@ -33,13 +32,13 @@ import OrderTableRow from './order-table-row';
 // ----------------------------------------------------------------------
 
 const TABLE_HEAD = [
-  { id: 'orderNumber', label: 'Order', width: 140 },
-  { id: 'customer', label: 'Customer', width: 200 },
-  { id: 'createdAt', label: 'Date', width: 140 },
-  { id: 'status', label: 'Status', width: 120 },
-  { id: 'paymentStatus', label: 'Payment', width: 120 },
-  { id: 'total', label: 'Total', width: 120 },
-  { id: 'actions', label: 'Actions', width: 88 },
+  { id: 'orderNumber', label: 'Order'},
+  { id: 'customer', label: 'Customer'},
+  { id: 'createdAt', label: 'Date'},
+  { id: 'status', label: 'Status' },
+  { id: 'paymentStatus', label: 'Payment' },
+  { id: 'total', label: 'Total' },
+  { id: 'actions', label: 'Actions' },
 ];
 
 const STATUS_OPTIONS = [
@@ -72,6 +71,7 @@ export default function OrdersListView() {
   const navigate = useNavigate();
 
   const [tableData, setTableData] = useState([]);
+  const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterPaymentStatus, setFilterPaymentStatus] = useState('all');
@@ -108,13 +108,18 @@ export default function OrdersListView() {
       if (debouncedSearch) {
         params.search = debouncedSearch;
       }
-
       const response = await axios.get('/api/admin/orders', { params });
+
+      console.log("FULL RESPONSE:", response.data);
+      console.log("ORDERS:", response.data.orders);
+
       setTableData(response.data.orders || []);
-      table.setRowCount(response.data.pagination?.total || 0);
+
+      setTotalCount(response.data.pagination?.total || 0);
+      console.log("TOTAL:", response.data.pagination.total);
+      console.log("ROW COUNT:", table.rowCount);
     } catch (error) {
       console.error('Error fetching orders:', error);
-      setTableData([]);
     } finally {
       setLoading(false);
     }
@@ -124,6 +129,9 @@ export default function OrdersListView() {
   useEffect(() => {
     fetchOrders();
   }, [fetchOrders]);
+
+
+  console.log('daaaaaaa', tableData)
 
   const handleFilterStatus = useCallback((event) => {
     setFilterStatus(event.target.value);
@@ -144,6 +152,7 @@ export default function OrdersListView() {
   }, []);
 
   const handleViewRow = useCallback((id) => {
+    console.log('🔍 Viewing order with ID:', id);
     navigate(paths.dashboard.order.details(id));
   }, [navigate]);
 
@@ -255,11 +264,6 @@ export default function OrdersListView() {
                       />
                     ))}
 
-                    <TableEmptyRows
-                      height={72}
-                      emptyRows={emptyRows(table.page, table.rowsPerPage, tableData.length)}
-                    />
-
                     <TableNoData notFound={notFound} />
                   </>
                 )}
@@ -269,7 +273,7 @@ export default function OrdersListView() {
         </TableContainer>
 
         <TablePaginationCustom
-          count={table.rowCount}
+          count={totalCount}
           page={table.page}
           rowsPerPage={table.rowsPerPage}
           onPageChange={table.onChangePage}

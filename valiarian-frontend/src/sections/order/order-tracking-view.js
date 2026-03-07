@@ -88,6 +88,13 @@ function ColorlibStepIcon(props) {
   );
 }
 
+ColorlibStepIcon.propTypes = {
+  active: PropTypes.bool,
+  completed: PropTypes.bool,
+  className: PropTypes.string,
+  icon: PropTypes.node,
+};
+
 // ----------------------------------------------------------------------
 
 export default function OrderTrackingView() {
@@ -170,25 +177,31 @@ export default function OrderTrackingView() {
         Order Tracking
       </Typography>
 
-      {loading ? (
+      {loading && (
         <Card>
           <CardContent>
             <Typography>Loading tracking information...</Typography>
           </CardContent>
         </Card>
-      ) : error ? (
+      )}
+
+      {!loading && error && (
         <Card>
           <CardContent>
             <Typography color="error">{error}</Typography>
           </CardContent>
         </Card>
-      ) : !tracking ? (
+      )}
+
+      {!loading && !error && !tracking && (
         <Card>
           <CardContent>
             <Typography>No tracking information available for this order.</Typography>
           </CardContent>
         </Card>
-      ) : (
+      )}
+
+      {!loading && !error && tracking && (
         <Stack spacing={3}>
           {/* Order Info Card */}
           <Card>
@@ -355,9 +368,4 @@ export default function OrderTrackingView() {
       }
     </Container >
   );
-}
-
-
-OrderTrackingView.propTypes = {
-  active: PropTypes.bool,
 }

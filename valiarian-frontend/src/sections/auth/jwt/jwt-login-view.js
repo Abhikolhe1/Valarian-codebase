@@ -4,13 +4,13 @@ import { useForm } from 'react-hook-form';
 import * as Yup from 'yup';
 // @mui
 import LoadingButton from '@mui/lab/LoadingButton';
+import { Divider } from '@mui/material';
 import Alert from '@mui/material/Alert';
 import IconButton from '@mui/material/IconButton';
 import InputAdornment from '@mui/material/InputAdornment';
 import Link from '@mui/material/Link';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
-import { Divider } from '@mui/material';
 // routes
 import { RouterLink } from 'src/routes/components';
 import { useRouter, useSearchParams } from 'src/routes/hook';
@@ -29,7 +29,7 @@ import GoogleLoginButton from './google-login-button';
 // ----------------------------------------------------------------------
 
 export default function JwtLoginView() {
-  const { login } = useAuthContext();
+  const { userLogin } = useAuthContext();
 
   const router = useRouter();
 
@@ -77,44 +77,8 @@ export default function JwtLoginView() {
     try {
       setErrorMsg('');
 
-      // Call backend login API
-      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:3001'}/api/auth/user/login`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          identifier: data.identifier,
-          password: data.password,
-          rememberMe: data.rememberMe,
-        }),
-      });
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        // Handle specific error cases
-        if (response.status === 403) {
-          if (result.message?.includes('locked')) {
-            throw new Error(result.message);
-          }
-          if (result.message?.includes('not verified')) {
-            throw new Error('Your account is not verified. Please verify your mobile number or email.');
-          }
-          if (result.message?.includes('not active')) {
-            throw new Error('Your account is not active. Please contact support.');
-          }
-        }
-        throw new Error(result.message || 'Login failed');
-      }
-
-      // Store JWT token
-      sessionStorage.setItem('accessToken', result.accessToken);
-
-      // Store user data if needed
-      if (result.user) {
-        sessionStorage.setItem('user', JSON.stringify(result.user));
-      }
+      // Use auth context's userLogin method
+      await userLogin(data.identifier, data.password, data.rememberMe);
 
       // Redirect to return URL or default path
       router.push(returnTo || PATH_AFTER_LOGIN);

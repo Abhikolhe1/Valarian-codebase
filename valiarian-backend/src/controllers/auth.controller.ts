@@ -380,8 +380,10 @@ export class AuthController {
       {identifier: sanitizedPhone, type: 0}
     );
 
-    // Generate random 4-digit OTP
-    const otpCode = Math.floor(1000 + Math.random() * 9000).toString();
+    // Generate random 4-digit OTP (fixed to 123456 for testing in dev)
+    const otpCode = process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'dev'
+      ? '123456'
+      : (process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'dev' ? '123456' : Math.floor(1000 + Math.random() * 9000).toString());
 
     const otp = await this.otpRepository.create({
       otp: otpCode,
@@ -548,6 +550,343 @@ export class AuthController {
     };
   }
 
+  @post('/api/auth/user/register')
+  async registerUser(
+    @requestBody({
+      content: {
+        'application/json': {
+          schema: {
+            type: 'object',
+            required: ['sessionId', 'fullName', 'password'],
+            properties: {
+              sessionId: {type: 'string'},
+              fullName: {type: 'string'},
+              email: {type: 'string'},
+              password: {type: 'string'},
+            },
+          },
+        },
+      },
+    })
+    body: {
+      sessionId: string;
+      fullName: string;
+      email?: string;
+      password: string;
+    },
+  ): Promise<{success: boolean; message: string; accessToken: string; user: any}> {
+    const {sessionId, fullName, email, password} = body;
+
+    // Verify session exists and is verified
+    const session = await this.registrationSessionsRepository.findById(sessionId);
+
+    if (!session) {
+      throw new HttpErrors.BadRequest('Invalid session');
+    }
+
+    if (!session.phoneVerified) {
+      throw new HttpErrors.BadRequest('Phone number not verified');
+    }
+
+    if (new Date(session.expiresAt) < new Date()) {
+      throw new HttpErrors.BadRequest('Session expired');
+    }
+
+    // Check if user already exists
+    const existingUser = await this.usersRepository.findOne({
+      where: {phone: session.phoneNumber},
+    });
+
+    if (existingUser) {
+      throw new HttpErrors.BadRequest('User already exists with this phone number');
+    }
+
+    // Get user role
+    const userRole = await this.rolesRepository.findOne({
+      where: {value: session.roleValue},
+    });
+
+    if (!userRole) {
+      throw new HttpErrors.BadRequest('Invalid role');
+    }
+
+    // Hash password
+    const hashedPassword = await this.hasher.hashPassword(password);
+
+    // Create user
+    const newUser = await this.usersRepository.create({
+      fullName,
+      email: email || undefined,
+      phone: session.phoneNumber,
+      password: hashedPassword,
+      isActive: true,
+    });
+
+    // Assign role to user
+    await this.userRolesRepository.create({
+      usersId: newUser.id!,
+      rolesId: userRole.id!,
+    });
+
+    // Mark session as used
+    await this.registrationSessionsRepository.updateById(sessionId, {
+      isActive: false,
+    });
+
+    // Generate JWT token
+    const userProfile = {
+      [securityId]: newUser.id,
+      id: newUser.id,
+      email: newUser.email,
+      phone: newUser.phone,
+      fullName: newUser.fullName,
+      role: session.roleValue,
+    };
+
+    const token = await this.jwtService.generateToken(userProfile);
+
+    return {
+      success: true,
+      message: 'Registration successful',
+      accessToken: token,
+      user: {
+        id: newUser.id,
+        fullName: newUser.fullName,
+        email: newUser.email,
+        phone: newUser.phone,
+        role: session.roleValue,
+      },
+    };
+  }
+
+  @post('/api/auth/user/login')
+  async userLogin(
+    @requestBody({
+      content: {
+        'application/json': {
+          schema: {
+            type: 'object',
+            required: ['identifier', 'password'],
+            properties: {
+              identifier: {type: 'string', description: 'Email or phone number'},
+              password: {type: 'string'},
+              rememberMe: {type: 'boolean'},
+            },
+          },
+        },
+      },
+    })
+    body: {identifier: string; password: string; rememberMe?: boolean},
+  ): Promise<{success: boolean; message: string; accessToken: string; user: object}> {
+    // Rate limiting: 5 login attempts per 15 minutes per IP
+    const clientIp = this.getClientIp();
+    this.rateLimiterService.checkLoginAttempt(clientIp);
+
+    const {identifier, password} = body;
+
+    // Check if identifier is email or phone
+    const isEmail = identifier.includes('@');
+
+    const userData = await this.usersRepository.findOne({
+      where: {
+        and: [
+          isEmail ? {email: identifier} : {phone: identifier},
+          {isDeleted: false},
+        ],
+      },
+    });
+
+    if (!userData) {
+      throw new HttpErrors.BadRequest('Invalid credentials');
+    }
+
+    // Verify password
+    const passwordMatched = await this.hasher.comparePassword(password, userData.password!);
+
+    if (!passwordMatched) {
+      throw new HttpErrors.BadRequest('Invalid credentials');
+    }
+
+    // Get user roles
+    const {roles, permissions} = await this.rbacService.getUserRolesAndPermissions(userData.id!);
+
+    // Reset login attempts on successful login
+    this.rateLimiterService.resetLoginAttempts(clientIp);
+
+    const userProfile: UserProfile & {
+      roles: string[];
+      permissions: string[];
+      phone: string;
+    } = {
+      [securityId]: userData.id!,
+      id: userData.id!,
+      email: userData.email,
+      phone: userData.phone,
+      roles,
+      permissions,
+    };
+
+    const token = await this.jwtService.generateToken(userProfile);
+
+    // Parse device info from user-agent
+    const userAgent = this.request.headers['user-agent'] || 'Unknown';
+    const deviceInfo = parseDeviceInfo(userAgent);
+    const formattedDeviceInfo = formatDeviceInfo(deviceInfo);
+
+    // Create refresh token (optional - won't break login if it fails)
+    try {
+      const refreshToken = crypto.randomBytes(32).toString('hex');
+      await this.refreshTokenRepository.create({
+        id: uuidv4(),
+        userId: userData.id,
+        token: refreshToken,
+        deviceInfo: formattedDeviceInfo,
+        ipAddress: this.getClientIp(),
+        expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
+        isRevoked: false,
+      });
+
+      // Set refresh token as httpOnly cookie
+      this.request.res?.cookie('refreshToken', refreshToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+        maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+      });
+    } catch (refreshTokenError) {
+      console.error('Failed to create refresh token:', refreshTokenError);
+      // Continue with login even if refresh token creation fails
+    }
+
+    return {
+      success: true,
+      message: 'Login successful',
+      accessToken: token,
+      user: {
+        id: userData.id,
+        fullName: userData.fullName,
+        email: userData.email,
+        phone: userData.phone,
+        roles,
+        permissions,
+      },
+    };
+  }
+
+  @post('/api/auth/check-user')
+  async checkUser(
+    @requestBody({
+      content: {
+        'application/json': {
+          schema: {
+            type: 'object',
+            required: ['identifier'],
+            properties: {
+              identifier: {
+                type: 'object',
+                properties: {
+                  email: {type: 'string'},
+                  phone: {type: 'string'},
+                },
+              },
+            },
+          },
+        },
+      },
+    })
+    body: {identifier: {email?: string; phone?: string}},
+  ): Promise<{exists: boolean; userId?: string}> {
+    const {email, phone} = body.identifier;
+
+    const user = await this.usersRepository.findOne({
+      where: email ? {email} : {phone},
+    });
+
+    return {
+      exists: !!user,
+      userId: user?.id,
+    };
+  }
+
+  @post('/api/auth/user/otp-login')
+  async userOtpLogin(
+    @requestBody({
+      content: {
+        'application/json': {
+          schema: {
+            type: 'object',
+            required: ['sessionId', 'identifier'],
+            properties: {
+              sessionId: {type: 'string'},
+              identifier: {type: 'string'},
+            },
+          },
+        },
+      },
+    })
+    body: {sessionId: string; identifier: string},
+  ): Promise<{success: boolean; message: string; accessToken: string; user: object}> {
+    const {sessionId, identifier} = body;
+
+    // Verify session
+    const session = await this.registrationSessionsRepository.findById(sessionId);
+
+    if (!session) {
+      throw new HttpErrors.BadRequest('Invalid session');
+    }
+
+    if (!session.phoneVerified && !session.emailVerified) {
+      throw new HttpErrors.BadRequest('OTP not verified');
+    }
+
+    // Find user by email or phone
+    const isEmail = identifier.includes('@');
+    const userData = await this.usersRepository.findOne({
+      where: isEmail ? {email: identifier} : {phone: identifier},
+    });
+
+    if (!userData) {
+      throw new HttpErrors.BadRequest('User not found');
+    }
+
+    // Get user roles
+    const {roles, permissions} = await this.rbacService.getUserRolesAndPermissions(userData.id!);
+
+    const userProfile: UserProfile & {
+      roles: string[];
+      permissions: string[];
+      phone: string;
+    } = {
+      [securityId]: userData.id!,
+      id: userData.id!,
+      email: userData.email,
+      phone: userData.phone,
+      roles,
+      permissions,
+    };
+
+    const token = await this.jwtService.generateToken(userProfile);
+
+    // Mark session as used
+    await this.registrationSessionsRepository.updateById(sessionId, {
+      isActive: false,
+    });
+
+    return {
+      success: true,
+      message: 'Login successful',
+      accessToken: token,
+      user: {
+        id: userData.id,
+        fullName: userData.fullName,
+        email: userData.email,
+        phone: userData.phone,
+        roles,
+        permissions,
+      },
+    };
+  }
+
   @post('/api/auth/send-email-otp')
   async sendEmailOtp(
     @requestBody({
@@ -647,7 +986,7 @@ export class AuthController {
     );
 
     // Generate random 4-digit OTP
-    const otpCode = Math.floor(1000 + Math.random() * 9000).toString();
+    const otpCode = (process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'dev' ? '123456' : Math.floor(1000 + Math.random() * 9000).toString());
 
     const otp = await this.otpRepository.create({
       otp: otpCode,
@@ -839,7 +1178,7 @@ export class AuthController {
     );
 
     // Generate random 4-digit OTP
-    const otpCode = Math.floor(1000 + Math.random() * 9000).toString();
+    const otpCode = (process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'dev' ? '123456' : Math.floor(1000 + Math.random() * 9000).toString());
 
     const otp = await this.otpRepository.create({
       otp: otpCode,
@@ -1059,7 +1398,7 @@ export class AuthController {
   //   }
 
   //   const otp = await this.otpRepository.create({
-  //     otp: '1234',
+  //     otp: '123456',
   //     type: isEmail ? 1 : 0,
   //     identifier: body.emailOrPhone,
   //     attempts: 0,
@@ -1503,4 +1842,5 @@ export class AuthController {
     return this.userProfileService.deleteAccount(currentUser.id);
   }
 }
+
 

@@ -100,13 +100,21 @@ export default function OrderDetailsView() {
   const handleUpdateStatus = async () => {
     try {
       setUpdating(true);
-      await axios.patch(`/api/admin/orders/${id}/status`, {
+
+      const payload = {
         status: newStatus,
         comment: statusComment,
         trackingNumber: trackingNumber || undefined,
         carrier: carrier || undefined,
         estimatedDelivery: estimatedDelivery || undefined,
-      });
+      };
+
+      console.log('📤 Updating order status:', payload);
+
+      const response = await axios.patch(`/api/admin/orders/${id}/status`, payload);
+
+      console.log('✅ Status updated successfully:', response.data);
+
       setStatusDialogOpen(false);
       setNewStatus('');
       setStatusComment('');
@@ -115,8 +123,18 @@ export default function OrderDetailsView() {
       setEstimatedDelivery('');
       await fetchOrderDetails();
     } catch (err) {
-      console.error('Error updating status:', err);
-      alert(err.response?.data?.message || 'Failed to update status');
+      console.error('❌ Error updating status:', err);
+      console.error('❌ Error response:', err.response?.data);
+      console.error('❌ Error status:', err.response?.status);
+      console.error('❌ Full error:', JSON.stringify(err.response?.data, null, 2));
+
+      const errorMessage = err?.error?.message
+        || err.response?.data?.message
+        || err.message
+        || 'Failed to update status';
+
+      console.error('❌ Showing alert:', errorMessage);
+      alert(errorMessage);
     } finally {
       setUpdating(false);
     }
@@ -175,6 +193,13 @@ export default function OrderDetailsView() {
     } finally {
       setUpdating(false);
     }
+  };
+
+  const getPaymentStatusColor = (paymentStatus) => {
+    if (paymentStatus === 'paid') return 'success';
+    if (paymentStatus === 'pending') return 'warning';
+    if (paymentStatus === 'failed') return 'error';
+    return 'default';
   };
 
   if (loading) {
@@ -256,9 +281,13 @@ export default function OrderDetailsView() {
                 </Stack>
                 <Stack direction="row" justifyContent="space-between">
                   <Typography variant="body2" color="text.secondary">Payment Status</Typography>
-                  <Typography variant="body2" sx={{ textTransform: 'capitalize' }}>
+                  <Label
+                    variant="soft"
+                    color={getPaymentStatusColor(order.paymentStatus)}
+                    sx={{ textTransform: 'capitalize' }}
+                  >
                     {order.paymentStatus.replace('_', ' ')}
-                  </Typography>
+                  </Label>
                 </Stack>
                 {order.trackingNumber && (
                   <>
@@ -404,6 +433,7 @@ export default function OrderDetailsView() {
                   </Button>
                 )}
 
+                {/* Only show refund button if order is cancelled/returned AND payment was actually paid */}
                 {['cancelled', 'returned'].includes(order.status) && order.paymentStatus === 'paid' && (
                   <Button
                     fullWidth
@@ -411,6 +441,7 @@ export default function OrderDetailsView() {
                     color="warning"
                     startIcon={<Iconify icon="eva:credit-card-fill" />}
                     onClick={() => {
+                      console.log('Refund button clicked. Order status:', order.status, 'Payment status:', order.paymentStatus);
                       setRefundAmount(order.total.toString());
                       setRefundDialogOpen(true);
                     }}

@@ -134,7 +134,7 @@ export function useNavData() {
             roles: ['super_admin', 'admin'],
             children: [
               { title: t('List'), path: paths.dashboard.order.root },
-              { title: t('Details'), path: paths.dashboard.order.demo.details },
+              // { title: t('Details'), path: paths.dashboard.order.demo.details },
             ],
           },
           // // INVOICE

@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      line-height: 1.6;
+      color: #333;
+      margin: 0;
+      padding: 0;
+      background-color: #f4f4f4;
+    }
+
+    .container {
+      max-width: 600px;
+      margin: 20px auto;
+      background-color: #ffffff;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .header {
+      background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+      color: white;
+      padding: 30px 20px;
+      text-align: center;
+    }
+
+    .header h1 {
+      margin: 0;
+      font-size: 28px;
+      font-weight: 600;
+    }
+
+    .header .icon {
+      font-size: 64px;
+      margin-bottom: 10px;
+    }
+
+    .content {
+      padding: 30px;
+    }
+
+    .success-message {
+      background-color: #d4edda;
+      color: #155724;
+      padding: 20px;
+      border-radius: 5px;
+      text-align: center;
+      margin: 20px 0;
+      border-left: 4px solid #28a745;
+    }
+
+    .success-message h2 {
+      margin: 0 0 10px 0;
+      font-size: 22px;
+    }
+
+    .refund-summary {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 30px;
+      border-radius: 8px;
+      text-align: center;
+      margin: 25px 0;
+    }
+
+    .refund-summary h3 {
+      margin: 0 0 10px 0;
+      font-size: 18px;
+      font-weight: 400;
+    }
+
+    .refund-summary .amount {
+      font-size: 42px;
+      font-weight: 700;
+      margin: 15px 0;
+    }
+
+    .refund-summary .checkmark {
+      font-size: 48px;
+      margin-bottom: 10px;
+    }
+
+    .transaction-details {
+      background-color: #f8f9fa;
+      padding: 20px;
+      border-radius: 5px;
+      margin: 20px 0;
+      border-left: 4px solid #28a745;
+    }
+
+    .transaction-details h4 {
+      margin: 0 0 15px 0;
+      color: #28a745;
+    }
+
+    .transaction-details p {
+      margin: 10px 0;
+    }
+
+    .transaction-details strong {
+      color: #28a745;
+      display: inline-block;
+      min-width: 180px;
+    }
+
+    .order-info {
+      background-color: #f8f9fa;
+      padding: 20px;
+      border-radius: 5px;
+      margin: 20px 0;
+    }
+
+    .order-info p {
+      margin: 10px 0;
+    }
+
+    .order-info strong {
+      display: inline-block;
+      min-width: 150px;
+    }
+
+    .info-box {
+      background-color: #d1ecf1;
+      padding: 20px;
+      border-radius: 5px;
+      margin: 20px 0;
+      border-left: 4px solid #17a2b8;
+    }
+
+    .info-box h4 {
+      margin: 0 0 15px 0;
+      color: #0c5460;
+    }
+
+    .info-box p {
+      margin: 8px 0;
+      color: #0c5460;
+    }
+
+    .button {
+      display: inline-block;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 12px 30px;
+      text-decoration: none;
+      border-radius: 5px;
+      margin: 20px 0;
+      font-weight: 600;
+    }
+
+    .feedback-section {
+      background-color: #fff3cd;
+      padding: 20px;
+      border-radius: 5px;
+      margin: 25px 0;
+      text-align: center;
+      border-left: 4px solid #ffc107;
+    }
+
+    .feedback-section h4 {
+      margin: 0 0 10px 0;
+      color: #856404;
+    }
+
+    .feedback-section p {
+      margin: 10px 0;
+      color: #856404;
+    }
+
+    .footer {
+      background-color: #f8f9fa;
+      text-align: center;
+      padding: 20px;
+      font-size: 12px;
+      color: #6c757d;
+    }
+
+    @media only screen and (max-width: 600px) {
+      .container {
+        margin: 0;
+        border-radius: 0;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <div class="header">
+      <div class="icon">✓</div>
+      <h1>Refund Completed!</h1>
+      <p>Your refund has been processed successfully</p>
+    </div>
+
+    <div class="content">
+      <p>Dear {{customerName}},</p>
+
+      <div class="success-message">
+        <h2>✓ Refund Successfully Completed</h2>
+        <p>The amount has been credited to your account</p>
+      </div>
+
+      <div class="refund-summary">
+        <div class="checkmark">✓</div>
+        <h3>Refunded Amount</h3>
+        <div class="amount">₹{{refundAmount}}</div>
+        <p>Successfully credited to your {{refundMethod}}</p>
+      </div>
+
+      <div class="transaction-details">
+        <h4>💳 Transaction Details</h4>
+        <p><strong>Transaction ID:</strong> {{transactionId}}</p>
+        <p><strong>Refund Method:</strong> {{refundMethod}}</p>
+        <p><strong>Refund Initiated:</strong> {{refundInitiatedDate}}</p>
+        <p><strong>Refund Completed:</strong> {{refundCompletedDate}}</p>
+        {{#if bankReferenceNumber}}
+        <p><strong>Bank Reference:</strong> {{bankReferenceNumber}}</p>
+        {{/if}}
+      </div>
+
+      <div class="order-info">
+        <p><strong>Order Number:</strong> {{orderNumber}}</p>
+        <p><strong>Original Order Date:</strong> {{orderDate}}</p>
+        <p><strong>Original Amount:</strong> ₹{{originalAmount}}</p>
+      </div>
+
+      <div class="info-box">
+        <h4>📱 Check Your Account</h4>
+        <p>The refund amount should now be visible in your account.</p>
+        <p>If you don't see the amount, please check:</p>
+        <p>• Your bank statement or transaction history</p>
+        <p>• It may take a few hours to reflect in some banks</p>
+        <p>• Contact your bank if the amount is not visible within 24 hours</p>
+      </div>
+
+      <div style="text-align: center;">
+        <a href="{{orderDetailsUrl}}" class="button">View Order Details</a>
+      </div>
+
+      <div class="feedback-section">
+        <h4>We Value Your Feedback</h4>
+        <p>We're sorry that you had to return your order.</p>
+        <p>Your feedback helps us improve our products and services.</p>
+        <p style="margin-top: 15px;">
+          <a href="{{feedbackUrl}}" style="color: #856404; font-weight: 600; text-decoration: underline;">Share Your
+            Feedback</a>
+        </p>
+      </div>
+
+      <p style="margin-top: 30px; color: #6c757d; font-size: 14px; text-align: center;">
+        Thank you for your patience throughout this process. We hope to serve you better in the future.
+      </p>
+    </div>
+
+    <div class="footer">
+      <p>We hope to see you again soon!</p>
+      <p>If you have any questions, please contact our support team.</p>
+      <p>&copy; {{year}} {{companyName}}. All rights reserved.</p>
+    </div>
+  </div>
+</body>
+
+</html>

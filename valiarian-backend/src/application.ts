@@ -16,6 +16,7 @@ import {MySequence} from './sequence';
 import {AuditService} from './services/audit.service';
 import {CacheService} from './services/cache.service';
 import {CMSService} from './services/cms.service';
+import {EmailTemplateService} from './services/email-template.service';
 import {EmailService} from './services/email.service';
 import {GoogleOAuthService} from './services/google-oauth.service';
 import {BcryptHasher} from './services/hash.password.bcrypt';
@@ -92,6 +93,7 @@ export class ValiarianBackendApplication extends BootMixin(
     this.bind('service.google.oauth').toClass(GoogleOAuthService);
     this.bind(EmailManagerBindings.SEND_MAIL).toClass(EmailService);
     this.bind('services.email').toClass(EmailService);
+    this.bind('services.email.template').toClass(EmailTemplateService);
     this.bind('services.otp.notification').toClass(OtpNotificationService);
   }
 

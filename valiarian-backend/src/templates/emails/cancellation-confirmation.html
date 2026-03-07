@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      line-height: 1.6;
+      color: #333;
+      margin: 0;
+      padding: 0;
+      background-color: #f4f4f4;
+    }
+
+    .container {
+      max-width: 600px;
+      margin: 20px auto;
+      background-color: #ffffff;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .header {
+      background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+      color: white;
+      padding: 30px 20px;
+      text-align: center;
+    }
+
+    .header h1 {
+      margin: 0;
+      font-size: 28px;
+      font-weight: 600;
+    }
+
+    .header .icon {
+      font-size: 48px;
+      margin-bottom: 10px;
+    }
+
+    .content {
+      padding: 30px;
+    }
+
+    .cancel-message {
+      background-color: #f8d7da;
+      color: #721c24;
+      padding: 20px;
+      border-radius: 5px;
+      text-align: center;
+      margin: 20px 0;
+      border-left: 4px solid #dc3545;
+    }
+
+    .cancel-message h2 {
+      margin: 0 0 10px 0;
+      font-size: 22px;
+    }
+
+    .order-info {
+      background-color: #f8f9fa;
+      padding: 20px;
+      border-radius: 5px;
+      margin: 20px 0;
+      border-left: 4px solid #dc3545;
+    }
+
+    .order-info p {
+      margin: 10px 0;
+    }
+
+    .order-info strong {
+      color: #dc3545;
+      display: inline-block;
+      min-width: 150px;
+    }
+
+    .reason-box {
+      background-color: #fff3cd;
+      padding: 15px;
+      border-radius: 5px;
+      margin: 20px 0;
+      border-left: 4px solid #ffc107;
+    }
+
+    .reason-box p {
+      margin: 5px 0;
+      color: #856404;
+    }
+
+    .refund-info {
+      background-color: #d1ecf1;
+      padding: 20px;
+      border-radius: 5px;
+      margin: 20px 0;
+      border-left: 4px solid #17a2b8;
+    }
+
+    .refund-info h3 {
+      margin: 0 0 15px 0;
+      color: #0c5460;
+    }
+
+    .refund-info p {
+      margin: 8px 0;
+      color: #0c5460;
+    }
+
+    .item {
+      display: flex;
+      padding: 12px 0;
+      border-bottom: 1px solid #e9ecef;
+    }
+
+    .item:last-child {
+      border-bottom: none;
+    }
+
+    .item-details {
+      flex: 1;
+    }
+
+    .item-name {
+      font-weight: 600;
+      color: #333;
+    }
+
+    .item-quantity {
+      color: #6c757d;
+      font-size: 14px;
+    }
+
+    .item-price {
+      font-weight: 600;
+      color: #333;
+      text-align: right;
+    }
+
+    .button {
+      display: inline-block;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 12px 30px;
+      text-decoration: none;
+      border-radius: 5px;
+      margin: 20px 0;
+      font-weight: 600;
+    }
+
+    .footer {
+      background-color: #f8f9fa;
+      text-align: center;
+      padding: 20px;
+      font-size: 12px;
+      color: #6c757d;
+    }
+
+    @media only screen and (max-width: 600px) {
+      .container {
+        margin: 0;
+        border-radius: 0;
+      }
+
+      .item {
+        flex-direction: column;
+      }
+
+      .item-price {
+        text-align: left;
+        margin-top: 5px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <div class="header">
+      <div class="icon">✕</div>
+      <h1>Order Cancelled</h1>
+      <p>Your order has been cancelled</p>
+    </div>
+
+    <div class="content">
+      <p>Dear {{customerName}},</p>
+
+      <div class="cancel-message">
+        <h2>Your order has been cancelled</h2>
+        <p>We've processed your cancellation request</p>
+      </div>
+
+      <div class="order-info">
+        <p><strong>Order Number:</strong> {{orderNumber}}</p>
+        <p><strong>Order Date:</strong> {{orderDate}}</p>
+        <p><strong>Cancelled On:</strong> {{cancelledDate}}</p>
+        <p><strong>Order Total:</strong> ₹{{total}}</p>
+      </div>
+
+      {{#if cancellationReason}}
+      <div class="reason-box">
+        <p><strong>Cancellation Reason:</strong></p>
+        <p>{{cancellationReason}}</p>
+      </div>
+      {{/if}}
+
+      <div style="margin: 25px 0;">
+        <h3 style="color: #dc3545; margin-bottom: 15px;">Cancelled Items</h3>
+        {{#each items}}
+        <div class="item">
+          <div class="item-details">
+            <div class="item-name">{{this.name}}</div>
+            <div class="item-quantity">Quantity: {{this.quantity}}</div>
+          </div>
+          <div class="item-price">₹{{this.price}}</div>
+        </div>
+        {{/each}}
+      </div>
+
+      {{#if refundInfo}}
+      <div class="refund-info">
+        <h3>💰 Refund Information</h3>
+        <p><strong>Refund Amount:</strong> ₹{{refundInfo.amount}}</p>
+        <p><strong>Refund Method:</strong> {{refundInfo.method}}</p>
+        <p><strong>Processing Time:</strong> {{refundInfo.processingTime}}</p>
+        <p style="margin-top: 15px; font-size: 14px;">
+          Your refund will be processed within {{refundInfo.processingTime}}.
+          You'll receive a confirmation email once the refund is completed.
+        </p>
+      </div>
+      {{/if}}
+
+      <div style="text-align: center; margin-top: 25px;">
+        <a href="{{shopUrl}}" class="button">Continue Shopping</a>
+      </div>
+
+      <p style="margin-top: 30px; color: #6c757d; font-size: 14px; text-align: center;">
+        We're sorry to see this order cancelled. If you have any questions or concerns,
+        please don't hesitate to contact our support team.
+      </p>
+    </div>
+
+    <div class="footer">
+      <p>We hope to serve you again soon!</p>
+      <p>If you have any questions, please contact our support team.</p>
+      <p>&copy; {{year}} {{companyName}}. All rights reserved.</p>
+    </div>
+  </div>
+</body>
+
+</html>

@@ -52,6 +52,12 @@ export class OrderStatusHistory extends Entity {
   })
   createdAt?: Date;
 
+  @property({
+    type: 'date',
+    defaultFn: 'now',
+  })
+  updatedAt?: Date;
+
   constructor(data?: Partial<OrderStatusHistory>) {
     super(data);
   }

@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      line-height: 1.6;
+      color: #333;
+      margin: 0;
+      padding: 0;
+      background-color: #f4f4f4;
+    }
+
+    .container {
+      max-width: 600px;
+      margin: 20px auto;
+      background-color: #ffffff;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .header {
+      background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+      color: white;
+      padding: 30px 20px;
+      text-align: center;
+    }
+
+    .header h1 {
+      margin: 0;
+      font-size: 28px;
+      font-weight: 600;
+    }
+
+    .header .icon {
+      font-size: 64px;
+      margin-bottom: 10px;
+    }
+
+    .content {
+      padding: 30px;
+    }
+
+    .success-message {
+      background-color: #d4edda;
+      color: #155724;
+      padding: 20px;
+      border-radius: 5px;
+      text-align: center;
+      margin: 20px 0;
+      border-left: 4px solid #28a745;
+    }
+
+    .success-message h2 {
+      margin: 0 0 10px 0;
+      font-size: 22px;
+    }
+
+    .order-info {
+      background-color: #f8f9fa;
+      padding: 20px;
+      border-radius: 5px;
+      margin: 20px 0;
+      border-left: 4px solid #28a745;
+    }
+
+    .order-info p {
+      margin: 10px 0;
+    }
+
+    .order-info strong {
+      color: #28a745;
+      display: inline-block;
+      min-width: 150px;
+    }
+
+    .feedback-section {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 25px;
+      border-radius: 8px;
+      text-align: center;
+      margin: 25px 0;
+    }
+
+    .feedback-section h3 {
+      margin: 0 0 15px 0;
+      font-size: 20px;
+    }
+
+    .feedback-section p {
+      margin: 10px 0;
+    }
+
+    .button {
+      display: inline-block;
+      background-color: white;
+      color: #667eea;
+      padding: 12px 30px;
+      text-decoration: none;
+      border-radius: 5px;
+      margin: 15px 0;
+      font-weight: 600;
+    }
+
+    .button-primary {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+
+    .item {
+      display: flex;
+      padding: 12px 0;
+      border-bottom: 1px solid #e9ecef;
+    }
+
+    .item:last-child {
+      border-bottom: none;
+    }
+
+    .item-details {
+      flex: 1;
+    }
+
+    .item-name {
+      font-weight: 600;
+      color: #333;
+    }
+
+    .item-quantity {
+      color: #6c757d;
+      font-size: 14px;
+    }
+
+    .info-box {
+      background-color: #fff3cd;
+      padding: 15px;
+      border-radius: 5px;
+      margin: 20px 0;
+      border-left: 4px solid #ffc107;
+    }
+
+    .info-box p {
+      margin: 5px 0;
+      color: #856404;
+    }
+
+    .footer {
+      background-color: #f8f9fa;
+      text-align: center;
+      padding: 20px;
+      font-size: 12px;
+      color: #6c757d;
+    }
+
+    @media only screen and (max-width: 600px) {
+      .container {
+        margin: 0;
+        border-radius: 0;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <div class="header">
+      <div class="icon">🎉</div>
+      <h1>Delivered Successfully!</h1>
+      <p>Your order has been delivered</p>
+    </div>
+
+    <div class="content">
+      <p>Dear {{customerName}},</p>
+
+      <div class="success-message">
+        <h2>✓ Your order has been delivered!</h2>
+        <p>We hope you love your purchase</p>
+      </div>
+
+      <div class="order-info">
+        <p><strong>Order Number:</strong> {{orderNumber}}</p>
+        <p><strong>Delivered On:</strong> {{deliveredDate}}</p>
+        <p><strong>Delivered To:</strong> {{deliveredTo}}</p>
+        {{#if trackingNumber}}
+        <p><strong>Tracking Number:</strong> {{trackingNumber}}</p>
+        {{/if}}
+      </div>
+
+      <div style="margin: 25px 0;">
+        <h3 style="color: #28a745; margin-bottom: 15px;">Delivered Items</h3>
+        {{#each items}}
+        <div class="item">
+          <div class="item-details">
+            <div class="item-name">{{this.name}}</div>
+            <div class="item-quantity">Quantity: {{this.quantity}}</div>
+          </div>
+        </div>
+        {{/each}}
+      </div>
+
+      <div class="feedback-section">
+        <h3>How was your experience?</h3>
+        <p>We'd love to hear your feedback about your purchase</p>
+        <a href="{{reviewUrl}}" class="button">Write a Review</a>
+      </div>
+
+      <div class="info-box">
+        <p><strong>📦 Need to return something?</strong></p>
+        <p>You have {{returnWindowDays}} days from delivery to initiate a return.</p>
+        <p style="margin-top: 10px;">
+          <a href="{{returnUrl}}" style="color: #856404; font-weight: 600;">Start a Return</a>
+        </p>
+      </div>
+
+      <div style="text-align: center; margin-top: 25px;">
+        <a href="{{orderDetailsUrl}}" class="button button-primary">View Order Details</a>
+      </div>
+
+      <p style="margin-top: 30px; color: #6c757d; font-size: 14px; text-align: center;">
+        Thank you for choosing us! We appreciate your business.
+      </p>
+    </div>
+
+    <div class="footer">
+      <p>Thank you for shopping with us!</p>
+      <p>If you have any questions, please contact our support team.</p>
+      <p>&copy; {{year}} {{companyName}}. All rights reserved.</p>
+    </div>
+  </div>
+</body>
+
+</html>
