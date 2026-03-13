@@ -1,7 +1,8 @@
 import {BindingScope, injectable} from '@loopback/core';
 import {repository} from '@loopback/repository';
 import {HttpErrors} from '@loopback/rest';
-import {OtpRepository, UsersRepository} from '../repositories';
+import {v4 as uuidv4} from 'uuid';
+import {MediaRepository, OtpRepository, UsersRepository} from '../repositories';
 import {BcryptHasher} from './hash.password.bcrypt';
 
 @injectable({scope: BindingScope.TRANSIENT})
@@ -11,13 +12,17 @@ export class UserProfileService {
     private usersRepository: UsersRepository,
     @repository(OtpRepository)
     private otpRepository: OtpRepository,
+    @repository(MediaRepository)
+    private mediaRepository: MediaRepository,
   ) { }
 
   /**
    * Get user profile by ID
    */
   async getUserProfile(userId: string) {
-    const user = await this.usersRepository.findById(userId);
+    const user = await this.usersRepository.findById(userId, {
+      include: ['avatar'],
+    }) as any;
 
     if (!user) {
       throw new HttpErrors.NotFound('User not found');
@@ -26,7 +31,13 @@ export class UserProfileService {
     // Return user without sensitive fields
     const {password, passwordHistory, ...profile} = user;
 
-    return profile;
+    // Include avatar URL if available
+    const result = {
+      ...profile,
+      avatar: user.avatar?.url || null,
+    };
+
+    return result;
   }
 
   /**
@@ -63,6 +74,65 @@ export class UserProfileService {
   }
 
   /**
+   * Update user avatar
+   */
+  async updateAvatar(userId: string, request: any) {
+    const user = await this.usersRepository.findById(userId);
+
+    if (!user) {
+      throw new HttpErrors.NotFound('User not found');
+    }
+
+    if (!user.isActive) {
+      throw new HttpErrors.BadRequest('User account is not active');
+    }
+
+    // Extract uploaded files from request
+    const uploadedFiles = request.files;
+    console.log('Uploaded files:', uploadedFiles);
+
+    if (!uploadedFiles || !Array.isArray(uploadedFiles) || uploadedFiles.length === 0) {
+      throw new HttpErrors.BadRequest('No avatar file uploaded');
+    }
+
+    const avatarFile = uploadedFiles[0]; // Get the first uploaded file
+    console.log('Avatar file:', avatarFile);
+
+    // Create media record with actual file details
+    const mediaId = uuidv4();
+    const fileUrl = `${process.env.API_ENDPOINT}/files/file/${avatarFile.filename}`;
+
+    console.log('Creating media record with URL:', fileUrl);
+
+    const media = await this.mediaRepository.create({
+      id: mediaId,
+      filename: avatarFile.filename,
+      originalName: avatarFile.originalname,
+      mimeType: avatarFile.mimetype,
+      size: avatarFile.size,
+      url: fileUrl,
+      folder: '/avatars',
+      uploadedBy: userId,
+    });
+
+    console.log('Created media record:', media);
+
+    // Update user with avatar relation
+    await this.usersRepository.updateById(userId, {
+      avatarId: media.id,
+      updatedAt: new Date(),
+    });
+
+    console.log('Updated user with avatarId:', media.id);
+
+    return {
+      success: true,
+      message: 'Avatar updated successfully',
+      avatarUrl: media.url,
+    };
+  }
+
+  /**
    * Initiate email update - sends OTP to new email
    */
   async initiateEmailUpdate(userId: string, newEmail: string, hasher: BcryptHasher) {
@@ -87,8 +157,8 @@ export class UserProfileService {
       {identifier: newEmail, type: 1},
     );
 
-    // Generate 6-digit OTP
-    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+    // Generate OTP - use hardcoded 1234 for testing in dev mode
+    const otpCode = (process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'dev') ? '1234' : Math.floor(1000 + Math.random() * 9000).toString();
 
     // Hash OTP before storing
     const hashedOtp = await hasher.hashPassword(otpCode);
@@ -213,8 +283,8 @@ export class UserProfileService {
       {identifier: newMobile, type: 0},
     );
 
-    // Generate 6-digit OTP
-    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+    // Generate OTP - use hardcoded 1234 for testing in dev mode
+    const otpCode = (process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'dev') ? '1234' : Math.floor(1000 + Math.random() * 9000).toString();
 
     // Hash OTP before storing
     const hashedOtp = await hasher.hashPassword(otpCode);

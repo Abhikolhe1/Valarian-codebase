@@ -1,5 +1,6 @@
 export * from './audit-log.controller';
 export * from './auth.controller';
+export * from './cart.controller';
 export * from './cms-media.controller';
 export * from './cms-navigation.controller';
 export * from './cms-pages.controller';
@@ -13,4 +14,6 @@ export * from './product.controller';
 export * from './public-product.controller';
 export * from './roles.controller';
 export * from './sitemap.controller';
+
+export * from './address.controller';
 

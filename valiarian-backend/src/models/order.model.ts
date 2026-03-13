@@ -17,8 +17,8 @@ export interface OrderItem {
   subtotal: number;
 }
 
-// Address Interface
-export interface Address {
+// Order Address Interface
+export interface OrderAddress {
   fullName: string;
   phone: string;
   email?: string;
@@ -204,7 +204,7 @@ export class Order extends Entity {
       dataType: 'jsonb',
     },
   })
-  billingAddress: Address;
+  billingAddress: OrderAddress;
 
   @property({
     type: 'object',
@@ -213,7 +213,7 @@ export class Order extends Entity {
       dataType: 'jsonb',
     },
   })
-  shippingAddress: Address;
+  shippingAddress: OrderAddress;
 
   @property({
     type: 'array',

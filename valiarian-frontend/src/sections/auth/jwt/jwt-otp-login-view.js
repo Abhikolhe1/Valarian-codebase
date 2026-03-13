@@ -70,14 +70,14 @@ export default function JwtOtpLoginView() {
         ? { email: identifierValue, sessionId: 'temp' } // Email needs sessionId
         : { phone: identifierValue, role: 'user' };
 
-      const response = await fetch(`${process.env.REACT_APP_HOST_API || 'http://localhost:3001'}${endpoint}`, {
+      const response = await fetch(`${process.env.REACT_APP_HOST_API}${endpoint}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringi
  : '/api/auth/verify-phone-otp';
-  const verifyResponse = await fetch(`${process.env.REACT_APP_HOST_API || 'http://localhost:3001'}${verifyEndpoint}`, {
+  const verifyResponse = await fetch(`${process.env.REACT_APP_HOST_API}${verifyEndpoint}`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -95,7 +95,7 @@ export default function JwtOtpLoginView() {
   }
 
   // Check if user exists
-  const checkUserResponse = await fetch(`${process.env.REACT_APP_HOST_API || 'http://localhost:3001'}/api/auth/check-user`, {
+  const checkUserResponse = await fetch(`${process.env.REACT_APP_HOST_API}/api/auth/check-user`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -109,7 +109,7 @@ export default function JwtOtpLoginView() {
 
   if (checkUserResult.exists) {
     // User exists - login with OTP
-    const loginResponse = await fetch(`${process.env.REACT_APP_HOST_API || 'http://localhost:3001'}/api/auth/user/otp-login`, {
+    const loginResponse = await fetch(`${process.env.REACT_APP_HOST_API}/api/auth/user/otp-login`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -127,13 +127,13 @@ export default function JwtOtpLoginView() {
     }
 
     // Store token and redirect
-    sessionStorage.setItem('accessToken', loginResult.accessToken);
-    sessionStorage.setItem('user', JSON.stringify(loginResult.user));
+    localStorage.setItem('accessToken', loginResult.accessToken);
+    localStorage.setItem('user', JSON.stringify(loginResult.user));
 
     router.push(returnTo || PATH_AFTER_LOGIN);
   } else {
     // New user - auto register
-    const registerResponse = await fetch(`${process.env.REACT_APP_HOST_API || 'http://localhost:3001'}/api/auth/user/register`, {
+    const registerResponse = await fetch(`${process.env.REACT_APP_HOST_API}/api/auth/user/register`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -153,8 +153,8 @@ export default function JwtOtpLoginView() {
     }
 
     // Store token and redirect
-    sessionStorage.setItem('accessToken', registerResult.accessToken);
-    sessionStorage.setItem('user', JSON.stringify(registerResult.user));
+    localStorage.setItem('accessToken', registerResult.accessToken);
+    localStorage.setItem('user', JSON.stringify(registerResult.user));
 
     router.push(returnTo || PATH_AFTER_LOGIN);
   }

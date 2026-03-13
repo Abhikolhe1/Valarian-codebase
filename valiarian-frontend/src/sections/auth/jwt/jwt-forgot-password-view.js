@@ -1,4 +1,5 @@
 import { yupResolver } from '@hookform/resolvers/yup';
+import * as Yup from 'yup';
 import LoadingButton from '@mui/lab/LoadingButton';
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
@@ -14,7 +15,8 @@ import FormProvider, { RHFTextField } from 'src/components/hook-form';
 import { useBoolean } from 'src/hooks/use-boolean';
 import { useRouter } from 'src/routes/hook';
 import { paths } from 'src/routes/paths';
-import * as Yup from 'yup';
+import axiosInstance from 'src/utils/axios';
+
 
 export default function JwtForgotPasswordView() {
   const [selectedOption, setSelectedOption] = useState(null);
@@ -58,16 +60,10 @@ function ChangePasswordForm({ onBack }) {
 
   const onSubmit = methods.handleSubmit(async (data) => {
     try {
-      const token = sessionStorage.getItem('accessToken');
-      const response = await fetch('http://localhost:3035/api/auth/update-password', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify(data),
-      });
-      if (!response.ok) throw new Error('Failed');
+      await axiosInstance.patch('/api/auth/update-password', data);
       router.push(paths.auth.jwt.login);
     } catch (error) {
-      setErrorMsg(error.message);
+      setErrorMsg(error.message || 'Failed to update password');
     }
   });
 
@@ -97,30 +93,28 @@ function ResetPasswordForm({ onBack }) {
 
   const sendOTP = methods1.handleSubmit(async (data) => {
     try {
-      const response = await fetch('http://localhost:3035/api/auth/forget-password/send-email-otp', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: data.identifier, role: 'user' }),
+      await axiosInstance.post('/api/auth/forget-password/send-email-otp', {
+        email: data.identifier,
+        role: 'user',
       });
-      if (!response.ok) throw new Error('Failed');
       setIdentifier(data.identifier);
       setStep(2);
     } catch (error) {
-      setErrorMsg(error.message);
+      setErrorMsg(error.message || 'Failed to send OTP');
     }
   });
 
   const resetPassword = methods2.handleSubmit(async (data) => {
     try {
-      const response = await fetch('http://localhost:3035/api/auth/forget-password/verify-email-otp', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: identifier, otp: data.otp, role: 'user', newPassword: data.newPassword }),
+      await axiosInstance.post('/api/auth/forget-password/verify-email-otp', {
+        email: identifier,
+        otp: data.otp,
+        role: 'user',
+        newPassword: data.newPassword,
       });
-      if (!response.ok) throw new Error('Failed');
       router.push(paths.auth.jwt.login);
     } catch (error) {
-      setErrorMsg(error.message);
+      setErrorMsg(error.message || 'Failed to reset password');
     }
   });
 

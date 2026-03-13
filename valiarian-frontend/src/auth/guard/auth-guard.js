@@ -1,8 +1,8 @@
 import PropTypes from 'prop-types';
-import { useEffect, useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 // routes
-import { paths } from 'src/routes/paths';
 import { useRouter } from 'src/routes/hook';
+import { paths } from 'src/routes/paths';
 //
 import { useAuthContext } from '../hooks';
 
@@ -40,8 +40,7 @@ export default function AuthGuard({ children }) {
 
   useEffect(() => {
     check();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [check]);
 
   if (!checked) {
     return null;

@@ -495,7 +495,7 @@ function applyFilter({ inputData, filters, sortBy }) {
       (product) =>
         product.category === category ||
         product.categorySlug === paramCase(category) ||
-        paramCase(product.category) === paramCase(category)
+        paramCase(product.category ?? '') === paramCase(category)
     );
   }
 

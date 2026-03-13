@@ -31,6 +31,7 @@ import { useGetSections } from 'src/api/cms-sections';
 import axiosInstance, { endpoints } from 'src/utils/axios';
 // components
 import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker';
+import { useGetPage } from 'src/api/cms-pages';
 import { ConfirmDialog } from 'src/components/custom-dialog';
 import FormProvider, {
   RHFAutocomplete,
@@ -38,7 +39,6 @@ import FormProvider, {
   RHFTextField,
 } from 'src/components/hook-form';
 import Iconify from 'src/components/iconify';
-import { useGetPage } from 'src/api/cms-pages';
 import { useSnackbar } from 'src/components/snackbar';
 import { useRouter } from 'src/routes/hook';
 import CMSSectionList from './cms-section-list';
@@ -640,7 +640,7 @@ export default function CMSPageNewEditForm({ currentPage }) {
             {currentPage && (
               <iframe
                 title="Page Preview"
-                src={`http://localhost:3000/${currentPage.slug}`}
+                src={`${process.env.REACT_APP_FRONTEND_URL}/${currentPage.slug}`}
                 style={{
                   width: '100%',
                   height: '100%',

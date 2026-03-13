@@ -9,7 +9,7 @@ const axiosInstance = axios.create({ baseURL: HOST_API });
 // Request interceptor - Add JWT token to all requests
 axiosInstance.interceptors.request.use(
   (config) => {
-    const accessToken = sessionStorage.getItem('accessToken');
+    const accessToken = localStorage.getItem('accessToken');
     if (accessToken) {
       config.headers.Authorization = `Bearer ${accessToken}`;
     }
@@ -19,41 +19,21 @@ axiosInstance.interceptors.request.use(
 );
 
 // Response interceptor - Handle errors and token refresh
+axiosInstance.interceptors.request.use(
+  (config) => {
+    const accessToken = localStorage.getItem('accessToken');
+    if (accessToken) {
+      config.headers.Authorization = `Bearer ${accessToken}`;
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
+
+// Response interceptor for error handling
 axiosInstance.interceptors.response.use(
   (res) => res,
-  async (error) => {
-    const originalRequest = error.config;
-
-    // Handle 401 Unauthorized
-    if (error.response?.status === 401 && !originalRequest._retry) {
-      originalRequest._retry = true;
-
-      try {
-        // Try to refresh the token
-        const response = await axios.post(`${HOST_API}/api/auth/user/refresh`, {}, {
-          withCredentials: true, // Send cookies for refresh token
-        });
-
-        const { accessToken } = response.data;
-
-        // Update session with new token
-        sessionStorage.setItem('accessToken', accessToken);
-        axiosInstance.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
-        originalRequest.headers.Authorization = `Bearer ${accessToken}`;
-
-        // Retry the original request
-        return axiosInstance(originalRequest);
-      } catch (refreshError) {
-        // Refresh failed, redirect to login
-        sessionStorage.removeItem('accessToken');
-        sessionStorage.removeItem('user');
-        window.location.href = '/auth/jwt/login';
-        return Promise.reject(refreshError);
-      }
-    }
-
-    return Promise.reject((error.response && error.response.data) || 'Something went wrong');
-  }
+  (error) => Promise.reject((error.response && error.response.data) || 'Something went wrong')
 );
 
 export default axiosInstance;
@@ -78,6 +58,9 @@ export const endpoints = {
     me: '/api/auth/me',
     login: '/api/auth/login',
     register: '/api/auth/register',
+  },
+  user: {
+    profile: '/api/users/profile',
   },
   mail: {
     list: '/api/mail/list',

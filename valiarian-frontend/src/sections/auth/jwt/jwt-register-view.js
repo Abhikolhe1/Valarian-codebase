@@ -123,7 +123,7 @@ export default function JwtRegisterView() {
       setRegistrationData(data);
 
       // Send OTP to mobile (required)
-      const response = await fetch(`${process.env.REACT_APP_HOST_API || 'http://localhost:3001'}/api/auth/send-phone-otp`, {
+      const response = await fetch(`${process.env.REACT_APP_HOST_API}/api/auth/send-phone-otp`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -153,7 +153,7 @@ export default function JwtRegisterView() {
   const handleOtpVerified = async (otp) => {
     try {
       // Verify OTP
-      const verifyResponse = await fetch(`${process.env.REACT_APP_HOST_API || 'http://localhost:3001'}/api/auth/verify-phone-otp`, {
+      const verifyResponse = await fetch(`${process.env.REACT_APP_HOST_API}/api/auth/verify-phone-otp`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -171,7 +171,7 @@ export default function JwtRegisterView() {
       }
 
       // Complete registration
-      const registerResponse = await fetch(`${process.env.REACT_APP_HOST_API || 'http://localhost:3001'}/api/auth/user/register`, {
+      const registerResponse = await fetch(`${process.env.REACT_APP_HOST_API}/api/auth/user/register`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -192,7 +192,7 @@ export default function JwtRegisterView() {
 
       // Auto-login: Store token and redirect
       if (registerResult.accessToken) {
-        sessionStorage.setItem('accessToken', registerResult.accessToken);
+        localStorage.setItem('accessToken', registerResult.accessToken);
         router.push(returnTo || PATH_AFTER_LOGIN);
       }
 

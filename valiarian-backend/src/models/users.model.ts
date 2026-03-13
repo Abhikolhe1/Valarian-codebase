@@ -1,4 +1,5 @@
-import {Entity, hasMany, model, property} from '@loopback/repository';
+import {belongsTo, Entity, hasMany, model, property} from '@loopback/repository';
+import {Media} from './media.model';
 import {Roles} from './roles.model';
 import {UserRoles} from './user-roles.model';
 
@@ -39,15 +40,13 @@ export class Users extends Entity {
 
   @property({
     type: 'string',
-    required: true,
   })
-  email: string;
+  email?: string;
 
   @property({
     type: 'string',
-    required: true,
   })
-  phone: string;
+  phone?: string;
 
   @property({
     type: 'string',
@@ -128,6 +127,9 @@ export class Users extends Entity {
   })
   googleId?: string;
 
+  @belongsTo(() => Media, {name: 'avatar'})
+  avatarId?: string;
+
   @property({
     type: 'string',
   })
@@ -147,6 +149,8 @@ export class Users extends Entity {
   }
 }
 
-export interface UsersRelations { }
+export interface UsersRelations {
+  avatar?: Media;
+}
 
 export type UsersWithRelations = Users & UsersRelations;

@@ -115,7 +115,7 @@ export default function OtpVerificationModal({ open, onClose, mobile, sessionId,
     setError('');
 
     try {
-      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:3001'}/api/auth/send-phone-otp`, {
+      const response = await fetch(`${process.env.REACT_APP_HOST_API}/api/auth/send-phone-otp`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

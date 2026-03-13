@@ -81,7 +81,9 @@ export default function Footer() {
       >
         <Grid container direction="row">
           <Grid item xs={12} md={6}>
-            <Stack direction="row" alignItems="center" spacing={1.5} mb={2}>
+            <Stack direction="row" alignItems="center" justifyContent={{ xs: 'center', md: 'flex-start' }}
+              spacing={1.5} mb={2} sx={{ textAlign: { xs: 'center', md: 'left' } }}
+            >
               <Box
                 component="img"
                 src={settings.general?.logo || '/logo/footer-logo.png'}

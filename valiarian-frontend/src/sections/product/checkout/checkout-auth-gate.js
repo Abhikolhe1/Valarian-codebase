@@ -182,7 +182,7 @@ export default function CheckoutAuthGate({ onNextStep, onBackStep }) {
           </Stack>
         </CardContent>
       </Card>
-    </Box>
+    </Box >
   );
 }
 

@@ -41,16 +41,16 @@ const DELIVERY_OPTIONS = [
     label: 'Free',
     description: '5-7 Days delivery',
   },
-  {
-    value: 10,
-    label: 'Standard',
-    description: '3-5 Days delivery',
-  },
-  {
-    value: 20,
-    label: 'Express',
-    description: '2-3 Days delivery',
-  },
+  // {
+  //   value: 10,
+  //   label: 'Standard',
+  //   description: '3-5 Days delivery',
+  // },
+  // {
+  //   value: 20,
+  //   label: 'Express',
+  //   description: '2-3 Days delivery',
+  // },
 ];
 
 const PAYMENT_OPTIONS = [
@@ -66,7 +66,7 @@ const PAYMENT_OPTIONS = [
   },
 ];
 
-const RAZORPAY_KEY_ID = process.env.REACT_APP_RAZORPAY_KEY_ID || 'rzp_test_key';
+const RAZORPAY_KEY_ID = process.env.REACT_APP_RAZORPAY_KEY_ID;
 
 export default function CheckoutPayment({
   checkout,

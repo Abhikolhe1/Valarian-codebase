@@ -1,4 +1,6 @@
 export * from './audit-log.repository';
+export * from './cart-items.repository';
+export * from './carts.repository';
 export * from './content-version.repository';
 export * from './media.repository';
 export * from './navigation-menu.repository';
@@ -17,4 +19,6 @@ export * from './section.repository';
 export * from './site-settings.repository';
 export * from './user-roles.repository';
 export * from './users.repository';
+
+export * from './address.repository';
 

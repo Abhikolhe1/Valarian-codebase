@@ -1,27 +1,27 @@
-import PropTypes from 'prop-types';
-import * as Yup from 'yup';
-import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
+import PropTypes from 'prop-types';
+import { useForm } from 'react-hook-form';
+import * as Yup from 'yup';
 // @mui
 import LoadingButton from '@mui/lab/LoadingButton';
 import Box from '@mui/material/Box';
-import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
 import Dialog from '@mui/material/Dialog';
-import DialogTitle from '@mui/material/DialogTitle';
 import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
+import DialogTitle from '@mui/material/DialogTitle';
+import Stack from '@mui/material/Stack';
 
 // assets
 import { countries } from 'src/assets/data';
 // components
-import Iconify from 'src/components/iconify';
 import FormProvider, {
-  RHFCheckbox,
-  RHFTextField,
-  RHFRadioGroup,
   RHFAutocomplete,
+  RHFCheckbox,
+  RHFRadioGroup,
+  RHFTextField,
 } from 'src/components/hook-form';
+import Iconify from 'src/components/iconify';
 
 // ----------------------------------------------------------------------
 
@@ -33,8 +33,14 @@ export default function AddressNewForm({ open, onClose, onCreate }) {
     city: Yup.string().required('City is required'),
     state: Yup.string().required('State is required'),
     country: Yup.string().required('Country is required'),
-    zipCode: Yup.string().required('Zip code is required'),
-    // not required
+    zipCode: Yup.number()
+      .transform((value, originalValue) =>
+        originalValue === '' ? undefined : Number(originalValue)
+      )
+      .typeError('Zip code must be a number')
+      .required('Zip code is required')
+      .min(100000)
+      .max(999999),
     addressType: Yup.string(),
     primary: Yup.boolean(),
   });
@@ -44,7 +50,7 @@ export default function AddressNewForm({ open, onClose, onCreate }) {
     city: '',
     state: '',
     address: '',
-    zipCode: '',
+    zipCode: undefined,
     primary: true,
     phoneNumber: '',
     addressType: 'Home',
@@ -66,10 +72,14 @@ export default function AddressNewForm({ open, onClose, onCreate }) {
       onCreate({
         name: data.name,
         phoneNumber: data.phoneNumber,
-        fullAddress: `${data.address}, ${data.city}, ${data.state}, ${data.country}, ${data.zipCode}`,
-        addressType: data.addressType,
-        primary: data.primary,
+        address: data.address,
+        city: data.city,
+        state: data.state,
+        country: data.country,
+        zipCode: Number(data.zipCode),
+        isPrimary: data.primary,
       });
+
       onClose();
     } catch (error) {
       console.error(error);
@@ -121,7 +131,12 @@ export default function AddressNewForm({ open, onClose, onCreate }) {
 
               <RHFTextField name="state" label="State" />
 
-              <RHFTextField name="zipCode" label="Zip/Code" />
+              <RHFTextField
+                name="zipCode"
+                label="Zip/Code"
+                type="number"
+                inputMode="numeric"
+              />
             </Box>
 
             <RHFAutocomplete

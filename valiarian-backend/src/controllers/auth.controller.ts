@@ -1,12 +1,13 @@
 import {authenticate, AuthenticationBindings} from '@loopback/authentication';
 import {inject} from '@loopback/core';
 import {repository} from '@loopback/repository';
-import {del, get, HttpErrors, param, patch, post, Request, requestBody, RestBindings} from '@loopback/rest';
+import {del, get, HttpErrors, param, patch, post, Request, requestBody, Response, RestBindings} from '@loopback/rest';
 import {securityId, UserProfile} from '@loopback/security';
 import * as crypto from 'crypto';
 import _ from 'lodash';
 import {v4 as uuidv4} from 'uuid';
 import {authorize} from '../authorization';
+import {FILE_UPLOAD_SERVICE} from '../keys';
 import {OtpRepository, RefreshTokenRepository, RegistrationSessionsRepository, RolesRepository, UserRolesRepository, UsersRepository} from '../repositories';
 import {CacheService} from '../services/cache.service';
 import {GoogleOAuthService} from '../services/google-oauth.service';
@@ -18,6 +19,7 @@ import {RateLimiterService} from '../services/rate-limiter.service';
 import {RbacService} from '../services/rbac.service';
 import {UserProfileService} from '../services/user-profile.service';
 import {MyUserService} from '../services/user-service';
+import {FileUploadHandler} from '../types';
 import {formatDeviceInfo, parseDeviceInfo} from '../utils/device-info.utils';
 import {sanitizeInput, validateAndCheckPassword, validateAndSanitizeEmail, validateAndSanitizeMobile} from '../utils/validation.utils';
 
@@ -57,6 +59,8 @@ export class AuthController {
     private cacheService: CacheService,
     @inject(RestBindings.Http.REQUEST)
     private request: Request,
+    @inject(FILE_UPLOAD_SERVICE)
+    private handler: FileUploadHandler,
   ) { }
 
   // Helper method to get client IP address
@@ -197,7 +201,7 @@ export class AuthController {
       [securityId]: user.id!,
       id: user.id!,
       email: user.email,
-      phone: user.phone,
+      phone: user.phone || '',
       roles,
       permissions,
     };
@@ -303,7 +307,8 @@ export class AuthController {
       where: {
         id: currentUser.id,
       },
-    });
+      include: ['avatar'],
+    }) as any;
 
     if (!user) {
       throw new HttpErrors.NotFound('User not found');
@@ -315,6 +320,7 @@ export class AuthController {
 
     return Promise.resolve({
       ...userData,
+      avatar: user.avatar?.url || null,
       roles: roles || currentUser?.roles || [],
       permissions: permissions || currentUser?.permissions || []
     });
@@ -633,14 +639,19 @@ export class AuthController {
       isActive: false,
     });
 
-    // Generate JWT token
+    // Get user roles and permissions using RBAC service
+    const {roles, permissions} = await this.rbacService.getUserRolesAndPermissions(newUser.id!);
+
+    // Generate JWT token with roles and permissions
     const userProfile = {
       [securityId]: newUser.id,
       id: newUser.id,
       email: newUser.email,
+      phoneNumber: newUser.phone,
       phone: newUser.phone,
       fullName: newUser.fullName,
-      role: session.roleValue,
+      roles,
+      permissions,
     };
 
     const token = await this.jwtService.generateToken(userProfile);
@@ -654,7 +665,8 @@ export class AuthController {
         fullName: newUser.fullName,
         email: newUser.email,
         phone: newUser.phone,
-        role: session.roleValue,
+        roles,
+        permissions,
       },
     };
   }
@@ -721,7 +733,7 @@ export class AuthController {
       [securityId]: userData.id!,
       id: userData.id!,
       email: userData.email,
-      phone: userData.phone,
+      phone: userData.phone || '',
       roles,
       permissions,
     };
@@ -860,7 +872,7 @@ export class AuthController {
       [securityId]: userData.id!,
       id: userData.id!,
       email: userData.email,
-      phone: userData.phone,
+      phone: userData.phone || '',
       roles,
       permissions,
     };
@@ -1723,6 +1735,30 @@ export class AuthController {
 
   @authenticate('jwt')
   @authorize({roles: ['user']})
+  @patch('/api/users/profile/avatar')
+  async updateAvatar(
+    @inject(AuthenticationBindings.CURRENT_USER) currentUser: UserProfile,
+    @requestBody.file() request: Request,
+    @inject(RestBindings.Http.RESPONSE) response: Response,
+  ): Promise<{success: boolean; message: string; avatarUrl?: string}> {
+    return new Promise((resolve, reject) => {
+      this.handler(request, response, async (err: any) => {
+        if (err) {
+          reject(new HttpErrors.InternalServerError('Avatar upload failed'));
+        } else {
+          try {
+            const result = await this.userProfileService.updateAvatar(currentUser.id, request);
+            resolve(result);
+          } catch (error) {
+            reject(error);
+          }
+        }
+      });
+    });
+  }
+
+  @authenticate('jwt')
+  @authorize({roles: ['user']})
   @post('/api/users/profile/email/send-otp')
   async sendEmailUpdateOtp(
     @inject(AuthenticationBindings.CURRENT_USER) currentUser: UserProfile,
@@ -1841,6 +1877,219 @@ export class AuthController {
   ): Promise<{success: boolean; message: string}> {
     return this.userProfileService.deleteAccount(currentUser.id);
   }
+
+  // ========================================
+  // OTP-Based Login (Unified)
+  // ========================================
+
+  @post('/api/auth/send-otp-login')
+  async sendOtpLogin(
+    @requestBody({
+      content: {
+        'application/json': {
+          schema: {
+            type: 'object',
+            required: ['identifier', 'type'],
+            properties: {
+              identifier: {type: 'string'},
+              type: {type: 'string', enum: ['email', 'phone']},
+            },
+          },
+        },
+      },
+    })
+    request: {identifier: string; type: 'email' | 'phone'},
+  ): Promise<{success: boolean; message: string; otpId: string; isNewUser: boolean}> {
+    try {
+      const {identifier, type} = request;
+
+      // Validate identifier
+      if (type === 'email') {
+        validateAndSanitizeEmail(identifier);
+      } else {
+        validateAndSanitizeMobile(identifier);
+      }
+
+      // Check if user exists (but don't throw error if not)
+      const whereClause = type === 'email' ? {email: identifier} : {phone: identifier};
+      const user = await this.usersRepository.findOne({where: whereClause});
+      const isNewUser = !user;
+
+      // For testing, use hardcoded OTP: 1234
+      const otpCode = '1234';
+      const otpType = type === 'email' ? 1 : 0;
+
+      // Store OTP in database
+      const otp = await this.otpRepository.create({
+        otp: otpCode,
+        type: otpType,
+        identifier,
+        attempts: 0,
+        isUsed: false,
+        expiresAt: new Date(Date.now() + 10 * 60 * 1000), // 10 minutes
+      });
+
+      // In production, send OTP via SMS/Email
+      // await this.otpNotificationService.sendOtp(identifier, otpCode, type);
+
+      return {
+        success: true,
+        message: `OTP sent to ${identifier}. For testing, use OTP: 1234`,
+        otpId: otp.id!,
+        isNewUser,
+      };
+    } catch (error) {
+      if (error instanceof HttpErrors.HttpError) {
+        throw error;
+      }
+      throw new HttpErrors.InternalServerError(`Failed to send OTP: ${error.message}`);
+    }
+  }
+
+  @post('/api/auth/verify-otp-login')
+  async verifyOtpLogin(
+    @requestBody({
+      content: {
+        'application/json': {
+          schema: {
+            type: 'object',
+            required: ['otpId', 'otp', 'identifier'],
+            properties: {
+              otpId: {type: 'string'},
+              otp: {type: 'string'},
+              identifier: {type: 'string'},
+            },
+          },
+        },
+      },
+    })
+    request: {otpId: string; otp: string; identifier: string},
+  ): Promise<{
+    success: boolean;
+    accessToken: string;
+    refreshToken: string;
+    user: any;
+    isNewUser: boolean;
+  }> {
+    try {
+      const {otpId, otp, identifier} = request;
+
+      // Verify OTP
+      const otpRecord = await this.otpRepository.findById(otpId);
+
+      if (!otpRecord) {
+        throw new HttpErrors.Unauthorized('Invalid OTP');
+      }
+
+      if (otpRecord.otp !== otp) {
+        throw new HttpErrors.Unauthorized('Invalid OTP');
+      }
+
+      if (otpRecord.isUsed) {
+        throw new HttpErrors.Unauthorized('OTP already used');
+      }
+
+      if (new Date() > otpRecord.expiresAt) {
+        throw new HttpErrors.Unauthorized('OTP has expired');
+      }
+
+      // Find or create user
+      const isEmail = identifier.includes('@');
+      const whereClause = isEmail ? {email: identifier} : {phone: identifier};
+      let user = await this.usersRepository.findOne({where: whereClause});
+      let isNewUser = false;
+
+      if (!user) {
+        // Auto-create user for e-commerce flow
+        isNewUser = true;
+
+        // Get or create 'user' role
+        let userRole = await this.rolesRepository.findOne({where: {value: 'user'}});
+        if (!userRole) {
+          userRole = await this.rolesRepository.create({
+            id: uuidv4(),
+            label: 'User',
+            value: 'user',
+            description: 'Regular user role',
+            isActive: true,
+          });
+        }
+
+        // Create new user with minimal information
+        const newUserData: any = {
+          id: uuidv4(),
+          password: await this.hasher.hashPassword(crypto.randomBytes(32).toString('hex')), // Random password
+          isActive: true,
+          isDeleted: false,
+        };
+
+        if (isEmail) {
+          newUserData.email = identifier;
+          newUserData.phone = ''; // Empty string instead of undefined
+          newUserData.fullName = identifier.split('@')[0]; // Use email prefix as temporary name
+          newUserData.isEmailVerified = true;
+          newUserData.isMobileVerified = false;
+        } else {
+          newUserData.phone = identifier;
+          newUserData.email = ''; // Empty string instead of undefined
+          newUserData.fullName = `User ${identifier.slice(-4)}`; // Use last 4 digits as temporary name
+          newUserData.isEmailVerified = false;
+          newUserData.isMobileVerified = true;
+        }
+
+        user = await this.usersRepository.create(newUserData);
+
+        // Assign user role
+        await this.userRolesRepository.create({
+          id: uuidv4(),
+          usersId: user.id,
+          rolesId: userRole.id,
+          isActive: true,
+        });
+      }
+
+      // Mark OTP as used
+      await this.otpRepository.updateById(otpId, {isUsed: true});
+
+      // Get user roles and permissions using RBAC service BEFORE generating token
+      const {roles, permissions} = await this.rbacService.getUserRolesAndPermissions(user.id!);
+
+      // Generate tokens with roles and permissions included
+      const userProfile = this.userService.convertToUserProfile(user, roles, permissions);
+      const accessToken = await this.jwtService.generateToken(userProfile);
+      const refreshToken = crypto.randomBytes(32).toString('hex');
+
+      // Store refresh token
+      await this.refreshTokenRepository.create({
+        id: uuidv4(),
+        userId: user.id,
+        token: refreshToken,
+        expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
+        deviceInfo: 'OTP Login',
+      });
+
+      return {
+        success: true,
+        accessToken,
+        refreshToken,
+        user: {
+          id: user.id,
+          email: user.email,
+          fullName: user.fullName,
+          phone: user.phone,
+          roles,
+          permissions,
+        },
+        isNewUser,
+      };
+    } catch (error) {
+      if (error instanceof HttpErrors.HttpError) {
+        throw error;
+      }
+      throw new HttpErrors.InternalServerError(`Failed to verify OTP: ${error.message}`);
+    }
+  }
 }
+
 
 

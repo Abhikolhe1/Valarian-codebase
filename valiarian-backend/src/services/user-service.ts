@@ -46,12 +46,15 @@ export class MyUserService implements UserService<Users, Credentials> {
     return user;
   }
 
-  convertToUserProfile(user: Users): UserProfile {
+  convertToUserProfile(user: Users, roles: string[] = [], permissions: string[] = []): UserProfile {
     return {
       [securityId]: user.id!,
       id: user.id!,
       email: user.email,
+      phoneNumber: user.phone,
       name: user.email,
+      roles,
+      permissions,
     };
   }
 }

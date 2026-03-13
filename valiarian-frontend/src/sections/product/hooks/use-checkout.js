@@ -1,24 +1,24 @@
 import { useCallback } from 'react';
 // redux
-import { useDispatch, useSelector } from 'src/redux/store';
 import {
-  gotoStep,
-  nextStep,
-  backStep,
   addToCart,
-  resetCart,
-  deleteCart,
-  createBilling,
   applyDiscount,
   applyShipping,
-  increaseQuantity,
+  backStep,
+  createBilling,
   decreaseQuantity,
+  deleteCart,
+  gotoStep,
+  increaseQuantity,
+  nextStep,
+  resetCart,
 } from 'src/redux/slices/checkout';
+import { useDispatch, useSelector } from 'src/redux/store';
 // _mock
 import { PRODUCT_CHECKOUT_STEPS } from 'src/_mock/_product';
 // routes
-import { paths } from 'src/routes/paths';
 import { useRouter } from 'src/routes/hook';
+import { paths } from 'src/routes/paths';
 
 // ----------------------------------------------------------------------
 

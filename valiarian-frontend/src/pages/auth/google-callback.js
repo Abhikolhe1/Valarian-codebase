@@ -8,6 +8,8 @@ import Container from '@mui/material/Container';
 import Typography from '@mui/material/Typography';
 // config
 import { PATH_AFTER_LOGIN } from 'src/config-global';
+import { useAuthContext } from 'src/auth/hooks';
+// auth
 
 // ----------------------------------------------------------------------
 
@@ -15,6 +17,7 @@ export default function GoogleCallbackPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [error, setError] = useState('');
+  const { otpLogin } = useAuthContext();
 
   useEffect(() => {
     const handleCallback = async () => {
@@ -46,14 +49,11 @@ export default function GoogleCallbackPage() {
       }
 
       try {
-        // Store JWT token
-        sessionStorage.setItem('accessToken', token);
+        // Parse user data
+        const user = userParam ? JSON.parse(decodeURIComponent(userParam)) : null;
 
-        // Store user data
-        if (userParam) {
-          const user = JSON.parse(decodeURIComponent(userParam));
-          sessionStorage.setItem('user', JSON.stringify(user));
-        }
+        // Update auth context with token and user data
+        await otpLogin(token, user);
 
         // TODO: Merge guest cart with user cart
         // This will be implemented when cart merge functionality is ready
@@ -70,7 +70,7 @@ export default function GoogleCallbackPage() {
     };
 
     handleCallback();
-  }, [searchParams, router]);
+  }, [searchParams, otpLogin, router]);
 
   return (
     <Container>

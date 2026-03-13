@@ -16,6 +16,7 @@ function jwtDecode(token) {
       .join('')
   );
 
+  console.log('JSON.parse(jsonPayload)', JSON.parse(jsonPayload));
   return JSON.parse(jsonPayload);
 }
 
@@ -36,40 +37,78 @@ export const isValidToken = (accessToken) => {
 // ----------------------------------------------------------------------
 
 export const tokenExpired = (exp) => {
-  // eslint-disable-next-line prefer-const
-  let expiredTimer;
+  if (!exp) {
+    console.error('Token expiration time (exp) is missing');
+    return;
+  }
 
   const currentTime = Date.now();
+  const expTime = exp * 1000; // Convert to milliseconds
+  const timeLeft = expTime - currentTime;
 
-  // Test token expires after 10s
-  // const timeLeft = currentTime + 10000 - currentTime; // ~10s
-  const timeLeft = exp * 1000 - currentTime;
+  console.log('Token expiration check:', {
+    exp,
+    expTime,
+    expDate: new Date(expTime).toLocaleString(),
+    currentTime,
+    currentDate: new Date(currentTime).toLocaleString(),
+    timeLeft,
+    timeLeftMinutes: Math.floor(timeLeft / 1000 / 60),
+    timeLeftHours: Math.floor(timeLeft / 1000 / 60 / 60),
+    timeLeftDays: Math.floor(timeLeft / 1000 / 60 / 60 / 24),
+  });
 
-  clearTimeout(expiredTimer);
-
-  expiredTimer = setTimeout(() => {
+  // If token is already expired
+  if (timeLeft <= 0) {
+    console.error('Token is already expired!');
     alert('Token expired');
-
-    sessionStorage.removeItem('accessToken');
-
+    localStorage.removeItem('accessToken');
     window.location.href = paths.auth.jwt.login;
-  }, timeLeft);
+    return;
+  }
+
+  // If token will expire in less than 1 minute, show warning but don't redirect yet
+  if (timeLeft < 60000) {
+    console.warn('Token will expire in less than 1 minute');
+  }
+
+  // Set timeout to show alert when token expires
+  // Note: setTimeout has a maximum delay of ~24.8 days (2^31-1 milliseconds)
+  const maxTimeout = 2147483647; // Maximum setTimeout value
+  const timeoutDelay = Math.min(timeLeft, maxTimeout);
+
+  console.log('Setting token expiration timeout for:', timeoutDelay, 'ms');
+
+  const expiredTimer = setTimeout(() => {
+    console.log('Token has expired, redirecting to login');
+    alert('Token expired');
+    localStorage.removeItem('accessToken');
+    window.location.href = paths.auth.jwt.login;
+  }, timeoutDelay);
+
+  // Store timer ID so it can be cleared if needed
+  if (typeof window !== 'undefined') {
+    window.__tokenExpirationTimer = expiredTimer;
+  }
 };
 
 // ----------------------------------------------------------------------
 
 export const setSession = (accessToken) => {
+  console.log('session token', accessToken);
+
   if (accessToken) {
-    sessionStorage.setItem('accessToken', accessToken);
+    localStorage.setItem('accessToken', accessToken);
 
     axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
 
-    // This function below will handle when token is expired
-    const { exp } = jwtDecode(accessToken); // ~3 days by valiarian server
-    tokenExpired(exp);
-  } else {
-    sessionStorage.removeItem('accessToken');
+    const decoded = jwtDecode(accessToken);
 
+    if (decoded?.exp) {
+      tokenExpired(decoded.exp);
+    }
+  } else {
+    localStorage.removeItem('accessToken');
     delete axios.defaults.headers.common.Authorization;
   }
 };
