@@ -30,4 +30,12 @@ export class ValiarianDataSource extends juggler.DataSource
   ) {
     super(dsConfig);
   }
+
+  async execute(
+    command: string | any,
+    parameters?: any[] | any,
+    options?: any,
+  ): Promise<any> {
+    return super.execute(command, parameters, options);
+  }
 }

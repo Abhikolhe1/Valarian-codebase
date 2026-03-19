@@ -35,6 +35,7 @@
     "seed:50products": "npm run build && node ./dist/scripts/seed-50-products.js",
     "seed:50products-variants": "npm run build && node ./dist/scripts/seed-50-products-with-variants.js",
     "seed:user-role": "npm run build && node ./dist/scripts/seed-user-role.js",
+    "seed:categories": "npm run build && node ./dist/scripts/seed-categories.js",
     "seed:test-orders": "npm run build && node ./dist/scripts/seed-test-orders.js",
     "migrate:variants": "npm run build && node ./dist/scripts/migrate-to-variants.js",
     "migrate:variants:dry": "npm run build && node ./dist/scripts/migrate-to-variants.js --dry-run",

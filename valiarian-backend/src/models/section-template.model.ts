@@ -13,7 +13,7 @@ import {Entity, model, property} from '@loopback/repository';
       nameIdx: {
         keys: {name: 1},
       },
-      createdAtIdx: {
+      sectionTemplatesCreatedAtIdx: {
         keys: {createdAt: -1},
       },
     },
@@ -97,16 +97,42 @@ export class SectionTemplate extends Entity {
   })
   schema?: object;
 
-  @property({
-    type: 'date',
-    defaultFn: 'now',
-  })
-  createdAt?: Date;
+  
 
   @property({
     type: 'string',
   })
   createdBy?: string;
+
+  
+  @property({
+    type: 'boolean',
+    default: true,
+  })
+  isActive: boolean;
+
+  @property({
+    type: 'boolean',
+    default: false,
+  })
+  isDeleted: boolean;
+
+  @property({
+    type: 'date',
+    defaultFn: 'now',
+  })
+  createdAt: Date;
+
+  @property({
+    type: 'date',
+    defaultFn: 'now',
+  })
+  updatedAt: Date;
+
+  @property({
+    type: 'date',
+  })
+  deletedAt: Date;
 
   constructor(data?: Partial<SectionTemplate>) {
     super(data);

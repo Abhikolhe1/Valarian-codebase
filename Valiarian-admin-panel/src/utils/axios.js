@@ -42,6 +42,15 @@ export const endpoints = {
   chat: '/api/chat',
   kanban: '/api/kanban',
   calendar: '/api/calendar',
+  category: {
+    list: '/api/categories',
+    details: '/api/categories',
+    tree: '/api/categories/tree',
+  },
+  parentCategory: {
+    list: '/api/parent-categories',
+    details: '/api/parent-categories',
+  },
   auth: {
     me: '/api/auth/me',
     login: '/api/auth/login',

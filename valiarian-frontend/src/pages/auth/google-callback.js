@@ -6,10 +6,9 @@ import Box from '@mui/material/Box';
 import CircularProgress from '@mui/material/CircularProgress';
 import Container from '@mui/material/Container';
 import Typography from '@mui/material/Typography';
-// config
-import { PATH_AFTER_LOGIN } from 'src/config-global';
 import { useAuthContext } from 'src/auth/hooks';
 // auth
+import { resolveAuthRedirect } from 'src/utils/auth-redirect';
 
 // ----------------------------------------------------------------------
 
@@ -55,11 +54,8 @@ export default function GoogleCallbackPage() {
         // Update auth context with token and user data
         await otpLogin(token, user);
 
-        // TODO: Merge guest cart with user cart
-        // This will be implemented when cart merge functionality is ready
-
-        // Redirect to home or cart
-        router.push(PATH_AFTER_LOGIN);
+        // Redirect to the original destination when available
+        router.push(resolveAuthRedirect(searchParams));
       } catch (err) {
         console.error('Google OAuth error:', err);
         setError('Failed to process authentication. Redirecting...');

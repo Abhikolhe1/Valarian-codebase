@@ -1,6 +1,8 @@
 import {expect} from '@loopback/testlab';
 import {
   detectInputType,
+  isValidUuid,
+  sanitizeUuid,
   sanitizeInput,
   validateAndCheckPassword,
   validateAndSanitizeEmail,
@@ -11,6 +13,60 @@ import {
 } from '../../../utils/validation.utils';
 
 describe('Validation Utils (unit)', () => {
+  describe('sanitizeUuid', () => {
+    const validUuid = '729d3e61-25bc-469f-9bbe-84cec46a9fbd';
+
+    it('returns null for null or undefined', () => {
+      expect(sanitizeUuid(null)).to.be.null();
+      expect(sanitizeUuid(undefined)).to.be.null();
+    });
+
+    it('returns null for empty string or whitespace', () => {
+      expect(sanitizeUuid('')).to.be.null();
+      expect(sanitizeUuid('   ')).to.be.null();
+    });
+
+    it('trims whitespace', () => {
+      expect(sanitizeUuid(`  ${validUuid}  `)).to.equal(validUuid);
+    });
+
+    it('strips single pair of double quotes', () => {
+      expect(sanitizeUuid(`"${validUuid}"`)).to.equal(validUuid);
+    });
+
+    it('strips multiple pairs of double quotes', () => {
+      expect(sanitizeUuid(`""${validUuid}""`)).to.equal(validUuid);
+      expect(sanitizeUuid(`"""${validUuid}"""`)).to.equal(validUuid);
+    });
+
+    it('strips single pair of single quotes', () => {
+      expect(sanitizeUuid(`'${validUuid}'`)).to.equal(validUuid);
+    });
+
+    it('strips mixed quotes and whitespace', () => {
+      expect(sanitizeUuid(` " '${validUuid}' " `)).to.equal(validUuid);
+    });
+
+    it('handles non-UUID strings by just cleaning them', () => {
+      expect(sanitizeUuid('"some-garbage"')).to.equal('some-garbage');
+    });
+  });
+
+  describe('isValidUuid', () => {
+    it('validates correct UUID v4 format', () => {
+      expect(isValidUuid('729d3e61-25bc-469f-9bbe-84cec46a9fbd')).to.be.true();
+      expect(isValidUuid('BFF527BA-5A3D-4AD1-8971-477D9539D773')).to.be.true();
+    });
+
+    it('rejects invalid UUID format', () => {
+      expect(isValidUuid('invalid')).to.be.false();
+      expect(isValidUuid('729d3e61-25bc-469f-9bbe-84cec46a9fbd-extra')).to.be.false();
+      expect(isValidUuid('729d3e6125bc469f9bbe84cec46a9fbd')).to.be.false();
+      expect(isValidUuid('')).to.be.false();
+      expect(isValidUuid(null)).to.be.false();
+    });
+  });
+
   describe('validateEmail', () => {
     it('validates correct email format', () => {
       expect(validateEmail('test@example.com')).to.be.true();

@@ -126,6 +126,18 @@ export function useNavData() {
               { title: t('Create'), path: paths.dashboard.product.new },
             ],
           },
+          // CATEGORY
+          {
+            title: t('Categories'),
+            path: paths.dashboard.category.root,
+            icon: ICONS.label,
+            children: [
+              { title: t('Category List'), path: paths.dashboard.category.list },
+              { title: t('Create Category'), path: paths.dashboard.category.new },
+              { title: t('Parent Category List'), path: paths.dashboard.parentCategory.list },
+              { title: t('Create Parent Category'), path: paths.dashboard.parentCategory.new },
+            ],
+          },
           // ORDER
           {
             title: t('Orders'),

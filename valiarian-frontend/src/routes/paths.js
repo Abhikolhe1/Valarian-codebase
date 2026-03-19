@@ -40,8 +40,9 @@ export const paths = {
   profile: '/profile',
   order: {
     history: '/orders/history',
-    tracking: (id) => `/orders/tracking/${id}`,
+    confirmation: (id) => `/orders/confirmation/${id}`,
     details: (id) => `/orders/${id}`,
+    tracking: (id) => `/orders/${id}/tracking`,
   },
   product: {
     root: `/products`,

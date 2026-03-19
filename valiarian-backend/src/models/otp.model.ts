@@ -63,17 +63,39 @@ export class Otp extends Entity {
   })
   isUsed?: boolean;
 
+  
+
+  
+  
   @property({
-    type: 'date',
-    defaultFn: 'now',
+    type: 'boolean',
+    default: true,
   })
-  createdAt?: Date;
+  isActive: boolean;
+
+  @property({
+    type: 'boolean',
+    default: false,
+  })
+  isDeleted: boolean;
 
   @property({
     type: 'date',
     defaultFn: 'now',
   })
-  updatedAt?: Date;
+  createdAt: Date;
+
+  @property({
+    type: 'date',
+    defaultFn: 'now',
+  })
+  updatedAt: Date;
+
+  @property({
+    type: 'date',
+  })
+  deletedAt: Date;
+
   constructor(data?: Partial<Otp>) {
     super(data);
   }

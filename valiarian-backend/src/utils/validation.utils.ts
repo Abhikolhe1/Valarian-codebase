@@ -49,6 +49,38 @@ export function validatePasswordStrength(password: string): {
 }
 
 /**
+ * Sanitize UUID string by trimming whitespace and stripping repeated quotes.
+ * Handles cases like: "uuid", ""uuid"", 'uuid', etc.
+ */
+export function sanitizeUuid(value: any): string | null {
+  if (!value) {
+    return null;
+  }
+
+  let sanitized = String(value).trim();
+
+  while (true) {
+    const cleaned = sanitized.replace(/^['"]+|['"]+$/g, '').trim();
+    if (cleaned === sanitized) {
+      break;
+    }
+    sanitized = cleaned;
+  }
+
+  return sanitized || null;
+}
+
+/**
+ * Validate UUID format (v4)
+ */
+export function isValidUuid(uuid: string | null | undefined): boolean {
+  if (!uuid) return false;
+  const uuidRegex =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  return uuidRegex.test(uuid);
+}
+
+/**
  * Sanitize input to prevent XSS
  */
 export function sanitizeInput(input: string): string {

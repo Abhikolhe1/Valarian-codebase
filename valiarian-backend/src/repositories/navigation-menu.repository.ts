@@ -1,40 +1,37 @@
-import {inject} from '@loopback/core';
+import {Constructor, inject} from '@loopback/core';
 import {DefaultCrudRepository} from '@loopback/repository';
 import {ValiarianDataSource} from '../datasources';
 import {NavigationMenu, NavigationMenuRelations} from '../models';
+import {TimeStampRepositoryMixin} from '../mixins/timestamp-repository-mixin';
 
-export class NavigationMenuRepository extends DefaultCrudRepository<
+export class NavigationMenuRepository extends TimeStampRepositoryMixin<
   NavigationMenu,
   typeof NavigationMenu.prototype.id,
-  NavigationMenuRelations
-> {
+  Constructor<
+    DefaultCrudRepository<
+      NavigationMenu,
+      typeof NavigationMenu.prototype.id,
+      NavigationMenuRelations
+    >
+  >
+>(DefaultCrudRepository) {
   constructor(
     @inject('datasources.valiarian') dataSource: ValiarianDataSource,
   ) {
     super(NavigationMenu, dataSource);
   }
 
-  /**
-   * Find navigation menu by location
-   * @param location - Menu location (header, footer, sidebar, mobile)
-   * @returns Navigation menu or null
-   */
   async findByLocation(
     location: NavigationMenu['location'],
   ): Promise<NavigationMenu | null> {
     return this.findOne({
-      where: {location, enabled: true},
+      where: {location, enabled: true, isDeleted: false},
     });
   }
 
-  /**
-   * Find all enabled navigation menus
-   * @returns Array of enabled navigation menus
-   */
   async findEnabled(): Promise<NavigationMenu[]> {
     return this.find({
-      where: {enabled: true},
-      order: ['location ASC'],
+      where: {enabled: true, isDeleted: false},
     });
   }
 }

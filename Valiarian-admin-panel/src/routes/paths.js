@@ -131,6 +131,18 @@ export const paths = {
         edit: `${ROOTS.DASHBOARD}/product/${MOCK_ID}/edit`,
       },
     },
+    category: {
+      root: `${ROOTS.DASHBOARD}/category`,
+      new: `${ROOTS.DASHBOARD}/category/new`,
+      list: `${ROOTS.DASHBOARD}/category/list`,
+      edit: (id) => `${ROOTS.DASHBOARD}/category/${id}/edit`,
+    },
+    parentCategory: {
+      root: `${ROOTS.DASHBOARD}/parent-category`,
+      new: `${ROOTS.DASHBOARD}/parent-category/new`,
+      list: `${ROOTS.DASHBOARD}/parent-category/list`,
+      edit: (id) => `${ROOTS.DASHBOARD}/parent-category/${id}/edit`,
+    },
     invoice: {
       root: `${ROOTS.DASHBOARD}/invoice`,
       new: `${ROOTS.DASHBOARD}/invoice/new`,

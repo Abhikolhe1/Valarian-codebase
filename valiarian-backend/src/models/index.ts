@@ -1,5 +1,8 @@
 export * from './address.model';
 export * from './audit-log.model';
+export * from './parent-category.model';
+export * from './category.model';
+export * from './category-product.model';
 export * from './cart-items.model';
 export * from './carts.model';
 export * from './content-version.model';
@@ -11,6 +14,7 @@ export * from './otp.model';
 export * from './page.model';
 export * from './permissions.model';
 export * from './product.model';
+export * from './product-variant.model';
 export * from './refresh-token.model';
 export * from './registration-sessions.model';
 export * from './role-permissions.model';

@@ -1,13 +1,20 @@
-import {inject} from '@loopback/core';
+import {Constructor, inject} from '@loopback/core';
 import {DefaultCrudRepository} from '@loopback/repository';
 import {ValiarianDataSource} from '../datasources';
 import {AuditLog, AuditLogRelations} from '../models';
+import {TimeStampRepositoryMixin} from '../mixins/timestamp-repository-mixin';
 
-export class AuditLogRepository extends DefaultCrudRepository<
+export class AuditLogRepository extends TimeStampRepositoryMixin<
   AuditLog,
   typeof AuditLog.prototype.id,
-  AuditLogRelations
-> {
+  Constructor<
+    DefaultCrudRepository<
+      AuditLog,
+      typeof AuditLog.prototype.id,
+      AuditLogRelations
+    >
+  >
+>(DefaultCrudRepository) {
   constructor(
     @inject('datasources.valiarian') dataSource: ValiarianDataSource,
   ) {

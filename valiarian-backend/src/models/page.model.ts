@@ -113,17 +113,9 @@ export class Page extends Entity {
   })
   version: number;
 
-  @property({
-    type: 'date',
-    defaultFn: 'now',
-  })
-  createdAt?: Date;
+  
 
-  @property({
-    type: 'date',
-    defaultFn: 'now',
-  })
-  updatedAt?: Date;
+  
 
   @property({
     type: 'string',
@@ -140,6 +132,36 @@ export class Page extends Entity {
 
   @hasMany(() => ContentVersion, {keyTo: 'pageId'})
   versions: ContentVersion[];
+
+  
+  @property({
+    type: 'boolean',
+    default: true,
+  })
+  isActive: boolean;
+
+  @property({
+    type: 'boolean',
+    default: false,
+  })
+  isDeleted: boolean;
+
+  @property({
+    type: 'date',
+    defaultFn: 'now',
+  })
+  createdAt: Date;
+
+  @property({
+    type: 'date',
+    defaultFn: 'now',
+  })
+  updatedAt: Date;
+
+  @property({
+    type: 'date',
+  })
+  deletedAt: Date;
 
   constructor(data?: Partial<Page>) {
     super(data);

@@ -49,17 +49,9 @@ export class ContentVersion extends Entity {
   })
   content: object;
 
-  @property({
-    type: 'date',
-    defaultFn: 'now',
-  })
-  createdAt?: Date;
+  
 
-  @property({
-    type: 'date',
-    defaultFn: 'now',
-  })
-  updatedAt?: Date;
+  
 
   @property({
     type: 'string',
@@ -70,6 +62,36 @@ export class ContentVersion extends Entity {
     type: 'string',
   })
   comment?: string;
+
+  
+  @property({
+    type: 'boolean',
+    default: true,
+  })
+  isActive: boolean;
+
+  @property({
+    type: 'boolean',
+    default: false,
+  })
+  isDeleted: boolean;
+
+  @property({
+    type: 'date',
+    defaultFn: 'now',
+  })
+  createdAt: Date;
+
+  @property({
+    type: 'date',
+    defaultFn: 'now',
+  })
+  updatedAt: Date;
+
+  @property({
+    type: 'date',
+  })
+  deletedAt: Date;
 
   constructor(data?: Partial<ContentVersion>) {
     super(data);

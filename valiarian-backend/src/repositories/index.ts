@@ -1,6 +1,8 @@
 export * from './audit-log.repository';
 export * from './cart-items.repository';
 export * from './carts.repository';
+export * from './parent-category.repository';
+export * from './category.repository';
 export * from './content-version.repository';
 export * from './media.repository';
 export * from './navigation-menu.repository';
@@ -10,6 +12,7 @@ export * from './otp.repository';
 export * from './page.repository';
 export * from './permissions.repository';
 export * from './product.repository';
+export * from './product-variant.repository';
 export * from './refresh-token.repository';
 export * from './registration-sessions.repository';
 export * from './role-permissions.repository';

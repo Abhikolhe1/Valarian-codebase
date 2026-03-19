@@ -4,21 +4,12 @@ import { HOST_API } from 'src/config-global';
 
 // ----------------------------------------------------------------------
 
-const axiosInstance = axios.create({ baseURL: HOST_API });
+const axiosInstance = axios.create({
+  baseURL: HOST_API,
+  withCredentials: true,
+});
 
 // Request interceptor - Add JWT token to all requests
-axiosInstance.interceptors.request.use(
-  (config) => {
-    const accessToken = localStorage.getItem('accessToken');
-    if (accessToken) {
-      config.headers.Authorization = `Bearer ${accessToken}`;
-    }
-    return config;
-  },
-  (error) => Promise.reject(error)
-);
-
-// Response interceptor - Handle errors and token refresh
 axiosInstance.interceptors.request.use(
   (config) => {
     const accessToken = localStorage.getItem('accessToken');
@@ -33,7 +24,19 @@ axiosInstance.interceptors.request.use(
 // Response interceptor for error handling
 axiosInstance.interceptors.response.use(
   (res) => res,
-  (error) => Promise.reject((error.response && error.response.data) || 'Something went wrong')
+  (error) => {
+    if (error.response) {
+      error.status = error.response.status;
+      error.statusCode = error.response.status;
+      error.data = error.response.data;
+
+      if (error.response.data?.message) {
+        error.message = error.response.data.message;
+      }
+    }
+
+    return Promise.reject(error);
+  }
 );
 
 export default axiosInstance;
@@ -61,6 +64,10 @@ export const endpoints = {
   },
   user: {
     profile: '/api/users/profile',
+  },
+  category: {
+    list: '/api/categories',
+    tree: '/api/categories/tree',
   },
   mail: {
     list: '/api/mail/list',

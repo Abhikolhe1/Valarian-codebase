@@ -30,6 +30,8 @@ const ProductCheckoutPage = lazy(() => import('src/pages/product/checkout'));
 // FAVORITES
 const FavoritesPage = lazy(() => import('src/pages/favorites'));
 // ORDERS
+const OrderConfirmationPage = lazy(() => import('src/pages/order-confirmation'));
+const OrderDetailsPage = lazy(() => import('src/pages/order-details'));
 const OrderHistoryPage = lazy(() => import('src/pages/order-history'));
 const OrderTrackingPage = lazy(() => import('src/pages/order-tracking'));
 // USER
@@ -74,6 +76,14 @@ export const mainRoutes = [
         path: 'orders',
         children: [
           {
+            path: 'confirmation/:orderId',
+            element: (
+              <AuthGuard>
+                <OrderConfirmationPage />
+              </AuthGuard>
+            ),
+          },
+          {
             path: 'history',
             element: (
               <AuthGuard>
@@ -82,7 +92,15 @@ export const mainRoutes = [
             ),
           },
           {
-            path: 'tracking/:id',
+            path: ':id',
+            element: (
+              <AuthGuard>
+                <OrderDetailsPage />
+              </AuthGuard>
+            ),
+          },
+          {
+            path: ':id/tracking',
             element: (
               <AuthGuard>
                 <OrderTrackingPage />
@@ -99,11 +117,7 @@ export const mainRoutes = [
           { path: ':id', element: <ProductDetailsPage /> },
           {
             path: 'checkout',
-            element: (
-              <AuthGuard>
-                <ProductCheckoutPage />
-              </AuthGuard>
-            ),
+            element: <ProductCheckoutPage />,
           },
         ],
       },

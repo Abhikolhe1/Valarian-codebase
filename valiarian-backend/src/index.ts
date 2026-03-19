@@ -33,7 +33,7 @@ if (require.main === module) {
       },
       // CORS configuration
       cors: {
-        origin: process.env.CORS_ORIGIN || '*',
+        origin: true,
         methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
         credentials: true,
         maxAge: 86400, // 24 hours

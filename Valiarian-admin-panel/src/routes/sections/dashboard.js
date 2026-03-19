@@ -21,6 +21,13 @@ const ProductDetailsPage = lazy(() => import('src/pages/dashboard/product/detail
 const ProductListPage = lazy(() => import('src/pages/dashboard/product/list'));
 const ProductCreatePage = lazy(() => import('src/pages/dashboard/product/new'));
 const ProductEditPage = lazy(() => import('src/pages/dashboard/product/edit'));
+// CATEGORY
+const CategoryListPage = lazy(() => import('src/pages/dashboard/category/list'));
+const CategoryCreatePage = lazy(() => import('src/pages/dashboard/category/new'));
+const CategoryEditPage = lazy(() => import('src/pages/dashboard/category/edit'));
+const ParentCategoryListPage = lazy(() => import('src/pages/dashboard/parent-category/list'));
+const ParentCategoryCreatePage = lazy(() => import('src/pages/dashboard/parent-category/new'));
+const ParentCategoryEditPage = lazy(() => import('src/pages/dashboard/parent-category/edit'));
 // ORDER
 const OrderListPage = lazy(() => import('src/pages/orders/orders-list'));
 const OrderDetailsPage = lazy(() => import('src/pages/orders/order-details'));
@@ -112,6 +119,24 @@ export const dashboardRoutes = [
           { path: ':id', element: <ProductDetailsPage /> },
           { path: 'new', element: <ProductCreatePage /> },
           { path: ':id/edit', element: <ProductEditPage /> },
+        ],
+      },
+      {
+        path: 'category',
+        children: [
+          { element: <CategoryListPage />, index: true },
+          { path: 'list', element: <CategoryListPage /> },
+          { path: 'new', element: <CategoryCreatePage /> },
+          { path: ':id/edit', element: <CategoryEditPage /> },
+        ],
+      },
+      {
+        path: 'parent-category',
+        children: [
+          { element: <ParentCategoryListPage />, index: true },
+          { path: 'list', element: <ParentCategoryListPage /> },
+          { path: 'new', element: <ParentCategoryCreatePage /> },
+          { path: ':id/edit', element: <ParentCategoryEditPage /> },
         ],
       },
       {

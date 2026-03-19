@@ -21,7 +21,6 @@ import {UserRoles} from './user-roles.model';
     },
   },
 })
-
 export class Users extends Entity {
   @property({
     type: 'string',
@@ -94,35 +93,6 @@ export class Users extends Entity {
   passwordChangedAt?: Date;
 
   @property({
-    type: 'boolean',
-    default: true,
-  })
-  isActive?: boolean;
-
-  @property({
-    type: 'boolean',
-    default: false,
-  })
-  isDeleted?: boolean;
-
-  @property({
-    type: 'date',
-    defaultFn: 'now',
-  })
-  createdAt?: Date;
-
-  @property({
-    type: 'date',
-    defaultFn: 'now',
-  })
-  updatedAt?: Date;
-
-  @property({
-    type: 'date',
-  })
-  deletedAt?: Date;
-
-  @property({
     type: 'string',
   })
   googleId?: string;
@@ -143,6 +113,46 @@ export class Users extends Entity {
 
   @hasMany(() => Roles, {through: {model: () => UserRoles}})
   roles: Roles[];
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+  @property({
+    type: 'boolean',
+    default: true,
+  })
+  isActive: boolean;
+
+  @property({
+    type: 'boolean',
+    default: false,
+  })
+  isDeleted: boolean;
+
+  @property({
+    type: 'date',
+    defaultFn: 'now',
+  })
+  createdAt: Date;
+
+  @property({
+    type: 'date',
+    defaultFn: 'now',
+  })
+  updatedAt: Date;
+
+  @property({
+    type: 'date',
+  })
+  deletedAt: Date;
 
   constructor(data?: Partial<Users>) {
     super(data);

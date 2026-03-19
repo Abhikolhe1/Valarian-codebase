@@ -110,22 +110,44 @@ export class Media extends Entity {
   })
   tags?: string[];
 
-  @property({
-    type: 'date',
-    defaultFn: 'now',
-  })
-  createdAt?: Date;
+  
 
-  @property({
-    type: 'date',
-    defaultFn: 'now',
-  })
-  updatedAt?: Date;
+  
 
   @property({
     type: 'string',
   })
   uploadedBy?: string;
+
+  
+  @property({
+    type: 'boolean',
+    default: true,
+  })
+  isActive: boolean;
+
+  @property({
+    type: 'boolean',
+    default: false,
+  })
+  isDeleted: boolean;
+
+  @property({
+    type: 'date',
+    defaultFn: 'now',
+  })
+  createdAt: Date;
+
+  @property({
+    type: 'date',
+    defaultFn: 'now',
+  })
+  updatedAt: Date;
+
+  @property({
+    type: 'date',
+  })
+  deletedAt: Date;
 
   constructor(data?: Partial<Media>) {
     super(data);

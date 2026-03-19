@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
-import useSWR, { mutate } from 'swr';
+import useSWR from 'swr';
 // utils
-import axios, { endpoints, fetcher } from 'src/utils/axios';
+import { endpoints, fetcher } from 'src/utils/axios';
 
 // ----------------------------------------------------------------------
 
@@ -34,22 +34,4 @@ export function useGetTemplates(params) {
   );
 
   return memoizedValue;
-}
-
-// ----------------------------------------------------------------------
-
-export async function createTemplate(templateData) {
-  const res = await axios.post(URL, templateData);
-
-  mutate(URL);
-
-  return res.data;
-}
-
-// ----------------------------------------------------------------------
-
-export async function deleteTemplate(templateId) {
-  await axios.delete(endpoints.cms.templates.details(templateId));
-
-  mutate(URL);
 }
