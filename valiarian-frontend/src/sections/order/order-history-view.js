@@ -36,6 +36,9 @@ export default function OrderHistoryView() {
   const [orders, setOrders] = useState([]);
   const [error, setError] = useState(null);
 
+  const getErrorMessage = (err) =>
+    err?.response?.data?.message || err?.data?.message || err?.message || 'Failed to load orders';
+
   // Redirect to login if not authenticated
   useEffect(() => {
     if (!authenticated) {
@@ -55,17 +58,21 @@ export default function OrderHistoryView() {
         const ordersData = response.data.orders || [];
 
         // Sort orders in reverse chronological order (newest first)
-        const sortedOrders = ordersData.sort((a, b) =>
-          new Date(b.createdAt) - new Date(a.createdAt)
+        const sortedOrders = ordersData.sort(
+          (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
         );
 
         setOrders(sortedOrders);
       } catch (err) {
         console.error('Error loading orders:', err);
-        setError(err.message || 'Failed to load orders');
+        setError(getErrorMessage(err));
 
         // If 404, just show empty state
-        if (err.status === 404 || err.statusCode === 404) {
+        if (
+          err?.response?.status === 404 ||
+          err?.status === 404 ||
+          err?.statusCode === 404
+        ) {
           setOrders([]);
           setError(null);
         }
@@ -127,6 +134,7 @@ export default function OrderHistoryView() {
               variant="contained"
               startIcon={<Iconify icon="eva:shopping-bag-fill" />}
               onClick={() => router.push(paths.product.root)}
+              sx={{ mt: { xs: 2, md: 4 } }}
             >
               Start Shopping
             </Button>
@@ -153,16 +161,7 @@ export default function OrderHistoryView() {
 // ----------------------------------------------------------------------
 
 function OrderCard({ order, onViewOrder, onTrackOrder }) {
-  const {
-    orderNumber,
-    createdAt,
-    status,
-    total,
-    items = [],
-    subtotal,
-    shipping,
-    discount,
-  } = order;
+  const { orderNumber, createdAt, status, total, items = [], subtotal, shipping, discount } = order;
 
   const getStatusColor = (orderStatus) => {
     switch (orderStatus) {

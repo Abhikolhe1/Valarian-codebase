@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 // @mui
 import Box from '@mui/material/Box';
@@ -6,48 +6,59 @@ import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
 import Container from '@mui/material/Container';
 import Divider from '@mui/material/Divider';
-import Grid from '@mui/material/Unstable_Grid2';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
-import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import Grid from '@mui/material/Unstable_Grid2';
+// routes
+import { paths } from 'src/routes/paths';
 // utils
 import axios from 'src/utils/axios';
 import { fCurrency } from 'src/utils/format-number';
-import { fDate } from 'src/utils/format-time';
+import { fDateTime } from 'src/utils/format-time';
 // components
 import Iconify from 'src/components/iconify';
-import Image from 'src/components/image';
+import { useSettingsContext } from 'src/components/settings';
 
 // ----------------------------------------------------------------------
+
+const getErrorMessage = (error) =>
+  error?.response?.data?.message || error?.data?.message || error?.message || 'Failed to load order';
 
 export default function OrderConfirmationView() {
   const { orderId } = useParams();
   const navigate = useNavigate();
+  const settings = useSettingsContext();
+
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  useEffect(() => {
-    const fetchOrder = async () => {
-      try {
-        const response = await axios.get(`/api/orders/${orderId}`);
-        setOrder(response.data.order);
-      } catch (err) {
-        console.error('Error fetching order:', err);
-        setError(err.response?.data?.message || 'Failed to load order details');
-      } finally {
-        setLoading(false);
-      }
-    };
+  const fetchOrder = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
 
-    if (orderId) {
-      fetchOrder();
+      const response = await axios.get(`/api/orders/${orderId}`);
+      setOrder(response.data.order);
+    } catch (fetchError) {
+      console.error('Error fetching confirmed order:', fetchError);
+      setError(getErrorMessage(fetchError));
+    } finally {
+      setLoading(false);
     }
   }, [orderId]);
 
+  useEffect(() => {
+    if (orderId) {
+      fetchOrder();
+    }
+  }, [orderId, fetchOrder]);
+
+  const themeStretch = settings.themeStretch;
+
   if (loading) {
     return (
-      <Container sx={{ py: 10, textAlign: 'center' }}>
+      <Container maxWidth={themeStretch ? false : 'lg'} sx={{ py: 10 }}>
         <Typography>Loading order details...</Typography>
       </Container>
     );
@@ -55,180 +66,146 @@ export default function OrderConfirmationView() {
 
   if (error || !order) {
     return (
-      <Container sx={{
-        py: 10,
-        success.main', mb: 2 }} />
-          <Typography variant = "h3" gutterBottom>
-            Order Placed Successfully!
+      <Container maxWidth={themeStretch ? false : 'lg'} sx={{ py: 10 }}>
+        <Card sx={{ p: 4 }}>
+          <Stack spacing={2}>
+            <Typography variant="h5">We couldn&apos;t load this order</Typography>
+            <Typography color="text.secondary">{error || 'Order not found'}</Typography>
+            <Stack direction="row" spacing={2}>
+              <Button variant="contained" onClick={() => navigate(paths.order.history)}>
+                Go to Order History
+              </Button>
+              <Button variant="outlined" onClick={() => navigate(paths.product.root)}>
+                Continue Shopping
+              </Button>
+            </Stack>
+          </Stack>
+        </Card>
+      </Container>
+    );
+  }
+
+  const paymentLabel =
+    order.paymentMethod === 'razorpay' ? 'Online Payment' : 'Cash on Delivery';
+
+  return (
+    <Container maxWidth={themeStretch ? false : 'lg'} sx={{ py: { xs: 5, md: 8 } }}>
+      <Stack spacing={3}>
+        <Card sx={{ p: { xs: 3, md: 5 }, textAlign: 'center' }}>
+          <Iconify icon="solar:check-circle-bold-duotone" width={72} height={72} sx={{ color: 'success.main', mb: 2 }} />
+          <Typography variant="h3" gutterBottom>
+            Order placed successfully
           </Typography>
-          <Typography variant="body1" color="text.secondary" sx={{ mb: 2 }}>
-            Thank you for your order. We've received your order and will process it shortly.
+          <Typography color="text.secondary" sx={{ maxWidth: 560, mx: 'auto', mb: 2 }}>
+            Your order has been received and is now in our system. You can track progress from
+            your order history at any time.
           </Typography>
-          <Typography variant="h6" color="primary">
+          <Typography variant="h6" color="primary.main">
             Order #{order.orderNumber}
           </Typography>
-        </ Card>
+        </Card>
 
         <Grid container spacing={3}>
-          {/* Order Details */}
           <Grid xs={12} md={8}>
             <Card sx={{ p: 3 }}>
-              <Typography variant="h6" gutterBottom>
-                Order Details
-              </Typography>
-              <Divider sx={{ my: 2 }} />
+              <Stack spacing={2.5}>
+                <Typography variant="h6">Order snapshot</Typography>
+                <Divider />
 
-              <Stack spacing={2}>
                 <Stack direction="row" justifyContent="space-between">
-                  <Typography variant="body2" color="text.secondary">
-                    Order Date
-                  </Typography>
-                  <Typography variant="body2">
-                    {fDate(order.createdAt)}
-                  </Typography>
+                  <Typography color="text.secondary">Placed on</Typography>
+                  <Typography>{fDateTime(order.createdAt)}</Typography>
                 </Stack>
 
                 <Stack direction="row" justifyContent="space-between">
-                  <Typography variant="body2" color="text.secondary">
-                    Status
-                  </Typography>
-                  <Typography variant="body2" sx={{ textTransform: 'capitalize' }}>
-                    {order.status}
-                  </Typography>
+                  <Typography color="text.secondary">Order status</Typography>
+                  <Typography sx={{ textTransform: 'capitalize' }}>{order.status}</Typography>
                 </Stack>
 
                 <Stack direction="row" justifyContent="space-between">
-                  <Typography variant="body2" color="text.secondary">
-                    Payment Method
-                  </Typography>
-                  <Typography variant="body2" sx={{ textTransform: 'capitalize' }}>
-                    {order.paymentMethod === 'razorpay' ? 'Online Payment' : 'Cash on Delivery'}
-                  </Typography>
+                  <Typography color="text.secondary">Payment method</Typography>
+                  <Typography>{paymentLabel}</Typography>
                 </Stack>
 
                 <Stack direction="row" justifyContent="space-between">
-                  <Typography variant="body2" color="text.secondary">
-                    Payment Status
-                  </Typography>
-                  <Typography variant="body2" sx={{ textTransform: 'capitalize' }}>
+                  <Typography color="text.secondary">Payment status</Typography>
+                  <Typography sx={{ textTransform: 'capitalize' }}>
                     {order.paymentStatus}
                   </Typography>
                 </Stack>
-
-                {order.estimatedDelivery && (
-                  <Stack direction="row" justifyContent="space-between">
-                    <Typography variant="body2" color="text.secondary">
-                      Estimated Delivery
-                    </Typography>
-                    <Typography variant="body2">
-                      {fDate(order.estimatedDelivery)}
-                    </Typography>
-                  </Stack>
-                )}
               </Stack>
+            </Card>
 
-              <Divider sx={{ my: 3 }} />
-
+            <Card sx={{ p: 3, mt: 3 }}>
               <Typography variant="h6" gutterBottom>
-                Order Items
+                Items
               </Typography>
+              <Divider sx={{ mb: 3 }} />
 
-              <Stack spacing={2} sx={{ mt: 2 }}>
-                {order.items.map((item) => (
-                  <Stack key={item.id} direction="row" spacing={2}>
-                    <Image
-                      src={item.image}
-                      sx={{ width: 64, height: 64, borderRadius: 1, flexShrink: 0 }}
+              <Stack spacing={2.5}>
+                {order.items?.map((item) => (
+                  <Stack key={item.id} direction="row" spacing={2} alignItems="center">
+                    <Box
+                      component="img"
+                      src={item.image || '/assets/placeholder.svg'}
+                      alt={item.name}
+                      sx={{
+                        width: 72,
+                        height: 72,
+                        borderRadius: 1.5,
+                        objectFit: 'cover',
+                        flexShrink: 0,
+                      }}
                     />
-                    <Stack spacing={0.5} sx={{ flex: 1 }}>
+
+                    <Box sx={{ flexGrow: 1, minWidth: 0 }}>
                       <Typography variant="subtitle2">{item.name}</Typography>
-                      {item.colorName && (
-                        <Typography variant="caption" color="text.secondary">
-                          Color: {item.colorName}
+                      {(item.colorName || item.size) && (
+                        <Typography variant="body2" color="text.secondary">
+                          {[item.colorName, item.size].filter(Boolean).join(' • ')}
                         </Typography>
                       )}
-                      {item.size && (
-                        <Typography variant="caption" color="text.secondary">
-                          Size: {item.size}
-                        </Typography>
-                      )}
-                      <Typography variant="caption" color="text.secondary">
+                      <Typography variant="body2" color="text.secondary">
                         Qty: {item.quantity}
                       </Typography>
-                    </Stack>
-                    <Typography variant="subtitle2">
-                      {fCurrency(item.subtotal)}
-                    </Typography>
+                    </Box>
+
+                    <Typography variant="subtitle2">{fCurrency(item.subtotal)}</Typography>
                   </Stack>
                 ))}
               </Stack>
             </Card>
-
-            {/* Shipping Address */}
-            <Card sx={{ p: 3, mt: 3 }}>
-              <Typography variant="h6" gutterBottom>
-                Shipping Address
-              </Typography>
-              <Divider sx={{ my: 2 }} />
-              <Typography variant="body2">{order.shippingAddress.fullName}</Typography>
-              <Typography variant="body2" color="text.secondary">
-                {order.shippingAddress.address}
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                {order.shippingAddress.city}, {order.shippingAddress.state}{' '}
-                {order.shippingAddress.zipCode}
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                {order.shippingAddress.country}
-              </Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                Phone: {order.shippingAddress.phone}
-              </Typography>
-            </Card>
           </Grid>
 
-          {/* Order Summary */}
           <Grid xs={12} md={4}>
             <Card sx={{ p: 3 }}>
               <Typography variant="h6" gutterBottom>
-                Order Summary
+                Order summary
               </Typography>
-              <Divider sx={{ my: 2 }} />
+              <Divider sx={{ mb: 3 }} />
 
               <Stack spacing={1.5}>
                 <Stack direction="row" justifyContent="space-between">
-                  <Typography variant="body2" color="text.secondary">
-                    Subtotal
-                  </Typography>
-                  <Typography variant="body2">{fCurrency(order.subtotal)}</Typography>
+                  <Typography color="text.secondary">Subtotal</Typography>
+                  <Typography>{fCurrency(order.subtotal)}</Typography>
                 </Stack>
 
-                {order.discount > 0 && (
-                  <Stack direction="row" justifyContent="space-between">
-                    <Typography variant="body2" color="text.secondary">
-                      Discount
-                    </Typography>
-                    <Typography variant="body2" color="error.main">
-                      -{fCurrency(order.discount)}
-                    </Typography>
-                  </Stack>
-                )}
+                <Stack direction="row" justifyContent="space-between">
+                  <Typography color="text.secondary">Discount</Typography>
+                  <Typography color={order.discount ? 'error.main' : 'text.primary'}>
+                    {order.discount ? `- ${fCurrency(order.discount)}` : '-'}
+                  </Typography>
+                </Stack>
 
                 <Stack direction="row" justifyContent="space-between">
-                  <Typography variant="body2" color="text.secondary">
-                    Shipping
-                  </Typography>
-                  <Typography variant="body2">
-                    {order.shipping === 0 ? 'Free' : fCurrency(order.shipping)}
-                  </Typography>
+                  <Typography color="text.secondary">Shipping</Typography>
+                  <Typography>{order.shipping ? fCurrency(order.shipping) : 'Free'}</Typography>
                 </Stack>
 
                 {order.tax > 0 && (
                   <Stack direction="row" justifyContent="space-between">
-                    <Typography variant="body2" color="text.secondary">
-                      Tax
-                    </Typography>
-                    <Typography variant="body2">{fCurrency(order.tax)}</Typography>
+                    <Typography color="text.secondary">Tax</Typography>
+                    <Typography>{fCurrency(order.tax)}</Typography>
                   </Stack>
                 )}
 
@@ -236,20 +213,39 @@ export default function OrderConfirmationView() {
 
                 <Stack direction="row" justifyContent="space-between">
                   <Typography variant="subtitle1">Total</Typography>
-                  <Typography variant="subtitle1" color="primary">
+                  <Typography variant="subtitle1" color="primary.main">
                     {fCurrency(order.total)}
                   </Typography>
                 </Stack>
               </Stack>
             </Card>
 
-            {/* Action Buttons */}
+            <Card sx={{ p: 3, mt: 3 }}>
+              <Typography variant="h6" gutterBottom>
+                Delivery address
+              </Typography>
+              <Divider sx={{ mb: 3 }} />
+
+              <Stack spacing={0.75}>
+                <Typography variant="subtitle2">{order.shippingAddress?.fullName}</Typography>
+                <Typography color="text.secondary">{order.shippingAddress?.address}</Typography>
+                <Typography color="text.secondary">
+                  {order.shippingAddress?.city}, {order.shippingAddress?.state}{' '}
+                  {order.shippingAddress?.zipCode}
+                </Typography>
+                <Typography color="text.secondary">{order.shippingAddress?.country}</Typography>
+                <Typography color="text.secondary">
+                  Phone: {order.shippingAddress?.phone || '-'}
+                </Typography>
+              </Stack>
+            </Card>
+
             <Stack spacing={2} sx={{ mt: 3 }}>
               <Button
                 fullWidth
                 variant="contained"
                 startIcon={<Iconify icon="eva:eye-outline" />}
-                onClick={() => navigate(`/orders/${order.id}`)}
+                onClick={() => navigate(paths.order.details(order.id))}
               >
                 View Order Details
               </Button>
@@ -258,22 +254,18 @@ export default function OrderConfirmationView() {
                 fullWidth
                 variant="outlined"
                 startIcon={<Iconify icon="eva:navigation-2-outline" />}
-                onClick={() => navigate(`/orders/${order.id}/tracking`)}
+                onClick={() => navigate(paths.order.tracking(order.id))}
               >
                 Track Order
               </Button>
 
-              <Button
-                fullWidth
-                variant="text"
-                onClick={() => navigate('/products')}
-              >
+              <Button fullWidth variant="text" onClick={() => navigate(paths.product.root)}>
                 Continue Shopping
               </Button>
             </Stack>
           </Grid>
         </Grid>
       </Stack>
-    </Container >
+    </Container>
   );
-  }
+}

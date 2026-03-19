@@ -307,24 +307,42 @@ export class Order extends Entity {
   notes?: string;
 
   // Timestamps
-  @property({
-    type: 'date',
-    defaultFn: 'now',
-  })
-  createdAt?: Date;
+  
 
-  @property({
-    type: 'date',
-    defaultFn: 'now',
-  })
-  updatedAt?: Date;
+  
 
   // Soft Delete
+  
+
+  
+  @property({
+    type: 'boolean',
+    default: true,
+  })
+  isActive: boolean;
+
   @property({
     type: 'boolean',
     default: false,
   })
   isDeleted: boolean;
+
+  @property({
+    type: 'date',
+    defaultFn: 'now',
+  })
+  createdAt: Date;
+
+  @property({
+    type: 'date',
+    defaultFn: 'now',
+  })
+  updatedAt: Date;
+
+  @property({
+    type: 'date',
+  })
+  deletedAt: Date;
 
   constructor(data?: Partial<Order>) {
     super(data);

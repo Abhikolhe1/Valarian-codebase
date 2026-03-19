@@ -107,6 +107,12 @@ export default function OrderTrackingView() {
   const [tracking, setTracking] = useState(null);
   const [error, setError] = useState(null);
 
+  const getErrorMessage = (err) =>
+    err?.response?.data?.message ||
+    err?.data?.message ||
+    err?.message ||
+    'Failed to load tracking information';
+
   // Redirect to login if not authenticated
   useEffect(() => {
     if (!authenticated) {
@@ -126,7 +132,7 @@ export default function OrderTrackingView() {
         setTracking(response.data.tracking);
       } catch (err) {
         console.error('Error loading tracking information:', err);
-        setError(err.message || 'Failed to load tracking information');
+        setError(getErrorMessage(err));
       } finally {
         setLoading(false);
       }
