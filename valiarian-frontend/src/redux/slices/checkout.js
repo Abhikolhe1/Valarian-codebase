@@ -1,7 +1,12 @@
 import { createSlice } from '@reduxjs/toolkit';
-import sum from 'lodash/sum';
 import uniq from 'lodash/uniq';
-import uniqBy from 'lodash/uniqBy';
+import {
+  calculateCheckoutTotals,
+  clampCartQuantity,
+  getCartItemKey,
+  isCartItemMatch,
+  normalizeCartItem,
+} from 'src/utils/cart-utils';
 
 // ----------------------------------------------------------------------
 
@@ -16,57 +21,64 @@ const initialState = {
   totalItems: 0,
 };
 
+const applyCartState = (state, cart) => {
+  const { cart: normalizedCart, subTotal, total, totalItems } = calculateCheckoutTotals(
+    cart,
+    state.discount,
+    state.shipping
+  );
+
+  state.cart = normalizedCart;
+  state.discount = state.discount || 0;
+  state.shipping = state.shipping || 0;
+  state.billing = state.billing || null;
+  state.subTotal = subTotal;
+  state.total = total;
+  state.totalItems = totalItems;
+};
+
 const slice = createSlice({
   name: 'checkout',
   initialState,
   reducers: {
     getCart(state, action) {
-      const cart = action.payload;
-
-      const totalItems = sum(cart.map((product) => product.quantity));
-
-      const subTotal = sum(cart.map((product) => product.price * product.quantity));
-
-      state.cart = cart;
-      state.discount = state.discount || 0;
-      state.shipping = state.shipping || 0;
-      state.billing = state.billing || null;
-      state.subTotal = subTotal;
-      state.total = subTotal - state.discount;
-      state.totalItems = totalItems;
+      applyCartState(state, action.payload);
     },
 
     addToCart(state, action) {
-      const newProduct = action.payload;
+      const newProduct = normalizeCartItem(action.payload);
 
-      const cartEmpty = !state.cart.length;
-
-      if (cartEmpty) {
-        state.cart = [...state.cart, newProduct];
-      } else {
-        state.cart = state.cart.map((product) => {
-          const existProduct = product.id === newProduct.id;
-
-          if (existProduct) {
-            return {
-              ...product,
-              colors: uniq([...product.colors, ...newProduct.colors]),
-              quantity: product.quantity + 1,
-            };
-          }
-
-          return product;
-        });
+      if (!newProduct) {
+        return;
       }
 
-      state.cart = uniqBy([...state.cart, newProduct], 'id');
-      state.totalItems = sum(state.cart.map((product) => product.quantity));
+      const existingIndex = state.cart.findIndex(
+        (product) => getCartItemKey(product) === getCartItemKey(newProduct)
+      );
+
+      const updatedCart = [...state.cart];
+
+      if (existingIndex >= 0) {
+        const existingProduct = updatedCart[existingIndex];
+        updatedCart[existingIndex] = {
+          ...existingProduct,
+          available: newProduct.available || existingProduct.available,
+          colors: uniq([...(existingProduct.colors || []), ...(newProduct.colors || [])]),
+          quantity: clampCartQuantity(
+            existingProduct.quantity + newProduct.quantity,
+            newProduct.available || existingProduct.available
+          ),
+        };
+      } else {
+        updatedCart.push(newProduct);
+      }
+
+      applyCartState(state, updatedCart);
     },
 
     deleteCart(state, action) {
-      const updateCart = state.cart.filter((product) => product.id !== action.payload);
-
-      state.cart = updateCart;
+      const updatedCart = state.cart.filter((product) => !isCartItemMatch(product, action.payload));
+      applyCartState(state, updatedCart);
     },
 
     resetCart(state) {
@@ -81,7 +93,7 @@ const slice = createSlice({
     },
 
     backStep(state) {
-      state.activeStep -= 1;
+      state.activeStep = Math.max(0, state.activeStep - 1);
     },
 
     nextStep(state) {
@@ -93,35 +105,35 @@ const slice = createSlice({
     },
 
     increaseQuantity(state, action) {
-      const productId = action.payload;
-
-      const updateCart = state.cart.map((product) => {
-        if (product.id === productId) {
-          return {
-            ...product,
-            quantity: product.quantity + 1,
-          };
+      const updatedCart = state.cart.map((product) => {
+        if (!isCartItemMatch(product, action.payload)) {
+          return product;
         }
-        return product;
+
+        return {
+          ...product,
+          quantity: clampCartQuantity(product.quantity + 1, product.available),
+        };
       });
 
-      state.cart = updateCart;
+      applyCartState(state, updatedCart);
     },
 
     decreaseQuantity(state, action) {
-      const productId = action.payload;
+      const updatedCart = state.cart
+        .map((product) => {
+          if (!isCartItemMatch(product, action.payload)) {
+            return product;
+          }
 
-      const updateCart = state.cart.map((product) => {
-        if (product.id === productId) {
           return {
             ...product,
-            quantity: product.quantity - 1,
+            quantity: Math.max(1, product.quantity - 1),
           };
-        }
-        return product;
-      });
+        })
+        .filter(Boolean);
 
-      state.cart = updateCart;
+      applyCartState(state, updatedCart);
     },
 
     createBilling(state, action) {

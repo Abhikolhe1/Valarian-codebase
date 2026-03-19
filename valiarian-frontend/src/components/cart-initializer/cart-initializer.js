@@ -5,7 +5,8 @@ import { useAuthContext } from 'src/auth/hooks';
 import { getCart } from 'src/redux/slices/checkout';
 import { useDispatch } from 'src/redux/store';
 // utils
-import { loadCartOnInit } from 'src/utils/cart-initialization';
+import { hasGuestCart } from 'src/utils/cart-persistence';
+import { loadCartOnInit, loadCartOnLogin } from 'src/utils/cart-initialization';
 
 // ----------------------------------------------------------------------
 
@@ -14,8 +15,16 @@ export default function CartInitializer({ children }) {
   const dispatch = useDispatch();
 
   useEffect(() => {
-    // Initialize cart on app start
-    loadCartOnInit(authenticated, user?.id, dispatch, getCart);
+    const initializeCart = async () => {
+      if (authenticated && user?.id && hasGuestCart()) {
+        await loadCartOnLogin(user.id, dispatch, getCart);
+        return;
+      }
+
+      await loadCartOnInit(authenticated, user?.id, dispatch, getCart);
+    };
+
+    initializeCart();
   }, [authenticated, user?.id, dispatch]);
 
   return children;

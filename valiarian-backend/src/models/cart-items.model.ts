@@ -58,28 +58,37 @@ export class CartItems extends Entity {
   })
   quantity: number;
 
-  @property({
-    type: 'date',
-    default: () => new Date(),
-    postgresql: {
-      columnName: 'created_at',
-      dataType: 'timestamp with time zone',
-    },
-  })
-  createdAt?: Date;
-
-  @property({
-    type: 'date',
-    default: () => new Date(),
-    postgresql: {
-      columnName: 'updated_at',
-      dataType: 'timestamp with time zone',
-    },
-  })
-  updatedAt?: Date;
-
   @belongsTo(() => Product, {name: 'product'})
   product: Product;
+
+  @property({
+    type: 'boolean',
+    default: true,
+  })
+  isActive: boolean;
+
+  @property({
+    type: 'boolean',
+    default: false,
+  })
+  isDeleted: boolean;
+
+  @property({
+    type: 'date',
+    defaultFn: 'now',
+  })
+  createdAt: Date;
+
+  @property({
+    type: 'date',
+    defaultFn: 'now',
+  })
+  updatedAt: Date;
+
+  @property({
+    type: 'date',
+  })
+  deletedAt: Date;
 
   constructor(data?: Partial<CartItems>) {
     super(data);

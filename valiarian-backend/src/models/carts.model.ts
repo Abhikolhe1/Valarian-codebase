@@ -28,38 +28,37 @@ export class Carts extends Entity {
   })
   userId: string;
 
+  @hasMany(() => CartItems, {keyTo: 'cartId'})
+  cartItems: CartItems[];
+
   @property({
     type: 'boolean',
     default: true,
-    postgresql: {
-      columnName: 'is_active',
-      dataType: 'boolean',
-    },
   })
-  isActive?: boolean;
+  isActive: boolean;
+
+  @property({
+    type: 'boolean',
+    default: false,
+  })
+  isDeleted: boolean;
 
   @property({
     type: 'date',
-    default: () => new Date(),
-    postgresql: {
-      columnName: 'created_at',
-      dataType: 'timestamp with time zone',
-    },
+    defaultFn: 'now',
   })
-  createdAt?: Date;
+  createdAt: Date;
 
   @property({
     type: 'date',
-    default: () => new Date(),
-    postgresql: {
-      columnName: 'updated_at',
-      dataType: 'timestamp with time zone',
-    },
+    defaultFn: 'now',
   })
-  updatedAt?: Date;
+  updatedAt: Date;
 
-  @hasMany(() => CartItems, {keyTo: 'cartId'})
-  cartItems: CartItems[];
+  @property({
+    type: 'date',
+  })
+  deletedAt: Date;
 
   constructor(data?: Partial<Carts>) {
     super(data);

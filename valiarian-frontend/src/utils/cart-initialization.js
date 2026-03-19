@@ -1,4 +1,4 @@
-import axios from 'src/utils/axios';
+import { fetchUserCart, syncUserCart } from 'src/api/cart';
 import { mergeGuestCart, validateMergedCart } from './cart-merge';
 import { clearCartFromLocalStorage, loadCartFromLocalStorage } from './cart-persistence';
 
@@ -17,21 +17,16 @@ import { clearCartFromLocalStorage, loadCartFromLocalStorage } from './cart-pers
  */
 export const loadCartOnLogin = async (userId, dispatch, getCart) => {
   try {
-    // Step 1: Get guest cart from localStorage
     const guestCart = loadCartFromLocalStorage();
 
-    // Step 2: Fetch user cart from backend
     let userCart = [];
     try {
-      const response = await axios.get(`/api/cart/${userId}`);
-      userCart = response.data.cart?.items || [];
+      userCart = await fetchUserCart(userId);
     } catch (error) {
       console.error('Error fetching user cart:', error);
-      // Continue with empty user cart if fetch fails
       userCart = [];
     }
 
-    // Step 3: Determine final cart
     let finalCart = [];
 
     if (guestCart.length > 0 && userCart.length > 0) {
@@ -51,13 +46,17 @@ export const loadCartOnLogin = async (userId, dispatch, getCart) => {
       finalCart = userCart;
     }
 
-    // Step 4: Clear guest cart from localStorage
-    clearCartFromLocalStorage();
+    if (guestCart.length > 0) {
+      try {
+        finalCart = await syncUserCart(userId, finalCart);
+      } catch (error) {
+        console.error('Error syncing merged cart to backend:', error);
+      }
+    }
 
-    // Step 5: Update Redux state
+    clearCartFromLocalStorage();
     dispatch(getCart(finalCart));
 
-    // Step 6: Show notification if carts were merged
     if (guestCart.length > 0 && userCart.length > 0) {
       return { merged: true, itemCount: finalCart.length };
     }
@@ -83,24 +82,19 @@ export const loadCartOnLogin = async (userId, dispatch, getCart) => {
 export const loadCartOnInit = async (authenticated, userId, dispatch, getCart) => {
   try {
     if (authenticated && userId) {
-      // Authenticated user - load from backend
       try {
-        const response = await axios.get(`/api/cart/${userId}`);
-        const userCart = response.data.cart?.items || [];
+        const userCart = await fetchUserCart(userId);
         dispatch(getCart(userCart));
       } catch (error) {
         console.error('Error loading user cart:', error);
-        // Fall back to empty cart
         dispatch(getCart([]));
       }
     } else {
-      // Guest user - load from localStorage
       const guestCart = loadCartFromLocalStorage();
       dispatch(getCart(guestCart));
     }
   } catch (error) {
     console.error('Error in loadCartOnInit:', error);
-    // Ensure cart is at least initialized to empty array
     dispatch(getCart([]));
   }
 };

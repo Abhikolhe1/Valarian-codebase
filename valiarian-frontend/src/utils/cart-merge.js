@@ -1,4 +1,5 @@
 import uniq from 'lodash/uniq';
+import { normalizeCart } from './cart-utils';
 
 // ----------------------------------------------------------------------
 // Cart Merge Utilities
@@ -23,48 +24,35 @@ export const mergeGuestCart = (guestCart, userCart) => {
     return guestCart;
   }
 
-  // If guest cart is empty, return user cart
-  if (guestCart.length === 0) {
-    return userCart;
+  const normalizedGuestCart = normalizeCart(guestCart);
+  const normalizedUserCart = normalizeCart(userCart);
+
+  if (normalizedGuestCart.length === 0) {
+    return normalizedUserCart;
   }
 
-  // If user cart is empty, return guest cart
-  if (userCart.length === 0) {
-    return guestCart;
+  if (normalizedUserCart.length === 0) {
+    return normalizedGuestCart;
   }
 
-  // Start with user cart as base
-  const mergedCart = [...userCart];
+  const mergedMap = new Map(normalizedUserCart.map((item) => [item.key, item]));
 
-  // Process each guest cart item
-  guestCart.forEach((guestItem) => {
-    // Validate guest item
-    if (!guestItem || !guestItem.id) {
-      console.warn('mergeGuestCart: Invalid guest cart item', guestItem);
+  normalizedGuestCart.forEach((guestItem) => {
+    const existingItem = mergedMap.get(guestItem.key);
+
+    if (existingItem) {
+      mergedMap.set(guestItem.key, {
+        ...existingItem,
+        quantity: existingItem.quantity + guestItem.quantity,
+        colors: uniq([...(existingItem.colors || []), ...(guestItem.colors || [])]),
+      });
       return;
     }
 
-    // Check if item exists in user cart
-    const existingIndex = mergedCart.findIndex((item) => item.id === guestItem.id);
-
-    if (existingIndex >= 0) {
-      // Item exists in both carts - merge quantities and variants
-      const existingItem = mergedCart[existingIndex];
-
-      // Sum quantities
-      mergedCart[existingIndex] = {
-        ...existingItem,
-        quantity: existingItem.quantity + guestItem.quantity,
-        // Merge colors array (remove duplicates)
-        colors: uniq([...(existingItem.colors || []), ...(guestItem.colors || [])]),
-      };
-    } else {
-      // Item only in guest cart - add to merged cart
-      mergedCart.push(guestItem);
-    }
+    mergedMap.set(guestItem.key, guestItem);
   });
 
-  return mergedCart;
+  return Array.from(mergedMap.values());
 };
 
 /**
@@ -73,12 +61,14 @@ export const mergeGuestCart = (guestCart, userCart) => {
  * @returns {Object} - Object with totalItems and subTotal
  */
 export const calculateCartTotals = (cart) => {
-  if (!Array.isArray(cart)) {
+  const normalizedCart = normalizeCart(cart);
+
+  if (!normalizedCart.length) {
     return { totalItems: 0, subTotal: 0 };
   }
 
-  const totalItems = cart.reduce((sum, item) => sum + (item.quantity || 0), 0);
-  const subTotal = cart.reduce((sum, item) => sum + (item.price || 0) * (item.quantity || 0), 0);
+  const totalItems = normalizedCart.reduce((sum, item) => sum + (item.quantity || 0), 0);
+  const subTotal = normalizedCart.reduce((sum, item) => sum + (item.price || 0) * (item.quantity || 0), 0);
 
   return { totalItems, subTotal };
 };
@@ -89,21 +79,21 @@ export const calculateCartTotals = (cart) => {
  * @returns {boolean} - True if valid
  */
 export const validateMergedCart = (cart) => {
-  if (!Array.isArray(cart)) {
+  const normalizedCart = normalizeCart(cart);
+
+  if (!normalizedCart.length && Array.isArray(cart) && cart.length > 0) {
     return false;
   }
 
-  // Check for duplicate product IDs
-  const ids = cart.map((item) => item.id);
-  const uniqueIds = new Set(ids);
+  const keys = normalizedCart.map((item) => item.key);
+  const uniqueKeys = new Set(keys);
 
-  if (ids.length !== uniqueIds.size) {
-    console.error('validateMergedCart: Duplicate product IDs found');
+  if (keys.length !== uniqueKeys.size) {
+    console.error('validateMergedCart: Duplicate cart items found');
     return false;
   }
 
-  // Check for positive quantities
-  const hasInvalidQuantity = cart.some((item) => !item.quantity || item.quantity <= 0);
+  const hasInvalidQuantity = normalizedCart.some((item) => !item.quantity || item.quantity <= 0);
 
   if (hasInvalidQuantity) {
     console.error('validateMergedCart: Invalid quantities found');

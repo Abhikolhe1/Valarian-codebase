@@ -10,7 +10,6 @@ import { clearCartFromLocalStorage, saveCartToLocalStorage } from 'src/utils/car
  * Only persists if user is not authenticated
  */
 export const cartPersistenceMiddleware = (store) => (next) => (action) => {
-  // Execute the action first
   const result = next(action);
 
   // Cart actions that should trigger persistence
@@ -23,19 +22,16 @@ export const cartPersistenceMiddleware = (store) => (next) => (action) => {
     'checkout/resetCart',
   ];
 
-  // Check if this is a cart action
   if (cartActions.includes(action.type)) {
     const state = store.getState();
     const { cart } = state.checkout;
+    const isAuthenticated =
+      typeof window !== 'undefined' && Boolean(localStorage.getItem('accessToken'));
 
-    // Check if user is authenticated (you may need to adjust this based on your auth structure)
-    // For now, we'll persist for all users and let the app logic handle auth-based sync
     try {
       if (action.type === 'checkout/resetCart') {
-        // Clear localStorage when cart is reset
         clearCartFromLocalStorage();
-      } else {
-        // Save cart to localStorage
+      } else if (!isAuthenticated) {
         saveCartToLocalStorage(cart);
       }
     } catch (error) {
