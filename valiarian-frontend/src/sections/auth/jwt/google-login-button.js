@@ -8,8 +8,15 @@ import Button from '@mui/material/Button';
 
 export default function GoogleLoginButton({ sx, ...other }) {
   const handleGoogleLogin = () => {
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem('returnPath', `${window.location.pathname}${window.location.search}`);
+    }
+
     // Redirect to backend Google OAuth endpoint
-    const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:3035';
+    const apiUrl =
+      process.env.REACT_APP_HOST_API ||
+      process.env.REACT_APP_API_URL ||
+      'http://localhost:3035';
     window.location.href = `${apiUrl}/api/auth/google`;
   };
 

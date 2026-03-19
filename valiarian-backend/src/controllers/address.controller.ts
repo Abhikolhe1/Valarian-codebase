@@ -1,16 +1,10 @@
-import {
-  authenticate
-} from '@loopback/authentication';
+import {authenticate} from '@loopback/authentication';
 import {inject} from '@loopback/core';
-import {
-  Count,
-  CountSchema,
-  FilterExcludingWhere,
-  repository
-} from '@loopback/repository';
+import {repository, Count, CountSchema, Filter, Where} from '@loopback/repository';
 import {
   del,
   get,
+  getModelSchemaRef,
   HttpErrors,
   param,
   patch,
@@ -19,6 +13,7 @@ import {
   response,
 } from '@loopback/rest';
 import {SecurityBindings, UserProfile} from '@loopback/security';
+import {authorize} from '../authorization';
 import {Address} from '../models';
 import {AddressRepository} from '../repositories';
 
@@ -29,9 +24,11 @@ export class AddressController {
   ) { }
 
   @authenticate('jwt')
+  @authorize({roles: ['user']})
   @post('/api/addresses')
   @response(200, {
     description: 'Address model instance',
+    content: {'application/json': {schema: getModelSchemaRef(Address)}},
   })
   async create(
     @inject(SecurityBindings.USER) currentUser: UserProfile,
@@ -40,13 +37,16 @@ export class AddressController {
         'application/json': {
           schema: {
             type: 'object',
-            required: ['address', 'city', 'state', 'country', 'zipCode'],
+            required: ['address', 'city', 'state', 'zipCode'],
             properties: {
+              fullName: {type: 'string'},
+              phone: {type: 'string'},
+              email: {type: 'string'},
               address: {type: 'string'},
               city: {type: 'string'},
               state: {type: 'string'},
+              zipCode: {type: 'string'},
               country: {type: 'string'},
-              zipCode: {type: 'number'},
               isPrimary: {type: 'boolean'},
             },
           },
@@ -55,7 +55,7 @@ export class AddressController {
     })
     address: Partial<Address>,
   ): Promise<Address> {
-    // If this address is marked as primary, unset all other primary addresses
+    console.log('CONTROLLER DATA:', address);
     if (address.zipCode) {
       address.zipCode = Number(address.zipCode);
     }
@@ -66,7 +66,6 @@ export class AddressController {
       );
     }
 
-    console.log('efrsadfgsdgfRequest Body:', address, typeof address.zipCode);
     return this.addressRepository.create({
       ...address,
       userId: currentUser.id,
@@ -80,50 +79,35 @@ export class AddressController {
     content: {'application/json': {schema: CountSchema}},
   })
   async count(
-    @inject(SecurityBindings.USER) currentUser: UserProfile,
-    @param.query.object('where') where?: any,
+    @param.where(Address) where?: Where<Address>,
   ): Promise<Count> {
-    return this.addressRepository.count({
-      ...where,
-      userId: currentUser.id,
-    });
+    return this.addressRepository.count(where);
   }
 
   @authenticate('jwt')
   @get('/api/addresses')
   @response(200, {
     description: 'Array of Address model instances',
+    content: {
+      'application/json': {
+        schema: {
+          type: 'array',
+          items: getModelSchemaRef(Address, {includeRelations: true}),
+        },
+      },
+    },
   })
   async find(
     @inject(SecurityBindings.USER) currentUser: UserProfile,
+    @param.filter(Address) filter?: Filter<Address>,
   ): Promise<Address[]> {
     return this.addressRepository.find({
+      ...filter,
       where: {
+        ...filter?.where,
         userId: currentUser.id,
       },
-      include: [{relation: 'user'}],
     });
-  }
-
-  @authenticate('jwt')
-  @get('/api/addresses/{id}')
-  @response(200, {
-    description: 'Address model instance',
-  })
-  async findById(
-    @inject(SecurityBindings.USER) currentUser: UserProfile,
-    @param.path.string('id') id: string,
-    @param.filter(Address, {exclude: 'where'})
-    filter?: FilterExcludingWhere<Address>,
-  ): Promise<Address> {
-    const address = await this.addressRepository.findById(id, filter);
-
-    // Verify the address belongs to the current user
-    if ((address).userId !== currentUser.id) {
-      throw new HttpErrors.Forbidden('You do not have access to this address');
-    }
-
-    return address;
   }
 
   @authenticate('jwt')
@@ -137,29 +121,22 @@ export class AddressController {
     @requestBody({
       content: {
         'application/json': {
-          schema: {
-            type: 'object',
-            properties: {
-              address: {type: 'string'},
-              city: {type: 'string'},
-              state: {type: 'string'},
-              country: {type: 'string'},
-              zipCode: {type: 'number'},
-              isPrimary: {type: 'boolean'},
-            },
-          },
+          schema: getModelSchemaRef(Address, {partial: true}),
         },
       },
     })
-    address: any,
+    address: Address,
   ): Promise<void> {
-    // Verify the address belongs to the current user
+    console.log('CONTROLLER DATA:', address);
     const existingAddress = await this.addressRepository.findById(id);
-    if ((existingAddress).userId !== currentUser.id) {
-      throw new HttpErrors.Forbidden('You do not have access to this address');
+    if (existingAddress.userId !== currentUser.id) {
+      throw new HttpErrors.Forbidden('Access denied');
     }
 
-    // If marking as primary, unset all other primary addresses
+    if (address.zipCode) {
+      address.zipCode = Number(address.zipCode);
+    }
+
     if (address.isPrimary) {
       await this.addressRepository.updateAll(
         {isPrimary: false},
@@ -179,42 +156,10 @@ export class AddressController {
     @inject(SecurityBindings.USER) currentUser: UserProfile,
     @param.path.string('id') id: string,
   ): Promise<void> {
-    // Verify the address belongs to the current user
-    const address = await this.addressRepository.findById(id);
-    if ((address).userId !== currentUser.id) {
-      throw new HttpErrors.Forbidden('You do not have access to this address');
+    const existingAddress = await this.addressRepository.findById(id);
+    if (existingAddress.userId !== currentUser.id) {
+      throw new HttpErrors.Forbidden('Access denied');
     }
-
     await this.addressRepository.deleteById(id);
-  }
-
-  @authenticate('jwt')
-  @patch('/api/addresses/{id}/set-primary')
-  @response(200, {
-    description: 'Set address as primary',
-  })
-  async setPrimary(
-    @inject(SecurityBindings.USER) currentUser: UserProfile,
-    @param.path.string('id') id: string,
-  ): Promise<{success: boolean; message: string}> {
-    // Verify the address belongs to the current user
-    const address = await this.addressRepository.findById(id);
-    if ((address).userId !== currentUser.id) {
-      throw new HttpErrors.Forbidden('You do not have access to this address');
-    }
-
-    // Unset all other primary addresses for this user
-    await this.addressRepository.updateAll(
-      {isPrimary: false},
-      {userId: currentUser.id},
-    );
-
-    // Set this address as primary
-    await this.addressRepository.updateById(id, {isPrimary: true});
-
-    return {
-      success: true,
-      message: 'Address set as primary',
-    };
   }
 }

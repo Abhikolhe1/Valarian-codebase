@@ -2,8 +2,8 @@ import PropTypes from 'prop-types';
 import { useEffect, useRef } from 'react';
 // routes
 import { useRouter } from 'src/routes/hook';
-// config
-import { PATH_AFTER_LOGIN } from 'src/config-global';
+// utils
+import { resolveAuthRedirect } from 'src/utils/auth-redirect';
 //
 import { useAuthContext } from '../hooks';
 
@@ -24,9 +24,10 @@ export default function GuestGuard({ children }) {
 
     // Only redirect once when authenticated
     if (authenticated && !hasRedirected.current) {
-      console.log('GuestGuard: User is authenticated, redirecting to', PATH_AFTER_LOGIN);
+      const target = resolveAuthRedirect(new URLSearchParams(window.location.search));
+      console.log('GuestGuard: User is authenticated, redirecting to', target);
       hasRedirected.current = true;
-      router.replace(PATH_AFTER_LOGIN);
+      router.replace(target);
     }
 
     // Reset redirect flag if user logs out

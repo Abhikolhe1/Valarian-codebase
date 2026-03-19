@@ -11,6 +11,7 @@ export class Address extends Entity {
     type: 'string',
     id: true,
     defaultFn: 'uuidv4',
+    postgresql: {dataType: 'uuid'},
   })
   id?: string;
 
@@ -54,16 +55,33 @@ export class Address extends Entity {
   userId: string;
 
   @property({
-    type: 'date',
-    defaultFn: 'now',
+    type: 'boolean',
+    default: true,
   })
-  createdAt?: Date;
+  isActive: boolean;
+
+  @property({
+    type: 'boolean',
+    default: false,
+  })
+  isDeleted: boolean;
 
   @property({
     type: 'date',
     defaultFn: 'now',
   })
-  updatedAt?: Date;
+  createdAt: Date;
+
+  @property({
+    type: 'date',
+    defaultFn: 'now',
+  })
+  updatedAt: Date;
+
+  @property({
+    type: 'date',
+  })
+  deletedAt: Date;
 
   constructor(data?: Partial<Address>) {
     super(data);

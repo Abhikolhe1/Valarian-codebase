@@ -78,6 +78,12 @@ export default function AccountView() {
         onChange={handleChangeTab}
         sx={{
           mb: { xs: 3, md: 5 },
+          [`& .MuiTabs-indicator`]: {
+            borderRadius: 0,
+          },
+          [`& .MuiTab-root`]: {
+            borderRadius: 0,
+          }
         }}
       >
         {TABS.map((tab) => (

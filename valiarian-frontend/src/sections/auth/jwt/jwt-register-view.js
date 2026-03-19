@@ -16,10 +16,10 @@ import { useBoolean } from 'src/hooks/use-boolean';
 import { RouterLink } from 'src/routes/components';
 import { useRouter, useSearchParams } from 'src/routes/hook';
 import { paths } from 'src/routes/paths';
-// config
-import { PATH_AFTER_LOGIN } from 'src/config-global';
 // auth
 import { useAuthContext } from 'src/auth/hooks';
+// utils
+import { resolveAuthRedirect } from 'src/utils/auth-redirect';
 // components
 import { Box, Divider, LinearProgress } from '@mui/material';
 import FormProvider, { RHFTextField } from 'src/components/hook-form';
@@ -53,7 +53,7 @@ const getPasswordStrengthLabel = (strength) => {
 };
 
 export default function JwtRegisterView() {
-  const { register } = useAuthContext();
+  const { userRegister } = useAuthContext();
 
   const router = useRouter();
 
@@ -104,7 +104,6 @@ export default function JwtRegisterView() {
   });
 
   const {
-    reset,
     handleSubmit,
     watch,
     formState: { isSubmitting },
@@ -171,30 +170,14 @@ export default function JwtRegisterView() {
       }
 
       // Complete registration
-      const registerResponse = await fetch(`${process.env.REACT_APP_HOST_API}/api/auth/user/register`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          sessionId,
-          fullName: `${registrationData.firstName} ${registrationData.lastName}`,
-          email: registrationData.email || undefined,
-          password: registrationData.password,
-        }),
+      await userRegister({
+        sessionId,
+        fullName: `${registrationData.firstName} ${registrationData.lastName}`,
+        email: registrationData.email || undefined,
+        password: registrationData.password,
       });
 
-      const registerResult = await registerResponse.json();
-
-      if (!registerResponse.ok) {
-        throw new Error(registerResult.message || 'Registration failed');
-      }
-
-      // Auto-login: Store token and redirect
-      if (registerResult.accessToken) {
-        localStorage.setItem('accessToken', registerResult.accessToken);
-        router.push(returnTo || PATH_AFTER_LOGIN);
-      }
+      router.push(returnTo || resolveAuthRedirect(searchParams));
 
     } catch (error) {
       console.error(error);

@@ -2,7 +2,6 @@ import PropTypes from 'prop-types';
 // @mui
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
-import Avatar from '@mui/material/Avatar';
 import ListItemText from '@mui/material/ListItemText';
 import { useTheme, alpha } from '@mui/material/styles';
 // theme
@@ -10,7 +9,7 @@ import { bgGradient } from 'src/theme/css';
 
 // ----------------------------------------------------------------------
 
-export default function ProfileCover({ name, avatarUrl, role, coverUrl }) {
+export default function ProfileCover({ name, role, coverUrl }) {
   const theme = useTheme();
 
   return (
@@ -34,17 +33,6 @@ export default function ProfileCover({ name, avatarUrl, role, coverUrl }) {
           position: { md: 'absolute' },
         }}
       >
-        <Avatar
-          src={avatarUrl}
-          alt={name}
-          sx={{
-            mx: 'auto',
-            width: { xs: 64, md: 128 },
-            height: { xs: 64, md: 128 },
-            border: `solid 2px ${theme.palette.common.white}`,
-          }}
-        />
-
         <ListItemText
           sx={{
             mt: 3,
@@ -70,7 +58,6 @@ export default function ProfileCover({ name, avatarUrl, role, coverUrl }) {
 }
 
 ProfileCover.propTypes = {
-  avatarUrl: PropTypes.string,
   coverUrl: PropTypes.string,
   name: PropTypes.string,
   role: PropTypes.string,

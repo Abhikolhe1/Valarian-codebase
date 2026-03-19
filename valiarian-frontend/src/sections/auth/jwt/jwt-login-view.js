@@ -11,8 +11,12 @@ import Link from '@mui/material/Link';
 import Stack from '@mui/material/Stack';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
+// routes
+import { useRouter, useSearchParams } from 'src/routes/hook';
 // auth
 import { useAuthContext } from 'src/auth/hooks';
+// utils
+import { resolveAuthRedirect } from 'src/utils/auth-redirect';
 // components
 import FormProvider, { RHFTextField } from 'src/components/hook-form';
 import GoogleLoginButton from './google-login-button';
@@ -21,6 +25,8 @@ import GoogleLoginButton from './google-login-button';
 
 export default function JwtLoginView() {
   const { sendOtp, verifyOtp } = useAuthContext();
+  const router = useRouter();
+  const searchParams = useSearchParams();
 
   const [errorMsg, setErrorMsg] = useState('');
   const [otpSent, setOtpSent] = useState(false);
@@ -139,8 +145,7 @@ export default function JwtLoginView() {
         console.log('Welcome! Your account has been created. Complete your profile to add email.');
       }
 
-      // GuestGuard will automatically redirect to home page when auth state updates
-      // No need to manually redirect here
+      router.replace(resolveAuthRedirect(searchParams));
     } catch (error) {
       console.error('OTP verification error:', error);
       setOtpError(typeof error === 'string' ? error : error.message || 'Invalid OTP');

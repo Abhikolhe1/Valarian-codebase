@@ -20,11 +20,15 @@ const loginPaths = {
 export default function AuthGuard({ children }) {
   const router = useRouter();
 
-  const { authenticated, method } = useAuthContext();
+  const { authenticated, method, loading } = useAuthContext();
 
   const [checked, setChecked] = useState(false);
 
   const check = useCallback(() => {
+    if (loading) {
+      return;
+    }
+
     if (!authenticated) {
       const searchParams = new URLSearchParams({ returnTo: window.location.pathname }).toString();
 
@@ -36,13 +40,13 @@ export default function AuthGuard({ children }) {
     } else {
       setChecked(true);
     }
-  }, [authenticated, method, router]);
+  }, [authenticated, loading, method, router]);
 
   useEffect(() => {
     check();
   }, [check]);
 
-  if (!checked) {
+  if (loading || !checked) {
     return null;
   }
 

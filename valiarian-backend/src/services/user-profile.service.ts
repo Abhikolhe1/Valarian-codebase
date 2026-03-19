@@ -52,6 +52,7 @@ export class UserProfileService {
       state?: string;
       country?: string;
       zipCode?: string;
+      avatarId?: string;
     },
   ) {
     const user = await this.usersRepository.findById(userId);
@@ -100,7 +101,7 @@ export class UserProfileService {
 
     // Create media record with actual file details
     const mediaId = uuidv4();
-    const fileUrl = `${process.env.API_ENDPOINT}/files/file/${avatarFile.filename}`;
+    const fileUrl = `${process.env.API_ENDPOINT}/media/${avatarFile.filename}`;
 
     console.log('Creating media record with URL:', fileUrl);
 
@@ -113,6 +114,8 @@ export class UserProfileService {
       url: fileUrl,
       folder: '/avatars',
       uploadedBy: userId,
+      createdAt: new Date(),
+      updatedAt: new Date(),
     });
 
     console.log('Created media record:', media);
@@ -129,6 +132,7 @@ export class UserProfileService {
       success: true,
       message: 'Avatar updated successfully',
       avatarUrl: media.url,
+      avatarId: media.id,
     };
   }
 

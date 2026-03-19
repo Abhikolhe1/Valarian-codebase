@@ -3,7 +3,8 @@ import {repository} from '@loopback/repository';
 import {HttpErrors} from '@loopback/rest';
 import {securityId, UserProfile} from '@loopback/security';
 import fetch from 'node-fetch';
-import {UserRolesRepository, UsersRepository} from '../repositories';
+import {v4 as uuidv4} from 'uuid';
+import {RolesRepository, UserRolesRepository, UsersRepository} from '../repositories';
 import {JWTService} from './jwt-service';
 import {RbacService} from './rbac.service';
 
@@ -24,6 +25,8 @@ export class GoogleOAuthService {
     private usersRepository: UsersRepository,
     @repository(UserRolesRepository)
     private userRolesRepository: UserRolesRepository,
+    @repository(RolesRepository)
+    private rolesRepository: RolesRepository,
   ) { }
 
   /**
@@ -31,10 +34,10 @@ export class GoogleOAuthService {
    */
   getAuthorizationUrl(state: string): string {
     const clientId = process.env.GOOGLE_CLIENT_ID;
-    const redirectUri = process.env.GOOGLE_CALLBACK_URL || 'http://localhost:3035/api/auth/google/callback';
+    const redirectUri = process.env.GOOGLE_CALLBACK_URL;
 
-    if (!clientId) {
-      throw new HttpErrors.InternalServerError('Google OAuth not configured');
+    if (!clientId || !redirectUri) {
+      throw new HttpErrors.InternalServerError('Google OAuth not configured properly. Missing GOOGLE_CLIENT_ID or GOOGLE_CALLBACK_URL');
     }
 
     const params = new URLSearchParams({
@@ -56,10 +59,10 @@ export class GoogleOAuthService {
   async getAccessToken(code: string): Promise<string> {
     const clientId = process.env.GOOGLE_CLIENT_ID;
     const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-    const redirectUri = process.env.GOOGLE_CALLBACK_URL || 'http://localhost:3035/api/auth/google/callback';
+    const redirectUri = process.env.GOOGLE_CALLBACK_URL;
 
-    if (!clientId || !clientSecret) {
-      throw new HttpErrors.InternalServerError('Google OAuth not configured');
+    if (!clientId || !clientSecret || !redirectUri) {
+      throw new HttpErrors.InternalServerError('Google OAuth not configured properly. Missing GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET or GOOGLE_CALLBACK_URL');
     }
 
     const response = await fetch('https://oauth2.googleapis.com/token', {
@@ -134,13 +137,15 @@ export class GoogleOAuthService {
       return user;
     }
 
-    // Create new user
+    // Create new user (Fast process: No password required)
     const newUser = await this.usersRepository.create({
+      id: uuidv4(),
       email: googleUser.email,
       fullName: googleUser.name,
       googleId: googleUser.id,
       profilePicture: googleUser.picture,
       isEmailVerified: true,
+      isMobileVerified: false,
       isActive: true,
       isDeleted: false,
       authProvider: 'google',
@@ -150,23 +155,17 @@ export class GoogleOAuthService {
     });
 
     // Assign 'user' role
-    const userRole = await this.usersRepository.roles(newUser.id!).find({
+    const userRole = await this.rolesRepository.findOne({
       where: {value: 'user'},
     });
 
-    if (userRole.length === 0) {
-      // Find user role by value
-      const roles = await this.usersRepository.dataSource.execute(
-        'SELECT id FROM roles WHERE value = ? LIMIT 1',
-        ['user'],
-      );
-
-      if (roles && roles.length > 0) {
-        await this.userRolesRepository.create({
-          usersId: newUser.id,
-          rolesId: roles[0].id,
-        });
-      }
+    if (userRole) {
+      await this.userRolesRepository.create({
+        id: uuidv4(),
+        usersId: newUser.id,
+        rolesId: userRole.id,
+        isActive: true,
+      });
     }
 
     return newUser;
