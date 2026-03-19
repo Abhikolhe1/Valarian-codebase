@@ -23,7 +23,7 @@ export default function CheckoutBillingInfo({ billing, onBackStep }) {
       />
       <Stack spacing={1} sx={{ p: 3 }}>
         <Box sx={{ typography: 'subtitle2' }}>
-          {`${billing?.name} `}
+          {`${billing?.fullName || billing?.name || 'Address'} `}
           <Box component="span" sx={{ color: 'text.secondary', typography: 'body2' }}>
             ({billing?.addressType})
           </Box>
@@ -31,7 +31,9 @@ export default function CheckoutBillingInfo({ billing, onBackStep }) {
 
         <Box sx={{ color: 'text.secondary', typography: 'body2' }}>{billing?.fullAddress}</Box>
 
-        <Box sx={{ color: 'text.secondary', typography: 'body2' }}>{billing?.phoneNumber}</Box>
+        <Box sx={{ color: 'text.secondary', typography: 'body2' }}>
+          {billing?.phone || billing?.phoneNumber || '-'}
+        </Box>
       </Stack>
     </Card>
   );

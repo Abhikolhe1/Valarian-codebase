@@ -1,12 +1,15 @@
 import PropTypes from 'prop-types';
 import { useState } from 'react';
 // @mui
+import Alert from '@mui/material/Alert';
 import Button from '@mui/material/Button';
 import Grid from '@mui/material/Grid';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 // api
-import { useGetAddresses } from 'src/api/addresses';
+import { createAddress, useGetAddresses } from 'src/api/addresses';
+// auth
+import { useAuthContext } from 'src/auth/hooks';
 // hooks
 import { useBoolean } from 'src/hooks/use-boolean';
 // components
@@ -24,6 +27,23 @@ export default function CheckoutBillingAddress({ checkout, onBackStep, onCreateB
   const editForm = useBoolean();
   const { addresses, isLoading, error, mutate } = useGetAddresses();
   const [editingAddress, setEditingAddress] = useState(null);
+  const { user } = useAuthContext();
+
+  const buildBillingAddress = (address, fallbackName, fallbackPhone) => ({
+    id: address.id,
+    name: fallbackName || user?.fullName || user?.email || `Address ${address.id?.slice(-4)}`,
+    fullName: fallbackName || user?.fullName || user?.email || `Address ${address.id?.slice(-4)}`,
+    fullAddress: `${address.address}, ${address.city}, ${address.state} ${address.zipCode}, ${address.country}`,
+    address: address.address,
+    city: address.city,
+    state: address.state,
+    country: address.country,
+    zipCode: address.zipCode,
+    phone: fallbackPhone || user?.phone || '',
+    phoneNumber: fallbackPhone || user?.phone || '',
+    addressType: address.isPrimary ? 'Primary' : 'Secondary',
+    primary: address.isPrimary,
+  });
 
   const handleEditAddress = (address) => {
     setEditingAddress(address);
@@ -48,17 +68,17 @@ export default function CheckoutBillingAddress({ checkout, onBackStep, onCreateB
     <>
       <Grid container spacing={3}>
         <Grid xs={12} md={8}>
+          {error && (
+            <Alert severity="error" sx={{ mb: 3 }}>
+              Failed to load saved addresses. You can still add a new address below.
+            </Alert>
+          )}
+
           {addresses && addresses.length > 0 ? (
             addresses.map((address) => (
               <AddressItem
                 key={address.id}
-                address={{
-                  id: address.id,
-                  name: `Address ${address.id.slice(-4)}`, // Use last 4 chars of ID as name
-                  fullAddress: `${address.address}, ${address.city}, ${address.state} ${address.zipCode}, ${address.country}`,
-                  addressType: address.isPrimary ? 'Primary' : 'Secondary',
-                  primary: address.isPrimary,
-                }}
+                address={buildBillingAddress(address)}
                 action={
                   <Stack flexDirection="row" flexWrap="wrap" flexShrink={0} spacing={1}>
                     <Button
@@ -72,18 +92,7 @@ export default function CheckoutBillingAddress({ checkout, onBackStep, onCreateB
                     <Button
                       variant="contained"
                       size="small"
-                      onClick={() => onCreateBilling({
-                        id: address.id,
-                        name: `Address ${address.id.slice(-4)}`,
-                        fullAddress: `${address.address}, ${address.city}, ${address.state} ${address.zipCode}, ${address.country}`,
-                        address: address.address,
-                        city: address.city,
-                        state: address.state,
-                        country: address.country,
-                        zipCode: address.zipCode,
-                        addressType: address.isPrimary ? 'Primary' : 'Secondary',
-                        primary: address.isPrimary,
-                      })}
+                      onClick={() => onCreateBilling(buildBillingAddress(address))}
                     >
                       Deliver to this Address
                     </Button>
@@ -142,22 +151,19 @@ export default function CheckoutBillingAddress({ checkout, onBackStep, onCreateB
       <AddressNewForm
         open={addressForm.value}
         onClose={addressForm.onFalse}
-        onCreate={(newAddress) => {
-          // Convert the new address format to match what onCreateBilling expects
-          onCreateBilling({
-            id: 'new',
-            name: 'New Address',
-            fullAddress: `${newAddress.address}, ${newAddress.city}, ${newAddress.state} ${newAddress.zipCode}, ${newAddress.country}`,
+        onCreate={async (newAddress) => {
+          const createdAddress = await createAddress({
             address: newAddress.address,
             city: newAddress.city,
             state: newAddress.state,
             country: newAddress.country,
             zipCode: newAddress.zipCode,
-            addressType: newAddress.isPrimary ? 'Primary' : 'Secondary',
-            primary: newAddress.isPrimary || false,
+            isPrimary: newAddress.isPrimary,
           });
+
+          onCreateBilling(buildBillingAddress(createdAddress, newAddress.name, newAddress.phoneNumber));
           addressForm.onFalse();
-          mutate(); // Refresh addresses after adding new one
+          mutate();
         }}
       />
 

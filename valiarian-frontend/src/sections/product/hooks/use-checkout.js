@@ -1,4 +1,12 @@
 import { useCallback } from 'react';
+// auth
+import { useAuthContext } from 'src/auth/hooks';
+// api
+import {
+  addCartItem as addCartItemRequest,
+  removeCartItem as removeCartItemRequest,
+  updateCartItemQuantity,
+} from 'src/api/cart';
 // redux
 import {
   addToCart,
@@ -8,12 +16,15 @@ import {
   createBilling,
   decreaseQuantity,
   deleteCart,
+  getCart,
   gotoStep,
   increaseQuantity,
   nextStep,
   resetCart,
 } from 'src/redux/slices/checkout';
 import { useDispatch, useSelector } from 'src/redux/store';
+// utils
+import { findCartItem } from 'src/utils/cart-utils';
 // _mock
 import { PRODUCT_CHECKOUT_STEPS } from 'src/_mock/_product';
 // routes
@@ -24,6 +35,7 @@ import { paths } from 'src/routes/paths';
 
 export default function useCheckout() {
   const dispatch = useDispatch();
+  const { authenticated, user } = useAuthContext();
 
   const router = useRouter();
 
@@ -47,24 +59,86 @@ export default function useCheckout() {
   );
 
   const onDeleteCart = useCallback(
-    (productId) => {
-      dispatch(deleteCart(productId));
+    async (identifier) => {
+      const previousCart = checkout.cart;
+      dispatch(deleteCart(identifier));
+
+      if (!authenticated || !user?.id) {
+        return;
+      }
+
+      const cartItem = findCartItem(previousCart, identifier);
+
+      if (!cartItem?.cartItemId) {
+        dispatch(getCart(previousCart));
+        return;
+      }
+
+      try {
+        const syncedCart = await removeCartItemRequest(user.id, cartItem.cartItemId);
+        dispatch(getCart(syncedCart));
+      } catch (error) {
+        console.error('Failed to remove cart item:', error);
+        dispatch(getCart(previousCart));
+      }
     },
-    [dispatch]
+    [authenticated, checkout.cart, dispatch, user?.id]
   );
 
   const onIncreaseQuantity = useCallback(
-    (productId) => {
-      dispatch(increaseQuantity(productId));
+    async (identifier) => {
+      const previousCart = checkout.cart;
+      const cartItem = findCartItem(previousCart, identifier);
+
+      if (!cartItem) {
+        return;
+      }
+
+      dispatch(increaseQuantity(identifier));
+
+      if (!authenticated || !user?.id || !cartItem.cartItemId) {
+        return;
+      }
+
+      try {
+        const syncedCart = await updateCartItemQuantity(user.id, cartItem.cartItemId, cartItem.quantity + 1);
+        dispatch(getCart(syncedCart));
+      } catch (error) {
+        console.error('Failed to increase cart quantity:', error);
+        dispatch(getCart(previousCart));
+      }
     },
-    [dispatch]
+    [authenticated, checkout.cart, dispatch, user?.id]
   );
 
   const onDecreaseQuantity = useCallback(
-    (productId) => {
-      dispatch(decreaseQuantity(productId));
+    async (identifier) => {
+      const previousCart = checkout.cart;
+      const cartItem = findCartItem(previousCart, identifier);
+
+      if (!cartItem) {
+        return;
+      }
+
+      dispatch(decreaseQuantity(identifier));
+
+      if (!authenticated || !user?.id || !cartItem.cartItemId) {
+        return;
+      }
+
+      try {
+        const syncedCart = await updateCartItemQuantity(
+          user.id,
+          cartItem.cartItemId,
+          Math.max(1, cartItem.quantity - 1)
+        );
+        dispatch(getCart(syncedCart));
+      } catch (error) {
+        console.error('Failed to decrease cart quantity:', error);
+        dispatch(getCart(previousCart));
+      }
     },
-    [dispatch]
+    [authenticated, checkout.cart, dispatch, user?.id]
   );
 
   const onCreateBilling = useCallback(
@@ -80,10 +154,23 @@ export default function useCheckout() {
   }, [dispatch]);
 
   const onAddCart = useCallback(
-    (newProduct) => {
+    async (newProduct) => {
+      const previousCart = checkout.cart;
       dispatch(addToCart(newProduct));
+
+      if (!authenticated || !user?.id) {
+        return;
+      }
+
+      try {
+        const syncedCart = await addCartItemRequest(user.id, newProduct);
+        dispatch(getCart(syncedCart));
+      } catch (error) {
+        console.error('Failed to add cart item:', error);
+        dispatch(getCart(previousCart));
+      }
     },
-    [dispatch]
+    [authenticated, checkout.cart, dispatch, user?.id]
   );
 
   const onApplyDiscount = useCallback(

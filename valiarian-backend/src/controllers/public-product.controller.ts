@@ -190,7 +190,7 @@ export class PublicProductController {
     @param.query.boolean('inStock') inStock?: boolean,
     @param.query.number('minPrice') minPrice?: number,
     @param.query.number('maxPrice') maxPrice?: number,
-    @param.query.string('category') category?: string,
+    @param.query.string('categoryId') categoryId?: string,
     @param.query.number('limit') limit = 20,
     @param.query.number('offset') offset = 0,
   ): Promise<{products: Product[]; total: number}> {
@@ -200,7 +200,7 @@ export class PublicProductController {
       inStock,
       minPrice,
       maxPrice,
-      categories: category ? [category] : undefined,
+      categoryId,
       limit,
       skip: offset,
     });

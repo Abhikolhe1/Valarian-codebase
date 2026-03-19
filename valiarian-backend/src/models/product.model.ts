@@ -1,18 +1,6 @@
-import {Entity, model, property} from '@loopback/repository';
-
-// Product Variant Interface
-export interface ProductVariant {
-  id: string;                    // Unique variant ID (UUID)
-  sku: string;                   // Variant-specific SKU
-  color: string;                 // Color hex code (e.g., "#000080")
-  colorName: string;             // Color display name (e.g., "Navy Blue")
-  size: string;                  // Size (S, M, L, XL, etc.)
-  images: string[];              // Color-specific images
-  price?: number;                // Optional price override
-  stockQuantity: number;         // Stock for this specific variant
-  inStock: boolean;              // Availability flag
-  isDefault: boolean;            // Default variant to show
-}
+import {belongsTo, Entity, model, property} from '@loopback/repository';
+import {Category} from './category.model';
+import {ProductVariant} from './product-variant.model';
 
 @model({
   settings: {
@@ -51,6 +39,7 @@ export class Product extends Entity {
     type: 'string',
     id: true,
     generated: false,
+    defaultFn: 'uuidv4',
     postgresql: {
       dataType: 'uuid',
     },
@@ -214,13 +203,10 @@ export class Product extends Entity {
   })
   newArrivalEndDate?: Date;
 
-  // Categories
-  @property({
-    type: 'array',
-    itemType: 'string',
-    default: [],
+  @belongsTo(() => Category, {
+    name: 'category',
   })
-  categories?: string[];
+  categoryId: string;
 
   @property({
     type: 'array',
@@ -277,6 +263,28 @@ export class Product extends Entity {
   viewCount: number;
 
   // Timestamps
+  
+
+  
+
+  @property({
+    type: 'date',
+  })
+  publishedAt?: Date;
+
+  
+  @property({
+    type: 'boolean',
+    default: true,
+  })
+  isActive?: boolean;
+
+  @property({
+    type: 'boolean',
+    default: false,
+  })
+  isDeleted?: boolean;
+
   @property({
     type: 'date',
     defaultFn: 'now',
@@ -291,8 +299,11 @@ export class Product extends Entity {
 
   @property({
     type: 'date',
+    jsonSchema: {
+      nullable: true,
+    },
   })
-  publishedAt?: Date;
+  deletedAt?: Date;
 
   constructor(data?: Partial<Product>) {
     super(data);
@@ -300,7 +311,15 @@ export class Product extends Entity {
 }
 
 export interface ProductRelations {
-  // describe navigational properties here
+  category?: Category;
 }
 
 export type ProductWithRelations = Product & ProductRelations;
+
+Object.assign(Product.definition.properties.categoryId ?? {}, {
+  type: 'string',
+  postgresql: {
+    columnName: 'category_id',
+    dataType: 'uuid',
+  },
+});

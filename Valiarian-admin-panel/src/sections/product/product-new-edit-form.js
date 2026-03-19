@@ -20,7 +20,8 @@ import { paths } from 'src/routes/paths';
 // hooks
 import { useResponsive } from 'src/hooks/use-responsive';
 // api
-import { createProduct, publishProduct, updateProduct } from 'src/api/product';
+import { useGetCategories } from 'src/api/category';
+import { useGetVariants } from 'src/api/product';
 // utils
 // components
 import { Alert, Tab, Tabs } from '@mui/material';
@@ -34,11 +35,29 @@ import FormProvider, {
 } from 'src/components/hook-form';
 import { useSnackbar } from 'src/components/snackbar';
 import { useRouter } from 'src/routes/hook';
+import useSWR, { mutate } from 'swr';
 import axiosInstance, { endpoints } from 'src/utils/axios';
 import ProductVariantManager from './product-variant-manager';
-// sections
 
 // ----------------------------------------------------------------------
+
+function normalizeUuidValue(value) {
+  if (typeof value !== 'string') {
+    return value;
+  }
+
+  let normalized = value.trim();
+
+  while (
+    normalized.length > 1 &&
+    ((normalized.startsWith('"') && normalized.endsWith('"')) ||
+      (normalized.startsWith("'") && normalized.endsWith("'")))
+  ) {
+    normalized = normalized.slice(1, -1).trim();
+  }
+
+  return normalized;
+}
 
 export default function ProductNewEditForm({ currentProduct }) {
   const router = useRouter();
@@ -47,6 +66,8 @@ export default function ProductNewEditForm({ currentProduct }) {
   const [isPublishing, setIsPublishing] = useState(false);
   const [currentTab, setCurrentTab] = useState('basic');
   const [variants, setVariants] = useState(currentProduct?.variants || []);
+
+  const { categories: categoryList } = useGetCategories();
 
   const NewProductSchema = Yup.object().shape({
     name: Yup.string()
@@ -92,7 +113,7 @@ export default function ProductNewEditForm({ currentProduct }) {
       }),
     coverImage: Yup.mixed().required('Cover image is required'),
     images: Yup.array().min(1, 'At least one additional image is required'),
-    categories: Yup.array().min(1, 'At least one category is required'),
+    categoryId: Yup.string().required('Category is required'),
     tags: Yup.array(),
     colors: Yup.array(),
     sizes: Yup.array(),
@@ -160,7 +181,7 @@ export default function ProductNewEditForm({ currentProduct }) {
       isFeatured: currentProduct?.isFeatured || false,
       newArrivalStartDate: currentProduct?.newArrivalStartDate ? new Date(currentProduct.newArrivalStartDate) : null,
       newArrivalEndDate: currentProduct?.newArrivalEndDate ? new Date(currentProduct.newArrivalEndDate) : null,
-      categories: currentProduct?.categories || [],
+      categoryId: currentProduct?.categoryId || '',
       tags: currentProduct?.tags || [],
       seoTitle: currentProduct?.seoTitle || '',
       seoDescription: currentProduct?.seoDescription || '',
@@ -283,7 +304,12 @@ export default function ProductNewEditForm({ currentProduct }) {
           coverImage: coverImageUrl || '',
           images: imageUrls,
           variants,
+          categoryId: normalizeUuidValue(data.categoryId),
         };
+
+        // Remove legacy fields if they exist
+        delete productData.categories;
+        delete productData.categoryIds;
 
         console.log('📦 Product data being sent:', {
           coverImage: productData.coverImage,
@@ -317,12 +343,16 @@ export default function ProductNewEditForm({ currentProduct }) {
         }
 
         if (currentProduct) {
-          await updateProduct(currentProduct.id, productData);
+          await axiosInstance.patch(endpoints.products.update(currentProduct.id), productData);
           enqueueSnackbar('Product updated successfully!');
+          // Revalidate SWR
+          mutate(endpoints.products.details(currentProduct.id));
         } else {
-          await createProduct(productData);
+          await axiosInstance.post(endpoints.products.create, productData);
           enqueueSnackbar('Product created successfully!');
         }
+        // Revalidate list
+        mutate((key) => typeof key === 'string' && key.startsWith(endpoints.products.list));
         router.push(paths.dashboard.product.root);
       } catch (error) {
         console.error(error);
@@ -367,8 +397,11 @@ export default function ProductNewEditForm({ currentProduct }) {
     try {
       setIsPublishing(true);
       if (currentProduct) {
-        await publishProduct(currentProduct.id);
+        await axiosInstance.patch(endpoints.products.publish(currentProduct.id));
         enqueueSnackbar('Product published successfully!');
+        // Revalidate SWR
+        mutate(endpoints.products.details(currentProduct.id));
+        mutate((key) => typeof key === 'string' && key.startsWith(endpoints.products.list));
         router.push(paths.dashboard.product.root);
       }
     } catch (error) {
@@ -760,24 +793,20 @@ export default function ProductNewEditForm({ currentProduct }) {
 
           <Stack spacing={3} sx={{ p: 3 }}>
             <RHFAutocomplete
-              name="categories"
-              label="Categories"
-              placeholder="+ Add category"
-              multiple
-              freeSolo
-              options={['Polo Shirts', 'T-Shirts', 'Men', 'Women', 'Casual', 'Formal']}
-              renderTags={(selected, getTagProps) =>
-                selected.map((option, index) => (
-                  <Chip
-                    {...getTagProps({ index })}
-                    key={option}
-                    label={option}
-                    size="small"
-                    color="primary"
-                    variant="soft"
-                  />
-                ))
-              }
+              name="categoryId"
+              label="Category"
+              placeholder="Select category"
+              options={categoryList.map((cat) => cat.id)}
+              getOptionLabel={(option) => categoryList.find((cat) => cat.id === option)?.name || ''}
+              isOptionEqualToValue={(option, value) => option === value}
+              renderOption={(props, option) => {
+                const category = categoryList.find((cat) => cat.id === option);
+                return (
+                  <li {...props} key={option}>
+                    {category?.name}
+                  </li>
+                );
+              }}
             />
 
             <RHFAutocomplete

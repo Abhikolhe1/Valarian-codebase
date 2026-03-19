@@ -36,7 +36,7 @@ export default function ProductTableRow({
     salePrice,
     status,
     coverImage,
-    categories,
+    category,
     stockQuantity,
     inStock,
     isNewArrival,
@@ -80,7 +80,7 @@ export default function ProductTableRow({
             }
             secondary={
               <Box component="div" sx={{ typography: 'body2', color: 'text.disabled' }}>
-                {categories && categories.length > 0 ? categories[0] : '-'}
+                {category ? category.name : '-'}
               </Box>
             }
           />

@@ -21,6 +21,7 @@ import { ColorPicker } from 'src/components/color-utils';
 import FormProvider, { RHFSelect } from 'src/components/hook-form';
 import Iconify from 'src/components/iconify';
 import Label from 'src/components/label';
+import { getCartItemKey } from 'src/utils/cart-utils';
 //
 import IncrementerButton from './common/incrementer-button';
 
@@ -48,8 +49,6 @@ export default function ProductDetailsSummary({
     stockQuantity,
     salePrice,
     isNewArrival,
-    isBestSeller,
-    description,
     shortDescription,
     variants,
   } = product;
@@ -92,11 +91,6 @@ export default function ProductDetailsSummary({
   // Create label objects from our boolean fields
   const newLabel = { enabled: isNewArrival || false, content: 'New' };
   const saleLabel = { enabled: !!(salePrice && salePrice < price), content: 'Sale' };
-
-  const existProduct = cart.map((item) => item.id).includes(id);
-
-  const isMaxQuantity =
-    cart.filter((item) => item.id === id).map((item) => item.quantity)[0] >= available;
 
   // Get available colors and sizes from variants
   const availableColors = variants && variants.length > 0
@@ -191,14 +185,12 @@ export default function ProductDetailsSummary({
 
   const onSubmit = handleSubmit(async (data) => {
     try {
-      if (!existProduct) {
-        onAddCart({
-          ...data,
-          colors: [values.colors],
-          subTotal: data.price * data.quantity,
-          variantId: selectedVariant?.id,
-        });
-      }
+      await onAddCart({
+        ...data,
+        colors: [values.colors],
+        subTotal: data.price * data.quantity,
+        variantId: selectedVariant?.id,
+      });
       onGotoStep(0);
       router.push(paths.product.checkout);
     } catch (error) {
@@ -351,6 +343,10 @@ export default function ProductDetailsSummary({
       </Stack>
     </Stack>
   );
+
+  const selectedCartKey = getCartItemKey({ id, variantId: selectedVariant?.id });
+  const existingCartItem = cart.find((item) => item.key === selectedCartKey);
+  const isMaxQuantity = existingCartItem ? existingCartItem.quantity >= available : false;
 
   const renderActions = (
     <Stack direction="row" spacing={2}>

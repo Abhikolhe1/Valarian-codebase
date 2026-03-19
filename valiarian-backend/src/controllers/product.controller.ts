@@ -16,16 +16,30 @@ import {UserProfile} from '@loopback/security';
 import {v4 as uuidv4} from 'uuid';
 import {authorize} from '../authorization';
 import {Product} from '../models';
-import {ProductRepository} from '../repositories';
+import {CategoryRepository, ProductRepository} from '../repositories';
 import {SlugService} from '../services/slug.service';
 
 export class ProductController {
   constructor(
     @repository(ProductRepository)
     public productRepository: ProductRepository,
+    @repository(CategoryRepository)
+    public categoryRepository: CategoryRepository,
     @inject('services.SlugService')
     public slugService: SlugService,
   ) { }
+
+  private async ensureCategoryExists(categoryId?: string): Promise<void> {
+    if (!categoryId) return;
+
+    try {
+      await this.categoryRepository.findById(categoryId);
+    } catch {
+      throw new HttpErrors.UnprocessableEntity(
+        `Category with id "${categoryId}" was not found`,
+      );
+    }
+  }
 
   @authenticate('jwt')
   @authorize({roles: ['super_admin', 'admin', 'editor']})
@@ -69,7 +83,7 @@ export class ProductController {
               isFeatured: {type: 'boolean'},
               newArrivalStartDate: {type: 'string', format: 'date-time'},
               newArrivalEndDate: {type: 'string', format: 'date-time'},
-              categories: {type: 'array', items: {type: 'string'}},
+              categoryId: {type: 'string', format: 'uuid'},
               tags: {type: 'array', items: {type: 'string'}},
               status: {type: 'string', enum: ['draft', 'published', 'archived']},
               seoTitle: {type: 'string'},
@@ -80,9 +94,12 @@ export class ProductController {
           },
         },
       },
-    })
+  })
     productData: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>,
   ): Promise<Product> {
+    console.log('REQUEST BODY:', productData);
+    await this.ensureCategoryExists(productData.categoryId);
+
     // Generate unique slug if not provided
     if (!productData.slug) {
       productData.slug = await this.slugService.generateUniqueSlug(
@@ -137,6 +154,7 @@ export class ProductController {
     @param.query.boolean('isBestSeller') isBestSeller?: boolean,
     @param.query.boolean('isFeatured') isFeatured?: boolean,
     @param.query.boolean('inStock') inStock?: boolean,
+    @param.query.string('categoryId') categoryId?: string,
     @param.query.number('limit') limit = 50,
     @param.query.number('offset') offset = 0,
   ): Promise<{products: Product[]; total: number}> {
@@ -147,6 +165,7 @@ export class ProductController {
       isBestSeller,
       isFeatured,
       inStock,
+      categoryId,
       limit,
       skip: offset,
     });
@@ -218,7 +237,7 @@ export class ProductController {
               isFeatured: {type: 'boolean'},
               newArrivalStartDate: {type: 'string', format: 'date-time'},
               newArrivalEndDate: {type: 'string', format: 'date-time'},
-              categories: {type: 'array', items: {type: 'string'}},
+              categoryId: {type: 'string', format: 'uuid'},
               tags: {type: 'array', items: {type: 'string'}},
               status: {type: 'string', enum: ['draft', 'published', 'archived']},
               seoTitle: {type: 'string'},
@@ -229,13 +248,16 @@ export class ProductController {
           },
         },
       },
-    })
+  })
     productData: Partial<Product>,
   ): Promise<Product> {
+    console.log('REQUEST BODY:', productData);
     const existingProduct = await this.productRepository.findById(id);
     if (!existingProduct) {
       throw new HttpErrors.NotFound(`Product with id "${id}" not found`);
     }
+
+    await this.ensureCategoryExists(productData.categoryId);
 
     // If name is being updated and slug is not provided, regenerate slug
     if (productData.name && !productData.slug) {
@@ -479,7 +501,7 @@ export class ProductController {
     const variantSku = variantData.sku || `${product.sku || 'PROD'}-${variantData.color.replace('#', '')}-${variantData.size}`;
 
     // Create new variant
-    const newVariant = {
+    const newVariant: any = {
       id: variantId,
       sku: variantSku,
       color: variantData.color,

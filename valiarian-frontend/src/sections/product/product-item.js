@@ -13,14 +13,13 @@ import { useRouter } from 'src/routes/hook';
 import { paths } from 'src/routes/paths';
 // utils
 import { fCurrency } from 'src/utils/format-number';
-// redux
-import { addToCart } from 'src/redux/slices/checkout';
-import { useDispatch } from 'src/redux/store';
 // components
 import { ColorPreview } from 'src/components/color-utils';
 import Iconify from 'src/components/iconify';
 import Image from 'src/components/image';
 import Label from 'src/components/label';
+// checkout
+import { useCheckout } from './hooks';
 
 // ----------------------------------------------------------------------
 
@@ -48,8 +47,8 @@ export default function ProductItem({ product }) {
 
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
-  const dispatch = useDispatch();
   const router = useRouter();
+  const { onAddCart } = useCheckout();
 
   // Use slug for SEO-friendly URLs, fallback to id if slug doesn't exist
   const linkTo = paths.product.details(slug || id);
@@ -66,7 +65,7 @@ export default function ProductItem({ product }) {
       id,
       name,
       coverUrl: displayImage, // Use variant image or product cover image
-      available: displayInStock, // Use variant stock status
+      available: displayStock, // Use variant stock quantity
       price: salePrice || displayPrice, // Use variant price or sale price
       colors: [availableColors[0]],
       size: availableSizes[0],
@@ -74,7 +73,7 @@ export default function ProductItem({ product }) {
       variantId: defaultVariant?.id, // Include variant ID if available
     };
     try {
-      dispatch(addToCart(newProduct));
+      await onAddCart(newProduct);
     } catch (error) {
       console.error(error);
     }

@@ -13,11 +13,14 @@ import Tooltip from '@mui/material/Tooltip';
 import { RouterLink } from 'src/routes/components';
 import { useRouter } from 'src/routes/hook';
 import { paths } from 'src/routes/paths';
+import { mutate } from 'swr';
 // hooks
 import { useBoolean } from 'src/hooks/use-boolean';
 // _mock
 // api
-import { deleteProduct, useGetProducts } from 'src/api/product';
+import { useGetProducts } from 'src/api/product';
+// utils
+import axiosInstance, { endpoints } from 'src/utils/axios';
 // components
 import CustomBreadcrumbs from 'src/components/custom-breadcrumbs';
 import { ConfirmDialog } from 'src/components/custom-dialog';
@@ -48,7 +51,7 @@ const TABLE_HEAD = [
   { id: 'stockQuantity', label: 'Stock', width: 120 },
   { id: 'labels', label: 'Labels', width: 180 },
   { id: 'status', label: 'Status', width: 110 },
-  { id: '', width: 88 },
+  { id: 'action', label: 'Actions', align: 'right' },
 ];
 
 const STATUS_OPTIONS = [
@@ -120,7 +123,11 @@ export default function ProductListView() {
   const handleDeleteRow = useCallback(
     async (id) => {
       try {
-        await deleteProduct(id);
+        await axiosInstance.delete(endpoints.products.delete(id));
+
+        // Revalidate SWR
+        mutate((key) => typeof key === 'string' && key.startsWith(endpoints.products.list));
+
         table.onUpdatePageDeleteRow(dataFiltered.length);
       } catch (error) {
         console.error('Error deleting product:', error);
@@ -131,7 +138,11 @@ export default function ProductListView() {
 
   const handleDeleteRows = useCallback(async () => {
     try {
-      await Promise.all(table.selected.map((id) => deleteProduct(id)));
+      await Promise.all(table.selected.map((id) => axiosInstance.delete(endpoints.products.delete(id))));
+
+      // Revalidate SWR
+      mutate((key) => typeof key === 'string' && key.startsWith(endpoints.products.list));
+
       table.onUpdatePageDeleteRows({
         totalRows: total,
         totalRowsInPage: dataFiltered.length,

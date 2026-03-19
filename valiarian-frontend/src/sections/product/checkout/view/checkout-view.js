@@ -1,15 +1,20 @@
-import { useCallback, useEffect } from 'react';
+import { useEffect } from 'react';
 // @mui
 import Container from '@mui/material/Container';
 import Typography from '@mui/material/Typography';
 import Grid from '@mui/material/Unstable_Grid2';
-// redux
-import { getCart } from 'src/redux/slices/checkout';
-import { useDispatch } from 'src/redux/store';
+import Button from '@mui/material/Button';
+// routes
+import { paths } from 'src/routes/paths';
+import { RouterLink } from 'src/routes/components';
+// auth
+import { useAuthContext } from 'src/auth/hooks';
 // _mock
 import { PRODUCT_CHECKOUT_STEPS } from 'src/_mock/_product';
 // components
 import { useSettingsContext } from 'src/components/settings';
+import EmptyContent from 'src/components/empty-content';
+import Iconify from 'src/components/iconify';
 //
 import { useCheckout } from '../../hooks';
 import CheckoutAuthGate from '../checkout-auth-gate';
@@ -21,24 +26,9 @@ import CheckoutSteps from '../checkout-steps';
 
 // ----------------------------------------------------------------------
 
-function useInitial(cart) {
-  const dispatch = useDispatch();
-
-  const getCartCallback = useCallback(() => {
-    if (cart.length) {
-      dispatch(getCart(cart));
-    }
-  }, [cart, dispatch]);
-
-  useEffect(() => {
-    getCartCallback();
-  }, [getCartCallback]);
-
-  return null;
-}
-
 export default function CheckoutView() {
   const settings = useSettingsContext();
+  const { authenticated } = useAuthContext();
 
   const {
     checkout,
@@ -48,7 +38,6 @@ export default function CheckoutView() {
     onNextStep,
     onBackStep,
     onDeleteCart,
-    onResetBilling,
     onCreateBilling,
     onApplyDiscount,
     onApplyShipping,
@@ -58,13 +47,23 @@ export default function CheckoutView() {
 
   const { cart, billing, activeStep } = checkout;
 
-  useInitial(cart);
-
   useEffect(() => {
-    if (activeStep === 1) {
-      onResetBilling();
+    if (!cart.length && activeStep !== 0) {
+      onGotoStep(0);
+      return;
     }
-  }, [activeStep, onResetBilling]);
+
+    if (activeStep > 1 && !billing) {
+      onGotoStep(1);
+      return;
+    }
+
+    if (activeStep > 2 && !authenticated) {
+      onGotoStep(2);
+    }
+  }, [activeStep, authenticated, billing, cart.length, onGotoStep]);
+
+  const isEmpty = !cart.length && !completed;
 
   return (
     <Container maxWidth={settings.themeStretch ? false : 'lg'} sx={{ mb: 10 }}>
@@ -72,51 +71,73 @@ export default function CheckoutView() {
         Checkout
       </Typography>
 
-      <Grid container justifyContent={completed ? 'center' : 'flex-start'}>
-        <Grid xs={12} md={8}>
-          <CheckoutSteps activeStep={activeStep} steps={PRODUCT_CHECKOUT_STEPS} />
-        </Grid>
-      </Grid>
-
-      {completed ? (
-        <CheckoutOrderComplete open={completed} onReset={onResetAll} onDownloadPDF={() => { }} />
+      {isEmpty ? (
+        <EmptyContent
+          title="Cart is Empty!"
+          description="Look like you have no items in your shopping cart."
+          imgUrl="/assets/icons/empty/ic_cart.svg"
+          action={
+            <Button
+              component={RouterLink}
+              href={paths.product.root}
+              variant="contained"
+              startIcon={<Iconify icon="eva:arrow-ios-back-fill" />}
+              sx={{ mt: 3 }}
+            >
+              Go to Products
+            </Button>
+          }
+          sx={{ py: 10 }}
+        />
       ) : (
         <>
-          {activeStep === 0 && (
-            <CheckoutCart
-              checkout={checkout}
-              onNextStep={onNextStep}
-              onDeleteCart={onDeleteCart}
-              onApplyDiscount={onApplyDiscount}
-              onIncreaseQuantity={onIncreaseQuantity}
-              onDecreaseQuantity={onDecreaseQuantity}
-            />
-          )}
+          <Grid container justifyContent={completed ? 'center' : 'flex-start'}>
+            <Grid xs={12} md={8}>
+              <CheckoutSteps activeStep={activeStep} steps={PRODUCT_CHECKOUT_STEPS} />
+            </Grid>
+          </Grid>
 
-          {activeStep === 1 && (
-            <CheckoutBillingAddress
-              checkout={checkout}
-              onBackStep={onBackStep}
-              onCreateBilling={onCreateBilling}
-            />
-          )}
+          {completed ? (
+            <CheckoutOrderComplete open={completed} onReset={onResetAll} onDownloadPDF={() => { }} />
+          ) : (
+            <>
+              {activeStep === 0 && (
+                <CheckoutCart
+                  checkout={checkout}
+                  onNextStep={onNextStep}
+                  onDeleteCart={onDeleteCart}
+                  onApplyDiscount={onApplyDiscount}
+                  onIncreaseQuantity={onIncreaseQuantity}
+                  onDecreaseQuantity={onDecreaseQuantity}
+                />
+              )}
 
-          {activeStep === 2 && (
-            <CheckoutAuthGate
-              onNextStep={onNextStep}
-              onBackStep={onBackStep}
-            />
-          )}
+              {activeStep === 1 && (
+                <CheckoutBillingAddress
+                  checkout={checkout}
+                  onBackStep={onBackStep}
+                  onCreateBilling={onCreateBilling}
+                />
+              )}
 
-          {activeStep === 3 && billing && (
-            <CheckoutPayment
-              checkout={checkout}
-              onNextStep={onNextStep}
-              onBackStep={onBackStep}
-              onGotoStep={onGotoStep}
-              onApplyShipping={onApplyShipping}
-              onReset={onResetAll}
-            />
+              {activeStep === 2 && (
+                <CheckoutAuthGate
+                  onNextStep={onNextStep}
+                  onBackStep={onBackStep}
+                />
+              )}
+
+              {activeStep === 3 && billing && (
+                <CheckoutPayment
+                  checkout={checkout}
+                  onNextStep={onNextStep}
+                  onBackStep={onBackStep}
+                  onGotoStep={onGotoStep}
+                  onApplyShipping={onApplyShipping}
+                  onReset={onResetAll}
+                />
+              )}
+            </>
           )}
         </>
       )}

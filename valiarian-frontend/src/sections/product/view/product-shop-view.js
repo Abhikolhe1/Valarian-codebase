@@ -304,7 +304,11 @@ export default function ProductShopView() {
 
   const [filters, setFilters] = useState(defaultFilters);
 
-  const { products: fetchedProducts, productsLoading } = useGetProducts();
+  const categoryFilterName = categoryFromQuery ? decodeURIComponent(categoryFromQuery) : undefined;
+
+  const { products: fetchedProducts, productsLoading } = useGetProducts(
+    categoryFilterName ? { category: categoryFilterName } : {}
+  );
 
   // Use dummy products if no products from API
   const products = useMemo(() => {
@@ -491,12 +495,19 @@ function applyFilter({ inputData, filters, sortBy }) {
   }
 
   if (category !== 'all') {
-    inputData = inputData.filter(
-      (product) =>
+    inputData = inputData.filter((product) => {
+      const legacyMatch =
         product.category === category ||
         product.categorySlug === paramCase(category) ||
-        paramCase(product.category ?? '') === paramCase(category)
-    );
+        paramCase(product.category ?? '') === paramCase(category);
+
+      const categoriesArray = Array.isArray(product.categories) ? product.categories : [];
+      const arrayMatch = categoriesArray.some(
+        (cat) => cat === category || paramCase(cat) === paramCase(category)
+      );
+
+      return legacyMatch || arrayMatch;
+    });
   }
 
   if (colors.length) {

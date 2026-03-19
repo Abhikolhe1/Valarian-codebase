@@ -16,8 +16,11 @@ import Grid from '@mui/material/Unstable_Grid2';
 import { RouterLink } from 'src/routes/components';
 import { useParams, useRouter } from 'src/routes/hook';
 import { paths } from 'src/routes/paths';
+import { mutate } from 'swr';
 // api
-import { archiveProduct, publishProduct, useGetProduct } from 'src/api/product';
+import { useGetProduct } from 'src/api/product';
+// utils
+import axiosInstance, { endpoints } from 'src/utils/axios';
 // components
 import CustomBreadcrumbs from 'src/components/custom-breadcrumbs';
 import EmptyContent from 'src/components/empty-content';
@@ -51,7 +54,10 @@ export default function ProductDetailsView() {
 
   const handlePublish = async () => {
     try {
-      await publishProduct(id);
+      await axiosInstance.patch(endpoints.products.publish(id));
+      // Revalidate SWR
+      mutate(endpoints.products.details(id));
+      mutate((key) => typeof key === 'string' && key.startsWith(endpoints.products.list));
       router.push(paths.dashboard.product.root);
     } catch (error) {
       console.error('Error publishing product:', error);
@@ -60,7 +66,10 @@ export default function ProductDetailsView() {
 
   const handleArchive = async () => {
     try {
-      await archiveProduct(id);
+      await axiosInstance.patch(endpoints.products.archive(id));
+      // Revalidate SWR
+      mutate(endpoints.products.details(id));
+      mutate((key) => typeof key === 'string' && key.startsWith(endpoints.products.list));
       router.push(paths.dashboard.product.root);
     } catch (error) {
       console.error('Error archiving product:', error);

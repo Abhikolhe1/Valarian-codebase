@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
-import useSWR, { mutate } from 'swr';
+import useSWR from 'swr';
 // utils
-import axiosInstance, { endpoints, fetcher } from 'src/utils/axios';
+import { endpoints, fetcher } from 'src/utils/axios';
 
 // ----------------------------------------------------------------------
 
@@ -14,6 +14,7 @@ export function useGetProducts(filters = {}) {
   if (filters.isBestSeller !== undefined) params.append('isBestSeller', filters.isBestSeller);
   if (filters.isFeatured !== undefined) params.append('isFeatured', filters.isFeatured);
   if (filters.inStock !== undefined) params.append('inStock', filters.inStock);
+  if (filters.categoryId) params.append('categoryId', filters.categoryId);
   if (filters.limit) params.append('limit', filters.limit);
   if (filters.offset) params.append('offset', filters.offset);
 
@@ -87,63 +88,6 @@ export function useSearchProducts(query) {
 }
 
 // ----------------------------------------------------------------------
-
-export async function createProduct(productData) {
-  const response = await axiosInstance.post(endpoints.products.create, productData);
-
-  // Revalidate the products list
-  mutate((key) => typeof key === 'string' && key.startsWith(endpoints.products.list));
-
-  return response.data;
-}
-
-// ----------------------------------------------------------------------
-
-export async function updateProduct(productId, productData) {
-  const response = await axiosInstance.patch(endpoints.products.update(productId), productData);
-
-  // Revalidate the product details and list
-  mutate(endpoints.products.details(productId));
-  mutate((key) => typeof key === 'string' && key.startsWith(endpoints.products.list));
-
-  return response.data;
-}
-
-// ----------------------------------------------------------------------
-
-export async function deleteProduct(productId) {
-  await axiosInstance.delete(endpoints.products.delete(productId));
-
-  // Revalidate the products list
-  mutate((key) => typeof key === 'string' && key.startsWith(endpoints.products.list));
-}
-
-// ----------------------------------------------------------------------
-
-export async function publishProduct(productId) {
-  const response = await axiosInstance.patch(endpoints.products.publish(productId));
-
-  // Revalidate the product details and list
-  mutate(endpoints.products.details(productId));
-  mutate((key) => typeof key === 'string' && key.startsWith(endpoints.products.list));
-
-  return response.data;
-}
-
-// ----------------------------------------------------------------------
-
-export async function archiveProduct(productId) {
-  const response = await axiosInstance.patch(endpoints.products.archive(productId));
-
-  // Revalidate the product details and list
-  mutate(endpoints.products.details(productId));
-  mutate((key) => typeof key === 'string' && key.startsWith(endpoints.products.list));
-
-  return response.data;
-}
-
-
-// ----------------------------------------------------------------------
 // VARIANT API HOOKS
 // ----------------------------------------------------------------------
 
@@ -184,74 +128,4 @@ export function useGetVariant(productId, variantId) {
   );
 
   return memoizedValue;
-}
-
-// ----------------------------------------------------------------------
-
-export async function createVariant(productId, variantData) {
-  const response = await axiosInstance.post(endpoints.products.variants.create(productId), variantData);
-
-  // Revalidate the product details, variants list, and products list
-  mutate(endpoints.products.details(productId));
-  mutate(endpoints.products.variants.list(productId));
-  mutate((key) => typeof key === 'string' && key.startsWith(endpoints.products.list));
-
-  return response.data;
-}
-
-// ----------------------------------------------------------------------
-
-export async function updateVariant(productId, variantId, variantData) {
-  const response = await axiosInstance.patch(
-    endpoints.products.variants.update(productId, variantId),
-    variantData
-  );
-
-  // Revalidate the product details, variant details, variants list, and products list
-  mutate(endpoints.products.details(productId));
-  mutate(endpoints.products.variants.details(productId, variantId));
-  mutate(endpoints.products.variants.list(productId));
-  mutate((key) => typeof key === 'string' && key.startsWith(endpoints.products.list));
-
-  return response.data;
-}
-
-// ----------------------------------------------------------------------
-
-export async function deleteVariant(productId, variantId) {
-  const response = await axiosInstance.delete(endpoints.products.variants.delete(productId, variantId));
-
-  // Revalidate the product details, variants list, and products list
-  mutate(endpoints.products.details(productId));
-  mutate(endpoints.products.variants.list(productId));
-  mutate((key) => typeof key === 'string' && key.startsWith(endpoints.products.list));
-
-  return response.data;
-}
-
-// ----------------------------------------------------------------------
-
-export async function updateVariantStock(productId, variantId, stockQuantity) {
-  const response = await axiosInstance.patch(
-    endpoints.products.variants.updateStock(productId, variantId),
-    { stockQuantity }
-  );
-
-  // Revalidate the product details, variant details, variants list, and products list
-  mutate(endpoints.products.details(productId));
-  mutate(endpoints.products.variants.details(productId, variantId));
-  mutate(endpoints.products.variants.list(productId));
-  mutate((key) => typeof key === 'string' && key.startsWith(endpoints.products.list));
-
-  return response.data;
-}
-
-// ----------------------------------------------------------------------
-
-export async function checkVariantAvailability(productId, variantId) {
-  const response = await axiosInstance.get(
-    endpoints.products.variants.availability(productId, variantId)
-  );
-
-  return response.data;
 }

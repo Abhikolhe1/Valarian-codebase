@@ -5,8 +5,15 @@ import { endpoints, fetcher } from 'src/utils/axios';
 
 // ----------------------------------------------------------------------
 
-export function useGetProducts() {
-  const URL = endpoints.products.list;
+export function useGetProducts(filters = {}) {
+  const params = new URLSearchParams();
+
+  if (filters.search) params.append('search', filters.search);
+  if (filters.category) params.append('categoryId', filters.category); // category filters in shop often use slug or id
+  if (filters.categoryId) params.append('categoryId', filters.categoryId);
+
+  const queryString = params.toString();
+  const URL = queryString ? `${endpoints.products.list}?${queryString}` : endpoints.products.list;
 
   const { data, isLoading, error, isValidating } = useSWR(URL, fetcher);
 
