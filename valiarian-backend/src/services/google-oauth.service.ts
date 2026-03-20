@@ -108,17 +108,23 @@ export class GoogleOAuthService {
    * Find or create user from Google profile
    */
   async findOrCreateUser(googleUser: GoogleUserInfo): Promise<any> {
+    const now = new Date();
+
     // Check if user exists by Google ID
     let user = await this.usersRepository.findOne({
       where: {googleId: googleUser.id, isDeleted: false},
     });
 
     if (user) {
-      // Update last login
+      // Update fields if they changed or are missing
       await this.usersRepository.updateById(user.id, {
-        lastLoginAt: new Date(),
+        fullName: user.fullName || googleUser.name,
+        profilePicture: googleUser.picture,
+        isEmailVerified: true,
+        lastLoginAt: now,
+        updatedAt: now,
       });
-      return user;
+      return this.usersRepository.findById(user.id);
     }
 
     // Check if user exists by email
@@ -130,11 +136,14 @@ export class GoogleOAuthService {
       // Link Google account to existing user
       await this.usersRepository.updateById(user.id, {
         googleId: googleUser.id,
+        fullName: user.fullName || googleUser.name,
         profilePicture: googleUser.picture,
         isEmailVerified: true,
-        lastLoginAt: new Date(),
+        authProvider: 'google', // Update provider to google since they are using it now
+        lastLoginAt: now,
+        updatedAt: now,
       });
-      return user;
+      return this.usersRepository.findById(user.id);
     }
 
     // Create new user (Fast process: No password required)
@@ -149,24 +158,33 @@ export class GoogleOAuthService {
       isActive: true,
       isDeleted: false,
       authProvider: 'google',
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      lastLoginAt: new Date(),
+      createdAt: now,
+      updatedAt: now,
+      lastLoginAt: now,
     });
 
     // Assign 'user' role
-    const userRole = await this.rolesRepository.findOne({
+    let userRole = await this.rolesRepository.findOne({
       where: {value: 'user'},
     });
 
-    if (userRole) {
-      await this.userRolesRepository.create({
+    if (!userRole) {
+      console.log('User role not found, creating it...');
+      userRole = await this.rolesRepository.create({
         id: uuidv4(),
-        usersId: newUser.id,
-        rolesId: userRole.id,
+        label: 'User',
+        value: 'user',
+        description: 'Regular user role',
         isActive: true,
       });
     }
+
+    await this.userRolesRepository.create({
+      id: uuidv4(),
+      usersId: newUser.id,
+      rolesId: userRole.id,
+      isActive: true,
+    });
 
     return newUser;
   }
@@ -180,12 +198,14 @@ export class GoogleOAuthService {
     const userProfile: UserProfile & {
       roles: string[];
       permissions: string[];
-      phone: string;
+      phoneNumber: string;
+      fullName: string;
     } = {
       [securityId]: user.id!,
       id: user.id!,
       email: user.email,
-      phone: user.phone || '',
+      phoneNumber: user.phone || '',
+      fullName: user.fullName || '',
       roles,
       permissions,
     };

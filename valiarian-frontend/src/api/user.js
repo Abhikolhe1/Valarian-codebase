@@ -14,15 +14,17 @@ export function useGetProfile() {
 
   const { data, error, isLoading, isValidating, mutate } = useSWR(URL, fetcher);
 
+  const profile = data?.user || data || null;
+
   const memoizedValue = useMemo(
     () => ({
-      profile: data?.user || null,
+      profile,
       isLoading,
       error,
       isValidating,
       mutate,
     }),
-    [data?.user, error, isLoading, isValidating, mutate]
+    [profile, error, isLoading, isValidating, mutate]
   );
 
   return memoizedValue;

@@ -26,12 +26,15 @@ export default function GoogleCallbackPage() {
 
       // Handle OAuth errors
       if (errorParam) {
+        console.error('Google OAuth error param:', errorParam);
         if (errorParam === 'no_code') {
           setError('No authorization code received. Redirecting...');
         } else if (errorParam === 'auth_failed') {
           setError('Failed to authenticate with Google. Redirecting...');
+        } else if (errorParam === 'invalid_state') {
+          setError('Security validation failed (invalid state). Please try again. Redirecting...');
         } else {
-          setError('An error occurred during Google login. Redirecting...');
+          setError(`An error occurred during Google login: ${errorParam}. Redirecting...`);
         }
         setTimeout(() => {
           router.push('/auth/jwt/login');

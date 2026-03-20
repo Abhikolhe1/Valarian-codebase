@@ -57,7 +57,7 @@ export class JWTService implements TokenService {
       throw new HttpErrors.NotFound('User profile is null');
     }
 
-    return this.signJwt('10m', '10m' as jwt.SignOptions['expiresIn']);
+    return this.signJwt(userProfile, '10m' as jwt.SignOptions['expiresIn']);
   }
 
 

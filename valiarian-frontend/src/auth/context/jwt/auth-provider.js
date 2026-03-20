@@ -257,6 +257,22 @@ export function AuthProvider({ children }) {
     return { accessToken, user };
   }, []);
 
+  const refreshUser = useCallback(async () => {
+    const meResponse = await axios.get(endpoints.auth.me);
+    const user = meResponse.data.user || meResponse.data;
+
+    localStorage.setItem('user', JSON.stringify(user));
+
+    dispatch({
+      type: 'LOGIN',
+      payload: {
+        user,
+      },
+    });
+
+    return user;
+  }, []);
+
   // SEND OTP
   const sendOtp = useCallback(async (identifier, type = 'phone') => {
     console.log('Sending OTP to:', { identifier, type });
@@ -392,6 +408,7 @@ export function AuthProvider({ children }) {
       userRegister,
       userLogout,
       otpLogin,
+      refreshUser,
       sendOtp,
       verifyOtp,
     }),
@@ -403,6 +420,7 @@ export function AuthProvider({ children }) {
       userRegister,
       userLogout,
       otpLogin,
+      refreshUser,
       sendOtp,
       verifyOtp,
       state.user,

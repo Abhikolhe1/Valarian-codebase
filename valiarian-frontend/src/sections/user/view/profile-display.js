@@ -19,17 +19,7 @@ export default function ProfileDisplay({ user }) {
     <Card>
       <CardContent>
         <Stack spacing={3}>
-          <Stack direction="row" spacing={2} alignItems="center">
-            <Stack spacing={1}>
-              <Typography variant="h6">{user.fullName || 'User'}</Typography>
-              <Typography variant="body2" color="text.secondary">
-                {user.email || '-'}
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                {user.phone || '-'}
-              </Typography>
-            </Stack>
-          </Stack>
+         
 
           <Typography variant="h6" sx={{ mt: 3 }}>
             Profile Information

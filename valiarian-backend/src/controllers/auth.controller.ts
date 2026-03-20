@@ -196,12 +196,14 @@ export class AuthController {
     const userProfile: UserProfile & {
       roles: string[];
       permissions: string[];
-      phone: string;
+      phoneNumber: string;
+      fullName: string;
     } = {
       [securityId]: user.id!,
       id: user.id!,
       email: user.email,
-      phone: user.phone || '',
+      phoneNumber: user.phone || '',
+      fullName: user.fullName || '',
       roles,
       permissions,
     };
@@ -320,6 +322,7 @@ export class AuthController {
 
     return Promise.resolve({
       ...userData,
+      authProvider: user.authProvider || 'local',
       avatar: user.avatar?.url || null,
       roles: roles || currentUser?.roles || [],
       permissions: permissions || currentUser?.permissions || []
@@ -728,12 +731,14 @@ export class AuthController {
     const userProfile: UserProfile & {
       roles: string[];
       permissions: string[];
-      phone: string;
+      phoneNumber: string;
+      fullName: string;
     } = {
       [securityId]: userData.id!,
       id: userData.id!,
       email: userData.email,
-      phone: userData.phone || '',
+      phoneNumber: userData.phone || '',
+      fullName: userData.fullName || '',
       roles,
       permissions,
     };
@@ -867,12 +872,14 @@ export class AuthController {
     const userProfile: UserProfile & {
       roles: string[];
       permissions: string[];
-      phone: string;
+      phoneNumber: string;
+      fullName: string;
     } = {
       [securityId]: userData.id!,
       id: userData.id!,
       email: userData.email,
-      phone: userData.phone || '',
+      phoneNumber: userData.phone || '',
+      fullName: userData.fullName || '',
       roles,
       permissions,
     };
@@ -1558,7 +1565,7 @@ export class AuthController {
   // }
 
   // ---------------------------------------Google OAuth API's----------------------------------------
-  @get('/auth/google', {
+  @get('/api/auth/google', {
     responses: {
       '302': {
         description: 'Redirect to Google OAuth',
@@ -1578,7 +1585,7 @@ export class AuthController {
     this.request.res?.redirect(authUrl);
   }
 
-  @get('/auth/google/callback', {
+  @get('/api/auth/google/callback', {
     responses: {
       '302': {
         description: 'Redirect to frontend with token',
@@ -1591,27 +1598,35 @@ export class AuthController {
   ): Promise<void> {
     if (!code) {
       // Redirect to frontend with error
-      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+      const frontendUrl = (process.env.FRONTEND_URL || 'http://localhost:3000').replace(/\/$/, '');
       this.request.res?.redirect(`${frontendUrl}/auth/google/callback?error=no_code`);
       return;
     }
 
     // Validate state parameter for CSRF protection
     if (!state) {
-      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+      const frontendUrl = (process.env.FRONTEND_URL || 'http://localhost:3000').replace(/\/$/, '');
       this.request.res?.redirect(`${frontendUrl}/auth/google/callback?error=invalid_state`);
       return;
     }
 
     const storedState = await this.cacheService.get<boolean>(`oauth:state:${state}`);
     if (!storedState) {
-      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
-      this.request.res?.redirect(`${frontendUrl}/auth/google/callback?error=invalid_state`);
-      return;
+      console.error(`Invalid state. Received: ${state}`);
+      // If we are in development mode, we might want to be more lenient if Redis is down
+      const isDev = process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'dev';
+      if (!isDev) {
+        const frontendUrl = (process.env.FRONTEND_URL || 'http://localhost:3000').replace(/\/$/, '');
+        this.request.res?.redirect(`${frontendUrl}/auth/google/callback?error=invalid_state`);
+        return;
+      }
+      console.warn('Development mode: allowing login despite invalid state');
     }
 
     // Delete state after validation (one-time use)
-    await this.cacheService.delete(`oauth:state:${state}`);
+    if (storedState) {
+      await this.cacheService.delete(`oauth:state:${state}`);
+    }
 
     try {
       // Exchange code for access token
@@ -1661,7 +1676,7 @@ export class AuthController {
       }
 
       // Redirect to frontend with token
-      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+      const frontendUrl = (process.env.FRONTEND_URL || 'http://localhost:3000').replace(/\/$/, '');
       this.request.res?.redirect(
         `${frontendUrl}/auth/google/callback?token=${token}&user=${encodeURIComponent(JSON.stringify({
           id: user.id,
@@ -1674,7 +1689,7 @@ export class AuthController {
       );
     } catch (error) {
       console.error('Google OAuth error:', error);
-      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+      const frontendUrl = (process.env.FRONTEND_URL || 'http://localhost:3000').replace(/\/$/, '');
       this.request.res?.redirect(`${frontendUrl}/auth/google/callback?error=auth_failed`);
     }
   }
@@ -2021,6 +2036,7 @@ export class AuthController {
           password: await this.hasher.hashPassword(crypto.randomBytes(32).toString('hex')), // Random password
           isActive: true,
           isDeleted: false,
+          authProvider: 'otp',
         };
 
         if (isEmail) {
