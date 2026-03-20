@@ -37,17 +37,71 @@ export class PublicProductController {
     @param.query.number('limit') limit = 10,
     @param.query.number('offset') offset = 0,
   ): Promise<{products: Product[]; total: number}> {
-    const products = await this.productRepository.findNewArrivals(limit, offset);
+    const now = new Date();
 
-    const total = await this.productRepository.count({
-      isNewArrival: true,
-      status: 'published',
-      inStock: true,
+    console.log(`Fetching New Arrivals: limit=${limit}, offset=${offset}, now=${now.toISOString()}`);
+
+    // First try to find products explicitly marked as new arrivals
+    let products = await this.productRepository.find({
+      where: {
+        isNewArrival: true,
+        status: 'published',
+        inStock: true,
+        isActive: true,
+        isDeleted: false,
+        or: [
+          {newArrivalEndDate: {gt: now}},
+          {newArrivalEndDate: null},
+        ],
+      } as any,
+      order: ['createdAt DESC'],
+      limit,
+      skip: offset,
     });
+
+    let total = 0;
+
+    if (products.length > 0) {
+      const count = await this.productRepository.count({
+        isNewArrival: true,
+        status: 'published',
+        inStock: true,
+        isActive: true,
+        isDeleted: false,
+        or: [
+          {newArrivalEndDate: {gt: now}},
+          {newArrivalEndDate: null},
+        ],
+      } as any);
+      total = count.count;
+    } else {
+      console.log('No explicit new arrivals found, falling back to latest published products');
+      // Fallback: Fetch latest published products
+      products = await this.productRepository.find({
+        where: {
+          status: 'published',
+          inStock: true,
+          isActive: true,
+          isDeleted: false,
+        },
+        order: ['createdAt DESC'],
+        limit,
+        skip: offset,
+      });
+      const count = await this.productRepository.count({
+        status: 'published',
+        inStock: true,
+        isActive: true,
+        isDeleted: false,
+      });
+      total = count.count;
+    }
+
+    console.log(`New Arrivals found: ${products.length}, total: ${total}`);
 
     return {
       products,
-      total: total.count,
+      total,
     };
   }
 
@@ -73,17 +127,63 @@ export class PublicProductController {
     @param.query.number('limit') limit = 10,
     @param.query.number('offset') offset = 0,
   ): Promise<{products: Product[]; total: number}> {
-    const products = await this.productRepository.findBestSellers(limit, offset);
+    console.log(`Fetching Best Sellers: limit=${limit}, offset=${offset}`);
 
-    const total = await this.productRepository.count({
-      isBestSeller: true,
-      status: 'published',
-      inStock: true,
+    // First try to find products explicitly marked as best sellers
+    let products = await this.productRepository.find({
+      where: {
+        isBestSeller: true,
+        status: 'published',
+        inStock: true,
+        isActive: true,
+        isDeleted: false,
+      },
+      order: ['soldCount DESC', 'createdAt DESC'],
+      limit,
+      skip: offset,
     });
+
+    let total = 0;
+
+    if (products.length > 0) {
+      const count = await this.productRepository.count({
+        isBestSeller: true,
+        status: 'published',
+        inStock: true,
+        isActive: true,
+        isDeleted: false,
+      });
+      total = count.count;
+    } else {
+      console.log('No explicit best sellers found, falling back to highest soldCount');
+      // Fallback: Fetch products with highest soldCount
+      products = await this.productRepository.find({
+        where: {
+          status: 'published',
+          inStock: true,
+          isActive: true,
+          isDeleted: false,
+          soldCount: {gt: 0} as any,
+        },
+        order: ['soldCount DESC', 'createdAt DESC'],
+        limit,
+        skip: offset,
+      });
+      const count = await this.productRepository.count({
+        status: 'published',
+        inStock: true,
+        isActive: true,
+        isDeleted: false,
+        soldCount: {gt: 0} as any,
+      });
+      total = count.count;
+    }
+
+    console.log(`Best Sellers found: ${products.length}, total: ${total}`);
 
     return {
       products,
-      total: total.count,
+      total,
     };
   }
 
@@ -109,13 +209,19 @@ export class PublicProductController {
     @param.query.number('limit') limit = 10,
     @param.query.number('offset') offset = 0,
   ): Promise<{products: Product[]; total: number}> {
+    console.log(`Fetching Featured Products: limit=${limit}, offset=${offset}`);
+
     const products = await this.productRepository.findFeatured(limit, offset);
 
     const total = await this.productRepository.count({
       isFeatured: true,
       status: 'published',
       inStock: true,
+      isActive: true,
+      isDeleted: false,
     });
+
+    console.log(`Featured Products found: ${products.length}, total: ${total.count}`);
 
     return {
       products,
