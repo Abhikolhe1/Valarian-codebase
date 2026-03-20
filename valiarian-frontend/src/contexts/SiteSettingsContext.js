@@ -42,7 +42,29 @@ export function SiteSettingsProvider({ children }) {
 
   const value = useMemo(
     () => ({
-      settings: settings || getDefaultSettings(),
+      settings: settings ? {
+        general: {
+          siteName: settings.siteName,
+          siteDescription: settings.siteDescription,
+          logo: settings.logo,
+          favicon: settings.favicon,
+          contactEmail: settings.contactEmail,
+          contactPhone: settings.contactPhone,
+        },
+        seo: {
+          defaultTitle: settings.seoTitle || settings.siteName,
+          defaultDescription: settings.seoDescription || settings.siteDescription,
+          defaultKeywords: settings.seoKeywords,
+          ogImage: settings.ogImage,
+        },
+        socialMedia: settings.socialMedia || {},
+        analytics: {
+          gtmId: settings.gtmId,
+          gaId: settings.gaId,
+        },
+        footerText: settings.footerText,
+        copyrightText: settings.copyrightText,
+      } : getDefaultSettings(),
       isLoading,
       error,
       isFromCMS: !!settings,

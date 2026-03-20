@@ -7,7 +7,7 @@ import Iconify from 'src/components/iconify';
 
 /**
  * Transform CMS navigation menu items to the format expected by nav components
- * @param {Array} items - CMS menu items
+ * @param {Array} items - CMS menu items from admin panel
  * @returns {Array} Transformed navigation items
  */
 export function transformNavigationItems(items = []) {
@@ -16,7 +16,8 @@ export function transformNavigationItems(items = []) {
   }
 
   return items
-    .sort((a, b) => a.order - b.order)
+    .filter((item) => !item.parentId) // Get top-level items first
+    .sort((a, b) => (a.order || 0) - (b.order || 0))
     .map((item) => ({
       title: item.label,
       path: item.url,
@@ -24,6 +25,61 @@ export function transformNavigationItems(items = []) {
       openInNewTab: item.openInNewTab,
       children: item.children ? transformNavigationItems(item.children) : undefined,
     }));
+}
+
+/**
+ * Transform CMS navigation response to header navigation format
+ * @param {Object} navigationData - CMS navigation response from admin panel
+ * @returns {Array} Transformed navigation items for header
+ */
+export function transformHeaderNavigation(navigationData) {
+  if (!navigationData || !navigationData.items || !Array.isArray(navigationData.items)) {
+    return [];
+  }
+
+  return navigationData.items
+    .filter((item) => !item.parentId) // Get top-level items
+    .sort((a, b) => (a.order || 0) - (b.order || 0))
+    .map((item) => ({
+      title: item.label,
+      path: item.url,
+      icon: item.icon ? <Iconify icon={item.icon} /> : undefined,
+      openInNewTab: item.openInNewTab,
+    }));
+}
+
+/**
+ * Transform CMS navigation response to footer navigation format
+ * @param {Object} navigationData - CMS navigation response from admin panel
+ * @returns {Array} Transformed navigation items for footer
+ */
+export function transformFooterNavigation(navigationData) {
+  if (!navigationData || !navigationData.items || !Array.isArray(navigationData.items)) {
+    return [];
+  }
+
+  // Group items by parent (top-level items become headlines)
+  const grouped = [];
+  const topLevelItems = navigationData.items
+    .filter((item) => !item.parentId)
+    .sort((a, b) => (a.order || 0) - (b.order || 0));
+
+  topLevelItems.forEach((parent) => {
+    const children = navigationData.items
+      .filter((item) => item.parentId === parent.id)
+      .sort((a, b) => (a.order || 0) - (b.order || 0))
+      .map((child) => ({
+        name: child.label,
+        href: child.url,
+      }));
+
+    grouped.push({
+      headline: parent.label,
+      children: children.length > 0 ? children : [{ name: parent.label, href: parent.url }],
+    });
+  });
+
+  return grouped;
 }
 
 /**
@@ -65,6 +121,14 @@ export function buildMenuTree(items = []) {
 export function getNavigationByLocation(navigationData, location) {
   if (!navigationData || !navigationData.items) {
     return [];
+  }
+
+  if (location === 'header') {
+    return transformHeaderNavigation(navigationData);
+  }
+
+  if (location === 'footer') {
+    return transformFooterNavigation(navigationData);
   }
 
   return transformNavigationItems(navigationData.items);

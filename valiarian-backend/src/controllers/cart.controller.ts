@@ -82,7 +82,7 @@ export class CartController {
             name: product?.name,
             slug: product?.slug,
             price: product?.price,
-            images: product?.images,
+            images: variant?.images ? variant?.images : product?.images,
             available: product?.inStock,
           },
           variant: variant ? variant : null,

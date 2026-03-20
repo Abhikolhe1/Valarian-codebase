@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { useNavigation } from 'src/api/cms-query';
 import { paths } from 'src/routes/paths';
+import { transformFooterNavigation } from 'src/utils/navigation';
 
 /**
  * Hook to fetch and transform footer navigation from CMS
@@ -8,6 +9,14 @@ import { paths } from 'src/routes/paths';
  */
 export function useFooterNavigation() {
   const { data: navigationData, isLoading, error } = useNavigation('footer');
+
+  // Debug logging
+  console.log('Footer Navigation Debug:', {
+    navigationData,
+    isLoading,
+    error,
+    hasItems: navigationData?.items?.length > 0
+  });
 
   // Default fallback navigation
   const defaultNavigation = useMemo(
@@ -37,32 +46,14 @@ export function useFooterNavigation() {
 
   // Transform CMS navigation data to footer format
   const cmsNavigation = useMemo(() => {
-    if (!navigationData || !navigationData.items) {
+    if (!navigationData || !navigationData.items || navigationData.items.length === 0) {
+      console.log('Using default footer navigation - no CMS data available');
       return null;
     }
 
-    // Group items by parent (top-level items become headlines)
-    const grouped = [];
-    const topLevelItems = navigationData.items
-      .filter((item) => !item.parentId)
-      .sort((a, b) => a.order - b.order);
-
-    topLevelItems.forEach((parent) => {
-      const children = navigationData.items
-        .filter((item) => item.parentId === parent.id)
-        .sort((a, b) => a.order - b.order)
-        .map((child) => ({
-          name: child.label,
-          href: child.url,
-        }));
-
-      grouped.push({
-        headline: parent.label,
-        children: children.length > 0 ? children : [{ name: parent.label, href: parent.url }],
-      });
-    });
-
-    return grouped;
+    const transformed = transformFooterNavigation(navigationData);
+    console.log('Transformed CMS footer navigation:', transformed);
+    return transformed;
   }, [navigationData]);
 
   // Return CMS navigation if available, otherwise fallback

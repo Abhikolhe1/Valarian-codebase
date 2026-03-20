@@ -71,9 +71,9 @@ export function useNavigation(location) {
   );
 
   return {
-    navigation: data,
-    navigationLoading: isLoading,
-    navigationError: error,
+    data, // Return raw data to match expected structure
+    isLoading,
+    error,
   };
 }
 
