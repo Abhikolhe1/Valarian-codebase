@@ -9,8 +9,8 @@ export function useGetProducts(filters = {}) {
   const params = new URLSearchParams();
 
   if (filters.search) params.append('search', filters.search);
-  if (filters.category) params.append('categoryId', filters.category); // category filters in shop often use slug or id
   if (filters.categoryId) params.append('categoryId', filters.categoryId);
+  if (filters.categorySlug) params.append('categorySlug', filters.categorySlug);
 
   const queryString = params.toString();
   const URL = queryString ? `${endpoints.products.list}?${queryString}` : endpoints.products.list;

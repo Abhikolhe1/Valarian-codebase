@@ -298,7 +298,7 @@ export default function ProductShopDetailsView() {
 
   const settings = useSettingsContext();
 
-  const { checkout, onAddCart, onGotoStep } = useCheckout();
+  const { checkout, onAddCart, onBuyNow, onGotoStep } = useCheckout();
 
   const [currentTab, setCurrentTab] = useState('description');
   const [selectedVariant, setSelectedVariant] = useState(null);
@@ -367,6 +367,7 @@ export default function ProductShopDetailsView() {
             product={product}
             cart={checkout.cart}
             onAddCart={onAddCart}
+            onBuyNow={onBuyNow}
             onGotoStep={onGotoStep}
             onVariantChange={handleVariantChange}
           />

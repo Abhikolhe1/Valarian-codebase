@@ -31,6 +31,7 @@ export default function ProductDetailsSummary({
   cart,
   product,
   onAddCart,
+  onBuyNow,
   onGotoStep,
   disabledActions,
   onVariantChange,
@@ -185,7 +186,7 @@ export default function ProductDetailsSummary({
 
   const onSubmit = handleSubmit(async (data) => {
     try {
-      await onAddCart({
+      await onBuyNow({
         ...data,
         colors: [values.colors],
         subTotal: data.price * data.quantity,
@@ -198,9 +199,9 @@ export default function ProductDetailsSummary({
     }
   });
 
-  const handleAddCart = useCallback(() => {
+  const handleAddCart = useCallback(async () => {
     try {
-      onAddCart({
+      await onAddCart({
         ...values,
         colors: [values.colors],
         subTotal: values.price * values.quantity,
@@ -463,6 +464,7 @@ ProductDetailsSummary.propTypes = {
   cart: PropTypes.array,
   disabledActions: PropTypes.bool,
   onAddCart: PropTypes.func,
+  onBuyNow: PropTypes.func,
   onGotoStep: PropTypes.func,
   onVariantChange: PropTypes.func,
   product: PropTypes.object,

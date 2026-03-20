@@ -103,6 +103,7 @@
     "stylis": "^4.3.2",
     "stylis-plugin-rtl": "^2.1.1",
     "swr": "^2.1.5",
+    "uuid": "^13.0.0",
     "worker-loader": "^3.0.8",
     "yet-another-react-lightbox": "^3.11.1",
     "yup": "^1.2.0"

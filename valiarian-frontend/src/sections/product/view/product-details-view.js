@@ -67,7 +67,7 @@ export default function ProductDetailsView() {
 
   const [selectedVariant, setSelectedVariant] = useState(null);
 
-  const { checkout, onAddCart, onGotoStep } = useCheckout();
+  const { checkout, onAddCart, onBuyNow, onGotoStep } = useCheckout();
 
   useEffect(() => {
     if (product) {
@@ -129,6 +129,7 @@ export default function ProductDetailsView() {
             product={product}
             cart={checkout.cart}
             onAddCart={onAddCart}
+            onBuyNow={onBuyNow}
             onGotoStep={onGotoStep}
             onVariantChange={handleVariantChange}
           />

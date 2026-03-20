@@ -20,6 +20,8 @@ import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import { DataGrid } from '@mui/x-data-grid';
 import axiosInstance, { endpoints } from 'src/utils/axios';
+import {v4 as uuidv4} from 'uuid';
+
 // components
 import { ColorPicker } from 'src/components/color-utils';
 import { ConfirmDialog } from 'src/components/custom-dialog';
@@ -281,7 +283,7 @@ export default function ProductVariantManager({ variants = [], onChange, product
       console.log('✓ Valid variant images:', validImages);
 
       const variantData = {
-        id: editingVariant?.id || `temp-${Date.now()}`,
+        id: uuidv4(),
         sku: formData.sku,
         color: formData.color,
         colorName: formData.colorName,

@@ -53,10 +53,6 @@ export class CartController {
 
       const cartItems = await this.cartItemsRepository.find({
         where: {cartId: cart.id},
-        include: [
-          {relation: 'product'},
-          {relation: 'variant'},
-        ],
       });
 
       let subtotal = 0;

@@ -19,6 +19,7 @@ export default function ProductFiltersResult({
   onResetFilters,
   //
   results,
+  categories = [],
   ...other
 }) {
   const handleRemoveGender = (inputValue) => {
@@ -27,7 +28,7 @@ export default function ProductFiltersResult({
   };
 
   const handleRemoveCategory = () => {
-    onFilters('category', 'all');
+    onFilters('category', 'products');
   };
 
   const handleRemoveColor = (inputValue) => {
@@ -36,12 +37,17 @@ export default function ProductFiltersResult({
   };
 
   const handleRemovePrice = () => {
-    onFilters('priceRange', [0, 200]);
+    onFilters('priceRange', [0, 200000]);
   };
 
   const handleRemoveRating = () => {
     onFilters('rating', '');
   };
+
+  const categoryLabel =
+    filters.category === 'products' || filters.category === 'all'
+      ? 'Products'
+      : categories.find((c) => c.id === filters.category)?.name || filters.category;
 
   return (
     <Stack spacing={1.5} {...other}>
@@ -66,9 +72,9 @@ export default function ProductFiltersResult({
           </Block>
         )}
 
-        {filters.category !== 'all' && (
+        {filters.category !== 'all' && filters.category !== 'products' && (
           <Block label="Category:">
-            <Chip size="small" label={filters.category} onDelete={handleRemoveCategory} />
+            <Chip size="small" label={categoryLabel} onDelete={handleRemoveCategory} />
           </Block>
         )}
 
@@ -96,7 +102,7 @@ export default function ProductFiltersResult({
           </Block>
         )}
 
-        {(filters.priceRange[0] !== 0 || filters.priceRange[1] !== 200) && (
+        {(filters.priceRange[0] !== 0 || filters.priceRange[1] !== 200000) && (
           <Block label="Price:">
             <Chip
               size="small"
@@ -131,6 +137,7 @@ ProductFiltersResult.propTypes = {
   filters: PropTypes.object,
   onFilters: PropTypes.func,
   results: PropTypes.number,
+  categories: PropTypes.array,
   onResetFilters: PropTypes.func,
 };
 

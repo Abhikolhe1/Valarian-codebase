@@ -30,6 +30,7 @@ export default function OrderConfirmationView() {
   const settings = useSettingsContext();
 
   const [order, setOrder] = useState(null);
+  const [invoice, setInvoice] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -40,6 +41,7 @@ export default function OrderConfirmationView() {
 
       const response = await axios.get(`/api/orders/${orderId}`);
       setOrder(response.data.order);
+      setInvoice(response.data.invoice || null);
     } catch (fetchError) {
       console.error('Error fetching confirmed order:', fetchError);
       setError(getErrorMessage(fetchError));
@@ -203,10 +205,33 @@ export default function OrderConfirmationView() {
                 </Stack>
 
                 {order.tax > 0 && (
-                  <Stack direction="row" justifyContent="space-between">
-                    <Typography color="text.secondary">Tax</Typography>
-                    <Typography>{fCurrency(order.tax)}</Typography>
-                  </Stack>
+                  <>
+                    <Stack direction="row" justifyContent="space-between">
+                      <Typography color="text.secondary">Tax</Typography>
+                      <Typography>{fCurrency(order.tax)}</Typography>
+                    </Stack>
+
+                    {invoice?.taxation?.cgst > 0 && (
+                      <Stack direction="row" justifyContent="space-between">
+                        <Typography color="text.secondary">CGST</Typography>
+                        <Typography>{fCurrency(invoice.taxation.cgst)}</Typography>
+                      </Stack>
+                    )}
+
+                    {invoice?.taxation?.sgst > 0 && (
+                      <Stack direction="row" justifyContent="space-between">
+                        <Typography color="text.secondary">SGST</Typography>
+                        <Typography>{fCurrency(invoice.taxation.sgst)}</Typography>
+                      </Stack>
+                    )}
+
+                    {invoice?.taxation?.igst > 0 && (
+                      <Stack direction="row" justifyContent="space-between">
+                        <Typography color="text.secondary">IGST</Typography>
+                        <Typography>{fCurrency(invoice.taxation.igst)}</Typography>
+                      </Stack>
+                    )}
+                  </>
                 )}
 
                 <Divider />
@@ -241,6 +266,23 @@ export default function OrderConfirmationView() {
             </Card>
 
             <Stack spacing={2} sx={{ mt: 3 }}>
+              {invoice?.invoiceNumber && (
+                <Card sx={{ p: 3 }}>
+                  <Stack spacing={1}>
+                    <Typography variant="h6">Invoice</Typography>
+                    <Typography color="text.secondary">
+                      {invoice.invoiceNumber}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      GSTIN: {invoice.seller?.gstNumber}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      HSN/SAC: {invoice.taxation?.hsnSac}
+                    </Typography>
+                  </Stack>
+                </Card>
+              )}
+
               <Button
                 fullWidth
                 variant="contained"

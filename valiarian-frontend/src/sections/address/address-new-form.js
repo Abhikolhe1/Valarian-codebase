@@ -69,14 +69,14 @@ export default function AddressNewForm({ open, onClose, onCreate }) {
 
   const onSubmit = handleSubmit(async (data) => {
     try {
-      onCreate({
+      await onCreate({
         name: data.name,
         phoneNumber: data.phoneNumber,
         address: data.address,
         city: data.city,
         state: data.state,
         country: data.country,
-        zipCode: Number(data.zipCode),
+        zipCode: String(data.zipCode),
         isPrimary: data.primary,
       });
 

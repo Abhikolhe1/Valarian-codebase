@@ -10,10 +10,12 @@ import {
   OrderRepository,
   OrderStatusHistoryRepository,
   ProductRepository,
+  ProductVariantRepository,
 } from '../repositories';
 import {EmailTemplateService} from '../services/email-template.service';
 import {EmailService} from '../services/email.service';
 import {RazorpayService} from '../services/razorpay.service';
+import {buildInvoiceFromOrder} from '../utils/invoice.utils';
 
 interface CreateOrderRequest {
   cartItems: Array<{
@@ -46,6 +48,12 @@ interface CreateOrderRequest {
   discount?: number;
   shipping?: number;
   tax?: number;
+  orderNumber?: string;
+  paymentDetails?: {
+    razorpayOrderId: string;
+    razorpayPaymentId: string;
+    razorpaySignature: string;
+  };
 }
 
 export class OrderController {
@@ -56,6 +64,8 @@ export class OrderController {
     public orderStatusHistoryRepository: OrderStatusHistoryRepository,
     @repository(ProductRepository)
     public productRepository: ProductRepository,
+    @repository(ProductVariantRepository)
+    public productVariantRepository: ProductVariantRepository,
     @inject('services.razorpay')
     public razorpayService: RazorpayService,
     @inject('services.email')
@@ -64,96 +74,231 @@ export class OrderController {
     public emailTemplateService: EmailTemplateService,
   ) { }
 
+  private async buildOrderDraft(request: CreateOrderRequest) {
+    if (!request.cartItems || request.cartItems.length === 0) {
+      throw new HttpErrors.BadRequest('Cart is empty');
+    }
+
+    const orderItems = [];
+    let subtotal = 0;
+
+    for (const item of request.cartItems) {
+      const product = await this.productRepository.findById(item.productId);
+
+      if (!product) {
+        throw new HttpErrors.NotFound(`Product ${item.productId} not found`);
+      }
+
+      if (product.status !== 'published') {
+        throw new HttpErrors.BadRequest(`Product ${product.name} is not available`);
+      }
+
+      let availableStock = product.stockQuantity;
+      let itemPrice = product.price;
+      let variantDetails = null;
+
+      if (item.variantId) {
+        const variant = await this.productVariantRepository.findById(item.variantId);
+
+        if (!variant || variant.productId !== product.id) {
+          throw new HttpErrors.NotFound(
+            `Variant ${item.variantId} not found for product ${product.name}`,
+          );
+        }
+
+        availableStock = variant.stockQuantity;
+        if (variant.price) {
+          itemPrice = variant.price;
+        }
+
+        variantDetails = {
+          variantId: variant.id,
+          color: variant.color,
+          colorName: variant.colorName,
+          size: variant.size,
+        };
+      }
+
+      if (availableStock < item.quantity) {
+        throw new HttpErrors.BadRequest(
+          `Insufficient stock for ${product.name}. Available: ${availableStock}, Requested: ${item.quantity}`,
+        );
+      }
+
+      const itemSubtotal = itemPrice * item.quantity;
+      subtotal += itemSubtotal;
+
+      orderItems.push({
+        id: uuidv4(),
+        productId: product.id,
+        name: product.name,
+        image: product.coverImage || '',
+        sku: product.sku || '',
+        ...variantDetails,
+        quantity: item.quantity,
+        price: itemPrice,
+        subtotal: itemSubtotal,
+      });
+    }
+
+    const discount = request.discount || 0;
+    const shipping = request.shipping || 0;
+    const tax = request.tax || 0;
+    const total = subtotal - discount + shipping + tax;
+
+    if (total <= 0) {
+      throw new HttpErrors.BadRequest('Invalid order total');
+    }
+
+    return {
+      orderItems,
+      subtotal,
+      discount,
+      shipping,
+      tax,
+      total,
+    };
+  }
+
+  private async decrementOrderStock(orderItems: Array<any>) {
+    for (const item of orderItems) {
+      const product = await this.productRepository.findById(item.productId);
+
+      if (item.variantId) {
+        const variant = await this.productVariantRepository.findById(item.variantId);
+        await this.productRepository.updateVariantStock(
+          item.productId,
+          item.variantId,
+          variant.stockQuantity - item.quantity,
+        );
+      } else {
+        await this.productRepository.updateStock(
+          item.productId,
+          product.stockQuantity - item.quantity,
+        );
+      }
+    }
+  }
+
+  private async sendOrderConfirmationEmail(order: Order, currentUser: UserProfile) {
+    try {
+      const emailHtml = await this.emailTemplateService.renderTemplate('order-confirmation', {
+        customerName: order.billingAddress.fullName,
+        orderNumber: order.orderNumber,
+        items: order.items.map(item => ({
+          name: item.name,
+          quantity: item.quantity,
+          price: item.price.toFixed(2),
+        })),
+        subtotal: order.subtotal.toFixed(2),
+        discount: order.discount > 0 ? order.discount.toFixed(2) : null,
+        shipping: order.shipping.toFixed(2),
+        tax: order.tax.toFixed(2),
+        total: order.total.toFixed(2),
+        shippingAddress: order.shippingAddress,
+        billingAddress: order.billingAddress,
+        trackOrderUrl: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/orders/${order.id}/tracking`,
+        year: new Date().getFullYear(),
+        companyName: 'Valiarian',
+      });
+
+      await this.emailService.sendMail({
+        to: order.billingAddress.email || currentUser.email,
+        subject: `Order Confirmation - ${order.orderNumber}`,
+        html: emailHtml,
+      });
+    } catch (emailError) {
+      console.error('Error sending confirmation email:', emailError);
+    }
+  }
+
+  @post('/api/orders/prepare-payment')
+  @authenticate('jwt')
+  @authorize({roles: ['user']})
+  async preparePayment(
+    @requestBody() request: CreateOrderRequest,
+    @inject(SecurityBindings.USER) currentUser: UserProfile,
+  ): Promise<{
+    success: boolean;
+    orderNumber: string;
+    razorpayOrderId: string;
+    amount: number;
+    currency: string;
+    totals: {subtotal: number; discount: number; shipping: number; tax: number; total: number};
+  }> {
+    try {
+      if (request.paymentMethod !== 'razorpay') {
+        throw new HttpErrors.BadRequest('Prepare payment is only available for Razorpay orders');
+      }
+
+      const {subtotal, discount, shipping, tax, total} = await this.buildOrderDraft(request);
+      const orderNumber =
+        request.orderNumber ||
+        (await this.orderRepository.generateOrderNumber(process.env.ORDER_PREFIX || 'ORD'));
+
+      const razorpayOrder = await this.razorpayService.createOrder(
+        Math.round(total * 100),
+        'INR',
+        orderNumber,
+        {userId: currentUser.id, orderNumber},
+      );
+
+      return {
+        success: true,
+        orderNumber,
+        razorpayOrderId: razorpayOrder.id,
+        amount: razorpayOrder.amount,
+        currency: razorpayOrder.currency || 'INR',
+        totals: {subtotal, discount, shipping, tax, total},
+      };
+    } catch (error) {
+      console.error('Error preparing payment:', error);
+      if (error instanceof HttpErrors.HttpError) {
+        throw error;
+      }
+      throw new HttpErrors.InternalServerError(`Failed to prepare payment: ${error.message}`);
+    }
+  }
+
   @post('/api/orders/create')
   @authenticate('jwt')
   @authorize({roles: ['user']})
   async createOrder(
     @requestBody() request: CreateOrderRequest,
     @inject(SecurityBindings.USER) currentUser: UserProfile,
-  ): Promise<{success: boolean; order: Order; razorpayOrderId?: string}> {
+  ): Promise<{success: boolean; order: Order; razorpayOrderId?: string; invoice: any}> {
     try {
       const userId = currentUser.id;
+      const {orderItems, subtotal, discount, shipping, tax, total} =
+        await this.buildOrderDraft(request);
 
-      if (!request.cartItems || request.cartItems.length === 0) {
-        throw new HttpErrors.BadRequest('Cart is empty');
-      }
-
-      const orderItems = [];
-      let subtotal = 0;
-
-      for (const item of request.cartItems) {
-        const product = await this.productRepository.findById(item.productId);
-
-        if (!product) {
-          throw new HttpErrors.NotFound(`Product ${item.productId} not found`);
-        }
-
-        if (product.status !== 'published') {
-          throw new HttpErrors.BadRequest(`Product ${product.name} is not available`);
-        }
-
-        let availableStock = 0;
-        let itemPrice = product.price;
-        let variantDetails = null;
-
-        if (item.variantId && product.variants && product.variants.length > 0) {
-          const variant = product.variants.find(v => v.id === item.variantId);
-          if (!variant) {
-            throw new HttpErrors.NotFound(
-              `Variant ${item.variantId} not found for product ${product.name}`,
-            );
-          }
-          availableStock = variant.stockQuantity;
-          if (variant.price) {
-            itemPrice = variant.price;
-          }
-          variantDetails = {
-            variantId: variant.id,
-            color: variant.color,
-            colorName: variant.colorName,
-            size: variant.size,
-          };
-        } else {
-          availableStock = product.stockQuantity;
-        }
-
-        if (availableStock < item.quantity) {
-          throw new HttpErrors.BadRequest(
-            `Insufficient stock for ${product.name}. Available: ${availableStock}, Requested: ${item.quantity}`,
-          );
-        }
-
-        const itemSubtotal = itemPrice * item.quantity;
-        subtotal += itemSubtotal;
-
-        orderItems.push({
-          id: uuidv4(),
-          productId: product.id,
-          name: product.name,
-          image: product.coverImage || '',
-          sku: product.sku || '',
-          ...variantDetails,
-          quantity: item.quantity,
-          price: itemPrice,
-          subtotal: itemSubtotal,
-        });
-      }
-
-      const discount = request.discount || 0;
-      const shipping = request.shipping || 0;
-      const tax = request.tax || 0;
-      const total = subtotal - discount + shipping + tax;
-
-      if (total <= 0) {
-        throw new HttpErrors.BadRequest('Invalid order total');
-      }
-
-      const orderNumber = await this.orderRepository.generateOrderNumber(
-        process.env.ORDER_PREFIX || 'ORD',
-      );
+      const orderNumber =
+        request.orderNumber ||
+        (await this.orderRepository.generateOrderNumber(process.env.ORDER_PREFIX || 'ORD'));
 
       let razorpayOrderId: string | undefined;
-      if (request.paymentMethod === 'razorpay') {
+      let paymentStatus: Order['paymentStatus'] = 'pending';
+      let status: Order['status'] = request.paymentMethod === 'cod' ? 'confirmed' : 'pending';
+      let razorpayPaymentId: string | undefined;
+      let razorpaySignature: string | undefined;
+
+      if (request.paymentMethod === 'razorpay' && request.paymentDetails) {
+        const isValid = this.razorpayService.verifyPaymentSignature(
+          request.paymentDetails.razorpayOrderId,
+          request.paymentDetails.razorpayPaymentId,
+          request.paymentDetails.razorpaySignature,
+        );
+
+        if (!isValid) {
+          throw new HttpErrors.BadRequest('Invalid payment signature');
+        }
+
+        razorpayOrderId = request.paymentDetails.razorpayOrderId;
+        razorpayPaymentId = request.paymentDetails.razorpayPaymentId;
+        razorpaySignature = request.paymentDetails.razorpaySignature;
+        paymentStatus = 'paid';
+        status = 'confirmed';
+      } else if (request.paymentMethod === 'razorpay') {
         const razorpayOrder = await this.razorpayService.createOrder(
           Math.round(total * 100),
           'INR',
@@ -167,10 +312,12 @@ export class OrderController {
         id: uuidv4(),
         orderNumber,
         userId,
-        status: 'pending',
-        paymentStatus: 'pending',
+        status,
+        paymentStatus,
         paymentMethod: request.paymentMethod,
         razorpayOrderId,
+        razorpayPaymentId,
+        razorpaySignature,
         subtotal,
         discount,
         shipping,
@@ -187,12 +334,26 @@ export class OrderController {
 
       await this.orderStatusHistoryRepository.createStatusEntry(
         order.id,
-        'pending',
+        order.status,
         userId,
-        'Order created',
+        request.paymentMethod === 'razorpay' && paymentStatus === 'paid'
+          ? 'Payment verified and order confirmed'
+          : request.paymentMethod === 'cod'
+            ? 'COD order created and confirmed'
+            : 'Order created',
       );
 
-      return {success: true, order, razorpayOrderId};
+      if (order.status === 'confirmed') {
+        await this.decrementOrderStock(order.items);
+        await this.sendOrderConfirmationEmail(order, currentUser);
+      }
+
+      return {
+        success: true,
+        order,
+        razorpayOrderId,
+        invoice: buildInvoiceFromOrder(order),
+      };
     } catch (error) {
       console.error('Error creating order:', error);
       if (error instanceof HttpErrors.HttpError) {
@@ -214,7 +375,7 @@ export class OrderController {
       razorpaySignature: string;
     },
     @inject(SecurityBindings.USER) currentUser: UserProfile,
-  ): Promise<{success: boolean; verified: boolean; order: Order}> {
+  ): Promise<{success: boolean; verified: boolean; order: Order; invoice: any}> {
     try {
       const userId = currentUser.id;
       const order = await this.orderRepository.findById(request.orderId);
@@ -268,59 +429,17 @@ export class OrderController {
         'Payment verified and order confirmed',
       );
 
-      for (const item of order.items) {
-        const product = await this.productRepository.findById(item.productId);
-
-        if (item.variantId && product.variants && product.variants.length > 0) {
-          const variant = product.variants.find(v => v.id === item.variantId);
-          if (variant) {
-            await this.productRepository.updateVariantStock(
-              item.productId,
-              item.variantId,
-              variant.stockQuantity - item.quantity,
-            );
-          }
-        } else {
-          await this.productRepository.updateStock(
-            item.productId,
-            product.stockQuantity - item.quantity,
-          );
-        }
-      }
-
-      try {
-        const emailHtml = await this.emailTemplateService.renderTemplate('order-confirmation', {
-          customerName: order.billingAddress.fullName,
-          orderNumber: order.orderNumber,
-          items: order.items.map(item => ({
-            name: item.name,
-            quantity: item.quantity,
-            price: item.price.toFixed(2),
-          })),
-          subtotal: order.subtotal.toFixed(2),
-          discount: order.discount > 0 ? order.discount.toFixed(2) : null,
-          shipping: order.shipping.toFixed(2),
-          tax: order.tax.toFixed(2),
-          total: order.total.toFixed(2),
-          shippingAddress: order.shippingAddress,
-          billingAddress: order.billingAddress,
-          trackOrderUrl: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/orders/${order.id}/tracking`,
-          year: new Date().getFullYear(),
-          companyName: 'Valiarian',
-        });
-
-        await this.emailService.sendMail({
-          to: order.billingAddress.email || currentUser.email,
-          subject: `Order Confirmation - ${order.orderNumber}`,
-          html: emailHtml,
-        });
-      } catch (emailError) {
-        console.error('Error sending confirmation email:', emailError);
-      }
+      await this.decrementOrderStock(order.items);
+      await this.sendOrderConfirmationEmail(order, currentUser);
 
       const updatedOrder = await this.orderRepository.findById(order.id);
 
-      return {success: true, verified: true, order: updatedOrder};
+      return {
+        success: true,
+        verified: true,
+        order: updatedOrder,
+        invoice: buildInvoiceFromOrder(updatedOrder),
+      };
     } catch (error) {
       console.error('Error verifying payment:', error);
       if (error instanceof HttpErrors.HttpError) {
@@ -393,7 +512,7 @@ export class OrderController {
   async getOrderDetails(
     @param.path.string('orderId') orderId: string,
     @inject(SecurityBindings.USER) currentUser: UserProfile,
-  ): Promise<{success: boolean; order: Order; statusHistory: any[]}> {
+  ): Promise<{success: boolean; order: Order; statusHistory: any[]; invoice: any}> {
     try {
       const order = await this.orderRepository.findById(orderId);
 
@@ -410,13 +529,45 @@ export class OrderController {
         order: ['createdAt DESC'],
       });
 
-      return {success: true, order, statusHistory};
+      return {success: true, order, statusHistory, invoice: buildInvoiceFromOrder(order)};
     } catch (error) {
       console.error('Error fetching order details:', error);
       if (error instanceof HttpErrors.HttpError) {
         throw error;
       }
       throw new HttpErrors.InternalServerError(`Failed to fetch order details: ${error.message}`);
+    }
+  }
+
+  @get('/api/orders/{orderId}/invoice')
+  @authenticate('jwt')
+  @authorize({roles: ['user']})
+  async getOrderInvoice(
+    @param.path.string('orderId') orderId: string,
+    @inject(SecurityBindings.USER) currentUser: UserProfile,
+  ): Promise<{success: boolean; invoice: any; orderId: string}> {
+    try {
+      const order = await this.orderRepository.findById(orderId);
+
+      if (!order) {
+        throw new HttpErrors.NotFound('Order not found');
+      }
+
+      if (order.userId !== currentUser.id) {
+        throw new HttpErrors.Forbidden('Access denied');
+      }
+
+      return {
+        success: true,
+        orderId: order.id,
+        invoice: buildInvoiceFromOrder(order),
+      };
+    } catch (error) {
+      console.error('Error fetching order invoice:', error);
+      if (error instanceof HttpErrors.HttpError) {
+        throw error;
+      }
+      throw new HttpErrors.InternalServerError(`Failed to fetch invoice: ${error.message}`);
     }
   }
 

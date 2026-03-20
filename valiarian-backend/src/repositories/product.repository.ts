@@ -214,14 +214,21 @@ export class ProductRepository extends TimeStampRepositoryMixin<
     if (isBestSeller !== undefined) andConditions.push({isBestSeller});
     if (isFeatured !== undefined) andConditions.push({isFeatured});
     if (inStock !== undefined) andConditions.push({inStock});
-    if (categoryId) andConditions.push({categoryId});
+    if (categoryId) {
+      // Use the model's property name, LoopBack should map it to column name
+      // but let's ensure it's a clean property assignment.
+      andConditions.push({categoryId: categoryId} as any);
+    }
     if (minPrice !== undefined) andConditions.push({price: {gte: minPrice}} as any);
     if (maxPrice !== undefined) andConditions.push({price: {lte: maxPrice}} as any);
 
-    const where: Where<Product> = andConditions.length > 0 ? {and: andConditions} as any : {};
+    const where: Where<Product> = andConditions.length > 1 
+      ? {and: andConditions} as any 
+      : (andConditions.length === 1 ? andConditions[0] : {});
 
     const filter: Filter<Product> = {
       where: Object.keys(where).length > 0 ? where : undefined,
+      include: [{relation: 'category'}],
       limit,
       skip,
       order,

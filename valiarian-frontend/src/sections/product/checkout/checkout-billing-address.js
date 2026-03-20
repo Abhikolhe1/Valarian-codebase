@@ -31,16 +31,26 @@ export default function CheckoutBillingAddress({ checkout, onBackStep, onCreateB
 
   const buildBillingAddress = (address, fallbackName, fallbackPhone) => ({
     id: address.id,
-    name: fallbackName || user?.fullName || user?.email || `Address ${address.id?.slice(-4)}`,
-    fullName: fallbackName || user?.fullName || user?.email || `Address ${address.id?.slice(-4)}`,
+    name:
+      address.fullName ||
+      fallbackName ||
+      user?.fullName ||
+      user?.email ||
+      `Address ${address.id?.slice(-4)}`,
+    fullName:
+      address.fullName ||
+      fallbackName ||
+      user?.fullName ||
+      user?.email ||
+      `Address ${address.id?.slice(-4)}`,
     fullAddress: `${address.address}, ${address.city}, ${address.state} ${address.zipCode}, ${address.country}`,
     address: address.address,
     city: address.city,
     state: address.state,
     country: address.country,
-    zipCode: address.zipCode,
-    phone: fallbackPhone || user?.phone || '',
-    phoneNumber: fallbackPhone || user?.phone || '',
+    zipCode: String(address.zipCode),
+    phone: address.phone || fallbackPhone || user?.phone || '',
+    phoneNumber: address.phone || fallbackPhone || user?.phone || '',
     addressType: address.isPrimary ? 'Primary' : 'Secondary',
     primary: address.isPrimary,
   });
@@ -153,6 +163,9 @@ export default function CheckoutBillingAddress({ checkout, onBackStep, onCreateB
         onClose={addressForm.onFalse}
         onCreate={async (newAddress) => {
           const createdAddress = await createAddress({
+            fullName: newAddress.name,
+            phone: newAddress.phoneNumber,
+            email: user?.email || undefined,
             address: newAddress.address,
             city: newAddress.city,
             state: newAddress.state,

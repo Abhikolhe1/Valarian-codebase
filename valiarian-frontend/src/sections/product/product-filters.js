@@ -37,16 +37,16 @@ export default function ProductFilters({
   colorOptions,
   genderOptions,
   ratingOptions,
-  categoryOptions,
+  categories,
 }) {
-  const marksLabel = [...Array(21)].map((_, index) => {
-    const value = index * 10;
+  const marksLabel = [...Array(11)].map((_, index) => {
+    const value = index * 20000;
 
     const firstValue = index === 0 ? `$${value}` : `${value}`;
 
     return {
       value,
-      label: index % 4 ? '' : firstValue,
+      label: index % 2 ? '' : firstValue,
     };
   });
 
@@ -138,23 +138,30 @@ export default function ProductFilters({
       <Typography variant="subtitle2" sx={{ mb: 1 }}>
         Category
       </Typography>
-      {categoryOptions.map((option) => (
-        <FormControlLabel
-          key={option}
-          control={
-            <Radio
-              checked={option === filters.category}
-              onClick={() => handleFilterCategory(option)}
-            />
-          }
-          label={option}
-          sx={{
-            ...(option === 'all' && {
-              textTransform: 'capitalize',
-            }),
-          }}
-        />
-      ))}
+      {['products', ...categories.map((c) => c.id)].map((optionId) => {
+        const optionLabel =
+          optionId === 'products'
+            ? 'Products'
+            : categories.find((c) => c.id === optionId)?.name || optionId;
+
+        return (
+          <FormControlLabel
+            key={optionId}
+            control={
+              <Radio
+                checked={optionId === filters.category}
+                onClick={() => handleFilterCategory(optionId)}
+              />
+            }
+            label={optionLabel}
+            sx={{
+              ...(optionId === 'products' && {
+                textTransform: 'capitalize',
+              }),
+            }}
+          />
+        );
+      })}
     </Stack>
   );
 
@@ -186,9 +193,9 @@ export default function ProductFilters({
       <Slider
         value={filters.priceRange}
         onChange={handleFilterPriceRange}
-        step={10}
+        step={100}
         min={0}
-        max={200}
+        max={200000}
         marks={marksLabel}
         getAriaValueText={(value) => `$${value}`}
         valueLabelFormat={(value) => `$${value}`}
@@ -286,7 +293,7 @@ ProductFilters.propTypes = {
   genderOptions: PropTypes.array,
   onResetFilters: PropTypes.func,
   ratingOptions: PropTypes.array,
-  categoryOptions: PropTypes.array,
+  categories: PropTypes.array,
   colorOptions: PropTypes.arrayOf(PropTypes.string),
 };
 
@@ -301,14 +308,14 @@ function InputRange({ type, value, onFilters }) {
     if (min < 0) {
       onFilters('priceRange', [0, max]);
     }
-    if (min > 200) {
-      onFilters('priceRange', [200, max]);
+    if (min > 200000) {
+      onFilters('priceRange', [200000, max]);
     }
     if (max < 0) {
       onFilters('priceRange', [min, 0]);
     }
-    if (max > 200) {
-      onFilters('priceRange', [min, 200]);
+    if (max > 200000) {
+      onFilters('priceRange', [min, 200000]);
     }
   }, [max, min, onFilters]);
 
@@ -336,9 +343,9 @@ function InputRange({ type, value, onFilters }) {
         }
         onBlur={handleBlurInputRange}
         inputProps={{
-          step: 10,
+          step: 100,
           min: 0,
-          max: 200,
+          max: 200000,
           type: 'number',
           'aria-labelledby': 'input-slider',
         }}

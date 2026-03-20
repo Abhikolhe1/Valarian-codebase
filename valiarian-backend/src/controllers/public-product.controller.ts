@@ -7,12 +7,15 @@ import {
   response
 } from '@loopback/rest';
 import {Product} from '../models';
-import {ProductRepository} from '../repositories';
+import {CategoryRepository, ProductRepository} from '../repositories';
+import {isValidUuid} from '../utils/validation.utils';
 
 export class PublicProductController {
   constructor(
     @repository(ProductRepository)
     public productRepository: ProductRepository,
+    @repository(CategoryRepository)
+    public categoryRepository: CategoryRepository,
   ) { }
 
   @get('/api/public/products/new-arrivals')
@@ -297,16 +300,44 @@ export class PublicProductController {
     @param.query.number('minPrice') minPrice?: number,
     @param.query.number('maxPrice') maxPrice?: number,
     @param.query.string('categoryId') categoryId?: string,
+    @param.query.string('categorySlug') categorySlug?: string,
     @param.query.number('limit') limit = 20,
     @param.query.number('offset') offset = 0,
   ): Promise<{products: Product[]; total: number}> {
+    let resolvedCategoryId = categoryId;
+
+    // Backward compatibility: if frontend sends a slug in categoryId, resolve it here.
+    if (resolvedCategoryId && !isValidUuid(resolvedCategoryId)) {
+      categorySlug = resolvedCategoryId;
+      resolvedCategoryId = undefined;
+    }
+
+    if (categorySlug) {
+      const matchedCategory = await this.categoryRepository.findOne({
+        where: {
+          slug: categorySlug,
+          isActive: true,
+          isDeleted: false,
+        },
+      });
+
+      if (!matchedCategory) {
+        return {
+          products: [],
+          total: 0,
+        };
+      }
+
+      resolvedCategoryId = matchedCategory.id;
+    }
+
     const result = await this.productRepository.searchProducts({
       search,
       status: 'published',
       inStock,
       minPrice,
       maxPrice,
-      categoryId,
+      categoryId: resolvedCategoryId,
       limit,
       skip: offset,
     });

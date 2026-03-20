@@ -4,7 +4,9 @@ import { useAuthContext } from 'src/auth/hooks';
 // api
 import {
   addCartItem as addCartItemRequest,
+  clearUserCart,
   removeCartItem as removeCartItemRequest,
+  syncUserCart,
   updateCartItemQuantity,
 } from 'src/api/cart';
 // redux
@@ -173,6 +175,28 @@ export default function useCheckout() {
     [authenticated, checkout.cart, dispatch, user?.id]
   );
 
+  const onBuyNow = useCallback(
+    async (newProduct) => {
+      const singleItemCart = [newProduct];
+
+      dispatch(getCart(singleItemCart));
+
+      if (!authenticated || !user?.id) {
+        return;
+      }
+
+      try {
+        await clearUserCart(user.id);
+        const syncedCart = await syncUserCart(user.id, singleItemCart);
+        dispatch(getCart(syncedCart));
+      } catch (error) {
+        console.error('Failed to prepare buy now cart:', error);
+        dispatch(getCart(singleItemCart));
+      }
+    },
+    [authenticated, dispatch, user?.id]
+  );
+
   const onApplyDiscount = useCallback(
     (value) => {
       if (checkout.cart.length) {
@@ -202,6 +226,7 @@ export default function useCheckout() {
     //
     onResetAll,
     onAddCart,
+    onBuyNow,
     onGotoStep,
     onNextStep,
     onBackStep,

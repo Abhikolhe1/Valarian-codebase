@@ -17,6 +17,11 @@ import { usePathname } from 'src/routes/hook';
 import { paramCase } from 'src/utils/change-case';
 // theme
 import { bgBlur } from 'src/theme/css';
+// api
+import { useGetCategoryTree } from 'src/api/category';
+// components
+import Skeleton from '@mui/material/Skeleton';
+import Iconify from 'src/components/iconify';
 
 // ----------------------------------------------------------------------
 
@@ -159,108 +164,7 @@ const PreviewImage = styled('img')(() => ({
 const PLACEHOLDER_IMAGE =
   'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRUHOpowQpT8ZqJLNRZ1LIcQlmsAd1aPqugpg&s';
 
-// Example category structure matching the image design
-const DEFAULT_CATEGORY_GROUPS = [
-  {
-    group: 'POLOS',
-    subcategories: [
-      {
-        name: 'Short Sleeves',
-        slug: 'short-sleeves',
-        path: paths.product.category('Short Sleeves'),
-        image: '/assets/images/home/social-media/social-4.jpeg',
-      },
-      {
-        name: 'Full Sleeves',
-        slug: 'full-sleeves',
-        path: paths.product.category('Full Sleeves'),
-        image: PLACEHOLDER_IMAGE,
-      },
-      {
-        name: 'Jersey',
-        slug: 'jersey',
-        path: paths.product.category('Jersey'),
-        image: PLACEHOLDER_IMAGE,
-      },
-      {
-        name: 'Cotton',
-        slug: 'cotton',
-        path: paths.product.category('Cotton'),
-        image: PLACEHOLDER_IMAGE,
-      },
-      {
-        name: 'Wool',
-        slug: 'wool',
-        path: paths.product.category('Wool'),
-        image: PLACEHOLDER_IMAGE,
-      },
-    ],
-  },
-  {
-    group: 'DENIMS',
-    subcategories: [
-      {
-        name: 'Straight',
-        slug: 'straight',
-        path: paths.product.category('Straight'),
-        image: PLACEHOLDER_IMAGE,
-      },
-      {
-        name: 'Slim',
-        slug: 'slim',
-        path: paths.product.category('Slim'),
-        image: PLACEHOLDER_IMAGE,
-      },
-      {
-        name: 'Relaxed',
-        slug: 'relaxed',
-        path: paths.product.category('Relaxed'),
-        image: PLACEHOLDER_IMAGE,
-      },
-      {
-        name: 'Skinny',
-        slug: 'skinny',
-        path: paths.product.category('Skinny'),
-        image: PLACEHOLDER_IMAGE,
-      },
-    ],
-  },
-  {
-    group: 'JACKETS',
-    subcategories: [
-      {
-        name: 'Bomber',
-        slug: 'bomber',
-        path: paths.product.category('Bomber'),
-        image: PLACEHOLDER_IMAGE,
-      },
-      {
-        name: 'Denim',
-        slug: 'denim',
-        path: paths.product.category('Denim'),
-        image: PLACEHOLDER_IMAGE,
-      },
-      {
-        name: 'Leather',
-        slug: 'leather',
-        path: paths.product.category('Leather'),
-        image: PLACEHOLDER_IMAGE,
-      },
-      {
-        name: 'Puffer',
-        slug: 'puffer',
-        path: paths.product.category('Puffer'),
-        image: PLACEHOLDER_IMAGE,
-      },
-      {
-        name: 'Overcoat',
-        slug: 'overcoat',
-        path: paths.product.category('Overcoat'),
-        image: PLACEHOLDER_IMAGE,
-      },
-    ],
-  },
-];
+// ... rest of styled components remain same until DEFAULT_CATEGORY_GROUPS ...
 
 const DEFAULT_IMAGE = PLACEHOLDER_IMAGE;
 
@@ -270,16 +174,29 @@ export default function CategoryMegaMenu({
   open,
   onClose,
   anchorEl,
-  categoryGroups = DEFAULT_CATEGORY_GROUPS,
   defaultImage = DEFAULT_IMAGE,
   isTransparent = false,
 }) {
+  const { categoryTree, treeLoading, treeError } = useGetCategoryTree();
+  console.log('Category Tree:', categoryTree, 'Loading:', treeLoading, 'Error:', treeError);
+
   const theme = useTheme();
   const pathname = usePathname();
   const [hoveredSubcategory, setHoveredSubcategory] = useState(null);
   const menuRef = useRef(null);
   const timeoutRef = useRef(null);
   const anchorRef = useRef(anchorEl);
+
+  // Transform backend tree to expected frontend shape
+  const categoryGroups = categoryTree.map((parent) => ({
+    group: parent.name,
+    subcategories: parent.children.map((child) => ({
+      name: child.name,
+      slug: child.slug,
+      path: paths.product.category(child.slug),
+      image: child.image || DEFAULT_IMAGE,
+    })),
+  }));
 
   // Keep anchor ref updated
   useEffect(() => {
@@ -352,7 +269,7 @@ export default function CategoryMegaMenu({
 
   // Preload images
   useEffect(() => {
-    if (open) {
+    if (open && categoryGroups.length > 0) {
       const imagesToPreload = [
         defaultImage,
         ...categoryGroups.flatMap((group) => group.subcategories.map((sub) => sub.image)),
@@ -382,11 +299,14 @@ export default function CategoryMegaMenu({
     }, 100);
   }, []);
 
-  const handleSubcategoryClick = useCallback((e) => {
-    // Close the dialog immediately when category is clicked
-    e.stopPropagation();
-    onClose();
-  }, [onClose]);
+  const handleSubcategoryClick = useCallback(
+    (e) => {
+      // Close the dialog immediately when category is clicked
+      e.stopPropagation();
+      onClose();
+    },
+    [onClose]
+  );
 
   // Get current preview data
   const previewData = hoveredSubcategory || {
@@ -433,6 +353,71 @@ export default function CategoryMegaMenu({
     return () => clearTimeout(timeout);
   }, [hoveredSubcategory, defaultImage, open]);
 
+  const renderCategoryListContent = () => {
+    if (treeLoading) {
+      return [...Array(6)].map((_, i) => (
+        <Box key={i} sx={{ mb: 2 }}>
+          <Skeleton width="60%" height={24} sx={{ mb: 1 }} />
+          <Skeleton width="80%" height={20} />
+          <Skeleton width="70%" height={20} />
+        </Box>
+      ));
+    }
+
+    if (categoryGroups.length > 0) {
+      return categoryGroups.map((group) => (
+        <CategoryGroup key={group.group}>
+          <CategoryGroupTitle>{group.group}</CategoryGroupTitle>
+          <Stack spacing={0.25}>
+            {group.subcategories.map((subcategory) => (
+              <SubCategoryItem
+                key={subcategory.name}
+                component={RouterLink}
+                href={subcategory.path}
+                active={
+                  hoveredSubcategory?.name === subcategory.name &&
+                  hoveredSubcategory?.groupName === group.group
+                    ? 1
+                    : 0
+                }
+                onMouseEnter={() => handleSubcategoryHover(subcategory, group.group)}
+                onMouseLeave={handleSubcategoryLeave}
+                onClick={handleSubcategoryClick}
+              >
+                <Typography
+                  variant="body2"
+                  sx={{
+                    pl:
+                      hoveredSubcategory?.name === subcategory.name &&
+                      hoveredSubcategory?.groupName === group.group
+                        ? 2
+                        : 0,
+                  }}
+                >
+                  {subcategory.name}
+                </Typography>
+              </SubCategoryItem>
+            ))}
+          </Stack>
+        </CategoryGroup>
+      ));
+    }
+
+    return (
+      <Typography
+        variant="body2"
+        sx={{
+          gridColumn: 'span 3',
+          textAlign: 'center',
+          py: 5,
+          color: 'text.secondary',
+        }}
+      >
+        No categories found
+      </Typography>
+    );
+  };
+
   if (!open) return null;
 
   return (
@@ -455,74 +440,41 @@ export default function CategoryMegaMenu({
               }}
             >
               {/* Left Column - Category Groups */}
-              <CategoryList spacing={1}>
-                {categoryGroups.map((group) => (
-                  <CategoryGroup key={group.group}>
-                    <CategoryGroupTitle>{group.group}</CategoryGroupTitle>
-                    <Stack spacing={0.25}>
-                      {group.subcategories.map((subcategory) => (
-                        <SubCategoryItem
-                          key={subcategory.name}
-                          component={RouterLink}
-                          href={subcategory.path}
-                          active={
-                            hoveredSubcategory?.name === subcategory.name &&
-                            hoveredSubcategory?.groupName === group.group
-                              ? 1
-                              : 0
-                          }
-                          onMouseEnter={() => handleSubcategoryHover(subcategory, group.group)}
-                          onMouseLeave={handleSubcategoryLeave}
-                          onClick={handleSubcategoryClick}
-                        >
-                          <Typography
-                            variant="body2"
-                            sx={{
-                              pl:
-                                hoveredSubcategory?.name === subcategory.name &&
-                                hoveredSubcategory?.groupName === group.group
-                                  ? 2
-                                  : 0,
-                            }}
-                          >
-                            {subcategory.name}
-                          </Typography>
-                        </SubCategoryItem>
-                      ))}
-                    </Stack>
-                  </CategoryGroup>
-                ))}
-              </CategoryList>
+              <CategoryList spacing={1}>{renderCategoryListContent()}</CategoryList>
 
               {/* Right Column - Image Preview */}
               <ImagePreview>
-                <Fade in={titleVisible} timeout={200}>
-                  <PreviewTitle>{displayTitle}</PreviewTitle>
-                </Fade>
+                {!treeLoading && (
+                  <>
+                    <Fade in={titleVisible} timeout={200}>
+                      <PreviewTitle>{displayTitle}</PreviewTitle>
+                    </Fade>
 
-                {/* Image with Fade animation */}
-                <Fade in={imageVisible} timeout={300}>
-                  <Box
-                    sx={{
-                      position: 'absolute',
-                      top: 0,
-                      left: 0,
-                      width: '100%',
-                      height: '100%',
-                    }}
-                  >
-                    <PreviewImage
-                      src={displayImage}
-                      alt={hoveredSubcategory?.name || 'Default category'}
-                      onError={(e) => {
-                        e.target.style.display = 'none';
-                      }}
-                    />
-                  </Box>
-                </Fade>
+                    {/* Image with Fade animation */}
+                    <Fade in={imageVisible} timeout={300}>
+                      <Box
+                        sx={{
+                          position: 'absolute',
+                          top: 0,
+                          left: 0,
+                          width: '100%',
+                          height: '100%',
+                        }}
+                      >
+                        <PreviewImage
+                          src={displayImage}
+                          alt={hoveredSubcategory?.name || 'Default category'}
+                          onError={(e) => {
+                            e.target.style.display = 'none';
+                          }}
+                        />
+                      </Box>
+                    </Fade>
+                  </>
+                )}
 
                 {/* Fallback */}
-                {!hoveredSubcategory && !imageVisible && (
+                {!treeLoading && !hoveredSubcategory && !imageVisible && (
                   <Box
                     sx={{
                       position: 'absolute',
@@ -538,6 +490,8 @@ export default function CategoryMegaMenu({
                     <Typography variant="body2">Hover over a category</Typography>
                   </Box>
                 )}
+
+                {treeLoading && <Skeleton variant="rectangular" width="100%" height="100%" />}
               </ImagePreview>
             </Stack>
           </StyledMegaMenu>
@@ -551,19 +505,6 @@ CategoryMegaMenu.propTypes = {
   open: PropTypes.bool,
   onClose: PropTypes.func,
   anchorEl: PropTypes.object,
-  categoryGroups: PropTypes.arrayOf(
-    PropTypes.shape({
-      group: PropTypes.string.isRequired,
-      subcategories: PropTypes.arrayOf(
-        PropTypes.shape({
-          name: PropTypes.string.isRequired,
-          slug: PropTypes.string,
-          path: PropTypes.string.isRequired,
-          image: PropTypes.string.isRequired,
-        })
-      ).isRequired,
-    })
-  ),
   defaultImage: PropTypes.string,
   isTransparent: PropTypes.bool,
 };

@@ -59,6 +59,7 @@ const PAYMENT_OPTIONS = [
 ];
 
 const RAZORPAY_KEY_ID = process.env.REACT_APP_RAZORPAY_KEY_ID;
+const DEFAULT_GST_RATE = Number(process.env.REACT_APP_DEFAULT_GST_RATE || 18);
 
 const getErrorMessage = (error, fallbackMessage) =>
   error?.response?.data?.message ||
@@ -227,6 +228,8 @@ export default function CheckoutPayment({
     }
 
     const billingAddress = createBillingPayload();
+    const taxableAmount = Math.max(0, Number(subTotal || 0) - Number(discount || 0));
+    const tax = Number(((taxableAmount * DEFAULT_GST_RATE) / 100).toFixed(2));
 
     return {
       cartItems: cart.map((item) => ({
@@ -240,7 +243,7 @@ export default function CheckoutPayment({
       paymentMethod,
       discount: Number(discount || 0),
       shipping: Number(shipping || 0),
-      tax: 0,
+      tax,
     };
   };
 

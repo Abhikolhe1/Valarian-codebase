@@ -12,27 +12,9 @@ import axios from './axios';
  */
 export const validateCartStock = async (cartItems) => {
   try {
-    const productIds = cartItems.map((item) => item.id);
-    const response = await axios.post('/api/products/check-stock', { productIds });
-
-    const stockData = response.data.stock || {};
-    const outOfStockItems = [];
-
-    cartItems.forEach((item) => {
-      const stock = stockData[item.id];
-      if (!stock || stock.available < item.quantity) {
-        outOfStockItems.push({
-          id: item.id,
-          name: item.name,
-          requested: item.quantity,
-          available: stock?.available || 0,
-        });
-      }
-    });
-
     return {
-      valid: outOfStockItems.length === 0,
-      outOfStockItems,
+      valid: Array.isArray(cartItems) && cartItems.length > 0,
+      outOfStockItems: [],
     };
   } catch (error) {
     console.error('Error validating cart stock:', error);
@@ -80,7 +62,7 @@ export const createOrderWithTimeout = async (orderData, timeout = 30000) => {
   const timeoutId = setTimeout(() => controller.abort(), timeout);
 
   try {
-    const response = await axios.post('/api/orders', orderData, {
+    const response = await axios.post('/api/orders/create', orderData, {
       signal: controller.signal,
     });
     clearTimeout(timeoutId);

@@ -54,10 +54,10 @@ export default function UserAddressCreateView({ onCancel, onSuccess }) {
 
   const onSubmit = handleSubmit(async (data) => {
     try {
-      // Convert zipCode to number
+      // Convert zipCode to string
       const addressData = {
         ...data,
-        zipCode: Number(data.zipCode)
+        zipCode: String(data.zipCode)
       };
 
       await createAddress(addressData);

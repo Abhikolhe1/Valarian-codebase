@@ -1,4 +1,6 @@
+import { useState } from 'react';
 import PropTypes from 'prop-types';
+import { v4 as uuidv4 } from 'uuid';
 // @mui
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
@@ -14,6 +16,7 @@ import { paths } from 'src/routes/paths';
 // utils
 import { fCurrency } from 'src/utils/format-number';
 // components
+import { LoadingButton } from '@mui/lab';
 import { ColorPreview } from 'src/components/color-utils';
 import Iconify from 'src/components/iconify';
 import Image from 'src/components/image';
@@ -21,11 +24,12 @@ import Label from 'src/components/label';
 // checkout
 import { useCheckout } from './hooks';
 
+
 // ----------------------------------------------------------------------
 
 export default function ProductItem({ product }) {
   // Get default variant or first variant if available
-  const defaultVariant = product.variants?.find(v => v.isDefault) || product.variants?.[0];
+  const defaultVariant = product.variants?.find((v) => v.isDefault) || product.variants?.[0];
 
   // Use variant data if available, otherwise fallback to product data
   const displayImage = defaultVariant?.images?.[0] || product.coverImage;
@@ -34,13 +38,15 @@ export default function ProductItem({ product }) {
   const displayInStock = defaultVariant?.inStock ?? product.inStock;
 
   // Get unique colors and sizes from variants
-  const availableColors = product.variants && product.variants.length > 0
-    ? [...new Set(product.variants.map(v => v.color))]
-    : (product.colors || []);
+  const availableColors =
+    product.variants && product.variants.length > 0
+      ? [...new Set(product.variants.map((v) => v.color))]
+      : product.colors || [];
 
-  const availableSizes = product.variants && product.variants.length > 0
-    ? [...new Set(product.variants.map(v => v.size))]
-    : (product.sizes || []);
+  const availableSizes =
+    product.variants && product.variants.length > 0
+      ? [...new Set(product.variants.map((v) => v.size))]
+      : product.sizes || [];
 
   // Updated destructuring to use new field names
   const { id, slug, name, salePrice, isNewArrival, isBestSeller } = product;
@@ -48,21 +54,24 @@ export default function ProductItem({ product }) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const router = useRouter();
+  const [loadingCart, setLoadingCart] = useState(false);
   const { onAddCart } = useCheckout();
 
   // Use slug for SEO-friendly URLs, fallback to id if slug doesn't exist
   const linkTo = paths.product.details(slug || id);
 
   // Calculate discount percentage using display price
-  const discountPercent = salePrice && displayPrice > 0
-    ? Math.round(((displayPrice - salePrice) / displayPrice) * 100)
-    : 0;
+  const discountPercent =
+    salePrice && displayPrice > 0
+      ? Math.round(((displayPrice - salePrice) / displayPrice) * 100)
+      : 0;
 
   const handleAddCart = async (e) => {
     // Prevent navigation when clicking Add to Cart button
     e.stopPropagation();
+    setLoadingCart(true);
     const newProduct = {
-      id,
+      productId: id,
       name,
       coverUrl: displayImage, // Use variant image or product cover image
       available: displayStock, // Use variant stock quantity
@@ -76,6 +85,8 @@ export default function ProductItem({ product }) {
       await onAddCart(newProduct);
     } catch (error) {
       console.error(error);
+    } finally {
+      setLoadingCart(false);
     }
   };
 
@@ -245,7 +256,10 @@ export default function ProductItem({ product }) {
 
           {/* Actual/Original Price (show only if sale exists, with strikethrough) */}
           {salePrice && (
-            <Box component="span" sx={{ color: 'text.disabled', typography: 'caption', textDecoration: 'line-through' }}>
+            <Box
+              component="span"
+              sx={{ color: 'text.disabled', typography: 'caption', textDecoration: 'line-through' }}
+            >
               {fCurrency(displayPrice)}
             </Box>
           )}
@@ -276,16 +290,17 @@ export default function ProductItem({ product }) {
         }}
         onClick={(e) => e.stopPropagation()} // Prevent card click when clicking button
       >
-        <Button
+        <LoadingButton
           variant="contained"
           color="primary"
           size="small"
           onClick={handleAddCart}
+          loading={loadingCart}
           startIcon={<Iconify icon="solar:cart-plus-bold" width={20} />}
           sx={{ minWidth: 'auto' }}
         >
           Add to Cart
-        </Button>
+        </LoadingButton>
       </Box>
     </Stack>
   );
