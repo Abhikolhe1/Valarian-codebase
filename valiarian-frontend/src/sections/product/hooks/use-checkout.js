@@ -42,7 +42,7 @@ export default function useCheckout() {
   const router = useRouter();
 
   const checkout = useSelector((state) => state.checkout);
-
+  
   const completed = checkout.activeStep === PRODUCT_CHECKOUT_STEPS.length;
 
   const onNextStep = useCallback(() => {

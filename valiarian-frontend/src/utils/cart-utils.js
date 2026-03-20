@@ -83,7 +83,7 @@ export const normalizeCartItem = (input) => {
 };
 
 export const normalizeCart = (cart = []) =>
-  (Array.isArray(cart) ? cart : []).map(normalizeCartItem).filter(Boolean);
+  (Array.isArray(cart) ? cart : []).map((item) => normalizeCartItem(item)).filter(Boolean);
 
 export const calculateCheckoutTotals = (cart = [], discount = 0, shipping = 0) => {
   const normalizedCart = normalizeCart(cart);

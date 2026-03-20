@@ -42,9 +42,9 @@ export async function syncUserCart(userId, cartItems = []) {
   await Promise.all(
     cartItems.map((cartItem) =>
       axiosInstance.post(`/api/cart/${userId}/items`, {
-      productId: getCartItemProductId(cartItem),
-      variantId: cartItem.variantId || undefined,
-      quantity: cartItem.quantity || 1,
+        productId: getCartItemProductId(cartItem),
+        variantId: cartItem.variantId || undefined,
+        quantity: cartItem.quantity || 1,
       })
     )
   );

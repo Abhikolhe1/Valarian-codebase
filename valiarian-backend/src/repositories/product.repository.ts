@@ -72,7 +72,7 @@ export class ProductRepository extends TimeStampRepositoryMixin<
     const variantRepo = await this.productVariantRepositoryGetter();
     const variants = await variantRepo.find({where: {productId}});
     const totalStock = variants.reduce((sum, v) => sum + (v.stockQuantity || 0), 0);
-    
+
     await this.updateById(productId, {
       stockQuantity: totalStock,
       inStock: totalStock > 0,
@@ -222,8 +222,8 @@ export class ProductRepository extends TimeStampRepositoryMixin<
     if (minPrice !== undefined) andConditions.push({price: {gte: minPrice}} as any);
     if (maxPrice !== undefined) andConditions.push({price: {lte: maxPrice}} as any);
 
-    const where: Where<Product> = andConditions.length > 1 
-      ? {and: andConditions} as any 
+    const where: Where<Product> = andConditions.length > 1
+      ? {and: andConditions} as any
       : (andConditions.length === 1 ? andConditions[0] : {});
 
     const filter: Filter<Product> = {

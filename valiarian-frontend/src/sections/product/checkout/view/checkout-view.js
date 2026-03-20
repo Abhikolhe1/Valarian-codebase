@@ -1,20 +1,20 @@
 import { useEffect } from 'react';
 // @mui
+import Button from '@mui/material/Button';
 import Container from '@mui/material/Container';
 import Typography from '@mui/material/Typography';
 import Grid from '@mui/material/Unstable_Grid2';
-import Button from '@mui/material/Button';
 // routes
-import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
+import { paths } from 'src/routes/paths';
 // auth
 import { useAuthContext } from 'src/auth/hooks';
 // _mock
 import { PRODUCT_CHECKOUT_STEPS } from 'src/_mock/_product';
 // components
-import { useSettingsContext } from 'src/components/settings';
 import EmptyContent from 'src/components/empty-content';
 import Iconify from 'src/components/iconify';
+import { useSettingsContext } from 'src/components/settings';
 //
 import { useCheckout } from '../../hooks';
 import CheckoutAuthGate from '../checkout-auth-gate';
@@ -29,7 +29,6 @@ import CheckoutSteps from '../checkout-steps';
 export default function CheckoutView() {
   const settings = useSettingsContext();
   const { authenticated } = useAuthContext();
-
   const {
     checkout,
     completed,

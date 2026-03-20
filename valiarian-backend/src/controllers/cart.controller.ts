@@ -56,10 +56,21 @@ export class CartController {
       });
 
       let subtotal = 0;
-      const items = cartItems.map((item: any) => {
-        const price = item.variant?.price || item.product?.price || 0;
+      const items = await Promise.all(cartItems.map(async (item: any) => {
+        const product = await this.productsRepository.findById(item.productId);
+        if (!product) {
+          throw new HttpErrors.NotFound('Product not found');
+        }
+        let variant = null;
+        if (item.variantId) {
+          const variants = product.variants || [];
+          variant = variants.find((v: any) => v.id === item.variantId);
+        }
+        const price = variant?.price || product?.price || 0;
         const itemTotal = price * item.quantity;
         subtotal += itemTotal;
+
+        console.log('Item:', item);
 
         return {
           id: item.id,
@@ -67,22 +78,18 @@ export class CartController {
           variantId: item.variantId,
           quantity: item.quantity,
           product: {
-            id: item.product?.id,
-            name: item.product?.name,
-            slug: item.product?.slug,
-            price: item.product?.price,
-            images: item.product?.images,
+            id: product?.id,
+            name: product?.name,
+            slug: product?.slug,
+            price: product?.price,
+            images: product?.images,
+            available: product?.inStock,
           },
-          variant: item.variant ? {
-            id: item.variant.id,
-            name: item.variant.name,
-            price: item.variant.price,
-            sku: item.variant.sku,
-          } : null,
+          variant: variant ? variant : null,
           price,
           total: itemTotal,
         };
-      });
+      }))
 
       return {
         success: true,

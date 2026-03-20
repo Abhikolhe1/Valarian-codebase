@@ -98,7 +98,7 @@ export class ValiarianBackendApplication extends BootMixin(
   }
 
   protected configureFileUpload(destination?: string) {
-    destination = destination ?? path.join(__dirname, '../.sandbox');
+    destination = destination ?? path.join(__dirname, '../uploads');
     this.bind(STORAGE_DIRECTORY).to(destination);
 
     const multerOptions: multer.Options = {

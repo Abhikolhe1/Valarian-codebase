@@ -1,20 +1,20 @@
-import PropTypes from 'prop-types';
 import sum from 'lodash/sum';
+import PropTypes from 'prop-types';
 // @mui
-import Card from '@mui/material/Card';
 import Button from '@mui/material/Button';
-import Grid from '@mui/material/Unstable_Grid2';
+import Card from '@mui/material/Card';
 import CardHeader from '@mui/material/CardHeader';
 import Typography from '@mui/material/Typography';
+import Grid from '@mui/material/Unstable_Grid2';
 // routes
 import { paths } from 'src/routes/paths';
 // components
+import EmptyContent from 'src/components/empty-content';
 import Iconify from 'src/components/iconify';
 import { RouterLink } from 'src/routes/components';
-import EmptyContent from 'src/components/empty-content';
 //
-import CheckoutSummary from './checkout-summary';
 import CheckoutCartProductList from './checkout-cart-product-list';
+import CheckoutSummary from './checkout-summary';
 
 // ----------------------------------------------------------------------
 
