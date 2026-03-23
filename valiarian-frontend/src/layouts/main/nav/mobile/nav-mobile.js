@@ -1,5 +1,5 @@
 import PropTypes from 'prop-types';
-import { useEffect, useMemo, Fragment } from 'react';
+import { useEffect, Fragment } from 'react';
 // @mui
 import Divider from '@mui/material/Divider';
 import Drawer from '@mui/material/Drawer';
@@ -10,11 +10,7 @@ import { useBoolean } from 'src/hooks/use-boolean';
 import { useMobileNavigation } from 'src/layouts/main/hooks/use-mobile-navigation';
 // routes
 import { usePathname } from 'src/routes/hook';
-import { paths } from 'src/routes/paths';
-// api
-import { useGetCategoryTree } from 'src/api/category';
 // components
-import Iconify from 'src/components/iconify';
 import Logo from 'src/components/logo';
 import Scrollbar from 'src/components/scrollbar';
 import SvgColor from 'src/components/svg-color';
@@ -48,6 +44,11 @@ export default function NavMobile({ offsetTop, isTransparent }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname]);
 
+  const handleOpenCategories = () => {
+    nav.onFalse();
+    categories.onTrue();
+  };
+
   return (
     <>
       <IconButton
@@ -79,7 +80,7 @@ export default function NavMobile({ offsetTop, isTransparent }) {
                 {link.title === 'Profile' && <Divider sx={{ my: 1 }} />}
                 <NavList
                   item={link}
-                  onOpenCategories={link.title === 'Categories' ? categories.onTrue : undefined}
+                  onOpenCategories={link.title === 'Categories' ? handleOpenCategories : undefined}
                 />
               </Fragment>
             ))}

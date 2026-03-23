@@ -57,7 +57,9 @@ const getDummyProductById = (productId) => {
     ...base,
     available: base.available || 100,
     inventoryType: 'in_stock',
-    description: base.description || `${base.name}. Premium quality product with exceptional comfort and style. Perfect for everyday wear.`,
+    description:
+      base.description ||
+      `${base.name}. Premium quality product with exceptional comfort and style. Perfect for everyday wear.`,
     subDescription: base.subDescription || 'Experience premium quality and comfort.',
     images: base.images || [
       base.coverUrl,
@@ -65,7 +67,13 @@ const getDummyProductById = (productId) => {
       '/assets/images/home/social-media/social-3.jpeg',
     ],
     reviews: base.reviews || [],
-    ratings: base.ratings || { 5: Math.floor(base.totalRatings * 0.7), 4: Math.floor(base.totalRatings * 0.2), 3: Math.floor(base.totalRatings * 0.08), 2: Math.floor(base.totalRatings * 0.02), 1: 0 },
+    ratings: base.ratings || {
+      5: Math.floor(base.totalRatings * 0.7),
+      4: Math.floor(base.totalRatings * 0.2),
+      3: Math.floor(base.totalRatings * 0.08),
+      2: Math.floor(base.totalRatings * 0.02),
+      1: 0,
+    },
     totalReviews: base.totalReviews || Math.floor(base.totalRatings * 0.4),
   });
 
@@ -399,6 +407,7 @@ export default function ProductShopDetailsView() {
       </Box>
 
       <Card>
+        .
         <Tabs
           value={currentTab}
           onChange={handleChangeTab}

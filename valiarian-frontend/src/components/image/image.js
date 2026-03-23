@@ -23,6 +23,10 @@ const Image = forwardRef(
       threshold,
       beforeLoad,
       delayMethod,
+      decoding,
+      fetchPriority,
+      height,
+      loading,
       placeholder,
       wrapperProps,
       scrollPosition,
@@ -30,6 +34,7 @@ const Image = forwardRef(
       visibleByDefault,
       wrapperClassName,
       useIntersectionObserver,
+      width,
       sx,
       ...other
     },
@@ -61,12 +66,17 @@ const Image = forwardRef(
         threshold={threshold}
         beforeLoad={beforeLoad}
         delayMethod={delayMethod}
+        decoding={decoding}
+        fetchpriority={fetchPriority}
+        height={height}
+        loading={loading}
         placeholder={placeholder}
         wrapperProps={wrapperProps}
         scrollPosition={scrollPosition}
         visibleByDefault={visibleByDefault}
         effect={disabledEffect ? undefined : effect}
         useIntersectionObserver={useIntersectionObserver}
+        width={width}
         wrapperClassName={wrapperClassName || 'component-image-wrapper'}
         placeholderSrc={disabledEffect ? '/assets/transparent.png' : '/assets/placeholder.svg'}
         //
@@ -121,10 +131,14 @@ Image.propTypes = {
   afterLoad: PropTypes.func,
   alt: PropTypes.string,
   beforeLoad: PropTypes.func,
+  decoding: PropTypes.string,
   delayMethod: PropTypes.string,
   delayTime: PropTypes.number,
   disabledEffect: PropTypes.bool,
   effect: PropTypes.string,
+  fetchPriority: PropTypes.string,
+  height: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
+  loading: PropTypes.string,
   overlay: PropTypes.string,
   ratio: PropTypes.oneOf(['4/3', '3/4', '6/4', '4/6', '16/9', '9/16', '21/9', '9/21', '1/1']),
   scrollPosition: PropTypes.object,
@@ -133,6 +147,7 @@ Image.propTypes = {
   threshold: PropTypes.number,
   useIntersectionObserver: PropTypes.bool,
   visibleByDefault: PropTypes.bool,
+  width: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
   wrapperClassName: PropTypes.string,
   wrapperProps: PropTypes.object,
   placeholder: PropTypes.element,

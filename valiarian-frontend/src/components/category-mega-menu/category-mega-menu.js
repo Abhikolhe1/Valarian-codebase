@@ -7,21 +7,18 @@ import Fade from '@mui/material/Fade';
 import Paper from '@mui/material/Paper';
 import Portal from '@mui/material/Portal';
 import Stack from '@mui/material/Stack';
-import { alpha, styled, useTheme } from '@mui/material/styles';
+import { alpha, styled } from '@mui/material/styles';
 import Typography from '@mui/material/Typography';
 // routes
 import { RouterLink } from 'src/routes/components';
 import { paths } from 'src/routes/paths';
 import { usePathname } from 'src/routes/hook';
-// utils
-import { paramCase } from 'src/utils/change-case';
 // theme
 import { bgBlur } from 'src/theme/css';
 // api
-import { useGetCategoryTree } from 'src/api/category';
+import { useGetCategories, useGetCategoryTree } from 'src/api/category';
 // components
 import Skeleton from '@mui/material/Skeleton';
-import Iconify from 'src/components/iconify';
 
 // ----------------------------------------------------------------------
 
@@ -170,6 +167,18 @@ const DEFAULT_IMAGE = PLACEHOLDER_IMAGE;
 
 // ----------------------------------------------------------------------
 
+function resolveCategoryImage(category) {
+  return (
+    category?.image ||
+    category?.coverImage ||
+    category?.thumbnailUrl ||
+    category?.thumbnail ||
+    category?.media?.url ||
+    category?.media?.thumbnailUrl ||
+    ''
+  );
+}
+
 export default function CategoryMegaMenu({
   open,
   onClose,
@@ -177,24 +186,43 @@ export default function CategoryMegaMenu({
   defaultImage = DEFAULT_IMAGE,
   isTransparent = false,
 }) {
+  const { categories } = useGetCategories();
   const { categoryTree, treeLoading, treeError } = useGetCategoryTree();
   console.log('Category Tree:', categoryTree, 'Loading:', treeLoading, 'Error:', treeError);
 
-  const theme = useTheme();
   const pathname = usePathname();
   const [hoveredSubcategory, setHoveredSubcategory] = useState(null);
   const menuRef = useRef(null);
   const timeoutRef = useRef(null);
   const anchorRef = useRef(anchorEl);
 
+  const categoryImageMap = categories.reduce((acc, category) => {
+    const keyCandidates = [category?.id, category?.slug, category?.name]
+      .filter(Boolean)
+      .map((value) => String(value).toLowerCase());
+
+    const image = resolveCategoryImage(category);
+
+    keyCandidates.forEach((key) => {
+      acc[key] = image;
+    });
+
+    return acc;
+  }, {});
+
   // Transform backend tree to expected frontend shape
   const categoryGroups = categoryTree.map((parent) => ({
     group: parent.name,
     subcategories: parent.children.map((child) => ({
+      id: child.id,
       name: child.name,
       slug: child.slug,
       path: paths.product.category(child.slug),
-      image: child.image || DEFAULT_IMAGE,
+      image:
+        categoryImageMap[String(child?.id || '').toLowerCase()] ||
+        categoryImageMap[String(child?.slug || '').toLowerCase()] ||
+        categoryImageMap[String(child?.name || '').toLowerCase()] ||
+        resolveCategoryImage(child),
     })),
   }));
 
@@ -345,7 +373,7 @@ export default function CategoryMegaMenu({
     setImageVisible(false);
 
     const timeout = setTimeout(() => {
-      const newImage = hoveredSubcategory?.image || defaultImage;
+      const newImage = hoveredSubcategory ? hoveredSubcategory.image : defaultImage;
       setDisplayImage(newImage);
       setImageVisible(true);
     }, 150);
@@ -461,13 +489,33 @@ export default function CategoryMegaMenu({
                           height: '100%',
                         }}
                       >
-                        <PreviewImage
-                          src={displayImage}
-                          alt={hoveredSubcategory?.name || 'Default category'}
-                          onError={(e) => {
-                            e.target.style.display = 'none';
-                          }}
-                        />
+                        {displayImage ? (
+                          <PreviewImage
+                            src={displayImage}
+                            alt={hoveredSubcategory?.name || 'Default category'}
+                            onError={(e) => {
+                              e.target.style.display = 'none';
+                            }}
+                          />
+                        ) : (
+                          <Box
+                            sx={{
+                              position: 'absolute',
+                              inset: 0,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              color: 'text.secondary',
+                              bgcolor: 'grey.100',
+                              px: 3,
+                              textAlign: 'center',
+                            }}
+                          >
+                            <Typography variant="body2">
+                              No category image available
+                            </Typography>
+                          </Box>
+                        )}
                       </Box>
                     </Fade>
                   </>

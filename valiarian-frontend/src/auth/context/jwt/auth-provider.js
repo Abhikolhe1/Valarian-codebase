@@ -51,6 +51,19 @@ const reducer = (state, action) => {
 // ----------------------------------------------------------------------
 
 const STORAGE_KEY = 'accessToken';
+const USER_STORAGE_KEY = 'user';
+const AUTH_BOOTSTRAP_TIMEOUT = 8000;
+
+function getStoredUser() {
+  try {
+    const storedUser = localStorage.getItem(USER_STORAGE_KEY);
+    return storedUser ? JSON.parse(storedUser) : null;
+  } catch (error) {
+    console.error('Failed to parse stored user:', error);
+    localStorage.removeItem(USER_STORAGE_KEY);
+    return null;
+  }
+}
 
 export function AuthProvider({ children }) {
   const [state, dispatch] = useReducer(reducer, initialState);
@@ -58,13 +71,25 @@ export function AuthProvider({ children }) {
   const initialize = useCallback(async () => {
     try {
       const accessToken = localStorage.getItem(STORAGE_KEY);
+      const storedUser = getStoredUser();
 
       console.log('Initializing frontend auth, token exists:', !!accessToken);
       if (accessToken && isValidToken(accessToken)) {
         console.log('Token is valid, setting session and fetching user');
         setSession(accessToken);
 
-        const response = await axios.get(endpoints.auth.me);
+        if (storedUser) {
+          dispatch({
+            type: 'INITIAL',
+            payload: {
+              user: storedUser,
+            },
+          });
+        }
+
+        const response = await axios.get(endpoints.auth.me, {
+          timeout: AUTH_BOOTSTRAP_TIMEOUT,
+        });
 
         console.log('User data fetched from /me:', response.data);
 
@@ -72,6 +97,7 @@ export function AuthProvider({ children }) {
         const user = response.data.user || response.data;
 
         console.log('userData', user);
+        localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(user));
 
         dispatch({
           type: 'INITIAL',
@@ -81,6 +107,7 @@ export function AuthProvider({ children }) {
         });
       } else {
         console.log('No valid token found in frontend');
+        localStorage.removeItem(USER_STORAGE_KEY);
         dispatch({
           type: 'INITIAL',
           payload: {
@@ -92,9 +119,21 @@ export function AuthProvider({ children }) {
       console.error('Frontend auth initialization error:', error);
       console.error('Error response:', error.response?.data || error.message);
 
+      const fallbackUser = getStoredUser();
+
+      if (fallbackUser) {
+        dispatch({
+          type: 'INITIAL',
+          payload: {
+            user: fallbackUser,
+          },
+        });
+        return;
+      }
+
       // Clear invalid session
       setSession(null);
-      localStorage.removeItem('user');
+      localStorage.removeItem(USER_STORAGE_KEY);
 
       dispatch({
         type: 'INITIAL',
@@ -133,6 +172,7 @@ export function AuthProvider({ children }) {
     const user = meResponse.data.user || meResponse.data;
 
     console.log('User data from /me:', user);
+    localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(user));
 
     dispatch({
       type: 'LOGIN',
@@ -197,6 +237,8 @@ export function AuthProvider({ children }) {
     // Fetch full user data from /me
     const meResponse = await axios.get(endpoints.auth.me);
     const user = meResponse.data.user || meResponse.data;
+
+    localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(user));
 
     dispatch({
       type: 'REGISTER',
@@ -379,7 +421,7 @@ export function AuthProvider({ children }) {
       console.error('Logout error:', error);
     } finally {
       setSession(null);
-      localStorage.removeItem('user');
+      localStorage.removeItem(USER_STORAGE_KEY);
       dispatch({
         type: 'LOGOUT',
       });

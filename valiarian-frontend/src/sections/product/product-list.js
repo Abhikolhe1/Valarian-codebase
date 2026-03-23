@@ -1,4 +1,5 @@
 import PropTypes from 'prop-types';
+import { memo, useEffect, useMemo, useState } from 'react';
 // @mui
 import Box from '@mui/material/Box';
 import Pagination, { paginationClasses } from '@mui/material/Pagination';
@@ -8,21 +9,46 @@ import { ProductItemSkeleton } from './product-skeleton';
 
 // ----------------------------------------------------------------------
 
-export default function ProductList({ products, loading, ...other }) {
-  const renderSkeleton = (
-    <>
-      {[...Array(16)].map((_, index) => (
-        <ProductItemSkeleton key={index} />
-      ))}
-    </>
+const PRODUCTS_PER_PAGE = 20;
+const SKELETON_COUNT = 12;
+
+function ProductList({ products, loading, ...other }) {
+  const [page, setPage] = useState(1);
+
+  useEffect(() => {
+    setPage(1);
+  }, [products]);
+
+  const totalPages = useMemo(
+    () => Math.max(1, Math.ceil((products?.length || 0) / PRODUCTS_PER_PAGE)),
+    [products]
   );
 
-  const renderList = (
-    <>
-      {products.map((product) => (
-        <ProductItem key={product.id} product={product} />
-      ))}
-    </>
+  const visibleProducts = useMemo(() => {
+    const startIndex = (page - 1) * PRODUCTS_PER_PAGE;
+    return products.slice(startIndex, startIndex + PRODUCTS_PER_PAGE);
+  }, [page, products]);
+
+  const renderSkeleton = useMemo(
+    () => (
+      <>
+        {[...Array(SKELETON_COUNT)].map((_, index) => (
+          <ProductItemSkeleton key={index} />
+        ))}
+      </>
+    ),
+    []
+  );
+
+  const renderList = useMemo(
+    () => (
+      <>
+        {visibleProducts.map((product) => (
+          <ProductItem key={product.id} product={product} />
+        ))}
+      </>
+    ),
+    [visibleProducts]
   );
 
   return (
@@ -41,9 +67,11 @@ export default function ProductList({ products, loading, ...other }) {
         {loading ? renderSkeleton : renderList}
       </Box>
 
-      {products.length > 8 && (
+      {!loading && totalPages > 1 && (
         <Pagination
-          count={8}
+          page={page}
+          count={totalPages}
+          onChange={(_, value) => setPage(value)}
           sx={{
             mt: 8,
             [`& .${paginationClasses.ul}`]: {
@@ -60,3 +88,5 @@ ProductList.propTypes = {
   loading: PropTypes.bool,
   products: PropTypes.array,
 };
+
+export default memo(ProductList);

@@ -1,13 +1,12 @@
 import orderBy from 'lodash/orderBy';
 import isEqual from 'lodash/isEqual';
-import { useCallback, useState, useEffect, useMemo } from 'react';
+import { startTransition, useCallback, useState, useEffect, useMemo } from 'react';
 // @mui
 import Tab from '@mui/material/Tab';
 import Tabs from '@mui/material/Tabs';
 import Stack from '@mui/material/Stack';
 import Container from '@mui/material/Container';
 import Typography from '@mui/material/Typography';
-import { alpha } from '@mui/material/styles';
 // hooks
 import { useBoolean } from 'src/hooks/use-boolean';
 import { useDebounce } from 'src/hooks/use-debounce';
@@ -53,6 +52,16 @@ export default function ProductShopView() {
   const settings = useSettingsContext();
   const searchParams = useSearchParams();
   const categoryFromQuery = searchParams.get('category');
+  const normalizedCategoryFromQuery = useMemo(() => {
+    if (!categoryFromQuery) return 'products';
+
+    const decodedCategory = decodeURIComponent(categoryFromQuery).trim();
+    if (!decodedCategory) return 'products';
+
+    return ['products', 'all'].includes(decodedCategory.toLowerCase())
+      ? 'products'
+      : decodedCategory;
+  }, [categoryFromQuery]);
 
   const { checkout } = useCheckout();
 
@@ -64,7 +73,10 @@ export default function ProductShopView() {
 
   const debouncedQuery = useDebounce(searchQuery);
 
-  const [filters, setFilters] = useState(defaultFilters);
+  const [filters, setFilters] = useState(() => ({
+    ...defaultFilters,
+    category: normalizedCategoryFromQuery,
+  }));
 
   const { categories } = useGetCategories();
 
@@ -74,16 +86,22 @@ export default function ProductShopView() {
       (c) =>
         c.id === filters.category ||
         c.slug === filters.category ||
-        c.name === filters.category
+        c.name === filters.category ||
+        c.name?.toLowerCase() === String(filters.category).toLowerCase()
     );
   }, [categories, filters.category]);
 
-  const { products, productsLoading } = useGetProducts({
-    categoryId: activeCategory?.id,
-    categorySlug: !activeCategory && filters.category !== 'all' && filters.category !== 'products'
-      ? filters.category
-      : activeCategory?.slug,
-  });
+  const productQueryFilters = useMemo(
+    () => ({
+      categorySlug:
+        filters.category !== 'all' && filters.category !== 'products'
+          ? activeCategory?.slug || filters.category
+          : undefined,
+    }),
+    [activeCategory?.slug, filters.category]
+  );
+
+  const { products, productsLoading } = useGetProducts(productQueryFilters);
 
   const productsEmpty = !productsLoading && products.length === 0;
 
@@ -91,43 +109,26 @@ export default function ProductShopView() {
 
   // Update filters when category query parameter changes from URL
   useEffect(() => {
-    if (!categoryFromQuery) return;
-
-    const categoryValue = decodeURIComponent(categoryFromQuery);
-    const foundCategory = categories.find(
-      (c) =>
-        c.id === categoryValue ||
-        c.slug === categoryValue ||
-        c.name?.toLowerCase() === categoryValue.toLowerCase()
-    );
-
     setFilters((prev) => ({
       ...prev,
       category:
-        categoryValue.toLowerCase() === 'products' || categoryValue.toLowerCase() === 'all'
-          ? 'products'
-          : foundCategory?.id || categoryValue,
+        prev.category === normalizedCategoryFromQuery
+          ? prev.category
+          : normalizedCategoryFromQuery,
     }));
-  }, [categoryFromQuery, categories]);
-
-  useEffect(() => {
-    if (categoryFromQuery) return;
-
-    setFilters((prev) => {
-      if (prev.category === 'products') return prev;
-
-      return {
-        ...prev,
-        category: 'products',
-      };
-    });
-  }, [categoryFromQuery]);
+  }, [normalizedCategoryFromQuery]);
 
   const handleFilters = useCallback((name, value) => {
-    setFilters((prevState) => ({
-      ...prevState,
-      [name]: value,
-    }));
+    setFilters((prevState) => {
+      if (prevState[name] === value) {
+        return prevState;
+      }
+
+      return {
+        ...prevState,
+        [name]: value,
+      };
+    });
   }, []);
 
   const handleFilterCategory = useCallback(
@@ -137,11 +138,15 @@ export default function ProductShopView() {
     [handleFilters]
   );
 
-  const dataFiltered = applyFilter({
-    inputData: products,
-    filters,
-    sortBy,
-  });
+  const dataFiltered = useMemo(
+    () =>
+      applyFilter({
+        inputData: products,
+        filters,
+        sortBy,
+      }),
+    [products, filters, sortBy]
+  );
 
   const canReset = !isEqual(defaultFilters, filters);
 
@@ -152,7 +157,9 @@ export default function ProductShopView() {
   }, []);
 
   const handleSearch = useCallback((inputValue) => {
-    setSearchQuery(inputValue);
+    startTransition(() => {
+      setSearchQuery(inputValue);
+    });
   }, []);
 
   const handleResetFilters = useCallback(() => {

@@ -30,12 +30,6 @@ const Puller = styled(Box)(({ theme }) => ({
   left: 'calc(50% - 15px)',
 }));
 
-const StyledBox = styled(Box)(({ theme }) => ({
-  backgroundColor: theme.palette.mode === 'light' ? '#fff' : theme.palette.grey[800],
-}));
-
-// ----------------------------------------------------------------------
-
 export default function NavMobileCategories({ open, onClose }) {
   const { categories } = useGetCategories();
 
@@ -123,6 +117,9 @@ export default function NavMobileCategories({ open, onClose }) {
       disableSwipeToOpen={false}
       ModalProps={{
         keepMounted: true,
+        sx: (theme) => ({
+          zIndex: theme.zIndex.drawer + 2,
+        }),
       }}
       PaperProps={{
         sx: {
@@ -130,6 +127,7 @@ export default function NavMobileCategories({ open, onClose }) {
           overflow: 'visible',
           borderTopLeftRadius: 16,
           borderTopRightRadius: 16,
+          zIndex: (theme) => theme.zIndex.drawer + 2,
         },
       }}
     >

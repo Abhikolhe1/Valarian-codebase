@@ -21,7 +21,7 @@ import { bgBlur } from 'src/theme/css';
 import { RouterLink } from 'src/routes/components';
 import { paths } from 'src/routes/paths';
 // redux
-import { useDispatch, useSelector } from 'src/redux/store';
+import { useSelector } from 'src/redux/store';
 // auth
 import { useAuthContext } from 'src/auth/hooks';
 // components
@@ -32,7 +32,6 @@ import Logo from 'src/components/logo';
 //
 import HeaderShadow from '../_common/header-shadow';
 import { HEADER } from '../config-layout';
-import { navConfig } from './config-navigation';
 import { useHeaderNavigation } from './hooks/use-header-navigation';
 import NavMobile from './nav/mobile';
 import UserDropdownMenu from './user-dropdown-menu';
@@ -237,10 +236,9 @@ export default function Header() {
 
   // Auth
   const { authenticated, user } = useAuthContext();
-  const dispatch = useDispatch();
 
   // Fetch header navigation from CMS
-  const { navigation: headerNavigation, isLoading: navLoading } = useHeaderNavigation();
+  const { navigation: headerNavigation } = useHeaderNavigation();
 
   const isHome = pathname === '/';
   const [showLogo, setShowLogo] = useState(!isHome);
@@ -477,65 +475,54 @@ export default function Header() {
             {/* Navigation Links */}
             {mdUp && (
               <Stack direction="row" spacing={3} sx={{ mr: 2 }}>
-                {navLoading ? (
-                  // Loading skeleton for navigation
-                  <>
-                    <Box sx={{ width: 80, height: 20, bgcolor: 'action.hover', borderRadius: 1 }} />
-                    <Box sx={{ width: 80, height: 20, bgcolor: 'action.hover', borderRadius: 1 }} />
-                    <Box sx={{ width: 80, height: 20, bgcolor: 'action.hover', borderRadius: 1 }} />
-                  </>
-                ) : (
-                  <>
-                    {headerNavigation.map((item) => {
-                      // Special handling for Category menu (if it exists)
-                      if (item.title === 'Category') {
-                        return (
-                          <Box
-                            key={item.title}
-                            ref={categoryMenuAnchorRef}
-                            onClick={categoryMenuOpen.onToggle}
-                            sx={{
-                              position: 'relative',
-                            }}
-                          >
-                            <StyledNavLink
-                              component="div"
-                              active={pathname === paths.product.root ? 1 : 0}
-                              isTransparent={headerBgOpacity === 0 ? 1 : 0}
-                              sx={{
-                                cursor: 'pointer',
-                                userSelect: 'none',
-                              }}
-                            >
-                              {item.title}
-                            </StyledNavLink>
-                            <CategoryMegaMenu
-                              open={categoryMenuOpen.value}
-                              onClose={categoryMenuOpen.onFalse}
-                              anchorEl={categoryMenuAnchorRef.current}
-                              isTransparent={headerBgOpacity === 0}
-                            />
-                          </Box>
-                        );
-                      }
-
-                      // Regular navigation links
-                      return (
+                {headerNavigation.map((item) => {
+                  // Special handling for Category menu (if it exists)
+                  if (item.title === 'Category') {
+                    return (
+                      <Box
+                        key={item.title}
+                        ref={categoryMenuAnchorRef}
+                        onClick={categoryMenuOpen.onToggle}
+                        sx={{
+                          position: 'relative',
+                        }}
+                      >
                         <StyledNavLink
-                          key={item.title}
-                          component={RouterLink}
-                          href={item.path}
-                          active={pathname === item.path ? 1 : 0}
+                          component="div"
+                          active={pathname === paths.product.root ? 1 : 0}
                           isTransparent={headerBgOpacity === 0 ? 1 : 0}
-                          target={item.openInNewTab ? '_blank' : undefined}
-                          rel={item.openInNewTab ? 'noopener noreferrer' : undefined}
+                          sx={{
+                            cursor: 'pointer',
+                            userSelect: 'none',
+                          }}
                         >
                           {item.title}
                         </StyledNavLink>
-                      );
-                    })}
-                  </>
-                )}
+                        <CategoryMegaMenu
+                          open={categoryMenuOpen.value}
+                          onClose={categoryMenuOpen.onFalse}
+                          anchorEl={categoryMenuAnchorRef.current}
+                          isTransparent={headerBgOpacity === 0}
+                        />
+                      </Box>
+                    );
+                  }
+
+                  // Regular navigation links
+                  return (
+                    <StyledNavLink
+                      key={item.title}
+                      component={RouterLink}
+                      href={item.path}
+                      active={pathname === item.path ? 1 : 0}
+                      isTransparent={headerBgOpacity === 0 ? 1 : 0}
+                      target={item.openInNewTab ? '_blank' : undefined}
+                      rel={item.openInNewTab ? 'noopener noreferrer' : undefined}
+                    >
+                      {item.title}
+                    </StyledNavLink>
+                  );
+                })}
               </Stack>
             )}
 

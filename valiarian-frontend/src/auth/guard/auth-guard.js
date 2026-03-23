@@ -3,6 +3,8 @@ import { useCallback, useEffect, useState } from 'react';
 // routes
 import { useRouter } from 'src/routes/hook';
 import { paths } from 'src/routes/paths';
+// components
+import { LoadingScreen } from 'src/components/loading-screen';
 //
 import { useAuthContext } from '../hooks';
 
@@ -46,7 +48,11 @@ export default function AuthGuard({ children }) {
     check();
   }, [check]);
 
-  if (loading || !checked) {
+  if (loading) {
+    return <LoadingScreen />;
+  }
+
+  if (!checked) {
     return null;
   }
 

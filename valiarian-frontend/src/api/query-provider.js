@@ -10,9 +10,17 @@ const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       // Global defaults for all queries
-      retry: 1, // Retry failed requests once
+      retry: (failureCount, error) => {
+        const status = error?.status || error?.statusCode || error?.response?.status;
+
+        if (status && status < 500) {
+          return false;
+        }
+
+        return failureCount < 1;
+      },
       refetchOnWindowFocus: false, // Don't refetch on window focus by default
-      refetchOnReconnect: true, // Refetch on reconnect
+      refetchOnReconnect: false, // Avoid re-firing failed public queries during navigation
       staleTime: 5 * 60 * 1000, // 5 minutes default stale time
       cacheTime: 10 * 60 * 1000, // 10 minutes default cache time
       onError: (error) => {

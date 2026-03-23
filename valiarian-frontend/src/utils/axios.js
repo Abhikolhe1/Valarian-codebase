@@ -7,6 +7,7 @@ import { HOST_API } from 'src/config-global';
 const axiosInstance = axios.create({
   baseURL: HOST_API,
   withCredentials: true,
+  timeout: 15000,
 });
 
 // Request interceptor - Add JWT token to all requests
