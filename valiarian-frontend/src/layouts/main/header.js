@@ -640,7 +640,6 @@ export default function Header() {
               {!mdUp && (
                 <NavMobile
                   offsetTop={offsetTop && headerBgOpacity > 0}
-                  data={navConfig}
                   isTransparent={headerBgOpacity === 0}
                 />
               )}

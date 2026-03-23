@@ -36,7 +36,7 @@ export function useMobileNavigation() {
       },
       {
         title: 'Profile',
-        path: paths.dashboard.user.profile,
+        path: paths.profile,
         icon: <Iconify icon="eva:person-fill" />,
       },
     ],

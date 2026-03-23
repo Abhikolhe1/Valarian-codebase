@@ -61,17 +61,11 @@ export class Category extends Entity {
   })
   description?: string;
 
-  
+  @property({
+    type: 'string',
+  })
+  image?: string;
 
-  
-
-  
-
-  
-
-  
-
-  
   @property({
     type: 'boolean',
     default: true,

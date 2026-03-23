@@ -1,5 +1,5 @@
 import PropTypes from 'prop-types';
-import { useEffect } from 'react';
+import { useEffect, useMemo, Fragment } from 'react';
 // @mui
 import Divider from '@mui/material/Divider';
 import Drawer from '@mui/material/Drawer';
@@ -11,6 +11,8 @@ import { useMobileNavigation } from 'src/layouts/main/hooks/use-mobile-navigatio
 // routes
 import { usePathname } from 'src/routes/hook';
 import { paths } from 'src/routes/paths';
+// api
+import { useGetCategoryTree } from 'src/api/category';
 // components
 import Iconify from 'src/components/iconify';
 import Logo from 'src/components/logo';
@@ -18,21 +20,21 @@ import Scrollbar from 'src/components/scrollbar';
 import SvgColor from 'src/components/svg-color';
 // contexts
 import { useMobileMenu } from 'src/contexts/mobile-menu-context';
-// hooks
 //
-import NavItem from './nav-item';
 import NavList from './nav-list';
+import NavMobileCategories from './nav-mobile-categories';
 
 // ----------------------------------------------------------------------
 
-export default function NavMobile({ offsetTop, data, isTransparent }) {
+export default function NavMobile({ offsetTop, isTransparent }) {
   const pathname = usePathname();
   const { setIsMenuOpen } = useMobileMenu();
 
   const nav = useBoolean();
+  const categories = useBoolean();
 
-  // Fetch mobile navigation from CMS
-  const { navigation: mobileNavigation, isLoading: navLoading } = useMobileNavigation();
+  // Fetch mobile navigation from CMS or default
+  const { navigation: mobileNavigation } = useMobileNavigation();
 
   // Sync menu state with context
   useEffect(() => {
@@ -72,57 +74,27 @@ export default function NavMobile({ offsetTop, data, isTransparent }) {
       >
         <Scrollbar sx={{ flex: 1 }}>
           <List component="nav" disablePadding>
-            {data
-              .filter((link) => !['Components', 'Pages', 'Docs'].includes(link.title))
-              .map((link) => (
-                <NavList key={link.title} item={link} />
-              ))}
-
-            {/* Additional menu items - Mobile only */}
-            <NavItem
-              item={{
-                title: 'Categories',
-                path: paths.product.root,
-                icon: <Iconify icon="eva:grid-fill" />,
-              }}
-              active={pathname === paths.product.root}
-            />
-            <NavItem
-              item={{
-                title: 'Premium',
-                path: paths.premium,
-                icon: <Iconify icon="eva:star-fill" />,
-              }}
-              active={pathname === paths.premium}
-            />
-            <NavItem
-              item={{
-                title: 'About Us',
-                path: paths.about,
-                icon: <Iconify icon="eva:info-fill" />,
-              }}
-              active={pathname === paths.about}
-            />
-            <Divider sx={{ my: 1 }} />
-            <NavItem
-              item={{
-                title: 'Profile',
-                path: paths.dashboard.user.profile,
-                icon: <Iconify icon="eva:person-fill" />,
-              }}
-              active={pathname === paths.dashboard.user.profile}
-            />
+            {mobileNavigation.map((link) => (
+              <Fragment key={link.title}>
+                {link.title === 'Profile' && <Divider sx={{ my: 1 }} />}
+                <NavList
+                  item={link}
+                  onOpenCategories={link.title === 'Categories' ? categories.onTrue : undefined}
+                />
+              </Fragment>
+            ))}
           </List>
         </Scrollbar>
 
         <Logo sx={{ mx: 2.5, my: 3, flexShrink: 0 }} />
       </Drawer>
+
+      <NavMobileCategories open={categories.value} onClose={categories.onFalse} />
     </>
   );
 }
 
 NavMobile.propTypes = {
-  data: PropTypes.array,
   offsetTop: PropTypes.bool,
   isTransparent: PropTypes.bool,
 };

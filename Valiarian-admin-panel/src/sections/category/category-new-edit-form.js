@@ -16,6 +16,7 @@ import { RouterLink } from 'src/routes/components';
 import axios, { endpoints } from 'src/utils/axios';
 // components
 import FormProvider, { RHFSelect, RHFSwitch, RHFTextField } from 'src/components/hook-form';
+import CMSMediaPickerField from 'src/sections/cms/cms-media-picker-field';
 import Iconify from 'src/components/iconify';
 import { useSnackbar } from 'src/components/snackbar';
 import { useRouter } from 'src/routes/hook';
@@ -59,6 +60,7 @@ export default function CategoryNewEditForm({ currentCategory, isParentCategory 
     slug: Yup.string().required('Slug is required'),
     parentId: Yup.string().nullable(),
     description: Yup.string(),
+    image: Yup.string(),
     isActive: Yup.boolean(),
   });
 
@@ -68,6 +70,7 @@ export default function CategoryNewEditForm({ currentCategory, isParentCategory 
       slug: currentCategory?.slug || '',
       parentId: currentCategory?.parentId || '',
       description: currentCategory?.description || '',
+      image: currentCategory?.image || '',
       isActive: currentCategory?.isActive ?? true,
     }),
     [currentCategory]
@@ -190,6 +193,14 @@ export default function CategoryNewEditForm({ currentCategory, isParentCategory 
               )}
 
               <RHFTextField name="description" label="Description" multiline rows={4} />
+
+              <CMSMediaPickerField
+                name="image"
+                label="Category Image"
+                value={values.image}
+                onChange={(url) => setValue('image', url)}
+                helperText="Select or upload a category image"
+              />
 
               <RHFSwitch name="isActive" label="Active" />
             </Stack>

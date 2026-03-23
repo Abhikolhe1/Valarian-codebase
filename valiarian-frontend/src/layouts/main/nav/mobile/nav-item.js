@@ -21,7 +21,7 @@ export default function NavItem({ item, open, active, externalLink, ...other }) 
 
       <ListItemText disableTypography primary={title} />
 
-      {!!children && (
+      {!!children && title !== 'Categories' && (
         <Iconify
           width={16}
           icon={open ? 'eva:arrow-ios-downward-fill' : 'eva:arrow-ios-forward-fill'}

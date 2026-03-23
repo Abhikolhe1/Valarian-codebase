@@ -219,9 +219,9 @@ export default function ProductShopView() {
       }}
     >
       <Tab key="products" label="Products" value="products" />
-      {categories.map((category) => (
+      {/* {categories.map((category) => (
         <Tab key={category.id} label={category.name} value={category.id} />
-      ))}
+      ))} */}
     </Tabs>
   );
 

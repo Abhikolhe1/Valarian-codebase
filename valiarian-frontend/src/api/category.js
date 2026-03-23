@@ -7,7 +7,7 @@ import { endpoints, fetcher } from 'src/utils/axios';
 
 export function useGetCategories() {
   const params = new URLSearchParams();
-  params.append('filter', JSON.stringify({ include: [{ relation: 'parent' }] }));
+  params.append('filter', JSON.stringify({ include: [{ relation: 'parentCategory' }] }));
 
   const URL = `${endpoints.category.list}?${params.toString()}`;
 

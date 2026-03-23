@@ -14,26 +14,34 @@ import NavItem from './nav-item';
 
 // ----------------------------------------------------------------------
 
-export default function NavList({ item }) {
+export default function NavList({ item, onOpenCategories }) {
   const pathname = usePathname();
 
-  const { path, children } = item;
+  const { path, children, title } = item;
 
   const externalLink = path.includes('http');
 
   const nav = useBoolean();
+
+  const handleToggle = () => {
+    if (title === 'Categories' && onOpenCategories) {
+      onOpenCategories();
+    } else {
+      nav.onToggle();
+    }
+  };
 
   return (
     <>
       <NavItem
         item={item}
         open={nav.value}
-        onClick={nav.onToggle}
+        onClick={handleToggle}
         active={pathname === path}
         externalLink={externalLink}
       />
 
-      {!!children && (
+      {!!children && title !== 'Categories' && (
         <Collapse in={nav.value} unmountOnExit>
           <NavSectionVertical
             data={children}
@@ -63,4 +71,5 @@ export default function NavList({ item }) {
 
 NavList.propTypes = {
   item: PropTypes.object,
+  onOpenCategories: PropTypes.func,
 };

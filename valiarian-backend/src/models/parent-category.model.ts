@@ -44,6 +44,11 @@ export class ParentCategory extends Entity {
   })
   description?: string;
 
+  @property({
+    type: 'string',
+  })
+  image?: string;
+
   @hasMany(() => Category, {keyTo: 'parentCategoryId'})
   categories: Category[];
 
