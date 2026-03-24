@@ -20,6 +20,7 @@ const initialState = {
   shipping: 0,
   billing: null,
   totalItems: 0,
+  paymentSession: null,
 };
 
 const getCartSignature = (cart = []) =>
@@ -125,6 +126,7 @@ const slice = createSlice({
       state.discount = 0;
       state.shipping = 0;
       state.totalItems = 0;
+      state.paymentSession = null;
     },
 
     backStep(state) {
@@ -207,6 +209,15 @@ const slice = createSlice({
       state.activeStep = 0;
       state.discount = 0;
       state.shipping = 0;
+      state.paymentSession = null;
+    },
+
+    setPaymentSession(state, action) {
+      state.paymentSession = action.payload;
+    },
+
+    clearPaymentSession(state) {
+      state.paymentSession = null;
     },
 
     startBuyNow(state, action) {
@@ -253,6 +264,8 @@ export const {
   deleteCart,
   createBilling,
   resetCheckoutFlow,
+  setPaymentSession,
+  clearPaymentSession,
   startBuyNow,
   applyShipping,
   applyDiscount,

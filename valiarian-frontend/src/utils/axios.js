@@ -95,9 +95,13 @@ export const endpoints = {
     get: (userId) => `/api/favorites/${userId}`,
   },
   orders: {
+    create: '/api/orders/create',
     user: (userId) => `/api/orders/user/${userId}`,
     details: (orderId) => `/api/orders/${orderId}`,
     tracking: (orderId) => `/api/orders/${orderId}/tracking`,
+  },
+  payments: {
+    verify: '/api/payments/verify',
   },
   cms: {
     pages: {

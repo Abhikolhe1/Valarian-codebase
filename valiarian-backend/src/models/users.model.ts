@@ -1,5 +1,6 @@
 import {belongsTo, Entity, hasMany, model, property} from '@loopback/repository';
 import {Media} from './media.model';
+import {Order} from './order.model';
 import {Roles} from './roles.model';
 import {UserRoles} from './user-roles.model';
 
@@ -113,6 +114,9 @@ export class Users extends Entity {
 
   @hasMany(() => Roles, {through: {model: () => UserRoles}})
   roles: Roles[];
+
+  @hasMany(() => Order, {keyTo: 'userId'})
+  orders?: Order[];
 
   
 

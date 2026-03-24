@@ -34,6 +34,9 @@ export async function migrate(args: string[]) {
       'OrderStatusHistory',
       'Address',
       'AuditLog',
+      'OrderItemEntity',
+      'Payment',
+      'Invoice',
     ],
   });
 

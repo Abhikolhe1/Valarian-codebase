@@ -1,19 +1,24 @@
 import {authenticate} from '@loopback/authentication';
 import {inject} from '@loopback/core';
-import {repository} from '@loopback/repository';
+import {IsolationLevel, repository} from '@loopback/repository';
 import {get, HttpErrors, param, patch, post, Request, requestBody, RestBindings} from '@loopback/rest';
 import {SecurityBindings, UserProfile} from '@loopback/security';
 import {v4 as uuidv4} from 'uuid';
 import {authorize} from '../authorization';
-import {Order} from '../models';
+import {Invoice, Order, OrderItemEntity, Payment} from '../models';
+import {ValiarianDataSource} from '../datasources';
 import {
+  InvoiceRepository,
   OrderRepository,
+  OrderItemRepository,
   OrderStatusHistoryRepository,
+  PaymentRepository,
   ProductRepository,
   ProductVariantRepository,
 } from '../repositories';
 import {EmailTemplateService} from '../services/email-template.service';
 import {EmailService} from '../services/email.service';
+import {InvoiceGeneratorService} from '../services/invoice-generator.service';
 import {RazorpayService} from '../services/razorpay.service';
 import {buildInvoiceFromOrder} from '../utils/invoice.utils';
 
@@ -56,22 +61,42 @@ interface CreateOrderRequest {
   };
 }
 
+interface VerifyPaymentRequest {
+  orderId: string;
+  razorpayOrderId?: string;
+  razorpayPaymentId?: string;
+  razorpaySignature?: string;
+  razorpay_order_id?: string;
+  razorpay_payment_id?: string;
+  razorpay_signature?: string;
+}
+
 export class OrderController {
   constructor(
     @repository(OrderRepository)
     public orderRepository: OrderRepository,
     @repository(OrderStatusHistoryRepository)
     public orderStatusHistoryRepository: OrderStatusHistoryRepository,
+    @repository(OrderItemRepository)
+    public orderItemRepository: OrderItemRepository,
+    @repository(PaymentRepository)
+    public paymentRepository: PaymentRepository,
+    @repository(InvoiceRepository)
+    public invoiceRepository: InvoiceRepository,
     @repository(ProductRepository)
     public productRepository: ProductRepository,
     @repository(ProductVariantRepository)
     public productVariantRepository: ProductVariantRepository,
+    @inject('datasources.valiarian')
+    public dataSource: ValiarianDataSource,
     @inject('services.razorpay')
     public razorpayService: RazorpayService,
     @inject('services.email')
     public emailService: EmailService,
     @inject('services.email.template')
     public emailTemplateService: EmailTemplateService,
+    @inject('services.invoice.generator')
+    public invoiceGeneratorService: InvoiceGeneratorService,
   ) { }
 
   private async buildOrderDraft(request: CreateOrderRequest) {
@@ -98,9 +123,15 @@ export class OrderController {
       let variantDetails = null;
 
       if (item.variantId) {
-        const variant = await this.productVariantRepository.findById(item.variantId);
+        let variant = await this.productVariantRepository.findById(item.variantId).catch(() => null);
 
-        if (!variant || variant.productId !== product.id) {
+        if (!variant && Array.isArray(product.variants)) {
+          variant = product.variants.find(v => v.id === item.variantId) || null;
+        }
+
+        console.log('Product:', product);
+        console.log('Variant:', variant);
+        if (!variant) {
           throw new HttpErrors.NotFound(
             `Variant ${item.variantId} not found for product ${product.name}`,
           );
@@ -165,11 +196,48 @@ export class OrderController {
       const product = await this.productRepository.findById(item.productId);
 
       if (item.variantId) {
-        const variant = await this.productVariantRepository.findById(item.variantId);
-        await this.productRepository.updateVariantStock(
-          item.productId,
-          item.variantId,
-          variant.stockQuantity - item.quantity,
+        const variant = await this.productVariantRepository.findById(item.variantId).catch(() => null);
+
+        if (variant) {
+          await this.productRepository.updateVariantStock(
+            item.productId,
+            item.variantId,
+            variant.stockQuantity - item.quantity,
+          );
+          continue;
+        }
+
+        if (Array.isArray(product.variants) && product.variants.length > 0) {
+          const updatedVariants = product.variants.map(productVariant => {
+            if (productVariant.id !== item.variantId) {
+              return productVariant;
+            }
+
+            const nextStock = Math.max(0, (productVariant.stockQuantity || 0) - item.quantity);
+
+            return {
+              ...productVariant,
+              stockQuantity: nextStock,
+              inStock: nextStock > 0,
+            };
+          });
+
+          const totalStock = updatedVariants.reduce(
+            (sum, productVariant) => sum + (productVariant.stockQuantity || 0),
+            0,
+          );
+
+          await this.productRepository.updateById(item.productId, {
+            variants: updatedVariants,
+            stockQuantity: totalStock,
+            inStock: totalStock > 0,
+            updatedAt: new Date(),
+          });
+          continue;
+        }
+
+        throw new HttpErrors.NotFound(
+          `Variant ${item.variantId} not found for product ${product.name}`,
         );
       } else {
         await this.productRepository.updateStock(
@@ -210,6 +278,387 @@ export class OrderController {
     } catch (emailError) {
       console.error('Error sending confirmation email:', emailError);
     }
+  }
+
+  private normalizeVerifyPaymentRequest(request: VerifyPaymentRequest) {
+    return {
+      orderId: request.orderId,
+      razorpayOrderId: request.razorpayOrderId || request.razorpay_order_id || '',
+      razorpayPaymentId: request.razorpayPaymentId || request.razorpay_payment_id || '',
+      razorpaySignature: request.razorpaySignature || request.razorpay_signature || '',
+    };
+  }
+
+  private buildOrderItemEntities(orderId: string, orderItems: Array<any>): Partial<OrderItemEntity>[] {
+    return orderItems.map(item => ({
+      orderId,
+      productId: item.productId,
+      quantity: item.quantity,
+      price: item.price,
+      name: item.name,
+      sku: item.sku,
+      image: item.image,
+      subtotal: item.subtotal,
+    }));
+  }
+
+  private async createInvoiceRecord(order: Order, options?: object): Promise<Invoice> {
+    const existingInvoice = await this.invoiceRepository.findOne({
+      where: {orderId: order.id},
+    }, options);
+
+    if (existingInvoice) {
+      return existingInvoice;
+    }
+
+    const invoicePayload = this.invoiceGeneratorService.buildInvoiceRecord(order);
+
+    return this.invoiceRepository.create({
+      orderId: order.id,
+      invoiceNumber: invoicePayload.invoiceNumber,
+      totalAmount: invoicePayload.totalAmount,
+      taxAmount: invoicePayload.taxAmount,
+      pdfUrl: invoicePayload.pdfUrl,
+    }, options);
+  }
+
+  private async getOrderWithRelations(orderId: string, options?: object): Promise<Order> {
+    return this.orderRepository.findById(
+      orderId,
+      {
+        include: [
+          {relation: 'orderItems'},
+          {relation: 'payment'},
+          {relation: 'invoice'},
+          {relation: 'user'},
+        ],
+      },
+      options,
+    );
+  }
+
+  private async verifyExistingPayment(
+    request: VerifyPaymentRequest,
+    currentUser: UserProfile,
+  ): Promise<{success: boolean; verified: boolean; status: string; order: Order; invoice: any}> {
+    const normalizedRequest = this.normalizeVerifyPaymentRequest(request);
+    const userId = currentUser.id;
+    const transaction = await this.dataSource.beginTransaction(IsolationLevel.READ_COMMITTED);
+    let transactionCompleted = false;
+
+    try {
+      const order = await this.orderRepository.findById(
+        normalizedRequest.orderId,
+        undefined,
+        {transaction},
+      );
+      const payment = await this.paymentRepository.findOne(
+        {where: {orderId: normalizedRequest.orderId}},
+        {transaction},
+      );
+
+      if (!order) {
+        throw new HttpErrors.NotFound('Order not found');
+      }
+
+      if (order.userId !== userId) {
+        throw new HttpErrors.Forbidden('Access denied');
+      }
+
+      if (!payment) {
+        throw new HttpErrors.NotFound('Payment record not found for this order');
+      }
+
+      if (payment.status === 'success' || order.paymentStatus === 'success' || order.paymentStatus === 'paid') {
+        const existingOrder = await this.getOrderWithRelations(order.id, {transaction});
+        const invoice = await this.createInvoiceRecord(order, {transaction});
+
+        await transaction.commit();
+
+        return {
+          success: true,
+          verified: true,
+          status: 'success',
+          order: existingOrder,
+          invoice,
+        };
+      }
+
+      const isValid = this.razorpayService.verifyPaymentSignature(
+        normalizedRequest.razorpayOrderId,
+        normalizedRequest.razorpayPaymentId,
+        normalizedRequest.razorpaySignature,
+      );
+
+      const razorpayPayment = await this.razorpayService.fetchPayment(
+        normalizedRequest.razorpayPaymentId,
+      );
+
+      const isMatchingPayment =
+        razorpayPayment?.order_id === normalizedRequest.razorpayOrderId &&
+        razorpayPayment?.id === normalizedRequest.razorpayPaymentId;
+      const paymentGatewayStatus = String(razorpayPayment?.status || '').toLowerCase();
+      const isCapturedPayment = isMatchingPayment && paymentGatewayStatus === 'captured';
+      const isPendingPayment =
+        isMatchingPayment && ['created', 'authorized', 'pending'].includes(paymentGatewayStatus);
+
+      if (!isValid) {
+        await this.paymentRepository.updateById(
+          payment.id,
+          {
+            status: 'failed',
+            razorpayPaymentId: normalizedRequest.razorpayPaymentId,
+            razorpaySignature: normalizedRequest.razorpaySignature,
+          },
+          {transaction},
+        );
+
+        await this.orderRepository.updateById(
+          order.id,
+          {
+            status: 'failed',
+            paymentStatus: 'failed',
+            razorpayPaymentId: normalizedRequest.razorpayPaymentId,
+            razorpaySignature: normalizedRequest.razorpaySignature,
+          },
+          {transaction},
+        );
+
+        await this.orderStatusHistoryRepository.createStatusEntry(
+          order.id,
+          'failed',
+          userId,
+          'Payment signature verification failed',
+        );
+
+        await transaction.commit();
+        transactionCompleted = true;
+        throw new HttpErrors.BadRequest('Invalid payment signature');
+      }
+
+      if (isPendingPayment) {
+        await this.paymentRepository.updateById(
+          payment.id,
+          {
+            status: 'pending',
+            razorpayOrderId: normalizedRequest.razorpayOrderId,
+            razorpayPaymentId: normalizedRequest.razorpayPaymentId,
+            razorpaySignature: normalizedRequest.razorpaySignature,
+          },
+          {transaction},
+        );
+
+        await this.orderRepository.updateById(
+          order.id,
+          {
+            status: 'pending',
+            paymentStatus: 'pending',
+            razorpayOrderId: normalizedRequest.razorpayOrderId,
+            razorpayPaymentId: normalizedRequest.razorpayPaymentId,
+            razorpaySignature: normalizedRequest.razorpaySignature,
+          },
+          {transaction},
+        );
+
+        await this.orderStatusHistoryRepository.createStatusEntry(
+          order.id,
+          'pending',
+          userId,
+          `Payment is ${paymentGatewayStatus} in Razorpay and awaiting capture confirmation`,
+        );
+
+        await transaction.commit();
+        transactionCompleted = true;
+
+        return {
+          success: true,
+          verified: false,
+          status: 'pending',
+          order: await this.getOrderWithRelations(order.id),
+          invoice: null,
+        };
+      }
+
+      if (!isCapturedPayment) {
+        await this.paymentRepository.updateById(
+          payment.id,
+          {
+            status: 'failed',
+            razorpayPaymentId: normalizedRequest.razorpayPaymentId,
+            razorpaySignature: normalizedRequest.razorpaySignature,
+          },
+          {transaction},
+        );
+
+        await this.orderRepository.updateById(
+          order.id,
+          {
+            status: 'failed',
+            paymentStatus: 'failed',
+            razorpayPaymentId: normalizedRequest.razorpayPaymentId,
+            razorpaySignature: normalizedRequest.razorpaySignature,
+          },
+          {transaction},
+        );
+
+        await this.orderStatusHistoryRepository.createStatusEntry(
+          order.id,
+          'failed',
+          userId,
+          `Unexpected Razorpay payment status: ${paymentGatewayStatus || 'unknown'}`,
+        );
+
+        await transaction.commit();
+        transactionCompleted = true;
+        throw new HttpErrors.BadRequest('Payment is not captured by Razorpay');
+      }
+
+      await this.paymentRepository.updateById(
+        payment.id,
+        {
+          status: 'success',
+          razorpayOrderId: normalizedRequest.razorpayOrderId,
+          razorpayPaymentId: normalizedRequest.razorpayPaymentId,
+          razorpaySignature: normalizedRequest.razorpaySignature,
+        },
+        {transaction},
+      );
+
+      await this.orderRepository.updateById(
+        order.id,
+        {
+          status: 'paid',
+          paymentStatus: 'success',
+          razorpayOrderId: normalizedRequest.razorpayOrderId,
+          razorpayPaymentId: normalizedRequest.razorpayPaymentId,
+          razorpaySignature: normalizedRequest.razorpaySignature,
+        },
+        {transaction},
+      );
+
+      await this.orderStatusHistoryRepository.createStatusEntry(
+        order.id,
+        'paid',
+        userId,
+        'Payment verified and invoice generated',
+      );
+
+      await transaction.commit();
+      transactionCompleted = true;
+
+      const updatedOrder = await this.orderRepository.findById(order.id);
+
+      await this.decrementOrderStock(order.items);
+
+      const invoice = await this.createInvoiceRecord(updatedOrder);
+      await this.sendOrderConfirmationEmail(updatedOrder, currentUser);
+
+      return {
+        success: true,
+        verified: true,
+        status: 'success',
+        order: await this.getOrderWithRelations(order.id),
+        invoice,
+      };
+    } catch (error) {
+      if (!transactionCompleted) {
+        await transaction.rollback();
+      }
+      throw error;
+    }
+  }
+
+  @post('/api/payments/failure')
+  @authenticate('jwt')
+  @authorize({roles: ['user']})
+  async markPaymentFailure(
+    @requestBody()
+    request: {
+      orderId: string;
+      razorpayOrderId?: string;
+      razorpayPaymentId?: string;
+      reason?: string;
+    },
+    @inject(SecurityBindings.USER) currentUser: UserProfile,
+  ): Promise<{success: boolean; order: Order; payment: Payment | null}> {
+    try {
+      const order = await this.orderRepository.findById(request.orderId);
+
+      if (!order) {
+        throw new HttpErrors.NotFound('Order not found');
+      }
+
+      if (order.userId !== currentUser.id) {
+        throw new HttpErrors.Forbidden('Access denied');
+      }
+
+      const payment = await this.paymentRepository.findByOrderId(order.id);
+
+      if (payment) {
+        await this.paymentRepository.updateById(payment.id, {
+          status: 'failed',
+          razorpayOrderId: request.razorpayOrderId || payment.razorpayOrderId,
+          razorpayPaymentId: request.razorpayPaymentId || payment.razorpayPaymentId,
+        });
+      }
+
+      await this.orderRepository.updateById(order.id, {
+        status: 'failed',
+        paymentStatus: 'failed',
+      });
+
+      await this.orderStatusHistoryRepository.createStatusEntry(
+        order.id,
+        'failed',
+        currentUser.id,
+        request.reason || 'Payment marked as failed',
+      );
+
+      return {
+        success: true,
+        order: await this.getOrderWithRelations(order.id),
+        payment: payment ? await this.paymentRepository.findById(payment.id) : null,
+      };
+    } catch (error) {
+      console.error('Error marking payment failure:', error);
+      if (error instanceof HttpErrors.HttpError) {
+        throw error;
+      }
+      throw new HttpErrors.InternalServerError(`Failed to mark payment failure: ${error.message}`);
+    }
+  }
+
+  @get('/api/orders/{orderId}/status')
+  @authenticate('jwt')
+  @authorize({roles: ['user']})
+  async getOrderStatus(
+    @param.path.string('orderId') orderId: string,
+    @inject(SecurityBindings.USER) currentUser: UserProfile,
+  ): Promise<{success: boolean; orderId: string; status: string; paymentStatus: string}> {
+    try {
+      const order = await this.orderRepository.findById(orderId);
+
+      if (!order) {
+        throw new HttpErrors.NotFound('Order not found');
+      }
+
+      if (order.userId !== currentUser.id) {
+        throw new HttpErrors.Forbidden('Access denied');
+      }
+
+      return {
+        success: true,
+        orderId: order.id,
+        status: order.status,
+        paymentStatus: order.paymentStatus,
+      };
+    } catch (error) {
+      console.error('Error fetching order status:', error);
+      if (error instanceof HttpErrors.HttpError) {
+        throw error;
+      }
+      throw new HttpErrors.InternalServerError(`Failed to fetch order status: ${error.message}`);
+    };
   }
 
   @post('/api/orders/prepare-payment')
@@ -266,7 +715,17 @@ export class OrderController {
   async createOrder(
     @requestBody() request: CreateOrderRequest,
     @inject(SecurityBindings.USER) currentUser: UserProfile,
-  ): Promise<{success: boolean; order: Order; razorpayOrderId?: string; invoice: any}> {
+  ): Promise<{
+    success: boolean;
+    status: string;
+    order: Order;
+    orderId: string;
+    razorpayOrderId?: string;
+    amount?: number;
+    currency: string;
+    keyId?: string;
+    invoice: any;
+  }> {
     try {
       const userId = currentUser.id;
       const {orderItems, subtotal, discount, shipping, tax, total} =
@@ -277,7 +736,7 @@ export class OrderController {
         (await this.orderRepository.generateOrderNumber(process.env.ORDER_PREFIX || 'ORD'));
 
       let razorpayOrderId: string | undefined;
-      let paymentStatus: Order['paymentStatus'] = 'pending';
+      let paymentStatus: Order['paymentStatus'] = request.paymentMethod === 'razorpay' ? 'created' : 'pending';
       let status: Order['status'] = request.paymentMethod === 'cod' ? 'confirmed' : 'pending';
       let razorpayPaymentId: string | undefined;
       let razorpaySignature: string | undefined;
@@ -296,8 +755,8 @@ export class OrderController {
         razorpayOrderId = request.paymentDetails.razorpayOrderId;
         razorpayPaymentId = request.paymentDetails.razorpayPaymentId;
         razorpaySignature = request.paymentDetails.razorpaySignature;
-        paymentStatus = 'paid';
-        status = 'confirmed';
+        paymentStatus = 'success';
+        status = 'paid';
       } else if (request.paymentMethod === 'razorpay') {
         const razorpayOrder = await this.razorpayService.createOrder(
           Math.round(total * 100),
@@ -323,6 +782,7 @@ export class OrderController {
         shipping,
         tax,
         total,
+        totalAmount: total,
         currency: 'INR',
         billingAddress: request.billingAddress,
         shippingAddress: request.shippingAddress,
@@ -332,27 +792,53 @@ export class OrderController {
         updatedAt: new Date(),
       });
 
+      await this.orderItemRepository.createAll(this.buildOrderItemEntities(order.id, orderItems));
+
+      let paymentRecord: Payment | null = null;
+
+      if (request.paymentMethod === 'razorpay') {
+        paymentRecord = await this.paymentRepository.create({
+          orderId: order.id,
+          razorpayOrderId,
+          razorpayPaymentId,
+          razorpaySignature,
+          amount: total,
+          status: request.paymentDetails ? 'success' : 'created',
+          method: 'razorpay',
+        });
+      }
+
       await this.orderStatusHistoryRepository.createStatusEntry(
         order.id,
         order.status,
         userId,
-        request.paymentMethod === 'razorpay' && paymentStatus === 'paid'
+        request.paymentMethod === 'razorpay' && paymentStatus === 'success'
           ? 'Payment verified and order confirmed'
           : request.paymentMethod === 'cod'
             ? 'COD order created and confirmed'
-            : 'Order created',
+            : 'Order created and payment initialized',
       );
 
-      if (order.status === 'confirmed') {
+      let invoice: Invoice | ReturnType<typeof buildInvoiceFromOrder> = buildInvoiceFromOrder(order);
+
+      if (order.status === 'confirmed' || order.status === 'paid') {
         await this.decrementOrderStock(order.items);
+        if (request.paymentMethod === 'razorpay') {
+          invoice = await this.createInvoiceRecord(order);
+        }
         await this.sendOrderConfirmationEmail(order, currentUser);
       }
 
       return {
         success: true,
-        order,
-        razorpayOrderId,
-        invoice: buildInvoiceFromOrder(order),
+        status: order.paymentStatus,
+        order: await this.getOrderWithRelations(order.id),
+        orderId: order.id,
+        razorpayOrderId: paymentRecord?.razorpayOrderId || razorpayOrderId,
+        amount: razorpayOrderId ? Math.round(order.total * 100) : undefined,
+        currency: order.currency || 'INR',
+        keyId: razorpayOrderId ? process.env.RAZORPAY_KEY_ID : undefined,
+        invoice,
       };
     } catch (error) {
       console.error('Error creating order:', error);
@@ -368,80 +854,31 @@ export class OrderController {
   @authorize({roles: ['user']})
   async verifyPayment(
     @requestBody()
-    request: {
-      orderId: string;
-      razorpayOrderId: string;
-      razorpayPaymentId: string;
-      razorpaySignature: string;
-    },
+    request: VerifyPaymentRequest,
     @inject(SecurityBindings.USER) currentUser: UserProfile,
-  ): Promise<{success: boolean; verified: boolean; order: Order; invoice: any}> {
+  ): Promise<{success: boolean; verified: boolean; status: string; order: Order; invoice: any}> {
     try {
-      const userId = currentUser.id;
-      const order = await this.orderRepository.findById(request.orderId);
-
-      if (!order) {
-        throw new HttpErrors.NotFound('Order not found');
-      }
-
-      if (order.userId !== userId) {
-        throw new HttpErrors.Forbidden('Access denied');
-      }
-
-      if (order.status !== 'pending') {
-        throw new HttpErrors.BadRequest(`Order is already ${order.status}. Cannot verify payment.`);
-      }
-
-      const isValid = this.razorpayService.verifyPaymentSignature(
-        request.razorpayOrderId,
-        request.razorpayPaymentId,
-        request.razorpaySignature,
-      );
-
-      if (!isValid) {
-        await this.orderRepository.updateById(order.id, {
-          paymentStatus: 'failed',
-          updatedAt: new Date(),
-        });
-
-        await this.orderStatusHistoryRepository.createStatusEntry(
-          order.id,
-          'failed',
-          userId,
-          'Payment verification failed',
-        );
-
-        throw new HttpErrors.BadRequest('Invalid payment signature');
-      }
-
-      await this.orderRepository.updateById(order.id, {
-        status: 'confirmed',
-        paymentStatus: 'paid',
-        razorpayPaymentId: request.razorpayPaymentId,
-        razorpaySignature: request.razorpaySignature,
-        updatedAt: new Date(),
-      });
-
-      await this.orderStatusHistoryRepository.createStatusEntry(
-        order.id,
-        'confirmed',
-        userId,
-        'Payment verified and order confirmed',
-      );
-
-      await this.decrementOrderStock(order.items);
-      await this.sendOrderConfirmationEmail(order, currentUser);
-
-      const updatedOrder = await this.orderRepository.findById(order.id);
-
-      return {
-        success: true,
-        verified: true,
-        order: updatedOrder,
-        invoice: buildInvoiceFromOrder(updatedOrder),
-      };
+      return this.verifyExistingPayment(request, currentUser);
     } catch (error) {
       console.error('Error verifying payment:', error);
+      if (error instanceof HttpErrors.HttpError) {
+        throw error;
+      }
+      throw new HttpErrors.InternalServerError(`Failed to verify payment: ${error.message}`);
+    }
+  }
+
+  @post('/api/payments/verify')
+  @authenticate('jwt')
+  @authorize({roles: ['user']})
+  async verifyPaymentAlias(
+    @requestBody() request: VerifyPaymentRequest,
+    @inject(SecurityBindings.USER) currentUser: UserProfile,
+  ): Promise<{success: boolean; verified: boolean; status: string; order: Order; invoice: any}> {
+    try {
+      return this.verifyExistingPayment(request, currentUser);
+    } catch (error) {
+      console.error('Error verifying payment via alias endpoint:', error);
       if (error instanceof HttpErrors.HttpError) {
         throw error;
       }

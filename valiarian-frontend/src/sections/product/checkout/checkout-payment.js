@@ -1,41 +1,33 @@
 import { yupResolver } from '@hookform/resolvers/yup';
-import PropTypes from 'prop-types';
-import { useState } from 'react';
-import { useForm } from 'react-hook-form';
-import { useNavigate } from 'react-router-dom';
-import * as Yup from 'yup';
-// @mui
 import LoadingButton from '@mui/lab/LoadingButton';
 import Alert from '@mui/material/Alert';
 import Button from '@mui/material/Button';
-import Dialog from '@mui/material/Dialog';
-import DialogActions from '@mui/material/DialogActions';
-import DialogContent from '@mui/material/DialogContent';
-import DialogContentText from '@mui/material/DialogContentText';
-import DialogTitle from '@mui/material/DialogTitle';
 import Grid from '@mui/material/Unstable_Grid2';
-// api
+import PropTypes from 'prop-types';
+import { useEffect, useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { useNavigate } from 'react-router-dom';
 import { clearUserCart } from 'src/api/cart';
-// auth
 import { useAuthContext } from 'src/auth/hooks';
-// routes
-import { paths } from 'src/routes/paths';
-// redux
-import { resetCart } from 'src/redux/slices/checkout';
-import { useDispatch } from 'src/redux/store';
-// utils
-import axios from 'src/utils/axios';
-import { getCartItemProductId } from 'src/utils/cart-utils';
-// components
 import FormProvider from 'src/components/hook-form';
 import Iconify from 'src/components/iconify';
-//
+import { useSnackbar } from 'src/components/snackbar';
+import useRazorpay from 'src/hooks/use-razorpay';
+import { clearPaymentSession, resetCart, setPaymentSession } from 'src/redux/slices/checkout';
+import { useDispatch } from 'src/redux/store';
+import { paths } from 'src/routes/paths';
+import axios, { endpoints } from 'src/utils/axios';
+import { getCartItemProductId } from 'src/utils/cart-utils';
+import {
+  buildPaymentQuery,
+  clearPaymentSessionStorage,
+  savePaymentSession,
+} from 'src/utils/payment-session';
+import * as Yup from 'yup';
 import CheckoutBillingInfo from './checkout-billing-info';
 import CheckoutDelivery from './checkout-delivery';
 import CheckoutPaymentMethods from './checkout-payment-methods';
 import CheckoutSummary from './checkout-summary';
-
-// ----------------------------------------------------------------------
 
 const DELIVERY_OPTIONS = [
   {
@@ -58,122 +50,57 @@ const PAYMENT_OPTIONS = [
   },
 ];
 
-const RAZORPAY_KEY_ID = process.env.REACT_APP_RAZORPAY_KEY_ID;
 const DEFAULT_GST_RATE = Number(process.env.REACT_APP_DEFAULT_GST_RATE || 18);
 
 const getErrorMessage = (error, fallbackMessage) =>
-  error?.response?.data?.message ||
-  error?.data?.message ||
-  error?.message ||
-  fallbackMessage;
+  error?.response?.data?.message || error?.data?.message || error?.message || fallbackMessage;
 
-const buildOrderError = (error, stage = 'generic') => {
-  const message = getErrorMessage(error, 'Something went wrong. Please try again.');
-  const normalizedMessage = String(message).toLowerCase();
-
-  if (normalizedMessage.includes('stock') || normalizedMessage.includes('available')) {
-    return {
-      type: 'stock',
-      title: 'Cart Needs Attention',
-      message,
-      action: 'update_cart',
-    };
-  }
-
-  if (stage === 'payment' || error?.code === 'PAYMENT_FAILED' || error?.code === 'PAYMENT_CANCELLED') {
-    return {
-      type: 'payment',
-      title: error?.code === 'PAYMENT_CANCELLED' ? 'Payment Cancelled' : 'Payment Failed',
-      message,
-      action: 'retry_payment',
-    };
-  }
-
-  if (stage === 'finalize_order') {
-    return {
-      type: 'generic',
-      title: 'Order Confirmation Failed',
-      message,
-      action: 'retry_order',
-    };
-  }
-
-  if (stage === 'prepare_payment') {
-    return {
-      type: 'generic',
-      title: 'Payment Initialization Failed',
-      message,
-      action: 'retry_payment',
-    };
-  }
-
-  return {
-    type: 'generic',
-    title: 'Order Creation Failed',
-    message,
-    action: 'retry',
-  };
+const isStockError = (message = '') => {
+  const normalized = String(message).toLowerCase();
+  return normalized.includes('stock') || normalized.includes('available');
 };
 
-const getRetryStage = (attemptType) => {
-  if (attemptType === 'payment') {
-    return 'payment';
-  }
-
-  if (attemptType === 'finalize_order') {
-    return 'finalize_order';
-  }
-
-  return 'generic';
+const normalizeAmount = (amount) => {
+  const numericAmount = Number(amount);
+  return Number.isFinite(numericAmount) ? numericAmount : 0;
 };
 
-const getRetryActionLabel = (action) => {
-  if (action === 'retry_payment') {
-    return 'Retry Payment';
-  }
-
-  if (action === 'retry_order') {
-    return 'Retry Order Confirmation';
-  }
-
-  return 'Retry';
-};
-
-export default function CheckoutPayment({
-  checkout,
-  onReset,
-  onNextStep,
-  onBackStep,
-  onGotoStep,
-  onApplyShipping,
-}) {
+export default function CheckoutPayment({ checkout, onBackStep, onGotoStep, onApplyShipping }) {
   const { total, discount, subTotal, shipping, billing, cart } = checkout;
   const { user } = useAuthContext();
+  const { enqueueSnackbar } = useSnackbar();
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const { isLoadingScript, loadScript, openCheckout } = useRazorpay();
 
-  const [orderError, setOrderError] = useState(null);
-  const [errorDialogOpen, setErrorDialogOpen] = useState(false);
-  const [lastAttempt, setLastAttempt] = useState(null);
+  const [checkoutError, setCheckoutError] = useState('');
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
 
   const PaymentSchema = Yup.object().shape({
     payment: Yup.string().required('Payment method is required!'),
   });
 
-  const defaultValues = {
-    delivery: shipping,
-    payment: '',
-  };
-
   const methods = useForm({
     resolver: yupResolver(PaymentSchema),
-    defaultValues,
+    defaultValues: {
+      delivery: shipping,
+      payment: 'razorpay',
+    },
   });
 
   const {
     handleSubmit,
+    watch,
     formState: { isSubmitting },
   } = methods;
+
+  const selectedPayment = watch('payment');
+
+  useEffect(() => {
+    if (selectedPayment === 'razorpay') {
+      loadScript().catch(() => undefined);
+    }
+  }, [loadScript, selectedPayment]);
 
   const clearCheckoutCart = async () => {
     if (user?.id) {
@@ -187,9 +114,36 @@ export default function CheckoutPayment({
     dispatch(resetCart());
   };
 
-  const handleOrderSuccess = async (order) => {
+  const persistPaymentState = (paymentState) => {
+    dispatch(setPaymentSession(paymentState));
+    savePaymentSession(paymentState);
+  };
+
+  const clearPersistedPaymentState = () => {
+    dispatch(clearPaymentSession());
+    clearPaymentSessionStorage();
+  };
+
+  const buildPaymentRoute = (pathname, paymentState) => {
+    const query = buildPaymentQuery(paymentState);
+    return query ? `${pathname}?${query}` : pathname;
+  };
+
+  const handleInlineError = (error, fallbackMessage) => {
+    const message = getErrorMessage(error, fallbackMessage);
+    setCheckoutError(message);
+    enqueueSnackbar(message, { variant: 'error' });
+
+    if (isStockError(message)) {
+      onGotoStep(0);
+    }
+  };
+
+  const handleOrderSuccess = async (order, successMessage = 'Order placed successfully') => {
     await clearCheckoutCart();
-    navigate(paths.order.confirmation(order.id), { replace: true });
+    clearPersistedPaymentState();
+    enqueueSnackbar(successMessage, { variant: 'success' });
+    navigate(paths.order.history, { replace: true });
   };
 
   const createBillingPayload = () => {
@@ -202,9 +156,9 @@ export default function CheckoutPayment({
     const zipCode = billing?.zipCode || billing?.zip || '';
     const country = billing?.country || 'India';
 
-    if (!fullName || !phone || !address || !city || !state || !zipCode) {
-      throw new Error('Please complete your billing address before placing the order');
-    }
+    // if (!fullName || !phone || !address || !city || !state || !zipCode) {
+    //   throw new Error('Please complete your billing address before placing the order');
+    // }
 
     return {
       fullName,
@@ -247,75 +201,41 @@ export default function CheckoutPayment({
     };
   };
 
-  const handleCloseErrorDialog = () => {
-    setErrorDialogOpen(false);
-    setOrderError(null);
+  const buildPaymentStateFromOrder = (responseData, statusOverride) => {
+    const order = responseData?.order;
+
+    return {
+      status: statusOverride || responseData?.status || order?.paymentStatus || 'pending',
+      orderId: responseData?.orderId || order?.id || '',
+      orderNumber: order?.orderNumber || '',
+      amount: normalizeAmount(order?.total ?? responseData?.amount),
+      createdAt: order?.createdAt || new Date().toISOString(),
+    };
   };
 
-  const finalizePaidOrder = async (orderData, orderNumber, paymentDetails) => {
-    setLastAttempt({
-      type: 'finalize_order',
-      orderData,
-      orderNumber,
-      paymentDetails,
-    });
-
-    const response = await axios.post('/api/orders/create', {
-      ...orderData,
-      orderNumber,
-      paymentDetails,
-    });
-
-    setLastAttempt(null);
+  const handleCodOrder = async (orderData) => {
+    const response = await axios.post(endpoints.orders.create, orderData);
     await handleOrderSuccess(response.data.order);
-
-    return response.data.order;
   };
 
-  const openRazorpayCheckout = async (orderData) => {
-    if (!RAZORPAY_KEY_ID) {
-      throw new Error('Razorpay is not configured');
-    }
-
-    if (!window?.Razorpay) {
-      throw new Error('Razorpay checkout is unavailable right now');
-    }
-
-    setLastAttempt({ type: 'payment', orderData });
-
-    let prepareResponse;
+  const handleRazorpayOrder = async (orderData) => {
+    setIsProcessingPayment(true);
+    let createdPaymentState = null;
 
     try {
-      prepareResponse = await axios.post('/api/orders/prepare-payment', orderData);
-    } catch (error) {
-      error.stage = 'prepare_payment';
-      throw error;
-    }
+      const createResponse = await axios.post(endpoints.orders.create, orderData);
+      const paymentState = buildPaymentStateFromOrder(createResponse.data, 'pending');
+      createdPaymentState = paymentState;
 
-    const { orderNumber, razorpayOrderId, amount, currency } = prepareResponse.data;
+      persistPaymentState(paymentState);
 
-    return new Promise((resolve, reject) => {
-      const razorpay = new window.Razorpay({
-        key: RAZORPAY_KEY_ID,
-        amount,
-        currency: currency || 'INR',
+      const checkoutResult = await openCheckout({
+        key: createResponse.data.keyId,
+        amount: createResponse.data.amount,
+        currency: createResponse.data.currency || 'INR',
+        order_id: createResponse.data.razorpayOrderId,
         name: 'Valiarian',
-        description: `Order #${orderNumber}`,
-        order_id: razorpayOrderId,
-        handler: async (response) => {
-          try {
-            const order = await finalizePaidOrder(orderData, orderNumber, {
-              razorpayOrderId: response.razorpay_order_id,
-              razorpayPaymentId: response.razorpay_payment_id,
-              razorpaySignature: response.razorpay_signature,
-            });
-
-            resolve(order);
-          } catch (error) {
-            error.stage = 'finalize_order';
-            reject(error);
-          }
-        },
+        description: 'Order Payment',
         prefill: {
           name: billing?.fullName || billing?.name || user?.fullName || '',
           email: billing?.email || user?.email || '',
@@ -324,199 +244,150 @@ export default function CheckoutPayment({
         theme: {
           color: '#111827',
         },
-        modal: {
-          ondismiss: () => {
-            const cancellationError = new Error('Payment was cancelled before completion');
-            cancellationError.code = 'PAYMENT_CANCELLED';
-            cancellationError.stage = 'payment';
-            reject(cancellationError);
-          },
-        },
       });
 
-      razorpay.on('payment.failed', (response) => {
-        const paymentError = new Error(
-          response?.error?.description || 'Payment failed. Please try again.'
-        );
-        paymentError.code = 'PAYMENT_FAILED';
-        paymentError.stage = 'payment';
-        reject(paymentError);
-      });
+      if (checkoutResult?.status === 'cancelled') {
+        const cancelledState = {
+          ...paymentState,
+          status: 'cancelled',
+        };
 
-      razorpay.open();
-    });
-  };
-
-  const submitCodOrder = async (orderData) => {
-    setLastAttempt({ type: 'cod', orderData });
-
-    const response = await axios.post('/api/orders/create', orderData);
-    setLastAttempt(null);
-
-    await handleOrderSuccess(response.data.order);
-
-    return response.data.order;
-  };
-
-  const handleRetry = async () => {
-    const retryAttempt = lastAttempt;
-
-    handleCloseErrorDialog();
-
-    if (!retryAttempt) {
-      return;
-    }
-
-    try {
-      if (retryAttempt.type === 'payment') {
-        await openRazorpayCheckout(retryAttempt.orderData);
+        persistPaymentState(cancelledState);
+        navigate(buildPaymentRoute(paths.payment.cancelled, cancelledState), { replace: true });
         return;
       }
 
-      if (retryAttempt.type === 'finalize_order') {
-        await finalizePaidOrder(
-          retryAttempt.orderData,
-          retryAttempt.orderNumber,
-          retryAttempt.paymentDetails
-        );
+      const verifyResponse = await axios.post(endpoints.payments.verify, {
+        razorpay_order_id: checkoutResult.response.razorpay_order_id,
+        razorpay_payment_id: checkoutResult.response.razorpay_payment_id,
+        razorpay_signature: checkoutResult.response.razorpay_signature,
+        orderId: paymentState.orderId,
+      });
+
+      const verifiedState = buildPaymentStateFromOrder(
+        verifyResponse.data,
+        verifyResponse.data?.status === 'pending' ? 'pending' : 'success'
+      );
+
+      persistPaymentState(verifiedState);
+
+      if (verifiedState.status === 'pending') {
+        navigate(buildPaymentRoute(paths.payment.pending, verifiedState), { replace: true });
         return;
       }
 
-      if (retryAttempt.type === 'cod') {
-        await submitCodOrder(retryAttempt.orderData);
-      }
+      await clearCheckoutCart();
+      navigate(buildPaymentRoute(paths.payment.success, verifiedState), { replace: true });
     } catch (error) {
-      setOrderError(buildOrderError(error, getRetryStage(retryAttempt.type)));
-      setErrorDialogOpen(true);
+      if (error?.status === 'failed') {
+        const failedState = {
+          ...(createdPaymentState || {}),
+          orderId: createdPaymentState?.orderId || '',
+          orderNumber: createdPaymentState?.orderNumber || '',
+          amount: createdPaymentState?.amount || normalizeAmount(total),
+          createdAt: createdPaymentState?.createdAt || new Date().toISOString(),
+          status: 'failed',
+        };
+
+        persistPaymentState(failedState);
+        navigate(buildPaymentRoute(paths.payment.failed, failedState), { replace: true });
+        return;
+      }
+
+      if (createdPaymentState?.orderId) {
+        const failedState = {
+          ...createdPaymentState,
+          status: 'failed',
+        };
+
+        persistPaymentState(failedState);
+        navigate(buildPaymentRoute(paths.payment.failed, failedState), { replace: true });
+        return;
+      }
+
+      throw error?.error || error;
+    } finally {
+      setIsProcessingPayment(false);
     }
-  };
-
-  const handleUpdateCart = () => {
-    handleCloseErrorDialog();
-    onGotoStep(0);
-  };
-
-  const handleCheckHistory = () => {
-    handleCloseErrorDialog();
-    navigate(paths.order.history);
   };
 
   const onSubmit = handleSubmit(async (data) => {
     try {
-      setOrderError(null);
+      setCheckoutError('');
 
       const orderData = createOrderPayload(data.payment);
 
       if (data.payment === 'razorpay') {
-        await openRazorpayCheckout(orderData);
+        await handleRazorpayOrder(orderData);
         return;
       }
 
       if (data.payment === 'cod') {
-        await submitCodOrder(orderData);
+        await handleCodOrder(orderData);
         return;
       }
 
       throw new Error('Invalid payment method selected');
     } catch (error) {
-      let stage = error?.stage;
-      
-      if (!stage) {
-        stage = data?.payment === 'razorpay' ? 'payment' : 'generic';
-      }
-
-      setOrderError(buildOrderError(error, stage));
-      setErrorDialogOpen(true);
+      handleInlineError(error, 'We could not place your order. Please try again.');
     }
   });
 
-  const retryActionLabel = getRetryActionLabel(orderError?.action);
-
   return (
-    <>
-      <FormProvider methods={methods} onSubmit={onSubmit}>
-        <Grid container spacing={3}>
-          <Grid xs={12} md={8}>
-            {orderError && orderError.type === 'payment' && (
-              <Alert severity="error" sx={{ mb: 3 }}>
-                {orderError.message}
-              </Alert>
-            )}
+    <FormProvider methods={methods} onSubmit={onSubmit}>
+      <Grid container spacing={3}>
+        <Grid xs={12} md={8}>
+          {!!checkoutError && (
+            <Alert severity="error" sx={{ mb: 3 }}>
+              {checkoutError}
+            </Alert>
+          )}
 
-            <CheckoutDelivery onApplyShipping={onApplyShipping} options={DELIVERY_OPTIONS} />
+          <CheckoutDelivery onApplyShipping={onApplyShipping} options={DELIVERY_OPTIONS} />
 
-            <CheckoutPaymentMethods options={PAYMENT_OPTIONS} sx={{ my: 3 }} />
+          <CheckoutPaymentMethods options={PAYMENT_OPTIONS} sx={{ my: 3 }} />
 
-            <Button
-              size="small"
-              color="inherit"
-              onClick={onBackStep}
-              startIcon={<Iconify icon="eva:arrow-ios-back-fill" />}
-            >
-              Back
-            </Button>
-          </Grid>
-
-          <Grid xs={12} md={4}>
-            <CheckoutBillingInfo onBackStep={onBackStep} billing={billing} />
-
-            <CheckoutSummary
-              enableEdit
-              total={total}
-              subTotal={subTotal}
-              discount={discount}
-              shipping={shipping}
-              onEdit={() => onGotoStep(0)}
-            />
-
-            <LoadingButton
-              fullWidth
-              size="large"
-              type="submit"
-              variant="contained"
-              loading={isSubmitting}
-            >
-              Complete Order
-            </LoadingButton>
-          </Grid>
+          <Button
+            size="small"
+            color="inherit"
+            onClick={onBackStep}
+            startIcon={<Iconify icon="eva:arrow-ios-back-fill" />}
+          >
+            Back
+          </Button>
         </Grid>
-      </FormProvider>
 
-      <Dialog open={errorDialogOpen} onClose={handleCloseErrorDialog}>
-        <DialogTitle>{orderError?.title || 'Error'}</DialogTitle>
-        <DialogContent>
-          <DialogContentText>{orderError?.message}</DialogContentText>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCloseErrorDialog}>Close</Button>
-          {(orderError?.action === 'retry' ||
-            orderError?.action === 'retry_payment' ||
-            orderError?.action === 'retry_order') && (
-            <Button onClick={handleRetry} variant="contained">
-              {retryActionLabel}
-            </Button>
-          )}
-          {orderError?.action === 'update_cart' && (
-            <Button onClick={handleUpdateCart} variant="contained">
-              Update Cart
-            </Button>
-          )}
-          {orderError?.action === 'check_history' && (
-            <Button onClick={handleCheckHistory} variant="contained">
-              Check Order History
-            </Button>
-          )}
-        </DialogActions>
-      </Dialog>
-    </>
+        <Grid xs={12} md={4}>
+          <CheckoutBillingInfo onBackStep={onBackStep} billing={billing} />
+
+          <CheckoutSummary
+            enableEdit
+            total={total}
+            subTotal={subTotal}
+            discount={discount}
+            shipping={shipping}
+            onEdit={() => onGotoStep(0)}
+          />
+
+          <LoadingButton
+            fullWidth
+            size="large"
+            type="submit"
+            variant="contained"
+            loading={isSubmitting || isProcessingPayment || isLoadingScript}
+            disabled={isSubmitting || isProcessingPayment}
+          >
+            Place Order
+          </LoadingButton>
+        </Grid>
+      </Grid>
+    </FormProvider>
   );
 }
 
 CheckoutPayment.propTypes = {
-  onReset: PropTypes.func,
   checkout: PropTypes.object,
   onBackStep: PropTypes.func,
   onGotoStep: PropTypes.func,
-  onNextStep: PropTypes.func,
   onApplyShipping: PropTypes.func,
 };

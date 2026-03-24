@@ -1,8 +1,19 @@
 import {Constructor, Getter, inject} from '@loopback/core';
-import {BelongsToAccessor, DefaultCrudRepository, Filter, repository, Where} from '@loopback/repository';
+import {
+  BelongsToAccessor,
+  DefaultCrudRepository,
+  Filter,
+  HasManyRepositoryFactory,
+  HasOneRepositoryFactory,
+  repository,
+  Where,
+} from '@loopback/repository';
 import {ValiarianDataSource} from '../datasources';
 import {TimeStampRepositoryMixin} from '../mixins/timestamp-repository-mixin';
-import {Order, OrderRelations, Users} from '../models';
+import {Invoice, Order, OrderItemEntity, OrderRelations, Payment, Users} from '../models';
+import {InvoiceRepository} from './invoice.repository';
+import {OrderItemRepository} from './order-item.repository';
+import {PaymentRepository} from './payment.repository';
 import {UsersRepository} from './users.repository';
 
 export interface OrderSearchOptions {
@@ -34,14 +45,38 @@ export class OrderRepository extends TimeStampRepositoryMixin<
 
   public readonly user: BelongsToAccessor<Users, typeof Order.prototype.id>;
 
+  public readonly orderItems: HasManyRepositoryFactory<
+    OrderItemEntity,
+    typeof Order.prototype.id
+  >;
+
+  public readonly payment: HasOneRepositoryFactory<Payment, typeof Order.prototype.id>;
+
+  public readonly invoice: HasOneRepositoryFactory<Invoice, typeof Order.prototype.id>;
+
   constructor(
     @inject('datasources.valiarian') dataSource: ValiarianDataSource,
     @repository.getter('UsersRepository')
     protected usersRepositoryGetter: Getter<UsersRepository>,
+    @repository.getter('OrderItemRepository')
+    protected orderItemRepositoryGetter: Getter<OrderItemRepository>,
+    @repository.getter('PaymentRepository')
+    protected paymentRepositoryGetter: Getter<PaymentRepository>,
+    @repository.getter('InvoiceRepository')
+    protected invoiceRepositoryGetter: Getter<InvoiceRepository>,
   ) {
     super(Order, dataSource);
     this.user = this.createBelongsToAccessorFor('user', usersRepositoryGetter);
+    this.orderItems = this.createHasManyRepositoryFactoryFor(
+      'orderItems',
+      orderItemRepositoryGetter,
+    );
+    this.payment = this.createHasOneRepositoryFactoryFor('payment', paymentRepositoryGetter);
+    this.invoice = this.createHasOneRepositoryFactoryFor('invoice', invoiceRepositoryGetter);
     this.registerInclusionResolver('user', this.user.inclusionResolver);
+    this.registerInclusionResolver('orderItems', this.orderItems.inclusionResolver);
+    this.registerInclusionResolver('payment', this.payment.inclusionResolver);
+    this.registerInclusionResolver('invoice', this.invoice.inclusionResolver);
   }
 
   async generateOrderNumber(prefix = 'ORD'): Promise<string> {

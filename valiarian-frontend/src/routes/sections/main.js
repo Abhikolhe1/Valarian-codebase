@@ -21,6 +21,10 @@ const ContactPage = lazy(() => import('src/pages/contact-us'));
 const PricingPage = lazy(() => import('src/pages/pricing'));
 const PremiumPage = lazy(() => import('src/pages/premium'));
 const PaymentPage = lazy(() => import('src/pages/payment'));
+const PaymentSuccessPage = lazy(() => import('../../pages/payment-success'));
+const PaymentFailedPage = lazy(() => import('../../pages/payment-failed'));
+const PaymentCancelledPage = lazy(() => import('../../pages/payment-cancelled'));
+const PaymentPendingPage = lazy(() => import('../../pages/payment-pending'));
 const ComingSoonPage = lazy(() => import('src/pages/coming-soon'));
 const MaintenancePage = lazy(() => import('src/pages/maintenance'));
 // PRODUCT
@@ -104,6 +108,43 @@ export const mainRoutes = [
             element: (
               <AuthGuard>
                 <OrderTrackingPage />
+              </AuthGuard>
+            ),
+          },
+        ],
+      },
+      {
+        path: 'payment',
+        children: [
+          {
+            path: 'success',
+            element: (
+              <AuthGuard>
+                <PaymentSuccessPage />
+              </AuthGuard>
+            ),
+          },
+          {
+            path: 'failed',
+            element: (
+              <AuthGuard>
+                <PaymentFailedPage />
+              </AuthGuard>
+            ),
+          },
+          {
+            path: 'cancelled',
+            element: (
+              <AuthGuard>
+                <PaymentCancelledPage />
+              </AuthGuard>
+            ),
+          },
+          {
+            path: 'pending',
+            element: (
+              <AuthGuard>
+                <PaymentPendingPage />
               </AuthGuard>
             ),
           },
