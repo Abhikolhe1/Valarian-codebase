@@ -52,7 +52,7 @@ const reducer = (state, action) => {
 
 const STORAGE_KEY = 'accessToken';
 const USER_STORAGE_KEY = 'user';
-const AUTH_BOOTSTRAP_TIMEOUT = 8000;
+const AUTH_BOOTSTRAP_TIMEOUT = 2000;
 
 function getStoredUser() {
   try {
@@ -78,33 +78,58 @@ export function AuthProvider({ children }) {
         console.log('Token is valid, setting session and fetching user');
         setSession(accessToken);
 
-        if (storedUser) {
-          dispatch({
-            type: 'INITIAL',
-            payload: {
-              user: storedUser,
-            },
-          });
-        }
-
-        const response = await axios.get(endpoints.auth.me, {
-          timeout: AUTH_BOOTSTRAP_TIMEOUT,
-        });
-
-        console.log('User data fetched from /me:', response.data);
-
-        // Backend returns user data directly, not wrapped in {user: ...}
-        const user = response.data.user || response.data;
-
-        console.log('userData', user);
-        localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(user));
-
         dispatch({
           type: 'INITIAL',
           payload: {
-            user,
+            user: storedUser,
           },
         });
+
+        axios
+          .get(endpoints.auth.me, {
+            timeout: AUTH_BOOTSTRAP_TIMEOUT,
+          })
+          .then((response) => {
+            console.log('User data fetched from /me:', response.data);
+
+            const user = response.data.user || response.data;
+
+            console.log('userData', user);
+            localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(user));
+
+            dispatch({
+              type: 'LOGIN',
+              payload: {
+                user,
+              },
+            });
+          })
+          .catch((error) => {
+            console.error('Frontend auth refresh error:', error);
+            console.error('Error response:', error.response?.data || error.message);
+
+            const fallbackUser = getStoredUser();
+
+            if (fallbackUser) {
+              dispatch({
+                type: 'LOGIN',
+                payload: {
+                  user: fallbackUser,
+                },
+              });
+              return;
+            }
+
+            setSession(null);
+            localStorage.removeItem(USER_STORAGE_KEY);
+
+            dispatch({
+              type: 'LOGIN',
+              payload: {
+                user: null,
+              },
+            });
+          });
       } else {
         console.log('No valid token found in frontend');
         localStorage.removeItem(USER_STORAGE_KEY);

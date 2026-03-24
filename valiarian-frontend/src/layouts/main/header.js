@@ -337,6 +337,10 @@ export default function Header() {
     setUserMenuAnchor(null);
   };
 
+  const prefetchCheckout = () => {
+    import('src/pages/product/checkout');
+  };
+
   // Mobile: Handle search overlay
   const handleMobileSearchClick = () => {
     setSearchExpanded(true);
@@ -571,6 +575,8 @@ export default function Header() {
                 <IconButton
                   size="small"
                   onClick={() => router.push(paths.product.checkout)}
+                  onMouseEnter={prefetchCheckout}
+                  onFocus={prefetchCheckout}
                   sx={{
                     color: headerBgOpacity > 0 ? 'text.primary' : 'common.white',
                     transition: theme.transitions.create('color', {

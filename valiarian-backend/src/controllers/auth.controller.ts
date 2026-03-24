@@ -309,14 +309,36 @@ export class AuthController {
       where: {
         id: currentUser.id,
       },
-      include: ['avatar'],
+      fields: {
+        id: true,
+        fullName: true,
+        email: true,
+        phone: true,
+        isActive: true,
+        authProvider: true,
+        profilePicture: true,
+        avatarId: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+      include: [{relation: 'avatar', scope: {fields: {url: true}}}],
     }) as any;
 
     if (!user) {
       throw new HttpErrors.NotFound('User not found');
     }
 
-    const {roles, permissions} = await this.rbacService.getUserRolesAndPermissions(user.id!);
+    const tokenRoles = Array.isArray((currentUser as any)?.roles)
+      ? ((currentUser as any).roles as string[])
+      : [];
+    const tokenPermissions = Array.isArray((currentUser as any)?.permissions)
+      ? ((currentUser as any).permissions as string[])
+      : [];
+    const hasTokenAuthContext = tokenRoles.length > 0 || tokenPermissions.length > 0;
+
+    const {roles, permissions} = hasTokenAuthContext
+      ? {roles: tokenRoles, permissions: tokenPermissions}
+      : await this.rbacService.getUserRolesAndPermissions(user.id!);
 
     const userData = _.omit(user, ['password']);
 

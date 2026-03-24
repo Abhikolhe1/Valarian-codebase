@@ -2,10 +2,15 @@ import axiosInstance from 'src/utils/axios';
 import useSWR from 'swr';
 
 const fetcher = (url) => axiosInstance.get(url).then((res) => res.data);
+const getErrorMessage = (error, fallbackMessage) =>
+  error?.response?.data?.error?.message ||
+  error?.response?.data?.message ||
+  error?.message ||
+  fallbackMessage;
 
 // GET all addresses for current user
-export function useGetAddresses() {
-  const { data, error, isLoading, mutate } = useSWR('/api/addresses', fetcher);
+export function useGetAddresses(enabled = true) {
+  const { data, error, isLoading, mutate } = useSWR(enabled ? '/api/addresses' : null, fetcher);
 
   return {
     addresses: data || [],
@@ -36,7 +41,7 @@ export async function createAddress(addressData) {
     const response = await axiosInstance.post('/api/addresses', addressData);
     return response.data;
   } catch (error) {
-    throw error.response?.data?.message || error.message || 'Failed to create address';
+    throw new Error(getErrorMessage(error, 'Failed to create address'));
   }
 }
 
@@ -46,7 +51,7 @@ export async function updateAddress(id, addressData) {
     const response = await axiosInstance.patch(`/api/addresses/${id}`, addressData);
     return response.data;
   } catch (error) {
-    throw error.response?.data?.message || error.message || 'Failed to update address';
+    throw new Error(getErrorMessage(error, 'Failed to update address'));
   }
 }
 
@@ -56,7 +61,7 @@ export async function setPrimaryAddress(id) {
     const response = await axiosInstance.patch(`/api/addresses/${id}/set-primary`);
     return response.data;
   } catch (error) {
-    throw error.response?.data?.message || error.message || 'Failed to set primary address';
+    throw new Error(getErrorMessage(error, 'Failed to set primary address'));
   }
 }
 
@@ -66,6 +71,6 @@ export async function deleteAddress(id) {
     const response = await axiosInstance.delete(`/api/addresses/${id}`);
     return response.data;
   } catch (error) {
-    throw error.response?.data?.message || error.message || 'Failed to delete address';
+    throw new Error(getErrorMessage(error, 'Failed to delete address'));
   }
 }
