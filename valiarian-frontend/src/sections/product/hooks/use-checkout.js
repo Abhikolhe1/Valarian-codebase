@@ -4,9 +4,7 @@ import { useAuthContext } from 'src/auth/hooks';
 // api
 import {
   addCartItem as addCartItemRequest,
-  clearUserCart,
   removeCartItem as removeCartItemRequest,
-  syncUserCart,
   updateCartItemQuantity,
 } from 'src/api/cart';
 // redux
@@ -14,7 +12,6 @@ import {
   addToCart,
   applyDiscount,
   applyShipping,
-  backStep,
   createBilling,
   decreaseQuantity,
   deleteCart,
@@ -23,10 +20,12 @@ import {
   increaseQuantity,
   nextStep,
   resetCart,
+  resetCheckoutFlow,
+  startBuyNow,
 } from 'src/redux/slices/checkout';
 import { useDispatch, useSelector } from 'src/redux/store';
 // utils
-import { findCartItem } from 'src/utils/cart-utils';
+import { calculateCheckoutTotals, findCartItem, isCartItemMatch } from 'src/utils/cart-utils';
 // _mock
 import { PRODUCT_CHECKOUT_STEPS } from 'src/_mock/_product';
 // routes
@@ -42,26 +41,77 @@ export default function useCheckout() {
   const router = useRouter();
 
   const checkout = useSelector((state) => state.checkout);
-  
-  const completed = checkout.activeStep === PRODUCT_CHECKOUT_STEPS.length;
+  const checkoutItems = checkout.buyNowItem ? [checkout.buyNowItem] : checkout.cart;
+  const sessionTotals = calculateCheckoutTotals(
+    checkoutItems,
+    checkout.discount,
+    checkout.shipping
+  );
+  const checkoutSession = {
+    ...checkout,
+    cart: sessionTotals.cart,
+    subTotal: sessionTotals.subTotal,
+    total: sessionTotals.total,
+    totalItems: sessionTotals.totalItems,
+    isBuyNow: Boolean(checkout.buyNowItem),
+  };
+
+  const completed = checkoutSession.activeStep === PRODUCT_CHECKOUT_STEPS.length;
+
+  const normalizeStep = useCallback(
+    (step) => {
+      const safeStep = Math.max(0, Math.min(step, PRODUCT_CHECKOUT_STEPS.length));
+
+      if (safeStep <= 1) {
+        return safeStep;
+      }
+
+      if (!checkoutSession.billing) {
+        return 1;
+      }
+
+      if (authenticated && safeStep === 2) {
+        return 3;
+      }
+
+      if (!authenticated && safeStep > 2) {
+        return 2;
+      }
+
+      return safeStep;
+    },
+    [authenticated, checkoutSession.billing]
+  );
 
   const onNextStep = useCallback(() => {
-    dispatch(nextStep());
-  }, [dispatch]);
+    dispatch(gotoStep(normalizeStep(checkoutSession.activeStep + 1)));
+  }, [checkoutSession.activeStep, dispatch, normalizeStep]);
 
   const onBackStep = useCallback(() => {
-    dispatch(backStep());
-  }, [dispatch]);
+    const previousStep = checkoutSession.activeStep - 1;
+
+    if (authenticated && checkoutSession.activeStep === 3) {
+      dispatch(gotoStep(1));
+      return;
+    }
+
+    dispatch(gotoStep(normalizeStep(previousStep)));
+  }, [authenticated, checkoutSession.activeStep, dispatch, normalizeStep]);
 
   const onGotoStep = useCallback(
     (step) => {
-      dispatch(gotoStep(step));
+      dispatch(gotoStep(normalizeStep(step)));
     },
-    [dispatch]
+    [dispatch, normalizeStep]
   );
 
   const onDeleteCart = useCallback(
     async (identifier) => {
+      if (checkout.buyNowItem && isCartItemMatch(checkout.buyNowItem, identifier)) {
+        dispatch(deleteCart(identifier));
+        return;
+      }
+
       const previousCart = checkout.cart;
       dispatch(deleteCart(identifier));
 
@@ -84,11 +134,16 @@ export default function useCheckout() {
         dispatch(getCart(previousCart));
       }
     },
-    [authenticated, checkout.cart, dispatch, user?.id]
+    [authenticated, checkout.buyNowItem, checkout.cart, dispatch, user?.id]
   );
 
   const onIncreaseQuantity = useCallback(
     async (identifier) => {
+      if (checkout.buyNowItem && isCartItemMatch(checkout.buyNowItem, identifier)) {
+        dispatch(increaseQuantity(identifier));
+        return;
+      }
+
       const previousCart = checkout.cart;
       const cartItem = findCartItem(previousCart, identifier);
 
@@ -103,18 +158,27 @@ export default function useCheckout() {
       }
 
       try {
-        const syncedCart = await updateCartItemQuantity(user.id, cartItem.cartItemId, cartItem.quantity + 1);
+        const syncedCart = await updateCartItemQuantity(
+          user.id,
+          cartItem.cartItemId,
+          cartItem.quantity + 1
+        );
         dispatch(getCart(syncedCart));
       } catch (error) {
         console.error('Failed to increase cart quantity:', error);
         dispatch(getCart(previousCart));
       }
     },
-    [authenticated, checkout.cart, dispatch, user?.id]
+    [authenticated, checkout.buyNowItem, checkout.cart, dispatch, user?.id]
   );
 
   const onDecreaseQuantity = useCallback(
     async (identifier) => {
+      if (checkout.buyNowItem && isCartItemMatch(checkout.buyNowItem, identifier)) {
+        dispatch(decreaseQuantity(identifier));
+        return;
+      }
+
       const previousCart = checkout.cart;
       const cartItem = findCartItem(previousCart, identifier);
 
@@ -140,7 +204,7 @@ export default function useCheckout() {
         dispatch(getCart(previousCart));
       }
     },
-    [authenticated, checkout.cart, dispatch, user?.id]
+    [authenticated, checkout.buyNowItem, checkout.cart, dispatch, user?.id]
   );
 
   const onCreateBilling = useCallback(
@@ -177,33 +241,18 @@ export default function useCheckout() {
 
   const onBuyNow = useCallback(
     async (newProduct) => {
-      const singleItemCart = [newProduct];
-
-      dispatch(getCart(singleItemCart));
-
-      if (!authenticated || !user?.id) {
-        return;
-      }
-
-      try {
-        await clearUserCart(user.id);
-        const syncedCart = await syncUserCart(user.id, singleItemCart);
-        dispatch(getCart(syncedCart));
-      } catch (error) {
-        console.error('Failed to prepare buy now cart:', error);
-        dispatch(getCart(singleItemCart));
-      }
+      dispatch(startBuyNow(newProduct));
     },
-    [authenticated, dispatch, user?.id]
+    [dispatch]
   );
 
   const onApplyDiscount = useCallback(
     (value) => {
-      if (checkout.cart.length) {
+      if (checkoutSession.cart.length) {
         dispatch(applyDiscount(value));
       }
     },
-    [checkout.cart.length, dispatch]
+    [checkoutSession.cart.length, dispatch]
   );
 
   const onApplyShipping = useCallback(
@@ -212,6 +261,10 @@ export default function useCheckout() {
     },
     [dispatch]
   );
+
+  const onResetCheckoutFlow = useCallback(() => {
+    dispatch(resetCheckoutFlow());
+  }, [dispatch]);
 
   const onResetAll = useCallback(() => {
     if (completed) {
@@ -222,6 +275,7 @@ export default function useCheckout() {
 
   return {
     checkout,
+    checkoutSession,
     completed,
     //
     onResetAll,
@@ -237,5 +291,6 @@ export default function useCheckout() {
     onApplyShipping,
     onIncreaseQuantity,
     onDecreaseQuantity,
+    onResetCheckoutFlow,
   };
 }

@@ -27,7 +27,7 @@ export default function AccountBillingPlan({ cardList, addressBook, plans }) {
 
   const openCards = useBoolean();
 
-  const primaryAddress = addressBook.filter((address) => address.primary)[0];
+  const primaryAddress = addressBook.filter((address) => address.primary)[0] || addressBook[0];
 
   const primaryCard = cardList.filter((card) => card.primary)[0];
 
@@ -132,6 +132,7 @@ export default function AccountBillingPlan({ cardList, addressBook, plans }) {
             </Grid>
             <Grid xs={12} md={8}>
               <Button
+                disabled={!selectedAddress}
                 onClick={openAddress.onTrue}
                 endIcon={<Iconify width={16} icon="eva:arrow-ios-downward-fill" />}
                 sx={{ typography: 'subtitle2', p: 0, borderRadius: 0 }}

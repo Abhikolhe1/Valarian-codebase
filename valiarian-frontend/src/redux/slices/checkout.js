@@ -13,12 +13,24 @@ import {
 const initialState = {
   activeStep: 0,
   cart: [],
+  buyNowItem: null,
   subTotal: 0,
   total: 0,
   discount: 0,
   shipping: 0,
   billing: null,
   totalItems: 0,
+};
+
+const getCartSignature = (cart = []) =>
+  cart
+    .map((item) => `${getCartItemKey(item)}:${item.quantity}`)
+    .sort()
+    .join('|');
+
+const resetCheckoutProgress = (state) => {
+  state.activeStep = 0;
+  state.billing = null;
 };
 
 const applyCartState = (state, cart) => {
@@ -42,7 +54,13 @@ const slice = createSlice({
   initialState,
   reducers: {
     getCart(state, action) {
-      applyCartState(state, action.payload);
+      const previousSignature = getCartSignature(state.cart);
+      const nextCart = action.payload || [];
+      applyCartState(state, nextCart);
+
+      if (!state.buyNowItem && state.activeStep > 0 && previousSignature !== getCartSignature(nextCart)) {
+        resetCheckoutProgress(state);
+      }
     },
 
     addToCart(state, action) {
@@ -73,16 +91,33 @@ const slice = createSlice({
         updatedCart.push(newProduct);
       }
 
+      const previousSignature = getCartSignature(state.cart);
       applyCartState(state, updatedCart);
+
+      if (!state.buyNowItem && state.activeStep > 0 && previousSignature !== getCartSignature(updatedCart)) {
+        resetCheckoutProgress(state);
+      }
     },
 
     deleteCart(state, action) {
+      if (state.buyNowItem && isCartItemMatch(state.buyNowItem, action.payload)) {
+        state.buyNowItem = null;
+        resetCheckoutProgress(state);
+        return;
+      }
+
+      const previousSignature = getCartSignature(state.cart);
       const updatedCart = state.cart.filter((product) => !isCartItemMatch(product, action.payload));
       applyCartState(state, updatedCart);
+
+      if (!state.buyNowItem && state.activeStep > 0 && previousSignature !== getCartSignature(updatedCart)) {
+        resetCheckoutProgress(state);
+      }
     },
 
     resetCart(state) {
       state.cart = [];
+      state.buyNowItem = null;
       state.billing = null;
       state.activeStep = 0;
       state.total = 0;
@@ -105,6 +140,15 @@ const slice = createSlice({
     },
 
     increaseQuantity(state, action) {
+      if (state.buyNowItem && isCartItemMatch(state.buyNowItem, action.payload)) {
+        state.buyNowItem = {
+          ...state.buyNowItem,
+          quantity: clampCartQuantity(state.buyNowItem.quantity + 1, state.buyNowItem.available),
+        };
+        return;
+      }
+
+      const previousSignature = getCartSignature(state.cart);
       const updatedCart = state.cart.map((product) => {
         if (!isCartItemMatch(product, action.payload)) {
           return product;
@@ -117,9 +161,22 @@ const slice = createSlice({
       });
 
       applyCartState(state, updatedCart);
+
+      if (!state.buyNowItem && state.activeStep > 0 && previousSignature !== getCartSignature(updatedCart)) {
+        resetCheckoutProgress(state);
+      }
     },
 
     decreaseQuantity(state, action) {
+      if (state.buyNowItem && isCartItemMatch(state.buyNowItem, action.payload)) {
+        state.buyNowItem = {
+          ...state.buyNowItem,
+          quantity: Math.max(1, state.buyNowItem.quantity - 1),
+        };
+        return;
+      }
+
+      const previousSignature = getCartSignature(state.cart);
       const updatedCart = state.cart
         .map((product) => {
           if (!isCartItemMatch(product, action.payload)) {
@@ -134,10 +191,36 @@ const slice = createSlice({
         .filter(Boolean);
 
       applyCartState(state, updatedCart);
+
+      if (!state.buyNowItem && state.activeStep > 0 && previousSignature !== getCartSignature(updatedCart)) {
+        resetCheckoutProgress(state);
+      }
     },
 
     createBilling(state, action) {
       state.billing = action.payload;
+    },
+
+    resetCheckoutFlow(state) {
+      state.buyNowItem = null;
+      state.billing = null;
+      state.activeStep = 0;
+      state.discount = 0;
+      state.shipping = 0;
+    },
+
+    startBuyNow(state, action) {
+      const newProduct = normalizeCartItem(action.payload);
+
+      if (!newProduct) {
+        return;
+      }
+
+      state.buyNowItem = newProduct;
+      state.billing = null;
+      state.discount = 0;
+      state.shipping = 0;
+      state.activeStep = 1;
     },
 
     applyDiscount(state, action) {
@@ -169,6 +252,8 @@ export const {
   nextStep,
   deleteCart,
   createBilling,
+  resetCheckoutFlow,
+  startBuyNow,
   applyShipping,
   applyDiscount,
   increaseQuantity,

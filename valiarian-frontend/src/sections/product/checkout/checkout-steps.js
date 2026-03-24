@@ -5,6 +5,7 @@ import Box from '@mui/material/Box';
 import Step from '@mui/material/Step';
 import Stack from '@mui/material/Stack';
 import Stepper from '@mui/material/Stepper';
+import StepButton from '@mui/material/StepButton';
 import StepLabel, { stepLabelClasses } from '@mui/material/StepLabel';
 import MuiStepConnector, { stepConnectorClasses } from '@mui/material/StepConnector';
 // components
@@ -29,7 +30,7 @@ const StepConnector = styled(MuiStepConnector)(({ theme }) => ({
 
 // ----------------------------------------------------------------------
 
-export default function CheckoutSteps({ steps, activeStep, sx, ...other }) {
+export default function CheckoutSteps({ steps, activeStep, onStepClick, sx, ...other }) {
   return (
     <Stepper
       alternativeLabel
@@ -41,18 +42,20 @@ export default function CheckoutSteps({ steps, activeStep, sx, ...other }) {
       }}
       {...other}
     >
-      {steps.map((label) => (
+      {steps.map((label, index) => (
         <Step key={label}>
-          <StepLabel
-            StepIconComponent={StepIcon}
-            sx={{
-              [`& .${stepLabelClasses.label}`]: {
-                fontWeight: 'fontWeightSemiBold',
-              },
-            }}
-          >
-            {label}
-          </StepLabel>
+          <StepButton color="inherit" onClick={() => onStepClick?.(index)}>
+            <StepLabel
+              StepIconComponent={StepIcon}
+              sx={{
+                [`& .${stepLabelClasses.label}`]: {
+                  fontWeight: 'fontWeightSemiBold',
+                },
+              }}
+            >
+              {label}
+            </StepLabel>
+          </StepButton>
         </Step>
       ))}
     </Stepper>
@@ -61,6 +64,7 @@ export default function CheckoutSteps({ steps, activeStep, sx, ...other }) {
 
 CheckoutSteps.propTypes = {
   activeStep: PropTypes.number,
+  onStepClick: PropTypes.func,
   steps: PropTypes.arrayOf(PropTypes.string),
   sx: PropTypes.object,
 };

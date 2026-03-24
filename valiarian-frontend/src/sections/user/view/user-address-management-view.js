@@ -2,9 +2,11 @@ import { useState } from 'react';
 // @mui
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
+import { createAddress } from 'src/api/addresses';
+import { useAuthContext } from 'src/auth/hooks';
+import { sanitizeAddressPayload } from 'src/utils/address';
+import { AddressEditDialog, AddressNewForm } from 'src/sections/address';
 // components
-import UserAddressCreateView from './user-address-create-view';
-import UserAddressEditView from './user-address-edit-view';
 import UserAddressListView from './user-address-list-view';
 
 // ----------------------------------------------------------------------
@@ -20,6 +22,7 @@ export default function UserAddressManagementView() {
   const [selectedAddress, setSelectedAddress] = useState(null);
   const [message, setMessage] = useState('');
   const [messageType, setMessageType] = useState('success'); // 'success' | 'error'
+  const { user } = useAuthContext();
 
   const handleShowList = () => {
     setCurrentView(VIEW_MODES.LIST);
@@ -28,6 +31,7 @@ export default function UserAddressManagementView() {
 
   const handleShowCreate = () => {
     setCurrentView(VIEW_MODES.CREATE);
+    setSelectedAddress(null);
     setMessage('');
   };
 
@@ -78,20 +82,25 @@ export default function UserAddressManagementView() {
         />
       )}
 
-      {currentView === VIEW_MODES.CREATE && (
-        <UserAddressCreateView
-          onCancel={handleShowList}
-          onSuccess={handleSuccess}
-        />
-      )}
+      <AddressNewForm
+        open={currentView === VIEW_MODES.CREATE}
+        onClose={handleShowList}
+        fallbackUser={user}
+        onCreate={async (address) => {
+          await createAddress(sanitizeAddressPayload(address));
+          handleSuccess('Address added successfully!');
+        }}
+      />
 
-      {currentView === VIEW_MODES.EDIT && selectedAddress && (
-        <UserAddressEditView
-          address={selectedAddress}
-          onCancel={handleShowList}
-          onSuccess={handleSuccess}
-        />
-      )}
+      <AddressEditDialog
+        open={currentView === VIEW_MODES.EDIT}
+        onClose={handleShowList}
+        address={selectedAddress}
+        fallbackUser={user}
+        onSuccess={() => {
+          handleSuccess('Address updated successfully!');
+        }}
+      />
     </Box>
   );
 }

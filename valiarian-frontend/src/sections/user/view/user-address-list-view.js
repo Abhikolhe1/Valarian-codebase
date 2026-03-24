@@ -17,12 +17,15 @@ import Iconify from 'src/components/iconify';
 import { LoadingScreen } from 'src/components/loading-screen';
 // api
 import { deleteAddress, setPrimaryAddress, useGetAddresses } from 'src/api/addresses';
+import { useAuthContext } from 'src/auth/hooks';
+import { mapAddressToDisplay } from 'src/utils/address';
 import PropTypes from 'prop-types';
 
 // ----------------------------------------------------------------------
 
 export default function UserAddressListView({ onAdd, onEdit }) {
   const { addresses, isLoading, mutate } = useGetAddresses();
+  const { user } = useAuthContext();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [addressToDelete, setAddressToDelete] = useState(null);
   const [errorMsg, setErrorMsg] = useState('');
@@ -103,63 +106,67 @@ export default function UserAddressListView({ onAdd, onEdit }) {
       {/* Address List */}
       <Stack spacing={2}>
         {addresses && addresses.length > 0 ? (
-          addresses.map((address) => (
-            <Card key={address.id} variant="outlined">
-              <CardContent>
-                <Stack spacing={2}>
-                  <Stack direction="row" justifyContent="space-between" alignItems="start">
-                    <Stack spacing={1} sx={{ flex: 1 }}>
-                      <Typography variant="body1" fontWeight="medium">
-                        {address.address}
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        {address.city}, {address.state} {address.zipCode}
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        {address.country}
-                      </Typography>
-                    </Stack>
-                    {address.isPrimary && (
-                      <Box sx={{ bgcolor: 'success.lighter', px: 1.5, py: 0.5, borderRadius: 1 }}>
-                        <Typography variant="caption" sx={{ color: 'success.main', fontWeight: 'bold' }}>
-                          Primary
-                        </Typography>
-                      </Box>
-                    )}
-                  </Stack>
+          addresses.map((address) => {
+            const displayAddress = mapAddressToDisplay(address, user);
 
-                  <Stack direction="row" spacing={1}>
-                    {!address.isPrimary && (
+            return (
+              <Card key={address.id} variant="outlined">
+                <CardContent>
+                  <Stack spacing={2}>
+                    <Stack direction="row" justifyContent="space-between" alignItems="start">
+                      <Stack spacing={1} sx={{ flex: 1 }}>
+                        <Typography variant="body1" fontWeight="medium">
+                          {displayAddress.name}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          {displayAddress.fullAddress}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          {displayAddress.phoneNumber || '-'}
+                        </Typography>
+                      </Stack>
+                      {address.isPrimary && (
+                        <Box sx={{ bgcolor: 'success.lighter', px: 1.5, py: 0.5, borderRadius: 1 }}>
+                          <Typography variant="caption" sx={{ color: 'success.main', fontWeight: 'bold' }}>
+                            Primary
+                          </Typography>
+                        </Box>
+                      )}
+                    </Stack>
+
+                    <Stack direction="row" spacing={1}>
+                      {!address.isPrimary && (
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          onClick={() => handleSetPrimary(address.id)}
+                        >
+                          Set as Primary
+                        </Button>
+                      )}
                       <Button
                         size="small"
                         variant="outlined"
-                        onClick={() => handleSetPrimary(address.id)}
+                        startIcon={<Iconify icon="solar:pen-bold" />}
+                        onClick={() => onEdit(address)}
                       >
-                        Set as Primary
+                        Edit
                       </Button>
-                    )}
-                    <Button
-                      size="small"
-                      variant="outlined"
-                      startIcon={<Iconify icon="solar:pen-bold" />}
-                      onClick={() => onEdit(address)}
-                    >
-                      Edit
-                    </Button>
-                    <Button
-                      size="small"
-                      variant="outlined"
-                      color="error"
-                      startIcon={<Iconify icon="solar:trash-bin-trash-bold" />}
-                      onClick={() => handleDeleteClick(address)}
-                    >
-                      Delete
-                    </Button>
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        color="error"
+                        startIcon={<Iconify icon="solar:trash-bin-trash-bold" />}
+                        onClick={() => handleDeleteClick(address)}
+                      >
+                        Delete
+                      </Button>
+                    </Stack>
                   </Stack>
-                </Stack>
-              </CardContent>
-            </Card>
-          ))
+                </CardContent>
+              </Card>
+            );
+          })
         ) : (
           <Card>
             <CardContent>
@@ -200,14 +207,10 @@ export default function UserAddressListView({ onAdd, onEdit }) {
             {addressToDelete && (
               <Box sx={{ mt: 2, p: 2, bgcolor: 'grey.100', borderRadius: 1 }}>
                 <Typography variant="body2">
-                  <strong>{addressToDelete.address}</strong>
+                  <strong>{mapAddressToDisplay(addressToDelete, user).name}</strong>
                 </Typography>
                 <Typography variant="caption" color="text.secondary">
-                  {addressToDelete.city}, {addressToDelete.state} {addressToDelete.zipCode}
-                </Typography>
-                <br />
-                <Typography variant="caption" color="text.secondary">
-                  {addressToDelete.country}
+                  {mapAddressToDisplay(addressToDelete, user).fullAddress}
                 </Typography>
               </Box>
             )}

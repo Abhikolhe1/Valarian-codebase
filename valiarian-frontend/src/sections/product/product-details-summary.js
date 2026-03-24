@@ -192,7 +192,6 @@ export default function ProductDetailsSummary({
         subTotal: data.price * data.quantity,
         variantId: selectedVariant?.id,
       });
-      onGotoStep(0);
       router.push(paths.product.checkout);
     } catch (error) {
       console.error(error);
