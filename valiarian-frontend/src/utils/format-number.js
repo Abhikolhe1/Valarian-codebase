@@ -9,7 +9,7 @@ export function fNumber(number) {
 export function fCurrency(number) {
   const format = number ? numeral(number).format('0,0.00') : '';
   const formatted = result(format, '.00');
-  
+
   return formatted ? `₹${formatted}` : '';
 }
 

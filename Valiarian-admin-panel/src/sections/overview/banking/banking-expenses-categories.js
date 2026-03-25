@@ -100,7 +100,7 @@ export default function BankingExpensesCategories({ title, subheader, chart, ...
           <Box component="span" sx={{ mb: 1, typography: 'body2', color: 'text.secondary' }}>
             Categories
           </Box>
-          $18,765
+          ₹18,765
         </Stack>
       </Box>
     </Card>

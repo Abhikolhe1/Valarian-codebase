@@ -15,7 +15,7 @@ import Iconify from 'src/components/iconify';
 export default function PaymentSummary({ sx, ...other }) {
   const renderPrice = (
     <Stack direction="row" justifyContent="flex-end">
-      <Typography variant="h4">$</Typography>
+      <Typography variant="h4">₹</Typography>
 
       <Typography variant="h2">9.99</Typography>
 
@@ -65,7 +65,7 @@ export default function PaymentSummary({ sx, ...other }) {
         <Stack direction="row" alignItems="center" justifyContent="space-between">
           <Typography variant="subtitle1">Total Billed</Typography>
 
-          <Typography variant="subtitle1">$9.99*</Typography>
+          <Typography variant="subtitle1">₹9.99*</Typography>
         </Stack>
 
         <Divider sx={{ borderStyle: 'dashed' }} />

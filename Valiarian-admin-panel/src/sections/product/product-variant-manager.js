@@ -30,6 +30,7 @@ import Image from 'src/components/image';
 import { useSnackbar } from 'src/components/snackbar';
 import { Upload } from 'src/components/upload';
 // utils
+import { fCurrency } from 'src/utils/format-number';
 
 // ----------------------------------------------------------------------
 
@@ -436,7 +437,7 @@ export default function ProductVariantManager({ variants = [], onChange, product
       field: 'price',
       headerName: 'Price',
       width: 100,
-      renderCell: (params) => params.value ? `$${params.value}` : '-',
+      renderCell: (params) => (params.value ? fCurrency(params.value) : '-'),
     },
     {
       field: 'isDefault',
@@ -622,7 +623,7 @@ export default function ProductVariantManager({ variants = [], onChange, product
               onChange={(e) => handleFieldChange('price', e.target.value)}
               helperText="Leave empty to use product's base price"
               InputProps={{
-                startAdornment: <InputAdornment position="start">$</InputAdornment>,
+                startAdornment: <InputAdornment position="start">₹</InputAdornment>,
                 inputProps: { min: 0, step: 0.01 },
               }}
             />

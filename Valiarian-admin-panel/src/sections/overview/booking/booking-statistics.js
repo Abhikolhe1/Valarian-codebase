@@ -32,7 +32,7 @@ export default function BookingStatistics({ title, subheader, chart, ...other })
     },
     tooltip: {
       y: {
-        formatter: (value) => `$${value}`,
+        formatter: (value) => `₹${value}`,
       },
     },
     ...options,
