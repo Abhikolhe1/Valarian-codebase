@@ -4,6 +4,32 @@ import Iconify from 'src/components/iconify';
 import { paths } from 'src/routes/paths';
 import { transformNavigationItems } from 'src/utils/navigation';
 
+function ensureMobileContactLink(items) {
+  if (!Array.isArray(items) || items.length === 0) {
+    return items;
+  }
+
+  const hasContact = items.some((item) => item?.path === paths.contact || item?.title === 'Contact Us');
+
+  if (hasContact) {
+    return items;
+  }
+
+  const contactItem = {
+    title: 'Contact Us',
+    path: paths.contact,
+    icon: <Iconify icon="eva:phone-call-fill" />,
+  };
+
+  const aboutIndex = items.findIndex((item) => item?.path === paths.about || item?.title === 'About Us');
+
+  if (aboutIndex === -1) {
+    return [...items, contactItem];
+  }
+
+  return [...items.slice(0, aboutIndex + 1), contactItem, ...items.slice(aboutIndex + 1)];
+}
+
 /**
  * Hook to fetch and transform mobile navigation from CMS
  * Falls back to default navigation if CMS data is unavailable
@@ -35,6 +61,11 @@ export function useMobileNavigation() {
         icon: <Iconify icon="eva:info-fill" />,
       },
       {
+        title: 'Contact Us',
+        path: paths.contact,
+        icon: <Iconify icon="eva:phone-call-fill" />,
+      },
+      {
         title: 'Profile',
         path: paths.profile,
         icon: <Iconify icon="eva:person-fill" />,
@@ -48,11 +79,11 @@ export function useMobileNavigation() {
     if (!navigationData || !navigationData.items) {
       return null;
     }
-    return transformNavigationItems(navigationData.items);
+    return ensureMobileContactLink(transformNavigationItems(navigationData.items));
   }, [navigationData]);
 
   // Return CMS navigation if available, otherwise fallback
-  const navigation = cmsNavigation || defaultNavigation;
+  const navigation = cmsNavigation || ensureMobileContactLink(defaultNavigation);
 
   return {
     navigation,

@@ -1,10 +1,15 @@
 import PropTypes from 'prop-types';
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 // @mui
 import IconButton from '@mui/material/IconButton';
 import Tooltip from '@mui/material/Tooltip';
+// api
+import { addFavorite, removeFavorite } from 'src/api/favorites';
+// routes
+import { useRouter } from 'src/routes/hook';
+import { paths } from 'src/routes/paths';
 // redux
-import { toggleFavorite } from 'src/redux/slices/favorites';
+import { revertFavorites, toggleFavorite } from 'src/redux/slices/favorites';
 import { useDispatch, useSelector } from 'src/redux/store';
 // auth
 import { useAuthContext } from 'src/auth/hooks';
@@ -13,9 +18,19 @@ import Iconify from 'src/components/iconify';
 
 // ----------------------------------------------------------------------
 
-export default function FavoritesButton({ productId, sx, iconSize = 20, showTooltip = true }) {
+export default function FavoritesButton({
+  productId,
+  sx,
+  iconSize = 20,
+  showTooltip = true,
+  inactiveColor = 'text.secondary',
+  activeColor = 'error.main',
+}) {
   const dispatch = useDispatch();
+  const router = useRouter();
   const { authenticated } = useAuthContext();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const favorites = useSelector((state) => state.favorites.items);
 
   // Check if product is favorited
   const isFavorited = useSelector((state) =>
@@ -28,23 +43,45 @@ export default function FavoritesButton({ productId, sx, iconSize = 20, showTool
       event.stopPropagation();
 
       if (!authenticated) {
-        // TODO: Show login modal/prompt
-        alert('Please log in to add favorites');
+        router.push(paths.auth.jwt.login);
         return;
       }
 
+      if (isSubmitting) {
+        return;
+      }
+
+      const previousFavorites = favorites;
+
       dispatch(toggleFavorite(productId));
+      setIsSubmitting(true);
+
+      (async () => {
+        try {
+          if (isFavorited) {
+            await removeFavorite(productId);
+          } else {
+            await addFavorite(productId);
+          }
+        } catch (error) {
+          dispatch(revertFavorites(previousFavorites));
+          console.error('Failed to update favorites:', error);
+        } finally {
+          setIsSubmitting(false);
+        }
+      })();
     },
-    [authenticated, dispatch, productId]
+    [authenticated, dispatch, favorites, isFavorited, isSubmitting, productId, router]
   );
 
   const button = (
     <IconButton
       onClick={handleToggleFavorite}
+      disabled={isSubmitting}
       sx={{
-        color: isFavorited ? 'error.main' : 'text.secondary',
+        color: isFavorited ? activeColor : inactiveColor,
         '&:hover': {
-          color: 'error.main',
+          color: activeColor,
         },
         ...sx,
       }}
@@ -68,6 +105,8 @@ export default function FavoritesButton({ productId, sx, iconSize = 20, showTool
 }
 
 FavoritesButton.propTypes = {
+  activeColor: PropTypes.string,
+  inactiveColor: PropTypes.string,
   productId: PropTypes.string.isRequired,
   sx: PropTypes.object,
   iconSize: PropTypes.number,

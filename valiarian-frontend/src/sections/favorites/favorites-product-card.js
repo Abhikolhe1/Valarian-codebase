@@ -21,9 +21,12 @@ import Image from 'src/components/image';
 
 export default function FavoritesProductCard({ product, onRemove, onAddToCart }) {
   const router = useRouter();
+  const displayImage = product?.coverImage || product?.image || product?.images?.[0];
+  const linkTarget = paths.product.details(product?.slug || product?.id);
+  const displayPrice = product?.salePrice || product?.price || 0;
 
   const handleViewProduct = () => {
-    router.push(paths.product.details(product.id));
+    router.push(linkTarget);
   };
 
   return (
@@ -64,7 +67,7 @@ export default function FavoritesProductCard({ product, onRemove, onAddToCart })
       >
         <Image
           alt={product.name}
-          src={product.image}
+          src={displayImage}
           ratio="1/1"
           sx={{
             borderRadius: 1.5,
@@ -89,7 +92,17 @@ export default function FavoritesProductCard({ product, onRemove, onAddToCart })
         </Typography>
 
         <Stack direction="row" alignItems="center" justifyContent="space-between">
-          <Typography variant="h6">{fCurrency(product.price)}</Typography>
+          <Stack spacing={0.25}>
+            <Typography variant="h6">{fCurrency(displayPrice)}</Typography>
+            {!!product.salePrice && !!product.price && product.salePrice < product.price && (
+              <Typography
+                variant="caption"
+                sx={{ color: 'text.disabled', textDecoration: 'line-through' }}
+              >
+                {fCurrency(product.price)}
+              </Typography>
+            )}
+          </Stack>
 
           <Button
             variant="contained"
@@ -110,7 +123,11 @@ FavoritesProductCard.propTypes = {
     id: PropTypes.string,
     name: PropTypes.string,
     price: PropTypes.number,
+    salePrice: PropTypes.number,
     image: PropTypes.string,
+    coverImage: PropTypes.string,
+    slug: PropTypes.string,
+    images: PropTypes.array,
   }),
   onRemove: PropTypes.func,
   onAddToCart: PropTypes.func,

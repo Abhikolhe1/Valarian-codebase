@@ -73,6 +73,16 @@ export class Users extends Entity {
   passwordHistory?: string[];
 
   @property({
+    type: 'array',
+    itemType: 'string',
+    default: [],
+    postgresql: {
+      dataType: 'jsonb',
+    },
+  })
+  favoriteProductIds?: string[];
+
+  @property({
     type: 'number',
     default: 0,
   })

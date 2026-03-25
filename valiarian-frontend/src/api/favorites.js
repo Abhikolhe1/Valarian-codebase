@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import useSWR from 'swr';
 // utils
-import { endpoints, fetcher } from 'src/utils/axios';
+import axios, { endpoints, fetcher } from 'src/utils/axios';
 
 // ----------------------------------------------------------------------
 
@@ -27,5 +27,15 @@ export function useGetFavorites(userId) {
   );
 
   return memoizedValue;
+}
+
+export async function addFavorite(productId) {
+  const response = await axios.post(endpoints.favorites.add, { productId });
+  return response.data;
+}
+
+export async function removeFavorite(productId) {
+  const response = await axios.delete(endpoints.favorites.remove(productId));
+  return response.data;
 }
 

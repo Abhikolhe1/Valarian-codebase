@@ -16,6 +16,7 @@ import { paths } from 'src/routes/paths';
 import { fCurrency } from 'src/utils/format-number';
 // components
 import { ColorPreview } from 'src/components/color-utils';
+import FavoritesButton from 'src/components/favorites-button';
 import Iconify from 'src/components/iconify';
 import Image from 'src/components/image';
 import Label from 'src/components/label';
@@ -149,6 +150,24 @@ function ProductItem({ product }) {
           display: 'block',
         }}
       >
+        <FavoritesButton
+          productId={product.id}
+          showTooltip={false}
+          inactiveColor="common.black"
+          activeColor="error.main"
+          sx={{
+            position: 'absolute',
+            top: 12,
+            left: 12,
+            zIndex: 10,
+            bgcolor: 'rgba(255, 255, 255, 0.92)',
+            boxShadow: 2,
+            '&:hover': {
+              bgcolor: 'rgba(255, 255, 255, 0.92)',
+            },
+          }}
+        />
+
         {productView.availableColors.length > 0 && (
           <Box
             sx={{

@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 // @mui
 import Button from '@mui/material/Button';
 import Container from '@mui/material/Container';
+import CircularProgress from '@mui/material/CircularProgress';
+import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import Grid from '@mui/material/Unstable_Grid2';
 // routes
@@ -9,12 +11,13 @@ import { useRouter } from 'src/routes/hook';
 import { paths } from 'src/routes/paths';
 // redux
 import { addToCart } from 'src/redux/slices/checkout';
-import { loadFavorites, toggleFavorite } from 'src/redux/slices/favorites';
+import { loadFavorites, revertFavorites, toggleFavorite } from 'src/redux/slices/favorites';
 import { useDispatch, useSelector } from 'src/redux/store';
 // auth
 import { useAuthContext } from 'src/auth/hooks';
 // utils
 import axios from 'src/utils/axios';
+import { removeFavorite } from 'src/api/favorites';
 // components
 import EmptyContent from 'src/components/empty-content';
 import Iconify from 'src/components/iconify';
@@ -31,7 +34,7 @@ export default function FavoritesView() {
   const { authenticated, user } = useAuthContext();
 
   const [loading, setLoading] = useState(true);
-  const [products, setProducts] = useState([]);
+  const [favoriteEntries, setFavoriteEntries] = useState([]);
 
   const favorites = useSelector((state) => state.favorites.items);
 
@@ -51,26 +54,14 @@ export default function FavoritesView() {
         setLoading(true);
         const response = await axios.get(`/api/favorites/${user.id}`);
         const favoritesData = response.data.favorites || [];
-        dispatch(loadFavorites(favoritesData));
-
-        // Fetch product details for each favorite
-        // TODO: Replace with actual API call to fetch products by IDs
-        // For now, we'll use mock data
-        const productDetails = favoritesData.map((fav) => ({
-          id: fav.productId,
-          name: 'Product Name',
-          price: 99.99,
-          image: '/assets/images/products/product_1.jpg',
-          // Add more product details as needed
-        }));
-
-        setProducts(productDetails);
+        dispatch(loadFavorites(favoritesData.map((item) => ({ productId: item.productId }))));
+        setFavoriteEntries(favoritesData);
       } catch (error) {
         console.error('Error loading favorites:', error);
         // If 404, just show empty favorites
         if (error.status === 404 || error.statusCode === 404) {
           dispatch(loadFavorites([]));
-          setProducts([]);
+          setFavoriteEntries([]);
         }
       } finally {
         setLoading(false);
@@ -80,19 +71,33 @@ export default function FavoritesView() {
     loadFavoritesData();
   }, [authenticated, user, dispatch]);
 
-  const handleRemoveFavorite = (productId) => {
+  const handleRemoveFavorite = async (productId) => {
+    const previousFavorites = favorites;
+    const previousEntries = favoriteEntries;
+
     dispatch(toggleFavorite(productId));
-    // Remove from local products list
-    setProducts((prev) => prev.filter((product) => product.id !== productId));
+    setFavoriteEntries((prev) => prev.filter((item) => item.productId !== productId));
+
+    try {
+      await removeFavorite(productId);
+    } catch (error) {
+      dispatch(revertFavorites(previousFavorites));
+      setFavoriteEntries(previousEntries);
+      console.error('Failed to remove favorite:', error);
+    }
   };
 
   const handleAddToCart = (product) => {
     const cartItem = {
       id: product.id,
+      productId: product.id,
       name: product.name,
-      price: product.price,
+      slug: product.slug,
+      price: product.salePrice || product.price,
+      salePrice: product.salePrice,
       quantity: 1,
-      image: product.image,
+      image: product.coverImage || product.images?.[0],
+      coverImage: product.coverImage || product.images?.[0],
       colors: [],
     };
     dispatch(addToCart(cartItem));
@@ -102,7 +107,52 @@ export default function FavoritesView() {
     return null;
   }
 
-  const empty = !loading && products.length === 0;
+  const empty = !loading && favoriteEntries.length === 0;
+  let content = null;
+
+  if (loading) {
+    content = (
+      <Stack alignItems="center" justifyContent="center" sx={{ py: 10 }}>
+        <CircularProgress color="inherit" />
+      </Stack>
+    );
+  } else if (empty) {
+    content = (
+      <EmptyContent
+        filled
+        title="No Favorites Yet!"
+        description="You haven't added any products to your favorites. Start browsing and save your favorite items here."
+        imgUrl="/assets/icons/empty/ic_cart.svg"
+        sx={{
+          py: 10,
+        }}
+        action={
+          <Button
+            variant="contained"
+            startIcon={<Iconify icon="eva:arrow-ios-back-fill" />}
+            onClick={() => router.push(paths.product.root)}
+            sx={{ mt: 2 }}
+          >
+            Continue Shopping
+          </Button>
+        }
+      />
+    );
+  } else {
+    content = (
+      <Grid container spacing={3}>
+        {favoriteEntries.map(({ productId, product }) => (
+          <Grid key={productId} xs={12} sm={6} md={4} lg={3}>
+            <FavoritesProductCard
+              product={product}
+              onRemove={() => handleRemoveFavorite(productId)}
+              onAddToCart={() => handleAddToCart(product)}
+            />
+          </Grid>
+        ))}
+      </Grid>
+    );
+  }
 
   return (
     <Container maxWidth={settings.themeStretch ? false : 'lg'} sx={{ py: { xs: 5, md: 10 } }}>
@@ -110,38 +160,7 @@ export default function FavoritesView() {
         My Favorites
       </Typography>
 
-      {empty ? (
-        <EmptyContent
-          filled
-          title="No Favorites Yet!"
-          description="You haven't added any products to your favorites. Start browsing and save your favorite items here."
-          imgUrl="/assets/icons/empty/ic_cart.svg"
-          sx={{
-            py: 10,
-          }}
-          action={
-            <Button
-              variant="contained"
-              startIcon={<Iconify icon="eva:arrow-ios-back-fill" />}
-              onClick={() => router.push(paths.product.root)}
-            >
-              Continue Shopping
-            </Button>
-          }
-        />
-      ) : (
-        <Grid container spacing={3}>
-          {products.map((product) => (
-            <Grid key={product.id} xs={12} sm={6} md={4} lg={3}>
-              <FavoritesProductCard
-                product={product}
-                onRemove={() => handleRemoveFavorite(product.id)}
-                onAddToCart={() => handleAddToCart(product)}
-              />
-            </Grid>
-          ))}
-        </Grid>
-      )}
+      {content}
     </Container>
   );
 }

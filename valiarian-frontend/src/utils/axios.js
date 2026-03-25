@@ -93,6 +93,8 @@ export const endpoints = {
   },
   favorites: {
     get: (userId) => `/api/favorites/${userId}`,
+    add: '/api/favorites',
+    remove: (productId) => `/api/favorites/${productId}`,
   },
   orders: {
     create: '/api/orders/create',
