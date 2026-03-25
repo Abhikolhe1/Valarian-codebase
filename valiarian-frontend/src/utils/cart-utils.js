@@ -2,6 +2,21 @@ const DEFAULT_CART_IMAGE = '/assets/placeholder.svg';
 
 export const getCartItemProductId = (item) => item?.productId || item?.id || item?.product?.id || null;
 
+const resolveEffectiveCartPrice = (input = {}, variant = {}, product = {}) => {
+  const prioritizedPrices = [
+    input.salePrice,
+    variant.salePrice,
+    product.salePrice,
+    input.price,
+    variant.price,
+    product.price,
+  ];
+
+  const resolvedPrice = prioritizedPrices.find((value) => Number.isFinite(Number(value)) && Number(value) > 0);
+
+  return resolvedPrice ? Number(resolvedPrice) : 0;
+};
+
 export const getCartItemKey = (item) => {
   const productId = getCartItemProductId(item);
 
@@ -66,7 +81,7 @@ export const normalizeCartItem = (input) => {
     name: input.name || product.name || 'Product',
     coverUrl: image,
     image,
-    price: Number(input.price ?? variant.price ?? product.salePrice ?? product.price ?? 0),
+    price: resolveEffectiveCartPrice(input, variant, product),
     available: Number.isFinite(Number(rawAvailable)) ? Number(rawAvailable) : 0,
     quantity: clampCartQuantity(input.quantity || 1, rawAvailable),
     colors,

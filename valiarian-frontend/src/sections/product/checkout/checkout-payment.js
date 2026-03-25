@@ -13,7 +13,7 @@ import FormProvider from 'src/components/hook-form';
 import Iconify from 'src/components/iconify';
 import { useSnackbar } from 'src/components/snackbar';
 import useRazorpay from 'src/hooks/use-razorpay';
-import { clearPaymentSession, resetCart, setPaymentSession } from 'src/redux/slices/checkout';
+import { clearPaymentSession, resetCart, resetCheckoutFlow, setPaymentSession } from 'src/redux/slices/checkout';
 import { useDispatch } from 'src/redux/store';
 import { paths } from 'src/routes/paths';
 import axios, { endpoints } from 'src/utils/axios';
@@ -49,8 +49,6 @@ const PAYMENT_OPTIONS = [
     description: 'Pay with cash when your order is delivered.',
   },
 ];
-
-const DEFAULT_GST_RATE = Number(process.env.REACT_APP_DEFAULT_GST_RATE || 18);
 
 const getErrorMessage = (error, fallbackMessage) =>
   error?.response?.data?.message || error?.data?.message || error?.message || fallbackMessage;
@@ -103,12 +101,17 @@ export default function CheckoutPayment({ checkout, onBackStep, onGotoStep, onAp
   }, [loadScript, selectedPayment]);
 
   const clearCheckoutCart = async () => {
-    if (user?.id) {
+    if (!checkout.isBuyNow && user?.id) {
       try {
         await clearUserCart(user.id);
       } catch (error) {
         console.error('Failed to clear backend cart after order creation:', error);
       }
+    }
+
+    if (checkout.isBuyNow) {
+      dispatch(resetCheckoutFlow());
+      return;
     }
 
     dispatch(resetCart());
@@ -224,8 +227,6 @@ export default function CheckoutPayment({ checkout, onBackStep, onGotoStep, onAp
     }
 
     const billingAddress = createBillingPayload();
-    const taxableAmount = Math.max(0, Number(subTotal || 0) - Number(discount || 0));
-    const tax = Number(((taxableAmount * DEFAULT_GST_RATE) / 100).toFixed(2));
 
     return {
       cartItems: cart.map((item) => ({
@@ -239,7 +240,6 @@ export default function CheckoutPayment({ checkout, onBackStep, onGotoStep, onAp
       paymentMethod,
       discount: Number(discount || 0),
       shipping: Number(shipping || 0),
-      tax,
     };
   };
 

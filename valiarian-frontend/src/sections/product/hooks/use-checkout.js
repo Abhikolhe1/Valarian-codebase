@@ -268,10 +268,14 @@ export default function useCheckout() {
 
   const onResetAll = useCallback(() => {
     if (completed) {
-      dispatch(resetCart());
+      if (checkoutSession.isBuyNow) {
+        dispatch(resetCheckoutFlow());
+      } else {
+        dispatch(resetCart());
+      }
       router.replace(paths.product.root);
     }
-  }, [completed, dispatch, router]);
+  }, [checkoutSession.isBuyNow, completed, dispatch, router]);
 
   return {
     checkout,

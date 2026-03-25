@@ -66,7 +66,7 @@ export class CartController {
           const variants = product.variants || [];
           variant = variants.find((v: any) => v.id === item.variantId);
         }
-        const price = variant?.price || product?.price || 0;
+        const price = product?.salePrice || variant?.price || product?.price || 0;
         const itemTotal = price * item.quantity;
         subtotal += itemTotal;
 
@@ -82,6 +82,8 @@ export class CartController {
             name: product?.name,
             slug: product?.slug,
             price: product?.price,
+            salePrice: product?.salePrice,
+            coverImage: product?.coverImage,
             images: variant?.images ? variant?.images : product?.images,
             available: product?.inStock,
           },

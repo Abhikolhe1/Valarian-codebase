@@ -32,7 +32,7 @@ export default function CheckoutView() {
   const settings = useSettingsContext();
   const { authenticated } = useAuthContext();
   const {
-    checkout,
+    checkoutSession,
     completed,
     onResetAll,
     onGotoStep,
@@ -46,7 +46,7 @@ export default function CheckoutView() {
     onDecreaseQuantity,
   } = useCheckout();
 
-  const { cart, billing, activeStep } = checkout;
+  const { cart, billing, activeStep } = checkoutSession;
 
   useEffect(() => {
     if (authenticated && cart.length) {
@@ -128,7 +128,7 @@ export default function CheckoutView() {
             <>
               {activeStep === 0 && (
                 <CheckoutCart
-                  checkout={checkout}
+                  checkout={checkoutSession}
                   onNextStep={onNextStep}
                   onDeleteCart={onDeleteCart}
                   onApplyDiscount={onApplyDiscount}
@@ -139,7 +139,7 @@ export default function CheckoutView() {
 
               {activeStep === 1 && (
                 <CheckoutBillingAddress
-                  checkout={checkout}
+                  checkout={checkoutSession}
                   onBackStep={onBackStep}
                   onCreateBilling={onCreateBilling}
                 />
@@ -154,7 +154,7 @@ export default function CheckoutView() {
 
               {activeStep === 3 && billing && (
                 <CheckoutPayment
-                  checkout={checkout}
+                  checkout={checkoutSession}
                   onNextStep={onNextStep}
                   onBackStep={onBackStep}
                   onGotoStep={onGotoStep}

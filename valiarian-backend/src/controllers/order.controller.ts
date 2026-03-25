@@ -124,7 +124,7 @@ export class OrderController {
       }
 
       let availableStock = product.stockQuantity;
-      let itemPrice = product.price;
+      let itemPrice = product.salePrice || product.price;
       let variantDetails = null;
 
       if (item.variantId) {
@@ -143,9 +143,7 @@ export class OrderController {
         }
 
         availableStock = variant.stockQuantity;
-        if (variant.price) {
-          itemPrice = variant.price;
-        }
+        itemPrice = product.salePrice || variant.price || product.price;
 
         variantDetails = {
           variantId: variant.id,
@@ -269,6 +267,72 @@ export class OrderController {
     }
   }
 
+  private async incrementOrderStock(orderItems: Array<any>) {
+    for (const item of orderItems) {
+      const product = await this.productRepository.findById(item.productId).catch(() => null);
+
+      if (!product) {
+        console.warn(`Skipping stock restore. Product ${item.productId} not found for cancelled order item.`);
+        continue;
+      }
+
+      if (item.variantId) {
+        const variant = await this.productVariantRepository.findById(item.variantId).catch(() => null);
+
+        if (variant) {
+          await this.productRepository.updateVariantStock(
+            item.productId,
+            item.variantId,
+            (variant.stockQuantity || 0) + item.quantity,
+          );
+          continue;
+        }
+
+        if (Array.isArray(product.variants) && product.variants.length > 0) {
+          const hasVariantInProduct = product.variants.some(productVariant => productVariant.id === item.variantId);
+
+          if (hasVariantInProduct) {
+            const updatedVariants = product.variants.map(productVariant => {
+              if (productVariant.id !== item.variantId) {
+                return productVariant;
+              }
+
+              const nextStock = (productVariant.stockQuantity || 0) + item.quantity;
+
+              return {
+                ...productVariant,
+                stockQuantity: nextStock,
+                inStock: nextStock > 0,
+              };
+            });
+
+            const totalStock = updatedVariants.reduce(
+              (sum, productVariant) => sum + (productVariant.stockQuantity || 0),
+              0,
+            );
+
+            await this.productRepository.updateById(item.productId, {
+              variants: updatedVariants,
+              stockQuantity: totalStock,
+              inStock: totalStock > 0,
+              updatedAt: new Date(),
+            });
+            continue;
+          }
+        }
+
+        console.warn(
+          `Variant ${item.variantId} not found for product ${product.id}. Restoring cancelled quantity to base product stock.`,
+        );
+      }
+
+      await this.productRepository.updateStock(
+        item.productId,
+        (product.stockQuantity || 0) + item.quantity,
+      );
+    }
+  }
+
   private async sendOrderConfirmationEmail(order: Order, currentUser: UserProfile) {
     try {
       const emailHtml = await this.emailTemplateService.renderTemplate('order-confirmation', {
@@ -298,6 +362,63 @@ export class OrderController {
       });
     } catch (emailError) {
       console.error('Error sending confirmation email:', emailError);
+    }
+  }
+
+  private getAdminOrderNotificationRecipients(): string[] {
+    const configuredRecipients = [
+      process.env.ADMIN_ORDER_NOTIFICATION_EMAILS,
+      process.env.ADMIN_ORDER_NOTIFICATION_EMAIL,
+      process.env.SUPER_ADMIN_EMAIL,
+    ]
+      .filter(Boolean)
+      .flatMap(value => String(value).split(','))
+      .map(value => value.trim())
+      .filter(Boolean);
+
+    return Array.from(new Set(configuredRecipients));
+  }
+
+  private async sendAdminOrderNotificationEmail(order: Order) {
+    try {
+      const recipients = this.getAdminOrderNotificationRecipients();
+
+      if (!recipients.length) {
+        return;
+      }
+
+      const emailHtml = await this.emailTemplateService.renderTemplate('admin-new-order-notification', {
+        customerName: order.billingAddress.fullName,
+        customerEmail: order.billingAddress.email || '-',
+        customerPhone: order.billingAddress.phone || '-',
+        orderNumber: order.orderNumber,
+        orderStatus: order.status,
+        paymentMethod: order.paymentMethod,
+        paymentStatus: order.paymentStatus,
+        items: order.items.map(item => ({
+          name: item.name,
+          quantity: item.quantity,
+          price: item.price.toFixed(2),
+        })),
+        subtotal: order.subtotal.toFixed(2),
+        shipping: order.shipping.toFixed(2),
+        tax: order.tax.toFixed(2),
+        discount: order.discount > 0 ? order.discount.toFixed(2) : null,
+        total: order.total.toFixed(2),
+        shippingAddress: order.shippingAddress,
+        billingAddress: order.billingAddress,
+        adminOrderUrl: `${process.env.ADMIN_FRONTEND_URL || 'http://localhost:3001'}/orders/${order.id}`,
+        year: new Date().getFullYear(),
+        companyName: 'Valiarian',
+      });
+
+      await this.emailService.sendMail({
+        to: recipients.join(','),
+        subject: `New Order Placed - ${order.orderNumber}`,
+        html: emailHtml,
+      });
+    } catch (emailError) {
+      console.error('Error sending admin new order notification email:', emailError);
     }
   }
 
@@ -557,7 +678,7 @@ export class OrderController {
       await this.orderRepository.updateById(
         order.id,
         {
-          status: 'paid',
+          status: 'confirmed',
           paymentStatus: 'success',
           razorpayOrderId: normalizedRequest.razorpayOrderId,
           razorpayPaymentId: normalizedRequest.razorpayPaymentId,
@@ -568,9 +689,9 @@ export class OrderController {
 
       await this.orderStatusHistoryRepository.createStatusEntry(
         order.id,
-        'paid',
+        'confirmed',
         userId,
-        'Payment verified and invoice generated',
+        'Payment verified and order confirmed',
       );
 
       await transaction.commit();
@@ -582,6 +703,7 @@ export class OrderController {
 
       const invoice = await this.createInvoiceRecord(updatedOrder);
       await this.sendOrderConfirmationEmail(updatedOrder, currentUser);
+      await this.sendAdminOrderNotificationEmail(updatedOrder);
 
       return {
         success: true,
@@ -786,7 +908,7 @@ export class OrderController {
         razorpayPaymentId = request.paymentDetails.razorpayPaymentId;
         razorpaySignature = request.paymentDetails.razorpaySignature;
         paymentStatus = 'success';
-        status = 'paid';
+        status = 'confirmed';
       } else if (request.paymentMethod === 'razorpay') {
         const razorpayOrder = await this.razorpayService.createOrder(
           Math.round(total * 100),
@@ -851,12 +973,13 @@ export class OrderController {
 
       let invoice: Invoice | ReturnType<typeof buildInvoiceFromOrder> = buildInvoiceFromOrder(order);
 
-      if (order.status === 'confirmed' || order.status === 'paid') {
+      if (order.status === 'confirmed') {
         await this.decrementOrderStock(order.items);
         if (request.paymentMethod === 'razorpay') {
           invoice = await this.createInvoiceRecord(order);
         }
         await this.sendOrderConfirmationEmail(order, currentUser);
+        await this.sendAdminOrderNotificationEmail(order);
       }
 
       return {
@@ -1156,25 +1279,7 @@ export class OrderController {
         }
       }
 
-      for (const item of order.items) {
-        const product = await this.productRepository.findById(item.productId);
-
-        if (item.variantId && product.variants && product.variants.length > 0) {
-          const variant = product.variants.find(v => v.id === item.variantId);
-          if (variant) {
-            await this.productRepository.updateVariantStock(
-              item.productId,
-              item.variantId,
-              variant.stockQuantity + item.quantity,
-            );
-          }
-        } else {
-          await this.productRepository.updateStock(
-            item.productId,
-            product.stockQuantity + item.quantity,
-          );
-        }
-      }
+      await this.incrementOrderStock(order.items);
 
       try {
         const emailHtml = await this.emailTemplateService.renderTemplate('cancellation-confirmation', {
@@ -1910,35 +2015,39 @@ export class OrderController {
           'Payment captured via webhook',
         );
 
+        const updatedOrder = await this.orderRepository.findById(order.id);
+
         try {
           const emailHtml = await this.emailTemplateService.renderTemplate('order-confirmation', {
-            customerName: order.billingAddress.fullName,
-            orderNumber: order.orderNumber,
-            items: order.items.map(item => ({
+            customerName: updatedOrder.billingAddress.fullName,
+            orderNumber: updatedOrder.orderNumber,
+            items: updatedOrder.items.map(item => ({
               name: item.name,
               quantity: item.quantity,
               price: item.price.toFixed(2),
             })),
-            subtotal: order.subtotal.toFixed(2),
-            discount: order.discount > 0 ? order.discount.toFixed(2) : null,
-            shipping: order.shipping.toFixed(2),
-            tax: order.tax.toFixed(2),
-            total: order.total.toFixed(2),
-            shippingAddress: order.shippingAddress,
-            billingAddress: order.billingAddress,
-            trackOrderUrl: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/orders/${order.id}/tracking`,
+            subtotal: updatedOrder.subtotal.toFixed(2),
+            discount: updatedOrder.discount > 0 ? updatedOrder.discount.toFixed(2) : null,
+            shipping: updatedOrder.shipping.toFixed(2),
+            tax: updatedOrder.tax.toFixed(2),
+            total: updatedOrder.total.toFixed(2),
+            shippingAddress: updatedOrder.shippingAddress,
+            billingAddress: updatedOrder.billingAddress,
+            trackOrderUrl: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/orders/${updatedOrder.id}/tracking`,
             year: new Date().getFullYear(),
             companyName: 'Valiarian',
           });
 
           await this.emailService.sendMail({
-            to: order.billingAddress.email,
-            subject: `Payment Confirmed - ${order.orderNumber}`,
+            to: updatedOrder.billingAddress.email,
+            subject: `Payment Confirmed - ${updatedOrder.orderNumber}`,
             html: emailHtml,
           });
         } catch (emailError) {
           console.error('Error sending payment confirmation email:', emailError);
         }
+
+        await this.sendAdminOrderNotificationEmail(updatedOrder);
       }
     } catch (error) {
       console.error('Error handling payment.captured:', error);

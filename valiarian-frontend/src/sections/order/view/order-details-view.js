@@ -14,8 +14,6 @@ import Typography from '@mui/material/Typography';
 import Grid from '@mui/material/Unstable_Grid2';
 // routes
 import { paths } from 'src/routes/paths';
-// auth
-import { useAuthContext } from 'src/auth/hooks';
 // utils
 import axios from 'src/utils/axios';
 // components
@@ -29,23 +27,10 @@ import OrderDetailsToolbar from '../order-details-toolbar';
 
 // ----------------------------------------------------------------------
 
-const ORDER_STATUS_OPTIONS = [
-  { value: 'pending', label: 'Pending' },
-  { value: 'confirmed', label: 'Confirmed' },
-  { value: 'processing', label: 'Processing' },
-  { value: 'packed', label: 'Packed' },
-  { value: 'shipped', label: 'Shipped' },
-  { value: 'delivered', label: 'Delivered' },
-  { value: 'cancelled', label: 'Cancelled' },
-  { value: 'returned', label: 'Returned' },
-  { value: 'refunded', label: 'Refunded' },
-];
-
 export default function OrderDetailsView() {
   const settings = useSettingsContext();
   const params = useParams();
   const navigate = useNavigate();
-  const { user } = useAuthContext();
   const { id } = params;
 
   const [order, setOrder] = useState(null);
@@ -157,10 +142,9 @@ export default function OrderDetailsView() {
         orderNumber={order.orderNumber}
         createdAt={order.createdAt}
         status={order.status}
-        statusOptions={ORDER_STATUS_OPTIONS}
         onCancel={canCancel ? () => setCancelDialogOpen(true) : null}
         onReturn={canReturn ? () => setReturnDialogOpen(true) : null}
-        onTrack={handleTrackOrder}
+        onTrack={order.trackingNumber ? handleTrackOrder : null}
       />
 
       <Grid container spacing={3}>
