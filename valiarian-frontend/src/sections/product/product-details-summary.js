@@ -37,6 +37,7 @@ export default function ProductDetailsSummary({
   onVariantChange,
   ...other
 }) {
+
   const router = useRouter();
 
   const {
@@ -60,13 +61,10 @@ export default function ProductDetailsSummary({
   // Set default variant on component mount
   useEffect(() => {
     if (variants && variants.length > 0) {
-      const defaultVariant = variants.find(v => v.isDefault) || variants[0];
+      const defaultVariant = variants.find((v) => v.isDefault) || variants[0];
       setSelectedVariant(defaultVariant);
-      if (onVariantChange) {
-        onVariantChange(defaultVariant);
-      }
     }
-  }, [variants, onVariantChange]);
+  }, [variants]);
 
   // Get variant-specific values or fallback to product values
   const currentPrice = selectedVariant?.price || (salePrice && salePrice < price ? salePrice : price);
