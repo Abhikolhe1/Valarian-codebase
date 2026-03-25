@@ -1,17 +1,34 @@
-import useSWR from 'swr';
+import useSWR, { preload } from 'swr';
 import { useMemo } from 'react';
 // utils
 import { endpoints, fetcher } from 'src/utils/axios';
 
 // ----------------------------------------------------------------------
 
-export function useGetCategories() {
+export const getCategoriesKey = () => {
   const params = new URLSearchParams();
   params.append('filter', JSON.stringify({ include: [{ relation: 'parentCategory' }] }));
 
-  const URL = `${endpoints.category.list}?${params.toString()}`;
+  return `${endpoints.category.list}?${params.toString()}`;
+};
 
-  const { data, isLoading, error, isValidating, mutate } = useSWR(URL, fetcher);
+export const getCategoryTreeKey = () => endpoints.category.tree;
+
+export function prefetchCategoryMenuData() {
+  return Promise.allSettled([
+    preload(getCategoriesKey(), fetcher),
+    preload(getCategoryTreeKey(), fetcher),
+  ]);
+}
+
+export function useGetCategories(enabled = true) {
+  const URL = enabled ? getCategoriesKey() : null;
+
+  const { data, isLoading, error, isValidating, mutate } = useSWR(URL, fetcher, {
+    revalidateOnFocus: false,
+    revalidateOnReconnect: false,
+    dedupingInterval: 60 * 1000,
+  });
 
   const memoizedValue = useMemo(
     () => ({
@@ -30,10 +47,14 @@ export function useGetCategories() {
 
 // ----------------------------------------------------------------------
 
-export function useGetCategoryTree() {
-  const URL = endpoints.category.tree;
+export function useGetCategoryTree(enabled = true) {
+  const URL = enabled ? getCategoryTreeKey() : null;
 
-  const { data, isLoading, error, isValidating, mutate } = useSWR(URL, fetcher);
+  const { data, isLoading, error, isValidating, mutate } = useSWR(URL, fetcher, {
+    revalidateOnFocus: false,
+    revalidateOnReconnect: false,
+    dedupingInterval: 60 * 1000,
+  });
 
   const memoizedValue = useMemo(
     () => ({

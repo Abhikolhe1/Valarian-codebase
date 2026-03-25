@@ -4,6 +4,8 @@ import Button from '@mui/material/Button';
 import Container from '@mui/material/Container';
 import Typography from '@mui/material/Typography';
 import Grid from '@mui/material/Unstable_Grid2';
+// api
+import { prefetchAddresses } from 'src/api/addresses';
 // routes
 import { RouterLink } from 'src/routes/components';
 import { paths } from 'src/routes/paths';
@@ -45,6 +47,14 @@ export default function CheckoutView() {
   } = useCheckout();
 
   const { cart, billing, activeStep } = checkout;
+
+  useEffect(() => {
+    if (authenticated && cart.length) {
+      prefetchAddresses().catch(() => {
+        // Step-level UI handles address errors and fallbacks.
+      });
+    }
+  }, [authenticated, cart.length]);
 
   useEffect(() => {
     if (!cart.length && activeStep !== 0) {

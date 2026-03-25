@@ -78,7 +78,7 @@ export default function ProductShopView() {
     category: normalizedCategoryFromQuery,
   }));
 
-  const { categories } = useGetCategories();
+  const { categories = [] } = useGetCategories(openFilters.value);
 
   const activeCategory = useMemo(() => {
     if (filters.category === 'all' || filters.category === 'products') return null;

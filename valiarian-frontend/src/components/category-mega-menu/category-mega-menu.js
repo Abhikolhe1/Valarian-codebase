@@ -186,9 +186,8 @@ export default function CategoryMegaMenu({
   defaultImage = DEFAULT_IMAGE,
   isTransparent = false,
 }) {
-  const { categories } = useGetCategories();
-  const { categoryTree, treeLoading, treeError } = useGetCategoryTree();
-  console.log('Category Tree:', categoryTree, 'Loading:', treeLoading, 'Error:', treeError);
+  const { categories = [] } = useGetCategories(open);
+  const { categoryTree = [], treeLoading } = useGetCategoryTree(open);
 
   const pathname = usePathname();
   const [hoveredSubcategory, setHoveredSubcategory] = useState(null);

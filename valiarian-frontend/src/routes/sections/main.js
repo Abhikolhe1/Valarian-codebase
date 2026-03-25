@@ -5,6 +5,8 @@ import { Outlet } from 'react-router-dom';
 import CompactLayout from 'src/layouts/compact';
 import MainLayout from 'src/layouts/main';
 import SimpleLayout from 'src/layouts/simple';
+import ProductCheckoutPage from 'src/pages/product/checkout';
+import ProductListPage from 'src/pages/product/list';
 // components
 import { SplashScreen } from 'src/components/loading-screen';
 import { AuthGuard } from 'src/auth/guard';
@@ -28,9 +30,7 @@ const PaymentPendingPage = lazy(() => import('../../pages/payment-pending'));
 const ComingSoonPage = lazy(() => import('src/pages/coming-soon'));
 const MaintenancePage = lazy(() => import('src/pages/maintenance'));
 // PRODUCT
-const ProductListPage = lazy(() => import('src/pages/product/list'));
 const ProductDetailsPage = lazy(() => import('src/pages/product/details'));
-const ProductCheckoutPage = lazy(() => import('src/pages/product/checkout'));
 // FAVORITES
 const FavoritesPage = lazy(() => import('src/pages/favorites'));
 // ORDERS

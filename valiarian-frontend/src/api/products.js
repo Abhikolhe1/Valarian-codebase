@@ -1,9 +1,24 @@
 import { useMemo } from 'react';
-import useSWR from 'swr';
+import useSWR, { preload } from 'swr';
 // utils
 import { endpoints, fetcher } from 'src/utils/axios';
 
 // ----------------------------------------------------------------------
+
+export const getNewArrivalsKey = (limit = 10) => `${endpoints.products.newArrivals}?limit=${limit}`;
+
+export const getBestSellersKey = (limit = 10) => `${endpoints.products.bestSellers}?limit=${limit}`;
+
+export const getFeaturedProductsKey = (limit = 10) => `${endpoints.products.featured}?limit=${limit}`;
+
+export function prefetchHomeProductCollections(limit = 10) {
+  const requests = [
+    preload(getNewArrivalsKey(limit), fetcher),
+    preload(getBestSellersKey(limit), fetcher),
+  ];
+
+  return Promise.allSettled(requests);
+}
 
 /**
  * Hook to fetch new arrival products
@@ -11,7 +26,7 @@ import { endpoints, fetcher } from 'src/utils/axios';
  * @returns {Object} - { products, total, isLoading, error }
  */
 export function useNewArrivals(limit = 10) {
-  const URL = `${endpoints.products.newArrivals}?limit=${limit}`;
+  const URL = getNewArrivalsKey(limit);
 
   const { data, error, isLoading, isValidating } = useSWR(URL, fetcher);
 
@@ -37,7 +52,7 @@ export function useNewArrivals(limit = 10) {
  * @returns {Object} - { products, total, isLoading, error }
  */
 export function useBestSellers(limit = 10) {
-  const URL = `${endpoints.products.bestSellers}?limit=${limit}`;
+  const URL = getBestSellersKey(limit);
 
   const { data, error, isLoading, isValidating } = useSWR(URL, fetcher);
 
@@ -63,7 +78,7 @@ export function useBestSellers(limit = 10) {
  * @returns {Object} - { products, total, isLoading, error }
  */
 export function useFeaturedProducts(limit = 10) {
-  const URL = `${endpoints.products.featured}?limit=${limit}`;
+  const URL = getFeaturedProductsKey(limit);
 
   const { data, error, isLoading, isValidating } = useSWR(URL, fetcher);
 

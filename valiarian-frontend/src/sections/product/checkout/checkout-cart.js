@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import sum from 'lodash/sum';
 import PropTypes from 'prop-types';
 // @mui
@@ -8,6 +9,10 @@ import Typography from '@mui/material/Typography';
 import Grid from '@mui/material/Unstable_Grid2';
 // routes
 import { paths } from 'src/routes/paths';
+// auth
+import { useAuthContext } from 'src/auth/hooks';
+// api
+import { prefetchAddresses } from 'src/api/addresses';
 // components
 import EmptyContent from 'src/components/empty-content';
 import Iconify from 'src/components/iconify';
@@ -26,11 +31,22 @@ export default function CheckoutCart({
   onIncreaseQuantity,
   onDecreaseQuantity,
 }) {
+  const { authenticated } = useAuthContext();
   const { cart, total, discount, subTotal } = checkout;
 
   const totalItems = sum(cart.map((item) => item.quantity));
 
   const empty = !cart.length;
+
+  useEffect(() => {
+    if (!authenticated || empty) {
+      return;
+    }
+
+    prefetchAddresses().catch(() => {
+      // Address step already handles its own error state.
+    });
+  }, [authenticated, empty]);
 
   return (
     <Grid container spacing={3}>

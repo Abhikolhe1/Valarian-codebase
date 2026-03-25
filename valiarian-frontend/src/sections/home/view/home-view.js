@@ -1,10 +1,10 @@
+import { useEffect, useMemo } from 'react';
 import { useScroll } from 'framer-motion';
-// @mui
-import { styled } from '@mui/material/styles';
 // components
 import ScrollProgress from 'src/components/scroll-progress';
 // CMS
 import { usePageSectionsBySlug } from 'src/api/cms-query';
+import { prefetchHomeProductCollections } from 'src/api/products';
 //
 import HomeBestSellers from '../home-best-sellers';
 import HomeCollectionHero from '../home-collection-hero';
@@ -13,76 +13,84 @@ import HomeHero from '../home-hero';
 import HomeNewArrivals from '../home-new-arrivals';
 import HomeScrollAnimated from '../home-scroll-animated';
 import HomeSocialMedia from '../home-social-media';
-
-// ----------------------------------------------------------------------
-
-const StyledPolygon = styled('div')(({ anchor = 'top', theme }) => ({
-  left: 0,
-  zIndex: 9,
-  height: 80,
-  width: '100%',
-  position: 'absolute',
-  clipPath: 'polygon(0% 0%, 100% 100%, 0% 100%)',
-  backgroundColor: theme.palette.background.default,
-  display: 'block',
-  lineHeight: 0,
-  ...(anchor === 'top' && {
-    top: -1,
-    transform: 'scale(-1, -1)',
-  }),
-  ...(anchor === 'bottom' && {
-    bottom: -1,
-    backgroundColor: theme.palette.grey[900],
-  }),
-}));
+import { HomeHeroSkeleton, HomeProductSectionSkeleton, HomeSectionSkeleton } from '../home-skeletons';
 
 // ----------------------------------------------------------------------
 
 export default function HomeView() {
   const { scrollYProgress } = useScroll();
 
-  // Fetch all CMS sections for homepage
   const { sections, sectionsLoading } = usePageSectionsBySlug('home');
 
-  // Filter sections by type
-  const heroSection = sections?.find((s) => s.type === 'hero');
-  const scrollAnimatedSection = sections?.find((s) => s.type === 'scroll-animated');
-  const newArrivalsSection = sections?.find((s) => s.type === 'new-arrivals');
-  const collectionHeroSection = sections?.find((s) => s.type === 'collection-hero');
-  const bestSellersSection = sections?.find((s) => s.type === 'best-sellers');
-  const fabricSection = sections?.find((s) => s.type === 'fabric-info');
-  const socialMediaSection = sections?.find((s) => s.type === 'social-media');
+  useEffect(() => {
+    prefetchHomeProductCollections().catch(() => {
+      // Product sections already own their own error UI.
+    });
+  }, []);
+
+  const sectionMap = useMemo(
+    () =>
+      sections.reduce((accumulator, section) => {
+        accumulator[section.type] = section;
+        return accumulator;
+      }, {}),
+    [sections]
+  );
+
+  const heroSection = sectionMap.hero;
+  const scrollAnimatedSection = sectionMap['scroll-animated'];
+  const newArrivalsSection = sectionMap['new-arrivals'];
+  const collectionHeroSection = sectionMap['collection-hero'];
+  const bestSellersSection = sectionMap['best-sellers'];
+  const fabricSection = sectionMap['fabric-info'];
+  const socialMediaSection = sectionMap['social-media'];
+
+  const renderCmsSection = (section, Component, fallback) => {
+    if (section || !sectionsLoading) {
+      return <Component cmsData={section} />;
+    }
+
+    return fallback;
+  };
 
   return (
     <>
       <ScrollProgress scrollYProgress={scrollYProgress} />
 
-      {/* Hero Section - Pass CMS data */}
-      <HomeHero
-        imageSrc={heroSection?.content?.backgroundImage || "/assets/images/home/hero/valiarian-hero.png"}
-        cmsData={heroSection}
-      />
+      {heroSection || !sectionsLoading ? (
+        <HomeHero
+          imageSrc={heroSection?.content?.backgroundImage || '/assets/images/home/hero/valiarian-hero.png'}
+          cmsData={heroSection}
+        />
+      ) : (
+        <HomeHeroSkeleton />
+      )}
 
-      {/* Scroll Animated Section - Pass CMS data */}
-      <HomeScrollAnimated cmsData={scrollAnimatedSection} />
+      {renderCmsSection(scrollAnimatedSection, HomeScrollAnimated, <HomeSectionSkeleton />)}
 
-      {/* New Arrivals - Pass CMS data */}
-      <HomeNewArrivals cmsData={newArrivalsSection} />
+      {sectionsLoading && !newArrivalsSection ? (
+        <HomeProductSectionSkeleton />
+      ) : (
+        <HomeNewArrivals cmsData={newArrivalsSection} />
+      )}
 
-      {/* Collection Hero - Pass CMS data */}
-      <HomeCollectionHero
-        imageSrc={collectionHeroSection?.content?.backgroundImage || "/assets/images/home/new-arrival/new-arrival-hero.jpeg"}
-        cmsData={collectionHeroSection}
-      />
+      {collectionHeroSection || !sectionsLoading ? (
+        <HomeCollectionHero
+          imageSrc={
+            collectionHeroSection?.content?.backgroundImage ||
+            '/assets/images/home/new-arrival/new-arrival-hero.jpeg'
+          }
+          cmsData={collectionHeroSection}
+        />
+      ) : (
+        <HomeSectionSkeleton compact />
+      )}
 
-      {/* Best Sellers - Pass CMS data */}
       <HomeBestSellers cmsData={bestSellersSection} />
 
-      {/* Fabric Section - Pass CMS data */}
-      <HomeFabricSection cmsData={fabricSection} />
+      {renderCmsSection(fabricSection, HomeFabricSection, <HomeSectionSkeleton />)}
 
-      {/* Social Media - Pass CMS data */}
-      <HomeSocialMedia cmsData={socialMediaSection} />
+      {renderCmsSection(socialMediaSection, HomeSocialMedia, <HomeSectionSkeleton compact />)}
 
       {/* <Box
         sx={{

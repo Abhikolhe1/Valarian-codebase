@@ -1,16 +1,21 @@
 import axiosInstance from 'src/utils/axios';
-import useSWR from 'swr';
+import useSWR, { preload } from 'swr';
 
 const fetcher = (url) => axiosInstance.get(url).then((res) => res.data);
+export const ADDRESSES_KEY = '/api/addresses';
 const getErrorMessage = (error, fallbackMessage) =>
   error?.response?.data?.error?.message ||
   error?.response?.data?.message ||
   error?.message ||
   fallbackMessage;
 
+export function prefetchAddresses() {
+  return preload(ADDRESSES_KEY, fetcher);
+}
+
 // GET all addresses for current user
 export function useGetAddresses(enabled = true) {
-  const { data, error, isLoading, mutate } = useSWR(enabled ? '/api/addresses' : null, fetcher);
+  const { data, error, isLoading, mutate } = useSWR(enabled ? ADDRESSES_KEY : null, fetcher);
 
   return {
     addresses: data || [],

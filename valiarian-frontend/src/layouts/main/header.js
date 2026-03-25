@@ -26,6 +26,7 @@ import { useSelector } from 'src/redux/store';
 import { useAuthContext } from 'src/auth/hooks';
 // components
 import { Badge } from '@mui/material';
+import { prefetchCategoryMenuData } from 'src/api/category';
 import CategoryMegaMenu from 'src/components/category-mega-menu';
 import Iconify from 'src/components/iconify';
 import Logo from 'src/components/logo';
@@ -341,6 +342,12 @@ export default function Header() {
     import('src/pages/product/checkout');
   };
 
+  const handleCategoryMenuIntent = () => {
+    prefetchCategoryMenuData().catch(() => {
+      // The menu already shows its own loading state when needed.
+    });
+  };
+
   // Mobile: Handle search overlay
   const handleMobileSearchClick = () => {
     setSearchExpanded(true);
@@ -487,6 +494,8 @@ export default function Header() {
                         key={item.title}
                         ref={categoryMenuAnchorRef}
                         onClick={categoryMenuOpen.onToggle}
+                        onMouseEnter={handleCategoryMenuIntent}
+                        onFocus={handleCategoryMenuIntent}
                         sx={{
                           position: 'relative',
                         }}
