@@ -8,6 +8,7 @@ export * from './cms-pages.controller';
 export * from './cms-sections.controller';
 export * from './cms-settings.controller';
 export * from './cms-template.controller';
+export * from './contact-submission.controller';
 export * from './order.controller';
 export * from './permissions.controller';
 export * from './ping.controller';
@@ -17,4 +18,3 @@ export * from './roles.controller';
 export * from './sitemap.controller';
 
 export * from './address.controller';
-

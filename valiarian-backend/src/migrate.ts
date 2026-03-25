@@ -49,6 +49,42 @@ export async function migrate(args: string[]) {
       .execute('DROP TABLE IF EXISTS category_product CASCADE')
       .catch(() => undefined);
 
+    await ds
+      .execute(
+        'ALTER TABLE cms.contact_submissions ADD COLUMN IF NOT EXISTS custom_issue_type varchar(150)',
+      )
+      .catch(() => undefined);
+
+    await ds
+      .execute(
+        'ALTER TABLE cms.contact_submissions ADD COLUMN IF NOT EXISTS contact_token_id varchar(100)',
+      )
+      .catch(() => undefined);
+
+    await ds
+      .execute(
+        'ALTER TABLE cms.contact_submissions ADD COLUMN IF NOT EXISTS reply_subject varchar(200)',
+      )
+      .catch(() => undefined);
+
+    await ds
+      .execute(
+        'ALTER TABLE cms.contact_submissions ADD COLUMN IF NOT EXISTS reply_message text',
+      )
+      .catch(() => undefined);
+
+    await ds
+      .execute(
+        'ALTER TABLE cms.contact_submissions ADD COLUMN IF NOT EXISTS replied_by_email varchar(150)',
+      )
+      .catch(() => undefined);
+
+    await ds
+      .execute(
+        'ALTER TABLE cms.contact_submissions ADD COLUMN IF NOT EXISTS replied_at timestamptz',
+      )
+      .catch(() => undefined);
+
     console.log('Pre-migration cleanup completed.');
   } catch (error) {
     console.log('Pre-migration cleanup skipped.', error);
@@ -67,6 +103,7 @@ export async function migrate(args: string[]) {
     'Page',
     'Section',
     'ContentVersion',
+    'ContactSubmission',
     'SectionTemplate',
     'NavigationMenu',
     'SiteSettings',

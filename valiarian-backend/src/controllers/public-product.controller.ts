@@ -312,7 +312,7 @@ export class PublicProductController {
       resolvedCategoryId = undefined;
     }
 
-    if (categorySlug) {
+    if (categorySlug && !resolvedCategoryId) {
       const matchedCategory = await this.categoryRepository.findOne({
         where: {
           slug: categorySlug,

@@ -87,6 +87,12 @@ export const endpoints = {
     },
   },
   cms: {
+    contactSubmissions: {
+      list: '/api/cms/contact-submissions',
+      details: (id) => `/api/cms/contact-submissions/${id}`,
+      update: (id) => `/api/cms/contact-submissions/${id}`,
+      reply: (id) => `/api/cms/contact-submissions/${id}/reply`,
+    },
     pages: {
       list: '/api/cms/pages',
       details: (id) => `/api/cms/pages/${id}`,

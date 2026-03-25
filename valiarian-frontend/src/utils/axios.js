@@ -98,6 +98,9 @@ export const endpoints = {
     details: (orderId) => `/api/orders/${orderId}`,
     tracking: (orderId) => `/api/orders/${orderId}/tracking`,
   },
+  contact: {
+    create: '/api/public/contact-submissions',
+  },
   cms: {
     pages: {
       list: '/api/cms/pages',

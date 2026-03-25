@@ -80,9 +80,10 @@ export default function ProductShopView() {
 
   const { products, productsLoading } = useGetProducts({
     categoryId: activeCategory?.id,
-    categorySlug: !activeCategory && filters.category !== 'all' && filters.category !== 'products'
-      ? filters.category
-      : activeCategory?.slug,
+    categorySlug:
+      activeCategory || filters.category === 'all' || filters.category === 'products'
+        ? undefined
+        : filters.category,
   });
 
   const productsEmpty = !productsLoading && products.length === 0;
@@ -268,7 +269,7 @@ export default function ProductShopView() {
 // ----------------------------------------------------------------------
 
 function applyFilter({ inputData, filters, sortBy }) {
-  const { gender, category, colors, priceRange, rating } = filters;
+  const { gender, colors, priceRange, rating } = filters;
 
   const min = priceRange[0];
 
@@ -296,17 +297,9 @@ function applyFilter({ inputData, filters, sortBy }) {
     inputData = inputData.filter((product) => gender.includes(product.gender));
   }
 
-  // Backend already handles category filtering if it was passed to useGetProducts
-  // But if we have local products or want extra safety:
-  if (category !== 'all' && category !== 'products') {
-    inputData = inputData.filter(
-      (product) =>
-        product.categoryId === category ||
-        product.category?.id === category ||
-        product.category?.slug === category ||
-        product.category?.name === category
-    );
-  }
+  // Category filtering is handled by the API request in useGetProducts.
+  // Re-filtering locally can hide valid results when the response shape differs
+  // slightly, for example when only categoryId is present or the relation is not hydrated.
 
   if (colors.length) {
     inputData = inputData.filter((product) =>

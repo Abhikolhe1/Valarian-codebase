@@ -4,6 +4,7 @@ export * from './carts.repository';
 export * from './parent-category.repository';
 export * from './category.repository';
 export * from './content-version.repository';
+export * from './contact-submission.repository';
 export * from './media.repository';
 export * from './navigation-menu.repository';
 export * from './order-status-history.repository';
@@ -24,4 +25,3 @@ export * from './user-roles.repository';
 export * from './users.repository';
 
 export * from './address.repository';
-

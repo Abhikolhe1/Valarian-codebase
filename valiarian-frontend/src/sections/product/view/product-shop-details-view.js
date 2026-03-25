@@ -323,6 +323,7 @@ export default function ProductShopDetailsView() {
     setSelectedVariant(variant);
   }, []);
 
+
   const renderSkeleton = <ProductDetailsSkeleton />;
 
   const renderError = (

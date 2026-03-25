@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { useFieldArray, useForm } from 'react-hook-form';
 // @mui
 import LoadingButton from '@mui/lab/LoadingButton';
 import Box from '@mui/material/Box';
+import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
 import Container from '@mui/material/Container';
 import Stack from '@mui/material/Stack';
@@ -48,6 +49,11 @@ const TABS = [
     label: 'Analytics',
     icon: 'solar:chart-bold',
   },
+  {
+    value: 'contact',
+    label: 'Contact Page',
+    icon: 'solar:map-point-bold',
+  },
 ];
 
 // ----------------------------------------------------------------------
@@ -81,6 +87,33 @@ export default function CMSSettingsView() {
       copyrightText: siteSettings?.copyrightText || '',
       gtmId: siteSettings?.gtmId || '',
       gaId: siteSettings?.gaId || '',
+      contactPage: {
+        heroBadge: siteSettings?.contactPage?.heroBadge || 'Where',
+        heroTitleLine1: siteSettings?.contactPage?.heroTitleLine1 || 'to',
+        heroTitleLine2: siteSettings?.contactPage?.heroTitleLine2 || 'find',
+        heroTitleLine3: siteSettings?.contactPage?.heroTitleLine3 || 'us?',
+        heroImage: siteSettings?.contactPage?.heroImage || '/assets/images/contact/hero.jpg',
+        formTitle: siteSettings?.contactPage?.formTitle || 'Feel free to contact us.',
+        formDescription:
+          siteSettings?.contactPage?.formDescription || "We'll be glad to hear from you, buddy.",
+        submitLabel: siteSettings?.contactPage?.submitLabel || 'Submit Now',
+        mapTitle: siteSettings?.contactPage?.mapTitle || 'Visit our office',
+        mapDescription:
+          siteSettings?.contactPage?.mapDescription ||
+          'Find us on the map or reach out directly using the form.',
+        mapEmbedUrl: siteSettings?.contactPage?.mapEmbedUrl || '',
+        locations: siteSettings?.contactPage?.locations?.length
+          ? siteSettings.contactPage.locations
+          : [
+              {
+                title: 'Head Office',
+                address: '508 Bridle Avenue Newnan, GA 30263',
+                phoneNumber: '(239) 555-0108',
+                latitude: 33,
+                longitude: 65,
+              },
+            ],
+      },
     }),
     [siteSettings]
   );
@@ -93,10 +126,15 @@ export default function CMSSettingsView() {
   const {
     reset,
     watch,
+    control,
     setValue,
     handleSubmit,
     formState: { isSubmitting },
   } = methods;
+  const { fields, append, remove } = useFieldArray({
+    control,
+    name: 'contactPage.locations',
+  });
 
   const values = watch();
 
@@ -120,8 +158,6 @@ export default function CMSSettingsView() {
   const handleChangeTab = useCallback((event, newValue) => {
     setCurrentTab(newValue);
   }, []);
-
-  console.log('log',values.logo);
 
   const renderGeneral = (
     <Stack spacing={3}>
@@ -388,6 +424,142 @@ export default function CMSSettingsView() {
     </Stack>
   );
 
+  const renderContact = (
+    <Stack spacing={3}>
+      <Typography variant="h6">Contact Page Content</Typography>
+
+      <Typography variant="body2" color="text.secondary">
+        These fields control the frontend contact-us page hero text, form labels, office cards,
+        and the map embed.
+      </Typography>
+
+      <TextField fullWidth label="Hero Badge" {...methods.register('contactPage.heroBadge')} />
+
+      <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
+        <TextField fullWidth label="Hero Word 1" {...methods.register('contactPage.heroTitleLine1')} />
+        <TextField fullWidth label="Hero Word 2" {...methods.register('contactPage.heroTitleLine2')} />
+        <TextField fullWidth label="Hero Word 3" {...methods.register('contactPage.heroTitleLine3')} />
+      </Stack>
+
+      <CMSMediaPickerField
+        label="Contact Hero Image"
+        value={values.contactPage?.heroImage}
+        onChange={(url) => setValue('contactPage.heroImage', url)}
+        helperText="Recommended wide banner image for the contact hero section"
+        accept={{
+          'image/*': ['.png', '.jpg', '.jpeg', '.svg', '.webp'],
+        }}
+      />
+
+      <TextField fullWidth label="Form Title" {...methods.register('contactPage.formTitle')} />
+
+      <TextField
+        fullWidth
+        multiline
+        rows={3}
+        label="Form Description"
+        {...methods.register('contactPage.formDescription')}
+      />
+
+      <TextField fullWidth label="Submit Button Label" {...methods.register('contactPage.submitLabel')} />
+      <TextField fullWidth label="Map Title" {...methods.register('contactPage.mapTitle')} />
+
+      <TextField
+        fullWidth
+        multiline
+        rows={2}
+        label="Map Description"
+        {...methods.register('contactPage.mapDescription')}
+      />
+
+      <TextField
+        fullWidth
+        label="Google Maps Embed URL"
+        placeholder="https://www.google.com/maps?q=...&output=embed"
+        {...methods.register('contactPage.mapEmbedUrl')}
+        helperText="Paste a full embed URL if you want to override the auto-generated location map."
+      />
+
+      <Stack spacing={2}>
+        <Stack direction="row" justifyContent="space-between" alignItems="center">
+          <Typography variant="subtitle1">Locations</Typography>
+          <Button
+            variant="outlined"
+            startIcon={<Iconify icon="solar:add-circle-bold" />}
+            onClick={() =>
+              append({
+                title: '',
+                address: '',
+                phoneNumber: '',
+                latitude: 0,
+                longitude: 0,
+              })
+            }
+          >
+            Add Location
+          </Button>
+        </Stack>
+
+        {fields.map((field, index) => (
+          <Card key={field.id} variant="outlined" sx={{ p: 3 }}>
+            <Stack spacing={2}>
+              <Stack direction="row" justifyContent="space-between" alignItems="center">
+                <Typography variant="subtitle2">Location {index + 1}</Typography>
+                <Button
+                  color="error"
+                  onClick={() => remove(index)}
+                  disabled={fields.length === 1}
+                  startIcon={<Iconify icon="solar:trash-bin-trash-bold" />}
+                >
+                  Remove
+                </Button>
+              </Stack>
+
+              <TextField
+                fullWidth
+                label="Location Title"
+                {...methods.register(`contactPage.locations.${index}.title`)}
+              />
+
+              <TextField
+                fullWidth
+                multiline
+                rows={2}
+                label="Address"
+                {...methods.register(`contactPage.locations.${index}.address`)}
+              />
+
+              <TextField
+                fullWidth
+                label="Phone Number"
+                {...methods.register(`contactPage.locations.${index}.phoneNumber`)}
+              />
+
+              <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
+                <TextField
+                  fullWidth
+                  type="number"
+                  label="Latitude"
+                  {...methods.register(`contactPage.locations.${index}.latitude`, {
+                    valueAsNumber: true,
+                  })}
+                />
+                <TextField
+                  fullWidth
+                  type="number"
+                  label="Longitude"
+                  {...methods.register(`contactPage.locations.${index}.longitude`, {
+                    valueAsNumber: true,
+                  })}
+                />
+              </Stack>
+            </Stack>
+          </Card>
+        ))}
+      </Stack>
+    </Stack>
+  );
+
   return (
     <Container maxWidth={settings.themeStretch ? false : 'xl'}>
       <CustomBreadcrumbs
@@ -434,6 +606,7 @@ export default function CMSSettingsView() {
                 {currentTab === 'seo' && renderSEO}
                 {currentTab === 'social' && renderSocial}
                 {currentTab === 'analytics' && renderAnalytics}
+                {currentTab === 'contact' && renderContact}
 
                 <Stack direction="row" justifyContent="flex-end" sx={{ mt: 4 }}>
                   <LoadingButton

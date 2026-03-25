@@ -9,6 +9,29 @@ export interface SocialMedia {
   pinterest?: string;
 }
 
+export interface ContactLocation {
+  title: string;
+  address: string;
+  phoneNumber?: string;
+  latitude?: number;
+  longitude?: number;
+}
+
+export interface ContactPageSettings {
+  heroBadge?: string;
+  heroTitleLine1?: string;
+  heroTitleLine2?: string;
+  heroTitleLine3?: string;
+  heroImage?: string;
+  formTitle?: string;
+  formDescription?: string;
+  submitLabel?: string;
+  mapTitle?: string;
+  mapDescription?: string;
+  mapEmbedUrl?: string;
+  locations?: ContactLocation[];
+}
+
 @model({
   settings: {
     postgresql: {
@@ -87,10 +110,16 @@ export class SiteSettings extends Entity {
   })
   gaId?: string;
 
-  
+  @property({
+    type: 'object',
+    postgresql: {
+      dataType: 'jsonb',
+    },
+  })
+  contactPage?: ContactPageSettings;
 
   
-
+  
   
   @property({
     type: 'boolean',

@@ -6,6 +6,7 @@ export * from './category-product.model';
 export * from './cart-items.model';
 export * from './carts.model';
 export * from './content-version.model';
+export * from './contact-submission.model';
 export * from './media.model';
 export * from './navigation-menu.model';
 export * from './order-status-history.model';
@@ -24,4 +25,3 @@ export * from './section.model';
 export * from './site-settings.model';
 export * from './user-roles.model';
 export * from './users.model';
-

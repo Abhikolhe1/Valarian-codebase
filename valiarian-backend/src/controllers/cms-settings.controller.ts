@@ -14,6 +14,36 @@ import {authorize} from '../authorization';
 import {SiteSettings} from '../models';
 import {SiteSettingsRepository} from '../repositories';
 
+const defaultContactPage = {
+  heroBadge: 'Where',
+  heroTitleLine1: 'to',
+  heroTitleLine2: 'find',
+  heroTitleLine3: 'us?',
+  heroImage: '/assets/images/contact/hero.jpg',
+  formTitle: 'Feel free to contact us.',
+  formDescription: "We'll be glad to hear from you, buddy.",
+  submitLabel: 'Submit Now',
+  mapTitle: 'Visit our office',
+  mapDescription: 'Find us on the map or reach out directly using the form.',
+  mapEmbedUrl: '',
+  locations: [
+    {
+      title: 'Head Office',
+      address: '508 Bridle Avenue Newnan, GA 30263',
+      phoneNumber: '(239) 555-0108',
+      latitude: 33,
+      longitude: 65,
+    },
+    {
+      title: 'Studio',
+      address: '14 Fashion Street, London, UK',
+      phoneNumber: '(319) 555-0115',
+      latitude: -12.5,
+      longitude: 18.5,
+    },
+  ],
+};
+
 export class CMSSettingsController {
   constructor(
     @repository(SiteSettingsRepository)
@@ -53,12 +83,22 @@ export class CMSSettingsController {
         copyrightText: '© 2024 Valiarian. All rights reserved.',
         gtmId: '',
         gaId: '',
+        contactPage: defaultContactPage,
         createdAt: new Date(),
         updatedAt: new Date(),
       };
 
       settings = await this.siteSettingsRepository.create(defaultSettings);
     }
+
+    settings.contactPage = {
+      ...defaultContactPage,
+      ...(settings.contactPage || {}),
+      locations:
+        settings.contactPage?.locations?.length
+          ? settings.contactPage.locations
+          : defaultContactPage.locations,
+    };
 
     return settings;
   }
@@ -103,6 +143,35 @@ export class CMSSettingsController {
               copyrightText: {type: 'string'},
               gtmId: {type: 'string'},
               gaId: {type: 'string'},
+              contactPage: {
+                type: 'object',
+                properties: {
+                  heroBadge: {type: 'string'},
+                  heroTitleLine1: {type: 'string'},
+                  heroTitleLine2: {type: 'string'},
+                  heroTitleLine3: {type: 'string'},
+                  heroImage: {type: 'string'},
+                  formTitle: {type: 'string'},
+                  formDescription: {type: 'string'},
+                  submitLabel: {type: 'string'},
+                  mapTitle: {type: 'string'},
+                  mapDescription: {type: 'string'},
+                  mapEmbedUrl: {type: 'string'},
+                  locations: {
+                    type: 'array',
+                    items: {
+                      type: 'object',
+                      properties: {
+                        title: {type: 'string'},
+                        address: {type: 'string'},
+                        phoneNumber: {type: 'string'},
+                        latitude: {type: 'number'},
+                        longitude: {type: 'number'},
+                      },
+                    },
+                  },
+                },
+              },
             },
           },
         },

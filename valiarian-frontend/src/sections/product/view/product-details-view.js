@@ -58,6 +58,7 @@ export default function ProductDetailsView() {
   const { id } = params;
 
   const { product, productLoading, productError } = useGetProduct(`${id}`);
+  console.log("product",product);
 
   const settings = useSettingsContext();
 

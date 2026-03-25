@@ -100,6 +100,7 @@ export function useNavData() {
               { title: t('Media Library'), path: paths.dashboard.cms.media.list },
               { title: t('Navigation'), path: paths.dashboard.cms.navigation.root },
               { title: t('Settings'), path: paths.dashboard.cms.settings.root },
+              { title: t('Contact Requests'), path: paths.dashboard.cms.contactSubmissions.list },
             ],
           },
           // USER

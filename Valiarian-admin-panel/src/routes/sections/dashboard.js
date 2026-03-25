@@ -66,6 +66,8 @@ const CMSPageEditPage = lazy(() => import('src/pages/dashboard/cms/pages-edit'))
 const CMSMediaListPage = lazy(() => import('src/pages/dashboard/cms/media-list'));
 const CMSNavigationPage = lazy(() => import('src/pages/dashboard/cms/navigation'));
 const CMSSettingsPage = lazy(() => import('src/pages/dashboard/cms/settings'));
+const CMSContactSubmissionsPage = lazy(() => import('src/pages/dashboard/cms/conatct-us/contact-submissions'));
+const ConatactUsEditPage = lazy(() => import('src/pages/dashboard/cms/conatct-us/contact-us-view'));
 // FILE MANAGER
 const FileManagerPage = lazy(() => import('src/pages/dashboard/file-manager'));
 // APP
@@ -215,6 +217,14 @@ export const dashboardRoutes = [
           {
             path: 'settings',
             element: <CMSSettingsPage />,
+          },
+          {
+            path: 'contactSubmissions',
+            children: [
+              { element: <CMSContactSubmissionsPage />, index: true },
+              { path: 'list', element: <CMSContactSubmissionsPage /> },
+              { path: ':id/edit', element: <ConatactUsEditPage /> },
+            ],
           },
         ],
       },

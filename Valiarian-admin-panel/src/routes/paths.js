@@ -209,6 +209,13 @@ export const paths = {
       settings: {
         root: `${ROOTS.DASHBOARD}/cms/settings`,
       },
+      contactSubmissions: {
+        root: `${ROOTS.DASHBOARD}/cms/contactSubmissions`,
+        list: `${ROOTS.DASHBOARD}/cms/contactSubmissions/list`,
+        // edit: (id) => `${ROOTS.DASHBOARD}/cms/contactSubmissions/${id}/edit`,
+        edit: (id) => `${ROOTS.DASHBOARD}/cms/contactSubmissions/${id}/edit`,
+        // edit: (id) => `${ROOTS.DASHBOARD}/user/${id}/edit`,
+      },
     },
   },
 };
