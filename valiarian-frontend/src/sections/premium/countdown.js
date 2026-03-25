@@ -141,20 +141,25 @@ const PreorderButton = styled(Button)({
   },
 });
 
-const MainContent = styled(Box)({
+const MainContent = styled(Box)(({ theme }) => ({
   display: 'flex',
-  justifyContent: 'space-between',
-  alignItems: 'flex-start',
+  flexDirection: "column",
+  justifyContent: 'center',
+  alignItems: 'center',
+  textAlign: 'center',
   gap: '60px',
-  '@media (max-width: 968px)': {
+
+  [theme.breakpoints.down('md')]: {
     flexDirection: 'column',
     gap: '40px',
+    alignItems: 'center',
+    padding: '0 16px', // 👈 mobile side padding
   },
-});
+}));
 
 const TextContent = styled(Box)({
-  flex: 1,
-  maxWidth: '600px',
+  // flex: 1,
+  maxWidth: 'auto',
 });
 
 const MainHeading = styled(Typography)({
@@ -188,14 +193,14 @@ const Description = styled(Typography)({
   letterSpacing: '0.2px',
 });
 
-const CountdownWrapper = styled(Box)({
+const CountdownWrapper = styled(Box)(({ theme }) => ({
   display: 'flex',
   flexDirection: 'column',
-  alignItems: 'flex-end',
-  '@media (max-width: 968px)': {
-    alignItems: 'flex-start',
-  },
-});
+  alignItems: 'center',
+  width: '110%',
+  px: { xs: 0, sm: 0, md: 0 }, // 👈 responsive padding
+}));
+
 
 const CountdownCard = styled(Card)({
   padding: '32px',
@@ -228,7 +233,7 @@ const TimerGrid = styled(Box)({
   gridTemplateColumns: 'repeat(4, 1fr)',
   gap: '20px',
   '@media (max-width: 480px)': {
-    gap: '12px',
+    gap: '10px',
   },
 });
 
@@ -250,7 +255,7 @@ const TimeValue = styled(Typography)({
   lineHeight: 1,
   marginBottom: '8px',
   '@media (max-width: 480px)': {
-    fontSize: '2.5rem',
+    fontSize: '1.5rem',
   },
 });
 
@@ -374,7 +379,7 @@ const ProductLuxurySection = () => {
                 </TimeUnit>
                 <TimeUnit>
                   <TimeValue>{formatTime(timeLeft.seconds)}</TimeValue>
-                  <TimeLabel>Seconds</TimeLabel>
+                  <TimeLabel>Sec</TimeLabel>
                 </TimeUnit>
               </TimerGrid>
             </CountdownCard>

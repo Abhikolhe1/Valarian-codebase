@@ -1,9 +1,10 @@
 //
+
 import AboutHero from '../about-hero';
-import AboutWhat from '../about-what';
+import AboutStorySection from '../about-story';
 import AboutTeam from '../about-team';
-import AboutVision from '../about-vision';
-import AboutTestimonials from '../about-testimonials';
+import AboutThoughtCarousel from '../about-thought';
+import { AboutValues } from '../about-values';
 
 // ----------------------------------------------------------------------
 
@@ -12,13 +13,17 @@ export default function AboutView() {
     <>
       <AboutHero />
 
-      <AboutWhat />
+      <AboutStorySection />
 
-      <AboutVision />
+      <AboutThoughtCarousel />
+
+      <AboutValues />
 
       <AboutTeam />
 
-      <AboutTestimonials />
+      {/* <AboutWhat />
+      <AboutVision /> */}
+      {/* <AboutTestimonials /> */}
     </>
   );
 }

@@ -1,21 +1,21 @@
-import PropTypes from 'prop-types';
 import { m } from 'framer-motion';
+import PropTypes from 'prop-types';
 // @mui
-import { alpha } from '@mui/material/styles';
 import Box from '@mui/material/Box';
-import Card from '@mui/material/Card';
-import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
+import Card from '@mui/material/Card';
 import Container from '@mui/material/Container';
 import IconButton from '@mui/material/IconButton';
+import Stack from '@mui/material/Stack';
+import { alpha } from '@mui/material/styles';
 import Typography from '@mui/material/Typography';
 // _mock
 import { _carouselsMembers, _socials } from 'src/_mock';
 // components
-import Image from 'src/components/image';
-import Iconify from 'src/components/iconify';
 import { MotionViewport, varFade } from 'src/components/animate';
 import Carousel, { CarouselArrows, useCarousel } from 'src/components/carousel';
+import Iconify from 'src/components/iconify';
+import Image from 'src/components/image';
 
 // ----------------------------------------------------------------------
 
@@ -41,14 +41,14 @@ export default function AboutTeam() {
 
   return (
     <Container component={MotionViewport} sx={{ textAlign: 'center', py: { xs: 10, md: 15 } }}>
-      <m.div variants={varFade().inDown}>
+      {/* <m.div variants={varFade().inDown}>
         <Typography variant="overline" sx={{ color: 'text.disabled' }}>
           Dream team
         </Typography>
-      </m.div>
+      </m.div> */}
 
       <m.div variants={varFade().inUp}>
-        <Typography variant="h2" sx={{ my: 3 }}>
+        <Typography variant="h3" sx={{ my: 3 }} fontWeight="900" color="primary.main">
           Great team is the key
         </Typography>
       </m.div>
