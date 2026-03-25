@@ -13,54 +13,44 @@ import Image from 'src/components/image';
 
 // ----------------------------------------------------------------------
 
-// Fabric data using files from public/assets/images/home/fabric
-const FABRICS = [
+// story data using files from public/assets/images/home/story
+const STORY = [
   {
     id: 1,
-    name: 'Premium Egyptian Cotton',
-    description: 'Sourced from the finest Egyptian cotton fields, this luxurious fabric offers unmatched softness and breathability. Perfect for everyday comfort.',
+    name: 'Where It All Began',
+    description: 'Founded in 2018, Premium Cotton Polo was born from a simple observation: despite the popularity of polo shirts, it was difficult to find one that truly balanced comfort, quality, and timeless style. We set out to create the perfect polo—one crafted from the finest materials, designed to last, and elegant enough for any occasion.',
     image: '/assets/images/home/fabric/fabric1.webp',
     video: '/assets/images/home/fabric/fabric1.mp4',
-    tags: ['100% Cotton', 'Breathable', 'Durable'],
   },
   {
     id: 2,
-    name: 'Organic Bamboo Fiber',
-    description: 'Eco-friendly and naturally antimicrobial, bamboo fiber provides exceptional moisture-wicking properties and a silky smooth texture.',
+    name: 'Our Commitment to Quality',
+    description: 'Every polo is made from long-staple premium cotton, sourced from certified suppliers who share our values. We work exclusively with ethical manufacturers in Portugal, ensuring every stitch meets our exacting standards. The result is a garment that feels exceptional from the first wear and only gets better with time.',
     image: '/assets/images/home/fabric/fabric2.jpg',
     video: '/assets/images/home/fabric/fabric2.mp4',
-    tags: ['Sustainable', 'Antimicrobial', 'Moisture-Wicking'],
   },
   {
     id: 3,
-    name: 'Supima Cotton Blend',
-    description: 'Premium Supima cotton blended with spandex for enhanced stretch and shape retention. Ideal for a modern, fitted silhouette.',
-    image: '/assets/images/home/fabric/fabric1.webp',
-    video: '/assets/images/home/fabric/fabric1.mp4',
-    tags: ['Elastic', 'Shape Retention', 'Premium'],
-  },
-  {
-    id: 4,
-    name: 'Linen-Cotton Mix',
-    description: 'The perfect blend of natural linen and cotton creates a fabric that is both sophisticated and comfortable, with excellent temperature regulation.',
+    name: 'Sustainable by Design',
+    description: "Sustainability isn't an afterthought—it's woven into every aspect of our business. We use OEKO-TEX certified dyes, operate carbon-neutral production facilities, and design our polos to be worn for years, not seasons. We believe the most sustainable garment is one that lasts.",
     image: '/assets/images/home/fabric/fabric2.jpg',
     video: '/assets/images/home/fabric/fabric2.mp4',
-    tags: ['Temperature Regulating', 'Elegant', 'Natural'],
   },
+
 ];
 
 // ----------------------------------------------------------------------
 
-// Fabric Item Component - handles individual fabric animation
-function FabricItem({ fabric, index: fabricIndex, smoothIndex, isMobile, totalFabrics }) {
-  // Determine if this fabric is the active one
+// story Item Component - handles individual story animation
+function StoryItem({ story, index: storyIndex, smoothIndex, isMobile, totalStory }) {
+  // Determine if this story is the active one
   const isActive = useTransform(
     smoothIndex,
-    (latest) => Math.floor(latest) === fabricIndex
+    (latest) => Math.floor(latest) === storyIndex
   );
 
   // Calculate opacity based on scroll position
-  // Ensure clean transition: current fabric completely fades out before next appears
+  // Ensure clean transition: current story completely fades out before next appears
   const opacity = useTransform(
     smoothIndex,
     (latest) => {
@@ -68,8 +58,8 @@ function FabricItem({ fabric, index: fabricIndex, smoothIndex, isMobile, totalFa
       const nextIndex = currentIndex + 1;
       const progress = latest - currentIndex;
 
-      // Current active fabric - fade out completely
-      if (fabricIndex === currentIndex) {
+      // Current active story - fade out completely
+      if (storyIndex === currentIndex) {
         // Fade out faster so it's gone before next appears
         if (progress < 0.5) {
           return 1 - progress * 2; // Fade from 1 to 0 in first half
@@ -77,16 +67,16 @@ function FabricItem({ fabric, index: fabricIndex, smoothIndex, isMobile, totalFa
         return 0; // Completely hidden in second half
       }
 
-      // Next fabric - only appear after current is completely gone (progress > 0.5)
-      if (fabricIndex === nextIndex) {
+      // Next story - only appear after current is completely gone (progress > 0.5)
+      if (storyIndex === nextIndex) {
         if (progress <= 0.5) {
-          return 0; // Hidden until current fabric is gone
+          return 0; // Hidden until current story is gone
         }
         // Fade in during second half
         return (progress - 0.5) * 2; // Fade from 0 to 1 in second half
       }
 
-      // All other fabrics are hidden
+      // All other storys are hidden
       return 0;
     }
   );
@@ -100,7 +90,7 @@ function FabricItem({ fabric, index: fabricIndex, smoothIndex, isMobile, totalFa
       const nextIndex = currentIndex + 1;
       const progress = latest - currentIndex;
 
-      if (fabricIndex === currentIndex) {
+      if (storyIndex === currentIndex) {
         // Slide out upward - complete movement in first half
         if (progress < 0.5) {
           return progress * 40; // Move out quickly in first half
@@ -108,7 +98,7 @@ function FabricItem({ fabric, index: fabricIndex, smoothIndex, isMobile, totalFa
         return 40; // Stay out in second half
       }
 
-      if (fabricIndex === nextIndex) {
+      if (storyIndex === nextIndex) {
         // Slide in from below - only start after current is gone (progress > 0.5)
         if (progress <= 0.5) {
           return 40; // Stay below viewport until current is gone
@@ -117,8 +107,8 @@ function FabricItem({ fabric, index: fabricIndex, smoothIndex, isMobile, totalFa
         return 40 - (progress - 0.5) * 80; // Move from 40 to 0 in second half
       }
 
-      // First fabric at start - no translation
-      if (fabricIndex === 0 && latest < 0.5) {
+      // First story at start - no translation
+      if (storyIndex === 0 && latest < 0.5) {
         return 0;
       }
 
@@ -127,12 +117,12 @@ function FabricItem({ fabric, index: fabricIndex, smoothIndex, isMobile, totalFa
   );
 
   // Determine layout direction (alternating)
-  const isEvenIndex = fabricIndex % 2 === 0;
+  const isEvenIndex = storyIndex % 2 === 0;
 
   // Helper function to render media (image or video) - only one, not both
   const renderMedia = (containerSx = {}) => {
     // Priority: video first if available, otherwise image
-    if (fabric.video) {
+    if (story.video) {
       return (
         <Box
           component="video"
@@ -155,19 +145,19 @@ function FabricItem({ fabric, index: fabricIndex, smoothIndex, isMobile, totalFa
             }
           }}
         >
-          <source src={fabric.video} type="video/mp4" />
-          <source src={fabric.video} type="video/webm" />
+          <source src={story.video} type="video/mp4" />
+          <source src={story.video} type="video/webm" />
           Your browser does not support the video tag.
         </Box>
       );
     }
 
     // Fallback to image if no video or video fails
-    if (fabric.image) {
+    if (story.image) {
       return (
         <Image
-          src={fabric.image}
-          alt={fabric.name}
+          src={story.image}
+          alt={story.name}
           sx={{
             width: '100%',
             height: '100%',
@@ -209,77 +199,16 @@ function FabricItem({ fabric, index: fabricIndex, smoothIndex, isMobile, totalFa
         >
           {renderMedia()}
         </Box>
+
         <Stack spacing={2}>
-          <Typography variant="h4" component="h3">
-            {fabric.name}
+          <Typography variant="h5" color="primary.main">
+            {story.name}
           </Typography>
-          <Typography variant="body1" color="text.secondary">
-            {fabric.description}
+
+          <Typography variant="body2" color="text.secondary">
+            {story.description}
           </Typography>
-          {fabric.tags && fabric.tags.length > 0 && (
-            <Stack direction="row" spacing={1} flexWrap="wrap">
-              {fabric.tags.map((tag) => (
-                <Box
-                  key={tag}
-                  sx={{
-                    px: 1.5,
-                    py: 0.5,
-                    bgcolor: 'background.neutral',
-                    borderRadius: 1,
-                  }}
-                >
-                  <Typography variant="caption" color="text.secondary">
-                    {tag}
-                  </Typography>
-                </Box>
-              ))}
-            </Stack>
-          )}
         </Stack>
-        {/* </>
-        ) : (
-          // Odd index: Content top, image below
-          <>
-            <Stack spacing={2} mb={4}>
-              <Typography variant="h4" component="h3">
-                {fabric.name}
-              </Typography>
-              <Typography variant="body1" color="text.secondary">
-                {fabric.description}
-              </Typography>
-              {fabric.tags && fabric.tags.length > 0 && (
-                <Stack direction="row" spacing={1} flexWrap="wrap">
-                  {fabric.tags.map((tag) => (
-                    <Box
-                      key={tag}
-                      sx={{
-                        px: 1.5,
-                        py: 0.5,
-                        bgcolor: 'background.neutral',
-                        borderRadius: 1,
-                      }}
-                    >
-                      <Typography variant="caption" color="text.secondary">
-                        {tag}
-                      </Typography>
-                    </Box>
-                  ))}
-                </Stack>
-              )}
-            </Stack>
-            <Box
-              sx={{
-                width: '100%',
-                borderRadius: 2,
-                overflow: 'hidden',
-                aspectRatio: '4/3',
-                position: 'relative',
-              }}
-            >
-              {renderMedia()}
-            </Box>
-          </>
-        )} */}
       </Box>
     );
   }
@@ -321,15 +250,15 @@ function FabricItem({ fabric, index: fabricIndex, smoothIndex, isMobile, totalFa
               {renderMedia()}
             </Box>
             <Stack spacing={3} sx={{ width: '50%' }}>
-              <Typography variant="h3" component="h2">
-                {fabric.name}
+              <Typography variant="h3" component="h2" color="primary.main" >
+                {story.name}
               </Typography>
-              <Typography variant="body1" color="text.secondary" sx={{ fontSize: '1.1rem' }}>
-                {fabric.description}
+              <Typography variant="subtitle2" color="text.secondary" sx={{ fontSize: '1.1rem' }}>
+                {story.description}
               </Typography>
-              {fabric.tags && fabric.tags.length > 0 && (
+              {/* {story.tags && story.tags.length > 0 && (
                 <Stack direction="row" spacing={1} flexWrap="wrap">
-                  {fabric.tags.map((tag) => (
+                  {story.tags.map((tag) => (
                     <Box
                       key={tag}
                       sx={{
@@ -345,7 +274,7 @@ function FabricItem({ fabric, index: fabricIndex, smoothIndex, isMobile, totalFa
                     </Box>
                   ))}
                 </Stack>
-              )}
+              )} */}
             </Stack>
           </Stack>
         ) : (
@@ -363,15 +292,15 @@ function FabricItem({ fabric, index: fabricIndex, smoothIndex, isMobile, totalFa
               {renderMedia()}
             </Box>
             <Stack spacing={3} sx={{ width: '50%' }}>
-              <Typography variant="h3" component="h2">
-                {fabric.name}
+              <Typography variant="h3" component="h2" color="primary.main">
+                {story.name}
               </Typography>
-              <Typography variant="body1" color="text.secondary" sx={{ fontSize: '1.1rem' }}>
-                {fabric.description}
+              <Typography variant="subtitle2" color="text.secondary" sx={{ fontSize: '1.1rem' }}>
+                {story.description}
               </Typography>
-              {fabric.tags && fabric.tags.length > 0 && (
+              {/* {story.tags && story.tags.length > 0 && (
                 <Stack direction="row" spacing={1} flexWrap="wrap">
-                  {fabric.tags.map((tag) => (
+                  {story.tags.map((tag) => (
                     <Box
                       key={tag}
                       sx={{
@@ -387,7 +316,7 @@ function FabricItem({ fabric, index: fabricIndex, smoothIndex, isMobile, totalFa
                     </Box>
                   ))}
                 </Stack>
-              )}
+              )} */}
             </Stack>
           </Stack>
         )}
@@ -396,8 +325,8 @@ function FabricItem({ fabric, index: fabricIndex, smoothIndex, isMobile, totalFa
   );
 }
 
-FabricItem.propTypes = {
-  fabric: PropTypes.shape({
+StoryItem.propTypes = {
+  story: PropTypes.shape({
     id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
     name: PropTypes.string.isRequired,
     description: PropTypes.string.isRequired,
@@ -408,12 +337,12 @@ FabricItem.propTypes = {
   index: PropTypes.number.isRequired,
   smoothIndex: PropTypes.object.isRequired,
   isMobile: PropTypes.bool.isRequired,
-  totalFabrics: PropTypes.number.isRequired,
+  totalStory: PropTypes.number.isRequired,
 };
 
 // ----------------------------------------------------------------------
 
-export default function HomeFabricSection({ fabrics: propFabrics, cmsData, ...other }) {
+export default function AboutStorySection({ storys: propStory, cmsData, ...other }) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
@@ -422,12 +351,12 @@ export default function HomeFabricSection({ fabrics: propFabrics, cmsData, ...ot
   const containerRef = useRef(null);
   const spacerRef = useRef(null);
 
-  // Use CMS data for title and subtitle
-  const title = cmsData?.content?.title || 'Premium Fabrics';
-  const subtitle = cmsData?.content?.subtitle || 'Discover the exceptional materials that make our clothing extraordinary';
+  // // Use CMS data for title and subtitle
+  // const title = cmsData?.content?.title || 'Premium Story';
+  // const subtitle = cmsData?.content?.subtitle || 'Discover the exceptional materials that make our clothing extraordinary';
 
-  // Use prop fabrics if provided, otherwise use FABRICS
-  const fabrics = propFabrics || FABRICS;
+  // Use prop storys if provided, otherwise use STORY
+  const storys = propStory || STORY;
 
   // Calculate scroll progress - track the wrapper
   const { scrollYProgress } = useScroll({
@@ -435,16 +364,16 @@ export default function HomeFabricSection({ fabrics: propFabrics, cmsData, ...ot
     offset: ['start start', 'end end'],
   });
 
-  // Map scroll progress to fabric index (0 to fabrics.length - 1)
-  // Clamp to ensure we don't go beyond the last fabric
-  const fabricIndex = useTransform(
+  // Map scroll progress to story index (0 to storys.length - 1)
+  // Clamp to ensure we don't go beyond the last story
+  const storyIndex = useTransform(
     scrollYProgress,
     [0, 1],
-    [0, Math.max(fabrics.length - 1, 0)]
+    [0, Math.max(storys.length - 1, 0)]
   );
 
   // Smooth the index for better animation
-  const smoothIndex = useSpring(fabricIndex, {
+  const smoothIndex = useSpring(storyIndex, {
     stiffness: 100,
     damping: 30,
     mass: 0.5,
@@ -458,12 +387,9 @@ export default function HomeFabricSection({ fabrics: propFabrics, cmsData, ...ot
         sx={{
           position: 'relative',
           bgcolor: 'background.default',
-          minHeight: `${Math.max(fabrics.length, 2) * 100}vh`,
+          minHeight: `${Math.max(storys.length, 2) * 100}vh`,
         }}
       >
-
-
-        {/* Sticky Container */}
         <Box
           sx={{
             position: 'sticky',
@@ -472,38 +398,24 @@ export default function HomeFabricSection({ fabrics: propFabrics, cmsData, ...ot
             height: '90vh',
             display: 'flex',
             flexDirection: 'column',
+            justifyContent: "center",
             alignItems: 'center',
-            justifyContent: 'flex-start',
             overflow: 'hidden',
             px: 2,
-            pt: 8,
           }}
         >
-          <Container maxWidth="lg">
-
-
-            <Stack spacing={2} sx={{ mb: 3, textAlign: 'center' }}>
-              <Typography variant="h5">{title}</Typography>
-              <Typography variant="body2" color="text.secondary">
-                {subtitle}
-              </Typography>
-            </Stack>
-
-
-            <Box sx={{ position: 'relative', width: '100%' }}>
-              {fabrics.map((fabric, index) => (
-                <FabricItem
-                  key={fabric.id}
-                  fabric={fabric}
-                  index={index}
-                  smoothIndex={smoothIndex}
-                  isMobile={isMobile}
-                  totalFabrics={fabrics.length}
-                />
-              ))}
-            </Box>
-
-          </Container>
+          <Box sx={{ width: '100%', mt: -50, position: 'relative' }}>
+            {storys.map((story, index) => (
+              <StoryItem
+                key={story.id}
+                story={story}
+                index={index}
+                smoothIndex={smoothIndex}
+                isMobile={isMobile}
+                totalStory={storys.length}
+              />
+            ))}
+          </Box>
         </Box>
       </Box>
     );
@@ -517,7 +429,7 @@ export default function HomeFabricSection({ fabrics: propFabrics, cmsData, ...ot
       sx={{
         position: 'relative',
         bgcolor: 'background.default',
-        minHeight: `${Math.max(fabrics.length, 2) * 100}vh`, // Create scroll space for the section
+        minHeight: `${Math.max(storys.length, 2) * 100}vh`, // Create scroll space for the section
       }}
       {...other}
     >
@@ -543,7 +455,7 @@ export default function HomeFabricSection({ fabrics: propFabrics, cmsData, ...ot
           }}
         >
           {/* Header - Fixed at top */}
-          <Container maxWidth="lg" sx={{ mb: 8 }}>
+          {/* <Container maxWidth="lg" sx={{ mb: 8 }}>
             <Stack spacing={2} sx={{ textAlign: 'center' }}>
               <Typography variant="h2" component="h1">
                 {title}
@@ -552,9 +464,9 @@ export default function HomeFabricSection({ fabrics: propFabrics, cmsData, ...ot
                 {subtitle}
               </Typography>
             </Stack>
-          </Container>
+          </Container> */}
 
-          {/* Fabric Items - Animated based on scroll */}
+          {/* story Items - Animated based on scroll */}
           <Box
             sx={{
               position: 'relative',
@@ -562,14 +474,14 @@ export default function HomeFabricSection({ fabrics: propFabrics, cmsData, ...ot
               minHeight: '60vh',
             }}
           >
-            {fabrics.map((fabric, index) => (
-              <FabricItem
-                key={fabric.id}
-                fabric={fabric}
+            {storys.map((story, index) => (
+              <StoryItem
+                key={story.id}
+                story={story}
                 index={index}
                 smoothIndex={smoothIndex}
                 isMobile={isMobile}
-                totalFabrics={fabrics.length}
+                totalStory={storys.length}
               />
             ))}
           </Box>
@@ -579,8 +491,8 @@ export default function HomeFabricSection({ fabrics: propFabrics, cmsData, ...ot
   );
 }
 
-HomeFabricSection.propTypes = {
-  fabrics: PropTypes.arrayOf(
+AboutStorySection.propTypes = {
+  storys: PropTypes.arrayOf(
     PropTypes.shape({
       id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
       name: PropTypes.string.isRequired,

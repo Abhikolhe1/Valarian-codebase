@@ -21,7 +21,7 @@ const PRODUCTS = [
   {
     id: 1,
     title: 'Premium Classic T-Shirt',
-    description: 'Crafted with premium cotton for ultimate comfort and style. Perfect for everyday wear.',
+    description: 'Crafted with premium cotton for ultimate comfort and style. Perfect for everyday wear.Crafted with premium cotton for ultimate comfort and style. Perfect for everyday wear.Crafted with premium cotton for ultimate comfort and style. Perfect for everyday wear.',
     image: '/assets/images/home/scroll-animation/tshirt1-removebg-preview.png',
     buttonText: 'Shop Now',
     buttonLink: paths.product.root,
@@ -548,6 +548,7 @@ export default function HomeScrollAnimated({ products: propProducts, cmsData, ..
             spacing={3}
             sx={{
               maxWidth: { xs: '100%', md: 520 },
+              maxHeight: { xs: '50%', md: 'auto' },
               mx: { xs: 'auto', md: 0 },
               textAlign: { xs: 'center', md: 'left' },
             }}
@@ -557,23 +558,24 @@ export default function HomeScrollAnimated({ products: propProducts, cmsData, ..
               sx={{
                 fontSize: { xs: '2rem', md: '3rem' },
                 fontWeight: 700,
-                mb: 2,
+                mb: 1,
               }}
             >
               {product.title}
             </Typography>
-
             <Typography
               variant="body1"
               sx={{
                 fontSize: { xs: '1rem', md: '1.125rem' },
                 color: 'text.secondary',
                 lineHeight: 1.8,
-                mb: 3,
+                maxHeight: '5.4em', // 👈 3 lines
+                overflowY: 'auto',
               }}
             >
               {product.description}
             </Typography>
+
 
             <Button
               component={RouterLink}
@@ -582,7 +584,7 @@ export default function HomeScrollAnimated({ products: propProducts, cmsData, ..
               size="large"
               sx={{
                 minWidth: { xs: '100%', md: 180 },
-                py: 1.5,
+                // py: 1.5,
                 fontSize: '1rem',
                 fontWeight: 600,
               }}
@@ -601,8 +603,8 @@ export default function HomeScrollAnimated({ products: propProducts, cmsData, ..
       sx={{
         position: 'relative',
         width: '100%',
-        height: { xs: '60vh', md: '80vh' },
-        minHeight: { xs: 400, md: 600 },
+        height: { md: '80vh' },
+        minHeight: { xs: 350, md: 600 },
         overflow: 'visible',
       }}
     >

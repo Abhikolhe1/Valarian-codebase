@@ -36,10 +36,26 @@ const fabrics = [
 
 export default function FabricDetail() {
   const [index, setIndex] = useState(0);
+  const [direction, setDirection] = useState(1);
   const fabric = fabrics[index];
 
-  const next = () => setIndex((i) => (i + 1) % fabrics.length);
-  const prev = () => setIndex((i) => (i - 1 + fabrics.length) % fabrics.length);
+  const next = () => {
+    setDirection(1);
+    setIndex((i) => (i + 1) % fabrics.length);
+  };
+
+  const prev = () => {
+    setDirection(-1);
+    setIndex((i) => (i - 1 + fabrics.length) % fabrics.length);
+  };
+
+  // useEffect(() => {
+  //   const interval = setInterval(() => {
+  //     setIndex((pre) => (pre + 1) % fabrics.length);
+  //   }, 4000);
+
+  //   return () => clearInterval(interval);
+  // }, [index]);
 
   return (
     <LazyMotion features={domAnimation}>
@@ -50,7 +66,7 @@ export default function FabricDetail() {
         }}
       >
         {/* Header */}
-        <Box textAlign="center" mb={8}>
+        <Box textAlign="center" mb={8} p={0.5}>
           <Typography
             sx={{
               fontSize: '0.75rem',
@@ -80,25 +96,53 @@ export default function FabricDetail() {
           sx={{
             maxWidth: 900,
             mx: 'auto',
+            p: 2,
             position: 'relative',
+            overflow: 'hidden',
+            touchAction: 'pan-y',
           }}
         >
           <AnimatePresence mode="wait">
             <m.div
               key={fabric.id}
-              initial={{ opacity: 0, y: 40, scale: 0.98 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: -40, scale: 0.98 }}
-              transition={{
-                duration: 0.7,
-                ease: [0.25, 0.1, 0.25, 1],
+              drag="x"
+              dragConstraints={{ left: 0, right: 0 }}
+              dragElastic={0.35}
+              dragMomentum='true'
+              whileDrag={{ scale: 0.98 }}
+
+              onDragEnd={(e, info) => {
+                const swipePower = Math.abs(info.velocity.x) * info.offset.x;
+
+                if (swipePower < -10000) {
+                  next();
+                } else if (swipePower > 10000) {
+                  prev();
+                }
               }}
+
+              initial={{ x: direction === 1 ? '100%' : '-100%', opacity: 0.0 }}
+              animate={{ x: '0%', opacity: 1 }}
+              exit={{ x: direction === 1 ? '-100%' : '100%', opacity: 0.0 }}
+              transition={{ duration: 0.2, ease: [0.43, 0.13, 0.23, 0.96] }}
+
+            // initial={{ opacity: 0, x: 30 }}
+            // animate={{ opacity: 1, x: 0 }}
+            // exit={{ opacity: 0, x: -10 }}
+
+            // transition={{
+            //   type: 'spring',
+            //   stiffness: 500,
+            //   damping: 50,
+            //   // restDelta: 0.001,
+
+            // }}
             >
               <Box
                 sx={{
                   backgroundColor: '#ffffff',
                   borderRadius: '28px',
-                  p: { xs: 4, md: 6 },
+                  p: { xs: 5, md: 6 },
                   boxShadow: '0 30px 80px rgba(0,0,0,0.12)',
                   backdropFilter: 'blur(6px)',
                 }}
@@ -106,7 +150,7 @@ export default function FabricDetail() {
                 <Typography
                   sx={{
                     fontFamily: 'Lora, serif',
-                    fontSize: '1.9rem',
+                    fontSize: '0.75 rem',
                     fontWeight: 600,
                     mb: 2,
                     color: '#1a1a1a',
@@ -117,7 +161,7 @@ export default function FabricDetail() {
 
                 <Typography
                   sx={{
-                    fontSize: '1.05rem',
+                    fontSize: '0.50 rem',
                     color: '#555',
                     lineHeight: 1.8,
                     mb: 4,
@@ -128,7 +172,7 @@ export default function FabricDetail() {
                 </Typography>
 
                 {/* Specs */}
-                <Stack direction="row" spacing={6}>
+                <Stack direction="row" spacing={{ xs: 3, md: 6 }} display='flex' justifyContent={{ xs: "center", md: "space-between" }} p={{ xs: 2, md: 0 }}>
                   <Spec label="Weight" value={fabric.weight} />
                   <Spec label="Weave" value={fabric.weave} />
                   <Spec label="Feel" value={fabric.feel} />
@@ -142,10 +186,11 @@ export default function FabricDetail() {
             onClick={prev}
             sx={{
               position: 'absolute',
-              left: -60,
+              left: { md: 10, },
               top: '50%',
               transform: 'translateY(-50%)',
               backgroundColor: '#fff',
+              display: { xs: 'none', md: 'flex' },
               boxShadow: '0 10px 30px rgba(0,0,0,0.15)',
               '&:hover': { backgroundColor: '#fff' },
             }}
@@ -157,8 +202,9 @@ export default function FabricDetail() {
             onClick={next}
             sx={{
               position: 'absolute',
-              right: -60,
+              right: { md: 10 },
               top: '50%',
+              display: { xs: 'none', md: 'flex' },
               transform: 'translateY(-50%)',
               backgroundColor: '#fff',
               boxShadow: '0 10px 30px rgba(0,0,0,0.15)',

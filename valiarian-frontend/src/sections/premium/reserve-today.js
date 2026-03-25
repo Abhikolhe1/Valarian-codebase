@@ -1,7 +1,6 @@
-import { Icon } from '@iconify/react';
 import { LoadingButton } from '@mui/lab';
-import { Box, Typography, Stack, IconButton } from '@mui/material';
-import { LazyMotion, domAnimation, m, AnimatePresence } from 'framer-motion';
+import { Box, Typography } from '@mui/material';
+import { LazyMotion, domAnimation } from 'framer-motion';
 import { useState } from 'react';
 
 export default function ReserveTodayDetail() {
@@ -13,6 +12,7 @@ export default function ReserveTodayDetail() {
       <Box
         sx={{
           py: { xs: 10, md: 14 },
+          px: { xs: 2, md: 0 },
           background: '#AC7F5E45',
         }}
       >
