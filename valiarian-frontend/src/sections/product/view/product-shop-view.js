@@ -41,6 +41,8 @@ const defaultFilters = {
   priceRange: [0, 200000],
 };
 
+const PRODUCTS_PER_PAGE = 20;
+
 // ----------------------------------------------------------------------
 
 export default function ProductShopView() {
@@ -66,6 +68,7 @@ export default function ProductShopView() {
   const openFilters = useBoolean();
 
   const [sortBy, setSortBy] = useState('featured');
+  const [page, setPage] = useState(1);
 
   const [searchQuery, setSearchQuery] = useState(normalizedSearchFromQuery);
 
@@ -96,11 +99,13 @@ export default function ProductShopView() {
           ? activeCategory?.slug || filters.category
           : undefined,
       sortBy,
+      limit: PRODUCTS_PER_PAGE,
+      offset: (page - 1) * PRODUCTS_PER_PAGE,
     }),
-    [activeCategory?.slug, filters.category, sortBy]
+    [activeCategory?.slug, filters.category, page, sortBy]
   );
 
-  const { products, productsLoading } = useGetProducts(productQueryFilters);
+  const { products, productsLoading, productsTotal } = useGetProducts(productQueryFilters);
 
   const activeSearchQuery =
     debouncedQuery === normalizedSearchFromQuery ? normalizedSearchFromQuery : debouncedQuery;
@@ -121,6 +126,10 @@ export default function ProductShopView() {
   useEffect(() => {
     setSearchQuery(normalizedSearchFromQuery);
   }, [normalizedSearchFromQuery]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [filters.category, sortBy]);
 
   const handleFilters = useCallback((name, value) => {
     setFilters((prevState) => {
@@ -154,6 +163,14 @@ export default function ProductShopView() {
   );
 
   const productsEmpty = !productsLoading && !dataFiltered.length;
+  const useServerPagination = !activeSearchQuery;
+  const totalPages = useMemo(() => {
+    if (!useServerPagination) {
+      return Math.max(1, Math.ceil(dataFiltered.length / PRODUCTS_PER_PAGE));
+    }
+
+    return Math.max(1, Math.ceil(productsTotal / PRODUCTS_PER_PAGE));
+  }, [dataFiltered.length, productsTotal, useServerPagination]);
 
   const hasSearch = Boolean(activeSearchQuery);
   const canReset = !isEqual(defaultFilters, filters) || hasSearch;
@@ -166,6 +183,7 @@ export default function ProductShopView() {
 
   const handleSearch = useCallback((inputValue) => {
     startTransition(() => {
+      setPage(1);
       setSearchQuery(inputValue);
     });
   }, []);
@@ -184,11 +202,13 @@ export default function ProductShopView() {
 
   const handleResetFilters = useCallback(() => {
     setFilters(defaultFilters);
+    setPage(1);
     setSearchQuery('');
     router.replace(paths.product.root);
   }, [router]);
 
   const handleClearSearch = useCallback(() => {
+    setPage(1);
     setSearchQuery('');
     router.replace(buildShopUrl(filters.category, ''));
   }, [filters.category, router]);
@@ -296,7 +316,13 @@ export default function ProductShopView() {
 
       {(notFound || productsEmpty) && renderNotFound}
 
-      <ProductList products={dataFiltered} loading={productsLoading} />
+      <ProductList
+        products={dataFiltered}
+        loading={productsLoading}
+        page={useServerPagination ? page : undefined}
+        totalPages={useServerPagination ? totalPages : undefined}
+        onPageChange={useServerPagination ? setPage : undefined}
+      />
     </Container>
   );
 }

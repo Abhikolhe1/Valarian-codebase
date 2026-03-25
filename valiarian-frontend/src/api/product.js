@@ -13,7 +13,7 @@ export function useGetProducts(filters = {}) {
   if (filters.categorySlug) params.append('categorySlug', filters.categorySlug);
   if (filters.sortBy) params.append('sortBy', filters.sortBy);
   if (filters.limit) params.append('limit', filters.limit);
-  if (filters.page) params.append('page', filters.page);
+  if (filters.offset || filters.offset === 0) params.append('offset', filters.offset);
 
   const queryString = params.toString();
   const URL = queryString ? `${endpoints.products.list}?${queryString}` : endpoints.products.list;
@@ -28,12 +28,13 @@ export function useGetProducts(filters = {}) {
   const memoizedValue = useMemo(
     () => ({
       products: data?.products || [],
+      productsTotal: data?.total || 0,
       productsLoading: isLoading,
       productsError: error,
       productsValidating: isValidating,
       productsEmpty: !isLoading && !data?.products.length,
     }),
-    [data?.products, error, isLoading, isValidating]
+    [data?.products, data?.total, error, isLoading, isValidating]
   );
 
   return memoizedValue;
