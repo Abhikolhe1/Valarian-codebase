@@ -213,21 +213,36 @@ export default function OrderConfirmationView() {
 
                     {invoice?.taxation?.cgst > 0 && (
                       <Stack direction="row" justifyContent="space-between">
-                        <Typography color="text.secondary">CGST</Typography>
+                        <Typography color="text.secondary">
+                          CGST
+                          {invoice?.taxation?.cgstRate
+                            ? ` (${invoice.taxation.cgstRate}%)`
+                            : ''}
+                        </Typography>
                         <Typography>{fCurrency(invoice.taxation.cgst)}</Typography>
                       </Stack>
                     )}
 
                     {invoice?.taxation?.sgst > 0 && (
                       <Stack direction="row" justifyContent="space-between">
-                        <Typography color="text.secondary">SGST</Typography>
+                        <Typography color="text.secondary">
+                          SGST
+                          {invoice?.taxation?.sgstRate
+                            ? ` (${invoice.taxation.sgstRate}%)`
+                            : ''}
+                        </Typography>
                         <Typography>{fCurrency(invoice.taxation.sgst)}</Typography>
                       </Stack>
                     )}
 
                     {invoice?.taxation?.igst > 0 && (
                       <Stack direction="row" justifyContent="space-between">
-                        <Typography color="text.secondary">IGST</Typography>
+                        <Typography color="text.secondary">
+                          IGST
+                          {invoice?.taxation?.igstRate
+                            ? ` (${invoice.taxation.igstRate}%)`
+                            : ''}
+                        </Typography>
                         <Typography>{fCurrency(invoice.taxation.igst)}</Typography>
                       </Stack>
                     )}

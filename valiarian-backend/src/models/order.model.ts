@@ -24,6 +24,15 @@ export interface OrderItem {
   size?: string;
   quantity: number;
   price: number;
+  basePrice?: number;
+  gstRate?: number;
+  cgstRate?: number;
+  sgstRate?: number;
+  igstRate?: number;
+  cgstAmount?: number;
+  sgstAmount?: number;
+  igstAmount?: number;
+  totalAmount?: number;
   subtotal: number;
 }
 

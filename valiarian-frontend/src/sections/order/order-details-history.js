@@ -18,6 +18,10 @@ import { fDateTime } from 'src/utils/format-time';
 // ----------------------------------------------------------------------
 
 export default function OrderDetailsHistory({ history }) {
+  const timelineItems = Array.isArray(history) ? history : history?.timeline || [];
+  const latestEvent = timelineItems[0];
+  const oldestEvent = timelineItems[timelineItems.length - 1];
+
   const renderSummary = (
     <Stack
       spacing={2}
@@ -34,19 +38,23 @@ export default function OrderDetailsHistory({ history }) {
     >
       <Stack spacing={0.5}>
         <Box sx={{ color: 'text.disabled' }}>Order time</Box>
-        {fDateTime(history.orderTime)}
+        {fDateTime(oldestEvent?.createdAt || oldestEvent?.time)}
       </Stack>
       <Stack spacing={0.5}>
         <Box sx={{ color: 'text.disabled' }}>Payment time</Box>
-        {fDateTime(history.orderTime)}
+        {fDateTime(
+          timelineItems.find((item) => ['paid', 'confirmed', 'success'].includes(item?.status))?.createdAt
+        )}
       </Stack>
       <Stack spacing={0.5}>
         <Box sx={{ color: 'text.disabled' }}>Delivery time for the carrier</Box>
-        {fDateTime(history.orderTime)}
+        {fDateTime(
+          timelineItems.find((item) => ['shipped', 'packed', 'processing'].includes(item?.status))?.createdAt
+        )}
       </Stack>
       <Stack spacing={0.5}>
         <Box sx={{ color: 'text.disabled' }}>Completion time</Box>
-        {fDateTime(history.orderTime)}
+        {fDateTime(latestEvent?.createdAt || latestEvent?.time)}
       </Stack>
     </Stack>
   );
@@ -62,23 +70,43 @@ export default function OrderDetailsHistory({ history }) {
         },
       }}
     >
-      {history.timeline.map((item, index) => {
+      {timelineItems.length === 0 && (
+        <TimelineItem>
+          <TimelineSeparator>
+            <TimelineDot color="grey" />
+          </TimelineSeparator>
+
+          <TimelineContent>
+            <Typography variant="subtitle2">No history available yet</Typography>
+          </TimelineContent>
+        </TimelineItem>
+      )}
+
+      {timelineItems.map((item, index) => {
         const firstTimeline = index === 0;
 
-        const lastTimeline = index === history.timeline.length - 1;
+        const lastTimeline = index === timelineItems.length - 1;
 
         return (
-          <TimelineItem key={item.title}>
+          <TimelineItem key={`${item.status || item.title || 'event'}-${item.createdAt || item.time || index}`}>
             <TimelineSeparator>
               <TimelineDot color={(firstTimeline && 'primary') || 'grey'} />
               {lastTimeline ? null : <TimelineConnector />}
             </TimelineSeparator>
 
             <TimelineContent>
-              <Typography variant="subtitle2">{item.title}</Typography>
+              <Typography variant="subtitle2">
+                {item.title || item.status || 'Status Updated'}
+              </Typography>
+
+              {item.comment && (
+                <Box sx={{ color: 'text.secondary', typography: 'body2', mt: 0.5 }}>
+                  {item.comment}
+                </Box>
+              )}
 
               <Box sx={{ color: 'text.disabled', typography: 'caption', mt: 0.5 }}>
-                {fDateTime(item.time)}
+                {fDateTime(item.createdAt || item.time)}
               </Box>
             </TimelineContent>
           </TimelineItem>

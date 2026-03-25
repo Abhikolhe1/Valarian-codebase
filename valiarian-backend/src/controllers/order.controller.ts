@@ -20,7 +20,9 @@ import {EmailTemplateService} from '../services/email-template.service';
 import {EmailService} from '../services/email.service';
 import {InvoiceGeneratorService} from '../services/invoice-generator.service';
 import {RazorpayService} from '../services/razorpay.service';
-import {buildInvoiceFromOrder} from '../utils/invoice.utils';
+import {buildInvoiceFromOrder, calculateInclusiveGstBreakup} from '../utils/invoice.utils';
+
+const roundCurrency = (value: number) => Number((value || 0).toFixed(2));
 
 interface CreateOrderRequest {
   cartItems: Array<{
@@ -106,6 +108,9 @@ export class OrderController {
 
     const orderItems = [];
     let subtotal = 0;
+    let tax = 0;
+    const customerState = request.shippingAddress?.state || request.billingAddress?.state;
+    const sellerState = process.env.COMPANY_STATE || 'Maharashtra';
 
     for (const item of request.cartItems) {
       const product = await this.productRepository.findById(item.productId);
@@ -158,6 +163,13 @@ export class OrderController {
 
       const itemSubtotal = itemPrice * item.quantity;
       subtotal += itemSubtotal;
+      const taxBreakup = calculateInclusiveGstBreakup({
+        finalUnitPrice: itemPrice,
+        quantity: item.quantity,
+        sellerState,
+        customerState,
+      });
+      tax += taxBreakup.gstAmount;
 
       orderItems.push({
         id: uuidv4(),
@@ -168,16 +180,25 @@ export class OrderController {
         ...variantDetails,
         quantity: item.quantity,
         price: itemPrice,
+        basePrice: taxBreakup.basePrice,
+        gstRate: taxBreakup.gstRate,
+        cgstRate: taxBreakup.cgstRate,
+        sgstRate: taxBreakup.sgstRate,
+        igstRate: taxBreakup.igstRate,
+        cgstAmount: taxBreakup.cgstAmount,
+        sgstAmount: taxBreakup.sgstAmount,
+        igstAmount: taxBreakup.igstAmount,
+        totalAmount: taxBreakup.totalAmount,
         subtotal: itemSubtotal,
       });
     }
 
     const discount = request.discount || 0;
     const shipping = request.shipping || 0;
-    const tax = request.tax || 0;
-    const total = subtotal - discount + shipping + tax;
+    tax = Number(roundCurrency(tax));
+    const total = subtotal - discount + shipping;
 
-    if (total <= 0) {
+    if (subtotal <= 0 || total <= 0) {
       throw new HttpErrors.BadRequest('Invalid order total');
     }
 
@@ -187,7 +208,7 @@ export class OrderController {
       discount,
       shipping,
       tax,
-      total,
+      total: subtotal - discount + shipping,
     };
   }
 
@@ -295,6 +316,15 @@ export class OrderController {
       productId: item.productId,
       quantity: item.quantity,
       price: item.price,
+      basePrice: item.basePrice,
+      gstRate: item.gstRate,
+      cgstRate: item.cgstRate,
+      sgstRate: item.sgstRate,
+      igstRate: item.igstRate,
+      cgstAmount: item.cgstAmount,
+      sgstAmount: item.sgstAmount,
+      igstAmount: item.igstAmount,
+      totalAmount: item.totalAmount,
       name: item.name,
       sku: item.sku,
       image: item.image,

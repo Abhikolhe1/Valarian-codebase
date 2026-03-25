@@ -129,6 +129,48 @@ export default function CheckoutPayment({ checkout, onBackStep, onGotoStep, onAp
     return query ? `${pathname}?${query}` : pathname;
   };
 
+  const resolvePaymentStatusRoute = (paymentState) => {
+    const normalizedStatus = String(paymentState?.status || '').toLowerCase();
+
+    if (normalizedStatus === 'success' || normalizedStatus === 'paid') {
+      return paths.payment.success;
+    }
+
+    if (normalizedStatus === 'pending' || normalizedStatus === 'created') {
+      return paths.payment.pending;
+    }
+
+    if (normalizedStatus === 'cancelled') {
+      return paths.payment.cancelled;
+    }
+
+    return paths.payment.failed;
+  };
+
+  const syncStatusFromBackend = async (paymentState) => {
+    if (!paymentState?.orderId) {
+      return false;
+    }
+
+    try {
+      const response = await axios.get(`/api/orders/${paymentState.orderId}/status`);
+      const nextState = {
+        ...paymentState,
+        status: response.data?.paymentStatus || response.data?.status || paymentState.status,
+      };
+
+      persistPaymentState(nextState);
+      navigate(buildPaymentRoute(resolvePaymentStatusRoute(nextState), nextState), {
+        replace: true,
+      });
+
+      return true;
+    } catch (statusError) {
+      console.error('Failed to sync payment status after verify error:', statusError);
+      return false;
+    }
+  };
+
   const handleInlineError = (error, fallbackMessage) => {
     const message = getErrorMessage(error, fallbackMessage);
     setCheckoutError(message);
@@ -295,6 +337,12 @@ export default function CheckoutPayment({ checkout, onBackStep, onGotoStep, onAp
       }
 
       if (createdPaymentState?.orderId) {
+        const synced = await syncStatusFromBackend(createdPaymentState);
+
+        if (synced) {
+          return;
+        }
+
         const failedState = {
           ...createdPaymentState,
           status: 'failed',

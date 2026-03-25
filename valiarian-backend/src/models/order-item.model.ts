@@ -51,8 +51,110 @@ export class OrderItemEntity extends Entity {
     jsonSchema: {
       minimum: 0,
     },
+    postgresql: {
+      dataType: 'decimal',
+      precision: 10,
+      scale: 2,
+    },
   })
   price: number;
+
+  @property({
+    type: 'number',
+    jsonSchema: {
+      minimum: 0,
+    },
+    postgresql: {
+      dataType: 'decimal',
+      precision: 10,
+      scale: 2,
+    },
+  })
+  basePrice?: number;
+
+  @property({
+    type: 'number',
+    jsonSchema: {
+      minimum: 0,
+    },
+  })
+  gstRate?: number;
+
+  @property({
+    type: 'number',
+    jsonSchema: {
+      minimum: 0,
+    },
+  })
+  cgstRate?: number;
+
+  @property({
+    type: 'number',
+    jsonSchema: {
+      minimum: 0,
+    },
+  })
+  sgstRate?: number;
+
+  @property({
+    type: 'number',
+    jsonSchema: {
+      minimum: 0,
+    },
+  })
+  igstRate?: number;
+
+  @property({
+    type: 'number',
+    jsonSchema: {
+      minimum: 0,
+    },
+    postgresql: {
+      dataType: 'decimal',
+      precision: 10,
+      scale: 2,
+    },
+  })
+  cgstAmount?: number;
+
+  @property({
+    type: 'number',
+    jsonSchema: {
+      minimum: 0,
+    },
+    postgresql: {
+      dataType: 'decimal',
+      precision: 10,
+      scale: 2,
+    },
+  })
+  sgstAmount?: number;
+
+  @property({
+    type: 'number',
+    jsonSchema: {
+      minimum: 0,
+    },
+    postgresql: {
+      dataType: 'decimal',
+      precision: 10,
+      scale: 2,
+    },
+  })
+  igstAmount?: number;
+
+  @property({
+    type: 'number',
+    jsonSchema: {
+      minimum: 0,
+    },
+    postgresql: {
+      dataType: 'decimal',
+      precision: 10,
+      scale: 2,
+    },
+  })
+  totalAmount?: number;
 
   @property({
     type: 'string',
@@ -73,6 +175,11 @@ export class OrderItemEntity extends Entity {
     type: 'number',
     jsonSchema: {
       minimum: 0,
+    },
+    postgresql: {
+      dataType: 'decimal',
+      precision: 10,
+      scale: 2,
     },
   })
   subtotal?: number;
