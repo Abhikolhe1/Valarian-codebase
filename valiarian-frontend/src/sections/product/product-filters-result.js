@@ -13,7 +13,9 @@ import Iconify from 'src/components/iconify';
 
 export default function ProductFiltersResult({
   filters,
+  searchQuery,
   onFilters,
+  onClearSearch,
   //
   canReset,
   onResetFilters,
@@ -59,6 +61,12 @@ export default function ProductFiltersResult({
       </Box>
 
       <Stack flexGrow={1} spacing={1} direction="row" flexWrap="wrap" alignItems="center">
+        {!!searchQuery && (
+          <Block label="Search:">
+            <Chip size="small" label={searchQuery} onDelete={onClearSearch} />
+          </Block>
+        )}
+
         {!!filters.gender.length && (
           <Block label="Gender:">
             {filters.gender.map((item) => (
@@ -106,7 +114,7 @@ export default function ProductFiltersResult({
           <Block label="Price:">
             <Chip
               size="small"
-              label={`$${filters.priceRange[0]} - ${filters.priceRange[1]}`}
+              label={`₹${filters.priceRange[0]} - ${filters.priceRange[1]}`}
               onDelete={handleRemovePrice}
             />
           </Block>
@@ -135,6 +143,8 @@ export default function ProductFiltersResult({
 ProductFiltersResult.propTypes = {
   canReset: PropTypes.bool,
   filters: PropTypes.object,
+  searchQuery: PropTypes.string,
+  onClearSearch: PropTypes.func,
   onFilters: PropTypes.func,
   results: PropTypes.number,
   categories: PropTypes.array,

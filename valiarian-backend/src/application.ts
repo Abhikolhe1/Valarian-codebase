@@ -20,6 +20,7 @@ import {EmailTemplateService} from './services/email-template.service';
 import {EmailService} from './services/email.service';
 import {GoogleOAuthService} from './services/google-oauth.service';
 import {BcryptHasher} from './services/hash.password.bcrypt';
+import {InvoiceGeneratorService} from './services/invoice-generator.service';
 import {JWTService} from './services/jwt-service';
 import {MediaService} from './services/media.service';
 import {OtpNotificationService} from './services/otp-notification.service';
@@ -94,6 +95,7 @@ export class ValiarianBackendApplication extends BootMixin(
     this.bind(EmailManagerBindings.SEND_MAIL).toClass(EmailService);
     this.bind('services.email').toClass(EmailService);
     this.bind('services.email.template').toClass(EmailTemplateService);
+    this.bind('services.invoice.generator').toClass(InvoiceGeneratorService);
     this.bind('services.otp.notification').toClass(OtpNotificationService);
   }
 

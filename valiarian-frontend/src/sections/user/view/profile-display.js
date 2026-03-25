@@ -6,6 +6,7 @@ import Typography from '@mui/material/Typography';
 import CardContent from '@mui/material/CardContent';
 // api
 import { useGetAddresses } from 'src/api/addresses';
+import { mapAddressToDisplay } from 'src/utils/address';
 
 // ----------------------------------------------------------------------
 
@@ -14,6 +15,7 @@ export default function ProfileDisplay({ user }) {
 
   // Find primary address
   const primaryAddress = addresses?.find((addr) => addr.isPrimary) || addresses?.[0];
+  const displayAddress = primaryAddress ? mapAddressToDisplay(primaryAddress, user) : null;
 
   return (
     <Card>
@@ -45,11 +47,10 @@ export default function ProfileDisplay({ user }) {
             if (primaryAddress) {
               return (
                 <Stack spacing={2}>
-                  <InfoRow label="Address" value={primaryAddress.address || '-'} />
-                  <InfoRow label="City" value={primaryAddress.city || '-'} />
-                  <InfoRow label="State" value={primaryAddress.state || '-'} />
-                  <InfoRow label="Country" value={primaryAddress.country || '-'} />
-                  <InfoRow label="Zip Code" value={primaryAddress.zipCode || '-'} />
+                  <InfoRow label="Full Name" value={displayAddress?.fullName || '-'} />
+                  <InfoRow label="Mobile" value={displayAddress?.mobileNumber || '-'} />
+                  <InfoRow label="Address Type" value={displayAddress?.addressType || '-'} />
+                  <InfoRow label="Full Address" value={displayAddress?.fullAddress || '-'} />
                 </Stack>
               );
             }

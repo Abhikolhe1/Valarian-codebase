@@ -32,7 +32,7 @@ export default function BankingBalanceStatistics({ title, subheader, chart, ...o
     },
     tooltip: {
       y: {
-        formatter: (value) => `$${value}`,
+        formatter: (value) => `₹${value}`,
       },
     },
     ...options,

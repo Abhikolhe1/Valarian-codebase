@@ -42,7 +42,7 @@ export default function ProductFilters({
   const marksLabel = [...Array(11)].map((_, index) => {
     const value = index * 20000;
 
-    const firstValue = index === 0 ? `$${value}` : `${value}`;
+    const firstValue = index === 0 ? `₹${value}` : `${value}`;
 
     return {
       value,
@@ -197,8 +197,8 @@ export default function ProductFilters({
         min={0}
         max={200000}
         marks={marksLabel}
-        getAriaValueText={(value) => `$${value}`}
-        valueLabelFormat={(value) => `$${value}`}
+        getAriaValueText={(value) => `₹${value}`}
+        valueLabelFormat={(value) => `₹${value}`}
         sx={{
           alignSelf: 'center',
           width: `calc(100% - 24px)`,
@@ -330,7 +330,7 @@ function InputRange({ type, value, onFilters }) {
           fontWeight: 'fontWeightSemiBold',
         }}
       >
-        {`${type} ($)`}
+        {`${type} (₹)`}
       </Typography>
 
       <InputBase

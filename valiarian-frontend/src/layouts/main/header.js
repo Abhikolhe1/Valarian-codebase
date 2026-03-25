@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 // @mui
 import AppBar from '@mui/material/AppBar';
 import Box from '@mui/material/Box';
@@ -21,18 +21,18 @@ import { bgBlur } from 'src/theme/css';
 import { RouterLink } from 'src/routes/components';
 import { paths } from 'src/routes/paths';
 // redux
-import { useDispatch, useSelector } from 'src/redux/store';
+import { useSelector } from 'src/redux/store';
 // auth
 import { useAuthContext } from 'src/auth/hooks';
 // components
 import { Badge } from '@mui/material';
+import { prefetchCategoryMenuData } from 'src/api/category';
 import CategoryMegaMenu from 'src/components/category-mega-menu';
 import Iconify from 'src/components/iconify';
 import Logo from 'src/components/logo';
 //
 import HeaderShadow from '../_common/header-shadow';
 import { HEADER } from '../config-layout';
-import { navConfig } from './config-navigation';
 import { useHeaderNavigation } from './hooks/use-header-navigation';
 import NavMobile from './nav/mobile';
 import UserDropdownMenu from './user-dropdown-menu';
@@ -237,10 +237,9 @@ export default function Header() {
 
   // Auth
   const { authenticated, user } = useAuthContext();
-  const dispatch = useDispatch();
 
   // Fetch header navigation from CMS
-  const { navigation: headerNavigation, isLoading: navLoading } = useHeaderNavigation();
+  const { navigation: headerNavigation } = useHeaderNavigation();
 
   const isHome = pathname === '/';
   const [showLogo, setShowLogo] = useState(!isHome);
@@ -308,7 +307,25 @@ export default function Header() {
     setSearchQuery(event.target.value);
   };
 
+  const handleSearchSubmit = useCallback(() => {
+    const normalizedQuery = searchQuery.trim();
+
+    if (!normalizedQuery) {
+      return;
+    }
+
+    router.push(`${paths.product.root}?search=${encodeURIComponent(normalizedQuery)}`);
+    setSearchExpanded(false);
+    setSearchQuery('');
+  }, [router, searchQuery]);
+
   const handleSearchKeyDown = (event) => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      handleSearchSubmit();
+      return;
+    }
+
     if (event.key === 'Escape') {
       handleSearchClose();
     }
@@ -339,6 +356,44 @@ export default function Header() {
     setUserMenuAnchor(null);
   };
 
+  const prefetchCheckout = () => {
+    import('src/pages/product/checkout');
+  };
+
+  const prefetchPremium = () => {
+    import('src/pages/premium');
+  };
+
+  const prefetchAbout = () => {
+    import('src/pages/about-us');
+  };
+
+  const prefetchContact = () => {
+    import('src/pages/contact-us');
+  };
+
+  const getNavPrefetchHandler = (path) => {
+    if (path === paths.premium) {
+      return prefetchPremium;
+    }
+
+    if (path === paths.about) {
+      return prefetchAbout;
+    }
+
+    if (path === paths.contact) {
+      return prefetchContact;
+    }
+
+    return undefined;
+  };
+
+  const handleCategoryMenuIntent = () => {
+    prefetchCategoryMenuData().catch(() => {
+      // The menu already shows its own loading state when needed.
+    });
+  };
+
   // Mobile: Handle search overlay
   const handleMobileSearchClick = () => {
     setSearchExpanded(true);
@@ -350,6 +405,12 @@ export default function Header() {
   };
 
   const handleMobileSearchKeyDown = (event) => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      handleSearchSubmit();
+      return;
+    }
+
     if (event.key === 'Escape') {
       handleMobileSearchClose();
     }
@@ -477,65 +538,58 @@ export default function Header() {
             {/* Navigation Links */}
             {mdUp && (
               <Stack direction="row" spacing={3} sx={{ mr: 2 }}>
-                {navLoading ? (
-                  // Loading skeleton for navigation
-                  <>
-                    <Box sx={{ width: 80, height: 20, bgcolor: 'action.hover', borderRadius: 1 }} />
-                    <Box sx={{ width: 80, height: 20, bgcolor: 'action.hover', borderRadius: 1 }} />
-                    <Box sx={{ width: 80, height: 20, bgcolor: 'action.hover', borderRadius: 1 }} />
-                  </>
-                ) : (
-                  <>
-                    {headerNavigation.map((item) => {
-                      // Special handling for Category menu (if it exists)
-                      if (item.title === 'Category') {
-                        return (
-                          <Box
-                            key={item.title}
-                            ref={categoryMenuAnchorRef}
-                            onClick={categoryMenuOpen.onToggle}
-                            sx={{
-                              position: 'relative',
-                            }}
-                          >
-                            <StyledNavLink
-                              component="div"
-                              active={pathname === paths.product.root ? 1 : 0}
-                              isTransparent={headerBgOpacity === 0 ? 1 : 0}
-                              sx={{
-                                cursor: 'pointer',
-                                userSelect: 'none',
-                              }}
-                            >
-                              {item.title}
-                            </StyledNavLink>
-                            <CategoryMegaMenu
-                              open={categoryMenuOpen.value}
-                              onClose={categoryMenuOpen.onFalse}
-                              anchorEl={categoryMenuAnchorRef.current}
-                              isTransparent={headerBgOpacity === 0}
-                            />
-                          </Box>
-                        );
-                      }
-
-                      // Regular navigation links
-                      return (
+                {headerNavigation.map((item) => {
+                  // Special handling for Category menu (if it exists)
+                  if (item.title === 'Category') {
+                    return (
+                      <Box
+                        key={item.title}
+                        ref={categoryMenuAnchorRef}
+                        onClick={categoryMenuOpen.onToggle}
+                        onMouseEnter={handleCategoryMenuIntent}
+                        onFocus={handleCategoryMenuIntent}
+                        sx={{
+                          position: 'relative',
+                        }}
+                      >
                         <StyledNavLink
-                          key={item.title}
-                          component={RouterLink}
-                          href={item.path}
-                          active={pathname === item.path ? 1 : 0}
+                          component="div"
+                          active={pathname === paths.product.root ? 1 : 0}
                           isTransparent={headerBgOpacity === 0 ? 1 : 0}
-                          target={item.openInNewTab ? '_blank' : undefined}
-                          rel={item.openInNewTab ? 'noopener noreferrer' : undefined}
+                          sx={{
+                            cursor: 'pointer',
+                            userSelect: 'none',
+                          }}
                         >
                           {item.title}
                         </StyledNavLink>
-                      );
-                    })}
-                  </>
-                )}
+                        <CategoryMegaMenu
+                          open={categoryMenuOpen.value}
+                          onClose={categoryMenuOpen.onFalse}
+                          anchorEl={categoryMenuAnchorRef.current}
+                          isTransparent={headerBgOpacity === 0}
+                        />
+                      </Box>
+                    );
+                  }
+
+                  // Regular navigation links
+                  return (
+                    <StyledNavLink
+                      key={item.title}
+                      component={RouterLink}
+                      href={item.path}
+                      active={pathname === item.path ? 1 : 0}
+                      isTransparent={headerBgOpacity === 0 ? 1 : 0}
+                      target={item.openInNewTab ? '_blank' : undefined}
+                      rel={item.openInNewTab ? 'noopener noreferrer' : undefined}
+                      onMouseEnter={getNavPrefetchHandler(item.path)}
+                      onFocus={getNavPrefetchHandler(item.path)}
+                    >
+                      {item.title}
+                    </StyledNavLink>
+                  );
+                })}
               </Stack>
             )}
 
@@ -584,6 +638,8 @@ export default function Header() {
                 <IconButton
                   size="small"
                   onClick={() => router.push(paths.product.checkout)}
+                  onMouseEnter={prefetchCheckout}
+                  onFocus={prefetchCheckout}
                   sx={{
                     color: headerBgOpacity > 0 ? 'text.primary' : 'common.white',
                     transition: theme.transitions.create('color', {

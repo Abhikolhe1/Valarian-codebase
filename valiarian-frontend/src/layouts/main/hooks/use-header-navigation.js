@@ -11,14 +11,6 @@ import { transformHeaderNavigation } from 'src/utils/navigation';
 export function useHeaderNavigation() {
   const { data: navigationData, isLoading, error } = useNavigation('header');
 
-  // Debug logging
-  console.log('Header Navigation Debug:', {
-    navigationData,
-    isLoading,
-    error,
-    hasItems: navigationData?.items?.length > 0
-  });
-
   // Default fallback navigation
   const defaultNavigation = useMemo(
     () => [
@@ -44,19 +36,14 @@ export function useHeaderNavigation() {
   // Transform CMS navigation data
   const cmsNavigation = useMemo(() => {
     if (!navigationData || !navigationData.items || navigationData.items.length === 0) {
-      console.log('Using default navigation - no CMS data available');
       return null;
     }
 
-    const transformed = transformHeaderNavigation(navigationData);
-    console.log('Transformed CMS navigation:', transformed);
-    return transformed;
+    return transformHeaderNavigation(navigationData);
   }, [navigationData]);
 
   // Return CMS navigation if available, otherwise fallback
   const navigation = cmsNavigation || defaultNavigation;
-
-  console.log('Final navigation:', navigation);
 
   return {
     navigation,

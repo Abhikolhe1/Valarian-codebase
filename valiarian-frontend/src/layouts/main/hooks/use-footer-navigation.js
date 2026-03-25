@@ -10,14 +10,6 @@ import { transformFooterNavigation } from 'src/utils/navigation';
 export function useFooterNavigation() {
   const { data: navigationData, isLoading, error } = useNavigation('footer');
 
-  // Debug logging
-  console.log('Footer Navigation Debug:', {
-    navigationData,
-    isLoading,
-    error,
-    hasItems: navigationData?.items?.length > 0
-  });
-
   // Default fallback navigation
   const defaultNavigation = useMemo(
     () => [
@@ -47,13 +39,10 @@ export function useFooterNavigation() {
   // Transform CMS navigation data to footer format
   const cmsNavigation = useMemo(() => {
     if (!navigationData || !navigationData.items || navigationData.items.length === 0) {
-      console.log('Using default footer navigation - no CMS data available');
       return null;
     }
 
-    const transformed = transformFooterNavigation(navigationData);
-    console.log('Transformed CMS footer navigation:', transformed);
-    return transformed;
+    return transformFooterNavigation(navigationData);
   }, [navigationData]);
 
   // Return CMS navigation if available, otherwise fallback

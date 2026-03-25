@@ -1,4 +1,14 @@
-import {belongsTo, Entity, model, property} from '@loopback/repository';
+import {
+  belongsTo,
+  Entity,
+  hasMany,
+  hasOne,
+  model,
+  property,
+} from '@loopback/repository';
+import {Invoice} from './invoice.model';
+import {OrderItemEntity} from './order-item.model';
+import {Payment} from './payment.model';
 import {Users} from './users.model';
 
 // Order Item Interface
@@ -14,6 +24,15 @@ export interface OrderItem {
   size?: string;
   quantity: number;
   price: number;
+  basePrice?: number;
+  gstRate?: number;
+  cgstRate?: number;
+  sgstRate?: number;
+  igstRate?: number;
+  cgstAmount?: number;
+  sgstAmount?: number;
+  igstAmount?: number;
+  totalAmount?: number;
   subtotal: number;
 }
 
@@ -87,6 +106,8 @@ export class Order extends Entity {
     jsonSchema: {
       enum: [
         'pending',
+        'paid',
+        'failed',
         'confirmed',
         'processing',
         'packed',
@@ -100,6 +121,8 @@ export class Order extends Entity {
   })
   status:
     | 'pending'
+    | 'paid'
+    | 'failed'
     | 'confirmed'
     | 'processing'
     | 'packed'
@@ -115,10 +138,25 @@ export class Order extends Entity {
     required: true,
     default: 'pending',
     jsonSchema: {
-      enum: ['pending', 'paid', 'failed', 'refunded', 'partially_refunded'],
+      enum: [
+        'created',
+        'success',
+        'failed',
+        'pending',
+        'paid',
+        'refunded',
+        'partially_refunded',
+      ],
     },
   })
-  paymentStatus: 'pending' | 'paid' | 'failed' | 'refunded' | 'partially_refunded';
+  paymentStatus:
+    | 'created'
+    | 'success'
+    | 'failed'
+    | 'pending'
+    | 'paid'
+    | 'refunded'
+    | 'partially_refunded';
 
   @property({
     type: 'string',
@@ -151,6 +189,11 @@ export class Order extends Entity {
     jsonSchema: {
       minimum: 0,
     },
+    postgresql: {
+      dataType: 'decimal',
+      precision: 10,
+      scale: 2,
+    },
   })
   subtotal: number;
 
@@ -159,6 +202,11 @@ export class Order extends Entity {
     default: 0,
     jsonSchema: {
       minimum: 0,
+    },
+    postgresql: {
+      dataType: 'decimal',
+      precision: 10,
+      scale: 2,
     },
   })
   discount: number;
@@ -169,6 +217,11 @@ export class Order extends Entity {
     jsonSchema: {
       minimum: 0,
     },
+    postgresql: {
+      dataType: 'decimal',
+      precision: 10,
+      scale: 2,
+    },
   })
   shipping: number;
 
@@ -177,6 +230,11 @@ export class Order extends Entity {
     default: 0,
     jsonSchema: {
       minimum: 0,
+    },
+    postgresql: {
+      dataType: 'decimal',
+      precision: 10,
+      scale: 2,
     },
   })
   tax: number;
@@ -187,8 +245,26 @@ export class Order extends Entity {
     jsonSchema: {
       minimum: 0,
     },
+    postgresql: {
+      dataType: 'decimal',
+      precision: 10,
+      scale: 2,
+    },
   })
   total: number;
+
+  @property({
+    type: 'number',
+    jsonSchema: {
+      minimum: 0,
+    },
+    postgresql: {
+      dataType: 'decimal',
+      precision: 10,
+      scale: 2,
+    },
+  })
+  totalAmount?: number;
 
   @property({
     type: 'string',
@@ -224,6 +300,15 @@ export class Order extends Entity {
     },
   })
   items: OrderItem[];
+
+  @hasMany(() => OrderItemEntity, {keyTo: 'orderId'})
+  orderItems?: OrderItemEntity[];
+
+  @hasOne(() => Payment, {keyTo: 'orderId'})
+  payment?: Payment;
+
+  @hasOne(() => Invoice, {keyTo: 'orderId'})
+  invoice?: Invoice;
 
   // Shipping/Tracking Information
   @property({
@@ -307,14 +392,9 @@ export class Order extends Entity {
   notes?: string;
 
   // Timestamps
-  
-
-  
 
   // Soft Delete
-  
 
-  
   @property({
     type: 'boolean',
     default: true,

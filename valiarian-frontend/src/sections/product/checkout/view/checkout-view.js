@@ -4,6 +4,8 @@ import Button from '@mui/material/Button';
 import Container from '@mui/material/Container';
 import Typography from '@mui/material/Typography';
 import Grid from '@mui/material/Unstable_Grid2';
+// api
+import { prefetchAddresses } from 'src/api/addresses';
 // routes
 import { RouterLink } from 'src/routes/components';
 import { paths } from 'src/routes/paths';
@@ -30,7 +32,7 @@ export default function CheckoutView() {
   const settings = useSettingsContext();
   const { authenticated } = useAuthContext();
   const {
-    checkout,
+    checkoutSession,
     completed,
     onResetAll,
     onGotoStep,
@@ -44,7 +46,15 @@ export default function CheckoutView() {
     onDecreaseQuantity,
   } = useCheckout();
 
-  const { cart, billing, activeStep } = checkout;
+  const { cart, billing, activeStep } = checkoutSession;
+
+  useEffect(() => {
+    if (authenticated && cart.length) {
+      prefetchAddresses().catch(() => {
+        // Step-level UI handles address errors and fallbacks.
+      });
+    }
+  }, [authenticated, cart.length]);
 
   useEffect(() => {
     if (!cart.length && activeStep !== 0) {
@@ -63,6 +73,10 @@ export default function CheckoutView() {
   }, [activeStep, authenticated, billing, cart.length, onGotoStep]);
 
   const isEmpty = !cart.length && !completed;
+  const checkoutSteps = authenticated
+    ? PRODUCT_CHECKOUT_STEPS.filter((step) => step !== 'Authentication')
+    : PRODUCT_CHECKOUT_STEPS;
+  const displayActiveStep = authenticated && activeStep > 2 ? activeStep - 1 : activeStep;
 
   return (
     <Container maxWidth={settings.themeStretch ? false : 'lg'} sx={{ mb: 10 }}>
@@ -92,9 +106,21 @@ export default function CheckoutView() {
         <>
           <Grid container justifyContent={completed ? 'center' : 'flex-start'}>
             <Grid xs={12} md={8}>
-              <CheckoutSteps activeStep={activeStep} steps={PRODUCT_CHECKOUT_STEPS} />
+              <CheckoutSteps activeStep={displayActiveStep} steps={checkoutSteps} />
             </Grid>
           </Grid>
+
+          {!completed && activeStep > 0 && (
+            <Button
+              size="small"
+              color="inherit"
+              onClick={onBackStep}
+              startIcon={<Iconify icon="eva:arrow-ios-back-fill" />}
+              sx={{ display: { xs: 'inline-flex', md: 'none' }, mt: 2, mb: 3 }}
+            >
+              Back
+            </Button>
+          )}
 
           {completed ? (
             <CheckoutOrderComplete open={completed} onReset={onResetAll} onDownloadPDF={() => { }} />
@@ -102,7 +128,7 @@ export default function CheckoutView() {
             <>
               {activeStep === 0 && (
                 <CheckoutCart
-                  checkout={checkout}
+                  checkout={checkoutSession}
                   onNextStep={onNextStep}
                   onDeleteCart={onDeleteCart}
                   onApplyDiscount={onApplyDiscount}
@@ -113,7 +139,7 @@ export default function CheckoutView() {
 
               {activeStep === 1 && (
                 <CheckoutBillingAddress
-                  checkout={checkout}
+                  checkout={checkoutSession}
                   onBackStep={onBackStep}
                   onCreateBilling={onCreateBilling}
                 />
@@ -128,7 +154,7 @@ export default function CheckoutView() {
 
               {activeStep === 3 && billing && (
                 <CheckoutPayment
-                  checkout={checkout}
+                  checkout={checkoutSession}
                   onNextStep={onNextStep}
                   onBackStep={onBackStep}
                   onGotoStep={onGotoStep}

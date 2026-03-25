@@ -11,6 +11,7 @@ const checkoutPersistConfig = {
   key: 'checkout',
   storage,
   keyPrefix: 'redux-',
+  whitelist: ['cart', 'subTotal', 'total', 'discount', 'shipping', 'totalItems', 'paymentSession'],
 };
 
 const favoritesPersistConfig = {

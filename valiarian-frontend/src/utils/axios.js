@@ -7,6 +7,7 @@ import { HOST_API } from 'src/config-global';
 const axiosInstance = axios.create({
   baseURL: HOST_API,
   withCredentials: true,
+  timeout: 15000,
 });
 
 // Request interceptor - Add JWT token to all requests
@@ -94,9 +95,13 @@ export const endpoints = {
     get: (userId) => `/api/favorites/${userId}`,
   },
   orders: {
+    create: '/api/orders/create',
     user: (userId) => `/api/orders/user/${userId}`,
     details: (orderId) => `/api/orders/${orderId}`,
     tracking: (orderId) => `/api/orders/${orderId}/tracking`,
+  },
+  payments: {
+    verify: '/api/payments/verify',
   },
   contact: {
     create: '/api/public/contact-submissions',

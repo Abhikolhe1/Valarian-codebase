@@ -6,6 +6,7 @@ import Stack from '@mui/material/Stack';
 import Avatar from '@mui/material/Avatar';
 import CardHeader from '@mui/material/CardHeader';
 import ListItemText from '@mui/material/ListItemText';
+import Typography from '@mui/material/Typography';
 // utils
 import { fCurrency } from 'src/utils/format-number';
 // components
@@ -89,20 +90,32 @@ export default function OrderDetailsItems({
                 borderBottom: (theme) => `dashed 2px ${theme.palette.background.neutral}`,
               }}
             >
-              <Avatar src={item.coverUrl} variant="rounded" sx={{ width: 48, height: 48, mr: 2 }} />
-
-              <ListItemText
-                primary={item.name}
-                secondary={item.sku}
-                primaryTypographyProps={{
-                  typography: 'body2',
-                }}
-                secondaryTypographyProps={{
-                  component: 'span',
-                  color: 'text.disabled',
-                  mt: 0.5,
-                }}
+              <Avatar
+                src={item.image || item.coverUrl || '/assets/placeholder.svg'}
+                variant="rounded"
+                sx={{ width: 48, height: 48, mr: 2 }}
               />
+
+              <Box sx={{ minWidth: 0, flexGrow: 1 }}>
+                <ListItemText
+                  primary={item.name}
+                  secondary={item.sku}
+                  primaryTypographyProps={{
+                    typography: 'body2',
+                  }}
+                  secondaryTypographyProps={{
+                    component: 'span',
+                    color: 'text.disabled',
+                    mt: 0.5,
+                  }}
+                />
+
+                {(item.colorName || item.color || item.size) && (
+                  <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                    {[item.colorName || item.color, item.size].filter(Boolean).join(' • ')}
+                  </Typography>
+                )}
+              </Box>
 
               <Box sx={{ typography: 'body2' }}>x{item.quantity}</Box>
 

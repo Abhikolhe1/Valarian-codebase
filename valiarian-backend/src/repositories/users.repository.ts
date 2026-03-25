@@ -1,9 +1,16 @@
 import {Constructor, Getter, inject} from '@loopback/core';
-import {BelongsToAccessor, DefaultCrudRepository, HasManyThroughRepositoryFactory, repository} from '@loopback/repository';
+import {
+  BelongsToAccessor,
+  DefaultCrudRepository,
+  HasManyRepositoryFactory,
+  HasManyThroughRepositoryFactory,
+  repository,
+} from '@loopback/repository';
 import {ValiarianDataSource} from '../datasources';
 import {TimeStampRepositoryMixin} from '../mixins/timestamp-repository-mixin';
-import {Media, Roles, UserRoles, Users, UsersRelations} from '../models';
+import {Media, Order, Roles, UserRoles, Users, UsersRelations} from '../models';
 import {MediaRepository} from './media.repository';
+import {OrderRepository} from './order.repository';
 import {RolesRepository} from './roles.repository';
 import {UserRolesRepository} from './user-roles.repository';
 
@@ -24,6 +31,8 @@ export class UsersRepository extends TimeStampRepositoryMixin<
     typeof Users.prototype.id
   >;
 
+  public readonly orders: HasManyRepositoryFactory<Order, typeof Users.prototype.id>;
+
   public readonly avatar: BelongsToAccessor<Media, typeof Users.prototype.id>;
 
   constructor(
@@ -31,9 +40,12 @@ export class UsersRepository extends TimeStampRepositoryMixin<
     @repository.getter('UserRolesRepository') protected userRolesRepositoryGetter: Getter<UserRolesRepository>,
     @repository.getter('RolesRepository') protected rolesRepositoryGetter: Getter<RolesRepository>,
     @repository.getter('MediaRepository') protected mediaRepositoryGetter: Getter<MediaRepository>,
+    @repository.getter('OrderRepository') protected orderRepositoryGetter: Getter<OrderRepository>,
   ) {
     super(Users, dataSource);
     this.avatar = this.createBelongsToAccessorFor('avatar', mediaRepositoryGetter);
+    this.orders = this.createHasManyRepositoryFactoryFor('orders', orderRepositoryGetter);
     this.registerInclusionResolver('avatar', this.avatar.inclusionResolver);
+    this.registerInclusionResolver('orders', this.orders.inclusionResolver);
   }
 }

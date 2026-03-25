@@ -43,7 +43,7 @@ import ProgressBar from 'src/components/progress-bar';
 import { SettingsDrawer, SettingsProvider } from 'src/components/settings';
 import SnackbarProvider from 'src/components/snackbar/snackbar-provider';
 // auth
-import { AuthConsumer, AuthProvider } from 'src/auth/context/jwt';
+import { AuthProvider } from 'src/auth/context/jwt';
 // import { AuthProvider, AuthConsumer } from 'src/auth/context/auth0';
 // import { AuthProvider, AuthConsumer } from 'src/auth/context/amplify';
 // import { AuthProvider, AuthConsumer } from 'src/auth/context/firebase';
@@ -91,11 +91,9 @@ export default function App() {
                       <ErrorBoundary>
                         <SettingsDrawer />
                         <ProgressBar />
-                        <AuthConsumer>
-                          <CartInitializer>
-                            <Router />
-                          </CartInitializer>
-                        </AuthConsumer>
+                        <CartInitializer>
+                          <Router />
+                        </CartInitializer>
                       </ErrorBoundary>
                     </SnackbarProvider>
                   </MotionLazy>

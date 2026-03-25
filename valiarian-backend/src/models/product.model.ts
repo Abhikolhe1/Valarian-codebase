@@ -1,5 +1,6 @@
-import {belongsTo, Entity, model, property} from '@loopback/repository';
+import {belongsTo, Entity, hasMany, model, property} from '@loopback/repository';
 import {Category} from './category.model';
+import {OrderItemEntity} from './order-item.model';
 import {ProductVariant} from './product-variant.model';
 
 @model({
@@ -255,6 +256,9 @@ export class Product extends Entity {
     default: 0,
   })
   soldCount: number;
+
+  @hasMany(() => OrderItemEntity, {keyTo: 'productId'})
+  orderItems?: OrderItemEntity[];
 
   @property({
     type: 'number',

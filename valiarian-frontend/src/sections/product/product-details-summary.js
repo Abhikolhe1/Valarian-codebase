@@ -37,7 +37,6 @@ export default function ProductDetailsSummary({
   onVariantChange,
   ...other
 }) {
-
   const router = useRouter();
 
   const {
@@ -58,6 +57,18 @@ export default function ProductDetailsSummary({
   // State for selected variant
   const [selectedVariant, setSelectedVariant] = useState(null);
 
+  const resolveEffectivePrice = useCallback(
+    (variant) => {
+      const prioritizedPrices = [variant?.salePrice, salePrice, variant?.price, price];
+      const resolvedPrice = prioritizedPrices.find(
+        (value) => Number.isFinite(Number(value)) && Number(value) > 0
+      );
+
+      return resolvedPrice ? Number(resolvedPrice) : 0;
+    },
+    [price, salePrice]
+  );
+
   // Set default variant on component mount
   useEffect(() => {
     if (variants && variants.length > 0) {
@@ -67,7 +78,7 @@ export default function ProductDetailsSummary({
   }, [variants]);
 
   // Get variant-specific values or fallback to product values
-  const currentPrice = selectedVariant?.price || (salePrice && salePrice < price ? salePrice : price);
+  const currentPrice = resolveEffectivePrice(selectedVariant);
   const available = selectedVariant?.stockQuantity ?? stockQuantity ?? 0;
   const variantInStock = selectedVariant?.inStock ?? inStock;
   const variantSKU = selectedVariant?.sku;
@@ -137,7 +148,7 @@ export default function ProductDetailsSummary({
         setSelectedVariant(variant);
         setValue('colors', color);
         setValue('variantId', variant.id);
-        setValue('price', variant.price || currentPrice);
+        setValue('price', resolveEffectivePrice(variant));
         setValue('available', variant.stockQuantity);
         setValue('quantity', variant.stockQuantity < 1 ? 0 : Math.min(values.quantity, variant.stockQuantity));
         if (onVariantChange) {
@@ -147,7 +158,7 @@ export default function ProductDetailsSummary({
     } else {
       setValue('colors', color);
     }
-  }, [variants, values.size, values.quantity, setValue, currentPrice, onVariantChange]);
+  }, [variants, values.size, values.quantity, setValue, onVariantChange, resolveEffectivePrice]);
 
   // Handle size change - find matching variant
   const handleSizeChange = useCallback((size) => {
@@ -159,7 +170,7 @@ export default function ProductDetailsSummary({
         setSelectedVariant(variant);
         setValue('size', size);
         setValue('variantId', variant.id);
-        setValue('price', variant.price || currentPrice);
+        setValue('price', resolveEffectivePrice(variant));
         setValue('available', variant.stockQuantity);
         setValue('quantity', variant.stockQuantity < 1 ? 0 : Math.min(values.quantity, variant.stockQuantity));
         if (onVariantChange) {
@@ -169,7 +180,7 @@ export default function ProductDetailsSummary({
     } else {
       setValue('size', size);
     }
-  }, [variants, values.colors, values.quantity, setValue, currentPrice, onVariantChange]);
+  }, [variants, values.colors, values.quantity, setValue, onVariantChange, resolveEffectivePrice]);
 
   // Check if a color/size combination is available
   const isColorAvailable = useCallback((color) => {
@@ -190,7 +201,6 @@ export default function ProductDetailsSummary({
         subTotal: data.price * data.quantity,
         variantId: selectedVariant?.id,
       });
-      onGotoStep(0);
       router.push(paths.product.checkout);
     } catch (error) {
       console.error(error);

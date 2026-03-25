@@ -1,26 +1,21 @@
-import orderBy from 'lodash/orderBy';
 import isEqual from 'lodash/isEqual';
-import { useCallback, useState, useEffect, useMemo } from 'react';
+import { startTransition, useCallback, useState, useEffect, useMemo } from 'react';
 // @mui
 import Tab from '@mui/material/Tab';
 import Tabs from '@mui/material/Tabs';
 import Stack from '@mui/material/Stack';
 import Container from '@mui/material/Container';
 import Typography from '@mui/material/Typography';
-import { alpha } from '@mui/material/styles';
 // hooks
 import { useBoolean } from 'src/hooks/use-boolean';
 import { useDebounce } from 'src/hooks/use-debounce';
-import { useSearchParams } from 'src/routes/hook';
+import { useRouter, useSearchParams } from 'src/routes/hook';
 // routes
 import { paths } from 'src/routes/paths';
 // utils
 // _mock
 import {
   PRODUCT_SORT_OPTIONS,
-  PRODUCT_COLOR_OPTIONS,
-  PRODUCT_GENDER_OPTIONS,
-  PRODUCT_RATING_OPTIONS,
 } from 'src/_mock';
 // api
 import { useGetProducts, useSearchProducts } from 'src/api/product';
@@ -34,7 +29,6 @@ import CartIcon from '../common/cart-icon';
 import ProductList from '../product-list';
 import ProductSort from '../product-sort';
 import ProductSearch from '../product-search';
-import ProductFilters from '../product-filters';
 import ProductFiltersResult from '../product-filters-result';
 
 // ----------------------------------------------------------------------
@@ -47,26 +41,45 @@ const defaultFilters = {
   priceRange: [0, 200000],
 };
 
+const PRODUCTS_PER_PAGE = 20;
+
 // ----------------------------------------------------------------------
 
 export default function ProductShopView() {
   const settings = useSettingsContext();
+  const router = useRouter();
   const searchParams = useSearchParams();
   const categoryFromQuery = searchParams.get('category');
+  const searchFromQuery = searchParams.get('search');
+  const normalizedCategoryFromQuery = useMemo(() => {
+    if (!categoryFromQuery) return 'products';
+
+    const decodedCategory = decodeURIComponent(categoryFromQuery).trim();
+    if (!decodedCategory) return 'products';
+
+    return ['products', 'all'].includes(decodedCategory.toLowerCase())
+      ? 'products'
+      : decodedCategory;
+  }, [categoryFromQuery]);
+  const normalizedSearchFromQuery = useMemo(() => searchFromQuery?.trim() || '', [searchFromQuery]);
 
   const { checkout } = useCheckout();
 
   const openFilters = useBoolean();
 
   const [sortBy, setSortBy] = useState('featured');
+  const [page, setPage] = useState(1);
 
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState(normalizedSearchFromQuery);
 
   const debouncedQuery = useDebounce(searchQuery);
 
-  const [filters, setFilters] = useState(defaultFilters);
+  const [filters, setFilters] = useState(() => ({
+    ...defaultFilters,
+    category: normalizedCategoryFromQuery,
+  }));
 
-  const { categories } = useGetCategories();
+  const { categories = [] } = useGetCategories(openFilters.value);
 
   const activeCategory = useMemo(() => {
     if (filters.category === 'all' || filters.category === 'products') return null;
@@ -74,77 +87,93 @@ export default function ProductShopView() {
       (c) =>
         c.id === filters.category ||
         c.slug === filters.category ||
-        c.name === filters.category
+        c.name === filters.category ||
+        c.name?.toLowerCase() === String(filters.category).toLowerCase()
     );
   }, [categories, filters.category]);
 
-  const { products, productsLoading } = useGetProducts({
-    categoryId: activeCategory?.id,
-    categorySlug:
-      activeCategory || filters.category === 'all' || filters.category === 'products'
-        ? undefined
-        : filters.category,
-  });
+  const productQueryFilters = useMemo(
+    () => ({
+      categorySlug:
+        filters.category !== 'all' && filters.category !== 'products'
+          ? activeCategory?.slug || filters.category
+          : undefined,
+      sortBy,
+      limit: PRODUCTS_PER_PAGE,
+      offset: (page - 1) * PRODUCTS_PER_PAGE,
+    }),
+    [activeCategory?.slug, filters.category, page, sortBy]
+  );
 
-  const productsEmpty = !productsLoading && products.length === 0;
+  const { products, productsLoading, productsTotal } = useGetProducts(productQueryFilters);
 
-  const { searchResults, searchLoading } = useSearchProducts(debouncedQuery);
+  const activeSearchQuery =
+    debouncedQuery === normalizedSearchFromQuery ? normalizedSearchFromQuery : debouncedQuery;
+
+  const { searchResults, searchLoading } = useSearchProducts(activeSearchQuery);
 
   // Update filters when category query parameter changes from URL
   useEffect(() => {
-    if (!categoryFromQuery) return;
-
-    const categoryValue = decodeURIComponent(categoryFromQuery);
-    const foundCategory = categories.find(
-      (c) =>
-        c.id === categoryValue ||
-        c.slug === categoryValue ||
-        c.name?.toLowerCase() === categoryValue.toLowerCase()
-    );
-
     setFilters((prev) => ({
       ...prev,
       category:
-        categoryValue.toLowerCase() === 'products' || categoryValue.toLowerCase() === 'all'
-          ? 'products'
-          : foundCategory?.id || categoryValue,
+        prev.category === normalizedCategoryFromQuery
+          ? prev.category
+          : normalizedCategoryFromQuery,
     }));
-  }, [categoryFromQuery, categories]);
+  }, [normalizedCategoryFromQuery]);
 
   useEffect(() => {
-    if (categoryFromQuery) return;
+    setSearchQuery(normalizedSearchFromQuery);
+  }, [normalizedSearchFromQuery]);
 
-    setFilters((prev) => {
-      if (prev.category === 'products') return prev;
-
-      return {
-        ...prev,
-        category: 'products',
-      };
-    });
-  }, [categoryFromQuery]);
+  useEffect(() => {
+    setPage(1);
+  }, [filters.category, sortBy]);
 
   const handleFilters = useCallback((name, value) => {
-    setFilters((prevState) => ({
-      ...prevState,
-      [name]: value,
-    }));
+    setFilters((prevState) => {
+      if (prevState[name] === value) {
+        return prevState;
+      }
+
+      return {
+        ...prevState,
+        [name]: value,
+      };
+    });
   }, []);
 
   const handleFilterCategory = useCallback(
     (event, newValue) => {
       handleFilters('category', newValue);
+      router.replace(buildShopUrl(newValue, activeSearchQuery));
     },
-    [handleFilters]
+    [activeSearchQuery, handleFilters, router]
   );
 
-  const dataFiltered = applyFilter({
-    inputData: products,
-    filters,
-    sortBy,
-  });
+  const dataFiltered = useMemo(
+    () =>
+      applyFilter({
+        inputData: products,
+        filters,
+        searchQuery: activeSearchQuery,
+      }),
+    [products, filters, activeSearchQuery]
+  );
 
-  const canReset = !isEqual(defaultFilters, filters);
+  const productsEmpty = !productsLoading && !dataFiltered.length;
+  const useServerPagination = !activeSearchQuery;
+  const totalPages = useMemo(() => {
+    if (!useServerPagination) {
+      return Math.max(1, Math.ceil(dataFiltered.length / PRODUCTS_PER_PAGE));
+    }
+
+    return Math.max(1, Math.ceil(productsTotal / PRODUCTS_PER_PAGE));
+  }, [dataFiltered.length, productsTotal, useServerPagination]);
+
+  const hasSearch = Boolean(activeSearchQuery);
+  const canReset = !isEqual(defaultFilters, filters) || hasSearch;
 
   const notFound = !dataFiltered.length && canReset;
 
@@ -153,12 +182,36 @@ export default function ProductShopView() {
   }, []);
 
   const handleSearch = useCallback((inputValue) => {
-    setSearchQuery(inputValue);
+    startTransition(() => {
+      setPage(1);
+      setSearchQuery(inputValue);
+    });
   }, []);
+
+  useEffect(() => {
+    if (searchQuery === normalizedSearchFromQuery) {
+      return undefined;
+    }
+
+    const timeoutId = setTimeout(() => {
+      router.replace(buildShopUrl(filters.category, searchQuery));
+    }, 200);
+
+    return () => clearTimeout(timeoutId);
+  }, [filters.category, normalizedSearchFromQuery, router, searchQuery]);
 
   const handleResetFilters = useCallback(() => {
     setFilters(defaultFilters);
-  }, []);
+    setPage(1);
+    setSearchQuery('');
+    router.replace(paths.product.root);
+  }, [router]);
+
+  const handleClearSearch = useCallback(() => {
+    setPage(1);
+    setSearchQuery('');
+    router.replace(buildShopUrl(filters.category, ''));
+  }, [filters.category, router]);
 
   const renderFilters = (
     <Stack
@@ -176,7 +229,7 @@ export default function ProductShopView() {
       />
 
       <Stack direction="row" spacing={1} flexShrink={0}>
-        <ProductFilters
+        {/* <ProductFilters
           open={openFilters.value}
           onOpen={openFilters.onTrue}
           onClose={openFilters.onFalse}
@@ -191,7 +244,7 @@ export default function ProductShopView() {
           ratingOptions={PRODUCT_RATING_OPTIONS}
           genderOptions={PRODUCT_GENDER_OPTIONS}
           categories={categories}
-        />
+        /> */}
 
         <ProductSort sort={sortBy} onSort={handleSortBy} sortOptions={PRODUCT_SORT_OPTIONS} />
       </Stack>
@@ -201,7 +254,9 @@ export default function ProductShopView() {
   const renderResults = (
     <ProductFiltersResult
       filters={filters}
+      searchQuery={activeSearchQuery}
       onFilters={handleFilters}
+      onClearSearch={handleClearSearch}
       //
       canReset={canReset}
       onResetFilters={handleResetFilters}
@@ -261,35 +316,28 @@ export default function ProductShopView() {
 
       {(notFound || productsEmpty) && renderNotFound}
 
-      <ProductList products={dataFiltered} loading={productsLoading} />
+      <ProductList
+        products={dataFiltered}
+        loading={productsLoading}
+        page={useServerPagination ? page : undefined}
+        totalPages={useServerPagination ? totalPages : undefined}
+        onPageChange={useServerPagination ? setPage : undefined}
+      />
     </Container>
   );
 }
 
 // ----------------------------------------------------------------------
 
-function applyFilter({ inputData, filters, sortBy }) {
-  const { gender, colors, priceRange, rating } = filters;
+function applyFilter({ inputData, filters, searchQuery }) {
+  const { gender, category, colors, priceRange, rating } = filters;
 
   const min = priceRange[0];
 
   const max = priceRange[1];
 
-  // SORT BY
-  if (sortBy === 'featured') {
-    inputData = orderBy(inputData, ['soldCount'], ['desc']);
-  }
-
-  if (sortBy === 'newest') {
-    inputData = orderBy(inputData, ['createdAt'], ['desc']);
-  }
-
-  if (sortBy === 'priceDesc') {
-    inputData = orderBy(inputData, ['price'], ['desc']);
-  }
-
-  if (sortBy === 'priceAsc') {
-    inputData = orderBy(inputData, ['price'], ['asc']);
+  if (searchQuery) {
+    inputData = inputData.filter((product) => matchesSearch(product, searchQuery));
   }
 
   // FILTERS
@@ -324,4 +372,116 @@ function applyFilter({ inputData, filters, sortBy }) {
   }
 
   return inputData;
+}
+
+function buildShopUrl(category, search) {
+  const params = new URLSearchParams();
+
+  if (category && category !== 'products' && category !== 'all') {
+    params.set('category', category);
+  }
+
+  if (search?.trim()) {
+    params.set('search', search.trim());
+  }
+
+  const queryString = params.toString();
+
+  return queryString ? `${paths.product.root}?${queryString}` : paths.product.root;
+}
+
+function normalizeSearchValue(value = '') {
+  return String(value)
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function tokenize(value = '') {
+  return normalizeSearchValue(value).split(' ').filter(Boolean);
+}
+
+function levenshteinDistance(source = '', target = '') {
+  if (source === target) {
+    return 0;
+  }
+
+  if (!source.length) {
+    return target.length;
+  }
+
+  if (!target.length) {
+    return source.length;
+  }
+
+  const rows = source.length + 1;
+  const cols = target.length + 1;
+  const matrix = Array.from({ length: rows }, () => Array(cols).fill(0));
+
+  for (let row = 0; row < rows; row += 1) {
+    matrix[row][0] = row;
+  }
+
+  for (let col = 0; col < cols; col += 1) {
+    matrix[0][col] = col;
+  }
+
+  for (let row = 1; row < rows; row += 1) {
+    for (let col = 1; col < cols; col += 1) {
+      const substitutionCost = source[row - 1] === target[col - 1] ? 0 : 1;
+
+      matrix[row][col] = Math.min(
+        matrix[row - 1][col] + 1,
+        matrix[row][col - 1] + 1,
+        matrix[row - 1][col - 1] + substitutionCost
+      );
+    }
+  }
+
+  return matrix[source.length][target.length];
+}
+
+function isFuzzyTokenMatch(queryToken, targetToken) {
+  if (!queryToken || !targetToken) {
+    return false;
+  }
+
+  if (targetToken.includes(queryToken) || queryToken.includes(targetToken)) {
+    return true;
+  }
+
+  const distance = levenshteinDistance(queryToken, targetToken);
+  const tolerance = queryToken.length >= 6 ? 2 : 1;
+
+  return distance <= tolerance;
+}
+
+function matchesSearch(product, searchQuery) {
+  const normalizedQuery = normalizeSearchValue(searchQuery);
+
+  if (!normalizedQuery) {
+    return true;
+  }
+
+  const searchableText = normalizeSearchValue([
+    product.name,
+    product.category?.name,
+    product.category?.slug,
+    product.categoryId,
+    product.shortDescription,
+    product.subDescription,
+    product.description,
+  ].filter(Boolean).join(' '));
+
+  if (searchableText.includes(normalizedQuery)) {
+    return true;
+  }
+
+  const queryTokens = tokenize(normalizedQuery);
+  const targetTokens = tokenize(searchableText);
+
+  return queryTokens.every((queryToken) =>
+    targetTokens.some((targetToken) => isFuzzyTokenMatch(queryToken, targetToken))
+  );
 }

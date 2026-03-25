@@ -4,10 +4,14 @@ import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import Avatar from '@mui/material/Avatar';
 import Divider from '@mui/material/Divider';
+import Link from '@mui/material/Link';
 import TableRow from '@mui/material/TableRow';
 import TableCell from '@mui/material/TableCell';
 import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
+// routes
+import { RouterLink } from 'src/routes/components';
+import { paths } from 'src/routes/paths';
 // utils
 import { fCurrency } from 'src/utils/format-number';
 // components
@@ -20,28 +24,37 @@ import IncrementerButton from '../common/incrementer-button';
 // ----------------------------------------------------------------------
 
 export default function CheckoutCartProduct({ row, onDelete, onDecrease, onIncrease }) {
-  const { name, size, price, colors, coverUrl, quantity, available } = row;
+  const { name, size, price, colors, coverUrl, quantity, available, slug, productId, id } = row;
+  const productHref = slug ? paths.product.details(slug) : paths.product.details(productId || id);
 
   return (
     <TableRow>
       <TableCell sx={{ display: 'flex', alignItems: 'center' }}>
-        <Avatar variant="rounded" alt={name} src={coverUrl} sx={{ width: 64, height: 64, mr: 2 }} />
+        <Link
+          component={RouterLink}
+          href={productHref}
+          color="inherit"
+          underline="none"
+          sx={{ display: 'flex', alignItems: 'center', minWidth: 0 }}
+        >
+          <Avatar variant="rounded" alt={name} src={coverUrl} sx={{ width: 64, height: 64, mr: 2 }} />
 
-        <Stack spacing={0.5}>
-          <Typography noWrap variant="subtitle2" sx={{ maxWidth: 240 }}>
-            {name}
-          </Typography>
+          <Stack spacing={0.5}>
+            <Typography noWrap variant="subtitle2" sx={{ maxWidth: 240 }}>
+              {name}
+            </Typography>
 
-          <Stack
-            direction="row"
-            alignItems="center"
-            sx={{ typography: 'body2', color: 'text.secondary' }}
-          >
-            size: <Label sx={{ ml: 0.5 }}> {size} </Label>
-            <Divider orientation="vertical" sx={{ mx: 1, height: 16 }} />
-            <ColorPreview colors={colors} />
+            <Stack
+              direction="row"
+              alignItems="center"
+              sx={{ typography: 'body2', color: 'text.secondary' }}
+            >
+              size: <Label sx={{ ml: 0.5 }}> {size} </Label>
+              <Divider orientation="vertical" sx={{ mx: 1, height: 16 }} />
+              <ColorPreview colors={colors} />
+            </Stack>
           </Stack>
-        </Stack>
+        </Link>
       </TableCell>
 
       <TableCell>{fCurrency(price)}</TableCell>

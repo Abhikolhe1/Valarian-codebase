@@ -91,7 +91,7 @@ export const _notifications = [...Array(9)].map((_, index) => ({
     (index === 3 &&
       `<p><strong>Angelique Morse</strong> added new tags to <strong><a href='#'>File Manager<a/></strong></p>`) ||
     (index === 4 &&
-      `<p><strong>Giana Brandt</strong> request a payment of <strong>$200</strong></p>`) ||
+      `<p><strong>Giana Brandt</strong> request a payment of <strong>₹200</strong></p>`) ||
     (index === 5 && `<p>Your order is placed waiting for shipping</p>`) ||
     (index === 6 && `<p>Delivery processing your order is being shipped</p>`) ||
     (index === 7 && `<p>You have new message 5 unread messages</p>`) ||
@@ -178,7 +178,7 @@ export const _pricingPlans = [
   {
     subscription: 'starter',
     price: 4.99,
-    caption: 'Saving $24 a year',
+    caption: 'Saving ₹24 a year',
     lists: [
       '3 Prototypes',
       '3 Boards',
@@ -191,7 +191,7 @@ export const _pricingPlans = [
   {
     subscription: 'premium',
     price: 9.99,
-    caption: 'Saving $124 a year',
+    caption: 'Saving ₹124 a year',
     lists: [
       '3 Prototypes',
       '3 Boards',

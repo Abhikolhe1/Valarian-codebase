@@ -4,6 +4,14 @@ import {Users} from './users.model';
 @model({
   settings: {
     postgresql: {schema: 'public', table: 'addresses'},
+    indexes: {
+      addressUserIdIdx: {
+        keys: {userId: 1},
+      },
+      addressUserPrimaryIdx: {
+        keys: {userId: 1, isPrimary: 1},
+      },
+    },
   },
 })
 export class Address extends Entity {
@@ -18,32 +26,79 @@ export class Address extends Entity {
   @property({
     type: 'string',
     required: true,
+    jsonSchema: {
+      minLength: 1,
+      maxLength: 100,
+    },
   })
-  address: string;
+  fullName: string;
 
   @property({
     type: 'string',
     required: true,
+    jsonSchema: {
+      pattern: '^[0-9]{10}$',
+    },
   })
-  city: string;
+  mobileNumber: string;
 
   @property({
     type: 'string',
     required: true,
+    jsonSchema: {
+      pattern: '^[0-9]{6}$',
+    },
+  })
+  pincode: string;
+
+  @property({
+    type: 'string',
+    required: true,
+    jsonSchema: {
+      minLength: 1,
+      maxLength: 100,
+    },
   })
   state: string;
 
   @property({
     type: 'string',
     required: true,
+    jsonSchema: {
+      minLength: 1,
+      maxLength: 100,
+    },
   })
-  country: string;
+  city: string;
 
   @property({
-    type: 'number',
+    type: 'string',
     required: true,
+    jsonSchema: {
+      minLength: 1,
+      maxLength: 255,
+    },
   })
-  zipCode: number;
+  addressLine1: string;
+
+  @property({
+    type: 'string',
+  })
+  addressLine2?: string;
+
+  @property({
+    type: 'string',
+  })
+  landmark?: string;
+
+  @property({
+    type: 'string',
+    required: true,
+    jsonSchema: {
+      enum: ['home', 'work'],
+    },
+  })
+  addressType: 'home' | 'work';
 
   @property({
     type: 'boolean',
