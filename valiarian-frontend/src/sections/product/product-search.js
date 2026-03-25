@@ -28,7 +28,9 @@ export default function ProductSearch({ query, results, onSearch, hrefItem, load
       if (event.key === 'Enter') {
         const selectItem = results.filter((product) => product.name === query)[0];
 
-        handleClick(selectItem.id);
+        if (selectItem) {
+          handleClick(selectItem.id);
+        }
       }
     }
   };

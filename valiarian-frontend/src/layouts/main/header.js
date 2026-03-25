@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 // @mui
 import AppBar from '@mui/material/AppBar';
 import Box from '@mui/material/Box';
@@ -307,7 +307,25 @@ export default function Header() {
     setSearchQuery(event.target.value);
   };
 
+  const handleSearchSubmit = useCallback(() => {
+    const normalizedQuery = searchQuery.trim();
+
+    if (!normalizedQuery) {
+      return;
+    }
+
+    router.push(`${paths.product.root}?search=${encodeURIComponent(normalizedQuery)}`);
+    setSearchExpanded(false);
+    setSearchQuery('');
+  }, [router, searchQuery]);
+
   const handleSearchKeyDown = (event) => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      handleSearchSubmit();
+      return;
+    }
+
     if (event.key === 'Escape') {
       handleSearchClose();
     }
@@ -387,6 +405,12 @@ export default function Header() {
   };
 
   const handleMobileSearchKeyDown = (event) => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      handleSearchSubmit();
+      return;
+    }
+
     if (event.key === 'Escape') {
       handleMobileSearchClose();
     }

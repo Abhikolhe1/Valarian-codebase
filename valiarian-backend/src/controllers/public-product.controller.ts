@@ -301,6 +301,7 @@ export class PublicProductController {
     @param.query.number('maxPrice') maxPrice?: number,
     @param.query.string('categoryId') categoryId?: string,
     @param.query.string('categorySlug') categorySlug?: string,
+    @param.query.string('sortBy') sortBy = 'featured',
     @param.query.number('limit') limit = 20,
     @param.query.number('offset') offset = 0,
   ): Promise<{products: Product[]; total: number}> {
@@ -338,6 +339,7 @@ export class PublicProductController {
       minPrice,
       maxPrice,
       categoryId: resolvedCategoryId,
+      order: this.getProductSortOrder(sortBy),
       limit,
       skip: offset,
     });
@@ -346,6 +348,20 @@ export class PublicProductController {
       products: result.data,
       total: result.total,
     };
+  }
+
+  private getProductSortOrder(sortBy?: string): string[] {
+    switch (sortBy) {
+      case 'newest':
+        return ['createdAt DESC'];
+      case 'priceDesc':
+        return ['price DESC', 'createdAt DESC'];
+      case 'priceAsc':
+        return ['price ASC', 'createdAt DESC'];
+      case 'featured':
+      default:
+        return ['soldCount DESC', 'createdAt DESC'];
+    }
   }
 
   @get('/api/public/products/{slug}')

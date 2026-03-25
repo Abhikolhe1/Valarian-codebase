@@ -11,6 +11,7 @@ export function useGetProducts(filters = {}) {
   if (filters.search) params.append('search', filters.search);
   if (filters.categoryId) params.append('categoryId', filters.categoryId);
   if (filters.categorySlug) params.append('categorySlug', filters.categorySlug);
+  if (filters.sortBy) params.append('sortBy', filters.sortBy);
   if (filters.limit) params.append('limit', filters.limit);
   if (filters.page) params.append('page', filters.page);
 
