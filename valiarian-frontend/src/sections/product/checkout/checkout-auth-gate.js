@@ -134,6 +134,7 @@ export default function CheckoutAuthGate({ onNextStep, onBackStep }) {
                 color="inherit"
                 startIcon={<Iconify icon="eva:arrow-ios-back-fill" />}
                 onClick={onBackStep}
+                sx={{ display: { xs: 'none', md: 'inline-flex' } }}
               >
                 Back to Address
               </Button>

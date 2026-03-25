@@ -73,6 +73,10 @@ export default function CheckoutView() {
   }, [activeStep, authenticated, billing, cart.length, onGotoStep]);
 
   const isEmpty = !cart.length && !completed;
+  const checkoutSteps = authenticated
+    ? PRODUCT_CHECKOUT_STEPS.filter((step) => step !== 'Authentication')
+    : PRODUCT_CHECKOUT_STEPS;
+  const displayActiveStep = authenticated && activeStep > 2 ? activeStep - 1 : activeStep;
 
   return (
     <Container maxWidth={settings.themeStretch ? false : 'lg'} sx={{ mb: 10 }}>
@@ -102,9 +106,21 @@ export default function CheckoutView() {
         <>
           <Grid container justifyContent={completed ? 'center' : 'flex-start'}>
             <Grid xs={12} md={8}>
-              <CheckoutSteps activeStep={activeStep} steps={PRODUCT_CHECKOUT_STEPS} />
+              <CheckoutSteps activeStep={displayActiveStep} steps={checkoutSteps} />
             </Grid>
           </Grid>
+
+          {!completed && activeStep > 0 && (
+            <Button
+              size="small"
+              color="inherit"
+              onClick={onBackStep}
+              startIcon={<Iconify icon="eva:arrow-ios-back-fill" />}
+              sx={{ display: { xs: 'inline-flex', md: 'none' }, mt: 2, mb: 3 }}
+            >
+              Back
+            </Button>
+          )}
 
           {completed ? (
             <CheckoutOrderComplete open={completed} onReset={onResetAll} onDownloadPDF={() => { }} />

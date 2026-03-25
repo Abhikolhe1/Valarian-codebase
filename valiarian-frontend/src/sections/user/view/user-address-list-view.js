@@ -134,12 +134,13 @@ export default function UserAddressListView({ onAdd, onEdit }) {
                       )}
                     </Stack>
 
-                    <Stack direction="row" spacing={1}>
+                    <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap' }}>
                       {!address.isPrimary && (
                         <Button
                           size="small"
                           variant="outlined"
                           onClick={() => handleSetPrimary(address.id)}
+                          sx={{ width: { xs: '100%', sm: 'auto' } }}
                         >
                           Set as Primary
                         </Button>

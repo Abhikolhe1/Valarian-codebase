@@ -3,9 +3,9 @@ import { useState } from 'react';
 // @mui
 import Alert from '@mui/material/Alert';
 import Button from '@mui/material/Button';
-import Grid from '@mui/material/Grid';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
+import Grid from '@mui/material/Unstable_Grid2';
 // api
 import { createAddress, useGetAddresses } from 'src/api/addresses';
 // auth
@@ -80,12 +80,18 @@ export default function CheckoutBillingAddress({ checkout, onBackStep, onCreateB
         key={address.id}
         address={buildBillingAddress(address)}
         action={
-          <Stack flexDirection="row" flexWrap="wrap" flexShrink={0} spacing={1}>
+          <Stack
+            direction={{ xs: 'column', sm: 'row' }}
+            spacing={1}
+            flexShrink={0}
+            sx={{ width: { xs: '100%', md: 'auto' } }}
+          >
             <Button
               size="small"
               variant="outlined"
               startIcon={<Iconify icon="solar:pen-bold" />}
               onClick={() => handleEditAddress(address)}
+              sx={{ width: { xs: '100%', sm: 'auto' } }}
             >
               Edit
             </Button>
@@ -93,6 +99,7 @@ export default function CheckoutBillingAddress({ checkout, onBackStep, onCreateB
               variant="contained"
               size="small"
               onClick={() => onCreateBilling(buildBillingAddress(address))}
+              sx={{ width: { xs: '100%', sm: 'auto' } }}
             >
               Deliver to this Address
             </Button>
@@ -122,7 +129,7 @@ export default function CheckoutBillingAddress({ checkout, onBackStep, onCreateB
 
   return (
     <>
-      <Grid container spacing={3}>
+      <Grid container spacing={{ xs: 3, md: 4 }}>
         <Grid xs={12} md={8}>
           {error && (
             <Alert severity="error" sx={{ mb: 3 }}>
@@ -132,12 +139,19 @@ export default function CheckoutBillingAddress({ checkout, onBackStep, onCreateB
 
           {addressContent}
 
-          <Stack direction="row" justifyContent="space-between">
+          <Stack
+            direction={{ xs: 'column-reverse', sm: 'row' }}
+            spacing={1.5}
+            justifyContent="space-between"
+            alignItems={{ xs: 'stretch', sm: 'center' }}
+            sx={{ mt: 3 }}
+          >
             <Button
               size="small"
               color="inherit"
               onClick={onBackStep}
               startIcon={<Iconify icon="eva:arrow-ios-back-fill" />}
+              sx={{ display: { xs: 'none', md: 'inline-flex' } }}
             >
               Back
             </Button>
@@ -147,6 +161,7 @@ export default function CheckoutBillingAddress({ checkout, onBackStep, onCreateB
               color="primary"
               onClick={addressForm.onTrue}
               startIcon={<Iconify icon="mingcute:add-line" />}
+              sx={{ alignSelf: { xs: 'stretch', sm: 'auto' } }}
             >
               New Address
             </Button>

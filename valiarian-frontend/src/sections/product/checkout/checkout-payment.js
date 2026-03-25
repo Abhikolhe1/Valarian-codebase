@@ -400,6 +400,7 @@ export default function CheckoutPayment({ checkout, onBackStep, onGotoStep, onAp
             color="inherit"
             onClick={onBackStep}
             startIcon={<Iconify icon="eva:arrow-ios-back-fill" />}
+            sx={{ display: { xs: 'none', md: 'inline-flex' } }}
           >
             Back
           </Button>
