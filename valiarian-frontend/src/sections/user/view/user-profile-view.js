@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 // @mui
 import Alert from '@mui/material/Alert';
 import Button from '@mui/material/Button';
@@ -6,6 +6,7 @@ import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
 import Container from '@mui/material/Container';
 import Grid from '@mui/material/Grid';
+import Skeleton from '@mui/material/Skeleton';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 // routes
@@ -17,7 +18,7 @@ import { useAuthContext } from 'src/auth/hooks';
 import { useGetProfile } from 'src/api/user';
 // components
 import Iconify from 'src/components/iconify';
-import { LoadingScreen } from 'src/components/loading-screen';
+import { SplashScreen } from 'src/components/loading-screen';
 //
 import ProfileDisplay from './profile-display';
 import ProfileEditForm from './profile-edit-form';
@@ -32,8 +33,17 @@ export default function UserProfileView() {
   const [viewMode, setViewMode] = useState('display'); // 'display', 'edit-profile', 'address', 'change-password'
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
+  const [showSplash, setShowSplash] = useState(true);
 
   const { profile, isLoading, error, mutate } = useGetProfile();
+
+  useEffect(() => {
+    const splashTimer = setTimeout(() => {
+      setShowSplash(false);
+    }, 2000);
+
+    return () => clearTimeout(splashTimer);
+  }, []);
 
   if (!user) {
     router.push(paths.auth.jwt.login);
@@ -41,7 +51,11 @@ export default function UserProfileView() {
   }
 
   if (isLoading) {
-    return <LoadingScreen />;
+    if (showSplash) {
+      return <SplashScreen />;
+    }
+
+    return <UserProfileSkeleton />;
   }
 
   if (error) {
@@ -112,14 +126,14 @@ export default function UserProfileView() {
                   >
                     {viewMode === 'address' ? 'Back to Profile' : 'Address'}
                   </Button>
-                  <Button
+                  {/* <Button
                     fullWidth
                     variant={viewMode === 'change-password' ? 'contained' : 'outlined'}
                     startIcon={<Iconify icon="solar:lock-password-bold" />}
                     onClick={handleChangePasswordToggle}
                   >
                     {viewMode === 'change-password' ? 'Back to Profile' : 'Change Password'}
-                  </Button>
+                  </Button> */}
                 </Stack>
               </CardContent>
             </Card>
@@ -147,6 +161,58 @@ export default function UserProfileView() {
                 setSuccessMsg={setSuccessMsg}
               />
             )}
+          </Grid>
+        </Grid>
+      </Stack>
+    </Container>
+  );
+}
+
+function UserProfileSkeleton() {
+  return (
+    <Container maxWidth="lg">
+      <Stack spacing={3} sx={{ py: 5 }}>
+        <Skeleton variant="rounded" width={220} height={44} />
+
+        <Grid container spacing={3}>
+          <Grid item xs={12} md={4}>
+            <Card>
+              <CardContent>
+                <Stack spacing={2} alignItems="center">
+                  <Skeleton variant="circular" width={72} height={72} />
+                  <Skeleton variant="rounded" width="70%" height={28} />
+                  <Skeleton variant="rounded" width="55%" height={20} />
+                </Stack>
+              </CardContent>
+            </Card>
+
+            <Card sx={{ mt: 2 }}>
+              <CardContent>
+                <Stack spacing={2}>
+                  <Skeleton variant="rounded" height={40} />
+                  <Skeleton variant="rounded" height={40} />
+                  <Skeleton variant="rounded" height={40} />
+                </Stack>
+              </CardContent>
+            </Card>
+          </Grid>
+
+          <Grid item xs={12} md={8}>
+            <Card>
+              <CardContent>
+                <Stack spacing={3}>
+                  <Skeleton variant="rounded" width={180} height={28} />
+                  <Skeleton variant="rounded" width="100%" height={24} />
+                  <Skeleton variant="rounded" width="85%" height={24} />
+                  <Skeleton variant="rounded" width="78%" height={24} />
+
+                  <Skeleton variant="rounded" width={180} height={28} sx={{ mt: 2 }} />
+                  <Skeleton variant="rounded" width="100%" height={24} />
+                  <Skeleton variant="rounded" width="88%" height={24} />
+                  <Skeleton variant="rounded" width="72%" height={24} />
+                </Stack>
+              </CardContent>
+            </Card>
           </Grid>
         </Grid>
       </Stack>

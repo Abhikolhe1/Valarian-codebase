@@ -342,6 +342,34 @@ export default function Header() {
     import('src/pages/product/checkout');
   };
 
+  const prefetchPremium = () => {
+    import('src/pages/premium');
+  };
+
+  const prefetchAbout = () => {
+    import('src/pages/about-us');
+  };
+
+  const prefetchContact = () => {
+    import('src/pages/contact-us');
+  };
+
+  const getNavPrefetchHandler = (path) => {
+    if (path === paths.premium) {
+      return prefetchPremium;
+    }
+
+    if (path === paths.about) {
+      return prefetchAbout;
+    }
+
+    if (path === paths.contact) {
+      return prefetchContact;
+    }
+
+    return undefined;
+  };
+
   const handleCategoryMenuIntent = () => {
     prefetchCategoryMenuData().catch(() => {
       // The menu already shows its own loading state when needed.
@@ -531,6 +559,8 @@ export default function Header() {
                       isTransparent={headerBgOpacity === 0 ? 1 : 0}
                       target={item.openInNewTab ? '_blank' : undefined}
                       rel={item.openInNewTab ? 'noopener noreferrer' : undefined}
+                      onMouseEnter={getNavPrefetchHandler(item.path)}
+                      onFocus={getNavPrefetchHandler(item.path)}
                     >
                       {item.title}
                     </StyledNavLink>
