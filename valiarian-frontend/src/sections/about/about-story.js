@@ -43,12 +43,8 @@ const STORY = [
 
 // story Item Component - handles individual story animation
 function StoryItem({ story, index: storyIndex, smoothIndex, isMobile, totalStory }) {
+  const storyTitle = story.title || story.name;
   // Determine if this story is the active one
-  const isActive = useTransform(
-    smoothIndex,
-    (latest) => Math.floor(latest) === storyIndex
-  );
-
   // Calculate opacity based on scroll position
   // Ensure clean transition: current story completely fades out before next appears
   const opacity = useTransform(
@@ -157,7 +153,7 @@ function StoryItem({ story, index: storyIndex, smoothIndex, isMobile, totalStory
       return (
         <Image
           src={story.image}
-          alt={story.name}
+          alt={storyTitle}
           sx={{
             width: '100%',
             height: '100%',
@@ -202,7 +198,7 @@ function StoryItem({ story, index: storyIndex, smoothIndex, isMobile, totalStory
 
         <Stack spacing={2}>
           <Typography variant="h5" color="primary.main">
-            {story.name}
+            {storyTitle}
           </Typography>
 
           <Typography variant="body2" color="text.secondary">
@@ -251,7 +247,7 @@ function StoryItem({ story, index: storyIndex, smoothIndex, isMobile, totalStory
             </Box>
             <Stack spacing={3} sx={{ width: '50%' }}>
               <Typography variant="h3" component="h2" color="primary.main" >
-                {story.name}
+                {storyTitle}
               </Typography>
               <Typography variant="subtitle2" color="text.secondary" sx={{ fontSize: '1.1rem' }}>
                 {story.description}
@@ -293,7 +289,7 @@ function StoryItem({ story, index: storyIndex, smoothIndex, isMobile, totalStory
             </Box>
             <Stack spacing={3} sx={{ width: '50%' }}>
               <Typography variant="h3" component="h2" color="primary.main">
-                {story.name}
+                {storyTitle}
               </Typography>
               <Typography variant="subtitle2" color="text.secondary" sx={{ fontSize: '1.1rem' }}>
                 {story.description}
@@ -328,7 +324,8 @@ function StoryItem({ story, index: storyIndex, smoothIndex, isMobile, totalStory
 StoryItem.propTypes = {
   story: PropTypes.shape({
     id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
-    name: PropTypes.string.isRequired,
+    name: PropTypes.string,
+    title: PropTypes.string,
     description: PropTypes.string.isRequired,
     image: PropTypes.string,
     video: PropTypes.string,
@@ -342,21 +339,19 @@ StoryItem.propTypes = {
 
 // ----------------------------------------------------------------------
 
-export default function AboutStorySection({ storys: propStory, cmsData, ...other }) {
+export default function AboutStorySection({ stories: propStories, storys: legacyStories, cmsData, ...other }) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
   // Wrapper ref for scroll tracking
   const wrapperRef = useRef(null);
   const containerRef = useRef(null);
-  const spacerRef = useRef(null);
-
   // // Use CMS data for title and subtitle
   // const title = cmsData?.content?.title || 'Premium Story';
   // const subtitle = cmsData?.content?.subtitle || 'Discover the exceptional materials that make our clothing extraordinary';
 
   // Use prop storys if provided, otherwise use STORY
-  const storys = propStory || STORY;
+  const storys = propStories || legacyStories || STORY;
 
   // Calculate scroll progress - track the wrapper
   const { scrollYProgress } = useScroll({
@@ -492,14 +487,26 @@ export default function AboutStorySection({ storys: propStory, cmsData, ...other
 }
 
 AboutStorySection.propTypes = {
+  stories: PropTypes.arrayOf(
+    PropTypes.shape({
+      description: PropTypes.string.isRequired,
+      id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
+      image: PropTypes.string,
+      name: PropTypes.string,
+      title: PropTypes.string,
+      tags: PropTypes.arrayOf(PropTypes.string),
+      video: PropTypes.string,
+    })
+  ),
   storys: PropTypes.arrayOf(
     PropTypes.shape({
       id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
-      name: PropTypes.string.isRequired,
+      name: PropTypes.string,
       description: PropTypes.string.isRequired,
       image: PropTypes.string,
       video: PropTypes.string,
       tags: PropTypes.arrayOf(PropTypes.string),
+      title: PropTypes.string,
     })
   ),
   cmsData: PropTypes.shape({

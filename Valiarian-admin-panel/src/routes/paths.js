@@ -192,6 +192,9 @@ export const paths = {
     },
     cms: {
       root: `${ROOTS.DASHBOARD}/cms`,
+      about: {
+        root: `${ROOTS.DASHBOARD}/cms/about-us`,
+      },
       pages: {
         root: `${ROOTS.DASHBOARD}/cms/pages`,
         list: `${ROOTS.DASHBOARD}/cms/pages/list`,

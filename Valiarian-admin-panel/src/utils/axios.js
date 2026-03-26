@@ -87,6 +87,10 @@ export const endpoints = {
     },
   },
   cms: {
+    aboutPage: {
+      get: '/api/cms/about-page',
+      update: '/api/cms/about-page',
+    },
     contactSubmissions: {
       list: '/api/cms/contact-submissions',
       details: (id) => `/api/cms/contact-submissions/${id}`,

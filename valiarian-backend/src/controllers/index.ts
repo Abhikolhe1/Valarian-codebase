@@ -1,3 +1,4 @@
+export * from './about-page.controller';
 export * from './audit-log.controller';
 export * from './auth.controller';
 export * from './cart.controller';

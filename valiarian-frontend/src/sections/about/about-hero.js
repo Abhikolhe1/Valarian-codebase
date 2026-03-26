@@ -3,14 +3,23 @@ import PropTypes from 'prop-types';
 // @mui
 import Box from '@mui/material/Box';
 import Container from '@mui/material/Container';
-import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 // components
 import { MotionContainer, varFade } from 'src/components/animate';
 
 // ----------------------------------------------------------------------
 
-export default function AboutHero() {
+const DEFAULT_CONTENT = {
+  eyebrow: 'Our Story',
+  title:
+    'A commitment to timeless quality, sustainable craftsmanship, and the perfect polo shirt.',
+  backgroundImage: '/assets/images/about/hero.jpg',
+  overlayImage: '/assets/background/overlay_1.svg',
+};
+
+export default function AboutHero({ content = DEFAULT_CONTENT }) {
+  const heroContent = { ...DEFAULT_CONTENT, ...(content || {}) };
+
   return (
     <Box
       sx={{
@@ -20,8 +29,7 @@ export default function AboutHero() {
         position: 'relative',
         backgroundSize: 'cover',
         backgroundPosition: 'center',
-        backgroundImage:
-          'url(/assets/background/overlay_1.svg), url(/assets/images/about/hero.jpg)',
+        backgroundImage: `url(${heroContent.overlayImage}), url(${heroContent.backgroundImage})`,
       }}
     >
       <Container component={MotionContainer}>
@@ -36,7 +44,11 @@ export default function AboutHero() {
             },
           }}
         >
-          <TextAnimate text="Our Story" variants={varFade().inRight} sx={{ color: 'warning.light' }} />
+          <TextAnimate
+            text={heroContent.eyebrow}
+            variants={varFade().inRight}
+            sx={{ color: 'warning.light' }}
+          />
 
           <br />
 
@@ -54,8 +66,7 @@ export default function AboutHero() {
                 fontWeight: 'fontWeightSemiBold',
               }}
             >
-              A commitment to timeless quality,<br /> sustainable
-              craftsmanship, and the perfect polo shirt.
+              {heroContent.title}
             </Typography>
           </m.div>
         </Box>
@@ -91,4 +102,13 @@ TextAnimate.propTypes = {
   sx: PropTypes.object,
   text: PropTypes.string,
   variants: PropTypes.object,
+};
+
+AboutHero.propTypes = {
+  content: PropTypes.shape({
+    backgroundImage: PropTypes.string,
+    eyebrow: PropTypes.string,
+    overlayImage: PropTypes.string,
+    title: PropTypes.string,
+  }),
 };

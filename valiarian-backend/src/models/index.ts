@@ -1,3 +1,4 @@
+export * from './about-page.model';
 export * from './address.model';
 export * from './audit-log.model';
 export * from './parent-category.model';

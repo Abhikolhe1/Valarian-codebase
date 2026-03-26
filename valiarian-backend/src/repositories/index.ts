@@ -1,3 +1,4 @@
+export * from './about-page.repository';
 export * from './audit-log.repository';
 export * from './cart-items.repository';
 export * from './carts.repository';

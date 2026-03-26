@@ -60,6 +60,7 @@ const TourCreatePage = lazy(() => import('src/pages/dashboard/tour/new'));
 const TourEditPage = lazy(() => import('src/pages/dashboard/tour/edit'));
 // CMS
 const CMSPagesListPage = lazy(() => import('src/pages/dashboard/cms/pages-list'));
+const CMSAboutPage = lazy(() => import('src/pages/dashboard/cms/about-us/index'));
 const CMSPageCreatePage = lazy(() => import('src/pages/dashboard/cms/pages-new'));
 const CMSPageDetailsPage = lazy(() => import('src/pages/dashboard/cms/pages-details'));
 const CMSPageEditPage = lazy(() => import('src/pages/dashboard/cms/pages-edit'));
@@ -193,6 +194,10 @@ export const dashboardRoutes = [
         path: 'cms',
         children: [
           { element: <CMSPagesListPage />, index: true },
+          {
+            path: 'about-us',
+            element: <CMSAboutPage />,
+          },
           {
             path: 'pages',
             children: [
