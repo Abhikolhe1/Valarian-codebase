@@ -52,6 +52,7 @@ const STATUS_OPTIONS = [
   { value: 'cancelled', label: 'Cancelled' },
   { value: 'returned', label: 'Returned' },
   { value: 'refunded', label: 'Refunded' },
+  { value: 'parcel_received', label: 'Parcel Received' },
 ];
 
 const PAYMENT_STATUS_OPTIONS = [

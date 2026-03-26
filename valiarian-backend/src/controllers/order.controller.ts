@@ -503,6 +503,10 @@ export class OrderController {
     };
   }
 
+  private isPrepaidOrder(order: Order): boolean {
+    return order.paymentMethod === 'razorpay' || order.paymentMethod === 'wallet';
+  }
+
   private async sendAdminStatusUpdateEmail(
     order: Order,
     status: string,
@@ -2062,6 +2066,7 @@ export class OrderController {
         'cancelled',
         'returned',
         'refunded',
+        'parcel_received',
       ];
 
       if (!validStatuses.includes(request.status)) {
@@ -2076,13 +2081,16 @@ export class OrderController {
         packed: ['shipped', 'cancelled'],
         shipped: ['delivered'],
         delivered: ['returned'],
-        cancelled: [],
-        returned: ['refunded'],
-        refunded: [],
+        cancelled: ['refunded', 'parcel_received'],
+        returned: ['refunded', 'parcel_received'],
+        refunded: ['parcel_received'],
+        parcel_received: [],
       };
 
+      const statusChanged = order.status !== request.status;
+
       if (
-        order.status !== request.status &&
+        statusChanged &&
         !statusTransitions[order.status]?.includes(request.status)
       ) {
         console.error(
@@ -2094,6 +2102,17 @@ export class OrderController {
         );
         throw new HttpErrors.BadRequest(
           `Cannot transition from '${order.status}' to '${request.status}'. Allowed transitions: ${statusTransitions[order.status]?.join(', ') || 'none'}`,
+        );
+      }
+
+      if (
+        statusChanged &&
+        request.status === 'parcel_received' &&
+        this.isPrepaidOrder(order) &&
+        order.paymentStatus !== 'refunded'
+      ) {
+        throw new HttpErrors.BadRequest(
+          'Prepaid orders can be marked as parcel received only after the payment is refunded.',
         );
       }
 
@@ -2120,9 +2139,29 @@ export class OrderController {
         updateData.deliveredAt = new Date();
       }
 
+      if (request.status === 'cancelled') {
+        updateData.cancelledAt = order.cancelledAt || new Date();
+      }
+
+      if (request.status === 'refunded') {
+        updateData.paymentStatus = 'refunded';
+        updateData.refundCompletedAt = new Date();
+        updateData.refundInitiatedAt = order.refundInitiatedAt || new Date();
+        updateData.refundAmount =
+          normalizeNumericValue(order.refundAmount) || order.total;
+      }
+
+      if (request.status === 'parcel_received') {
+        updateData.parcelReceivedAt = order.parcelReceivedAt || new Date();
+      }
+
       console.log(`[Admin] Updating order with data:`, updateData);
 
       await this.orderRepository.updateById(order.id, updateData);
+      if (statusChanged && request.status === 'parcel_received') {
+        await this.incrementOrderStock(order.items);
+        console.log(`[Admin] Stock restored for received parcel`);
+      }
       console.log(`[Admin] ✅ Order updated in database`);
 
       await this.orderStatusHistoryRepository.createStatusEntry(
@@ -2138,7 +2177,7 @@ export class OrderController {
       const updatedOrder = await this.orderRepository.findById(order.id);
       console.log(`[Admin] Updated order fetched successfully`);
 
-      if (order.status !== request.status) {
+      if (statusChanged) {
         try {
           await this.sendAdminStatusUpdateEmail(
             updatedOrder,
