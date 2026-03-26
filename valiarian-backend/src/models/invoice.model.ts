@@ -46,6 +46,11 @@ export class Invoice extends Entity {
     jsonSchema: {
       minimum: 0,
     },
+    postgresql: {
+      dataType: 'decimal',
+      precision: 10,
+      scale: 2,
+    },
   })
   totalAmount: number;
 
@@ -54,6 +59,11 @@ export class Invoice extends Entity {
     default: 0,
     jsonSchema: {
       minimum: 0,
+    },
+    postgresql: {
+      dataType: 'decimal',
+      precision: 10,
+      scale: 2,
     },
   })
   taxAmount: number;

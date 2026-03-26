@@ -14,6 +14,10 @@ import { useAuthContext } from 'src/auth/hooks';
 import { useBoolean } from 'src/hooks/use-boolean';
 // components
 import Iconify from 'src/components/iconify';
+import {
+  mapAddressToCheckoutBilling,
+  sanitizeAddressPayload,
+} from 'src/utils/address';
 // sections
 //
 import { AddressEditDialog, AddressItem, AddressNewForm } from '../../address';
@@ -29,31 +33,15 @@ export default function CheckoutBillingAddress({ checkout, onBackStep, onCreateB
   const [editingAddress, setEditingAddress] = useState(null);
   const { user } = useAuthContext();
 
-  const buildBillingAddress = (address, fallbackName, fallbackPhone) => ({
-    id: address.id,
-    name:
-      address.fullName ||
-      fallbackName ||
-      user?.fullName ||
-      user?.email ||
-      `Address ${address.id?.slice(-4)}`,
-    fullName:
-      address.fullName ||
-      fallbackName ||
-      user?.fullName ||
-      user?.email ||
-      `Address ${address.id?.slice(-4)}`,
-    fullAddress: `${address.address}, ${address.city}, ${address.state} ${address.zipCode}, ${address.country}`,
-    address: address.address,
-    city: address.city,
-    state: address.state,
-    country: address.country,
-    zipCode: String(address.zipCode),
-    phone: address.phone || fallbackPhone || user?.phone || '',
-    phoneNumber: address.phone || fallbackPhone || user?.phone || '',
-    addressType: address.isPrimary ? 'Primary' : 'Secondary',
-    primary: address.isPrimary,
-  });
+  const buildBillingAddress = (address, fallbackName, fallbackPhone) =>
+    mapAddressToCheckoutBilling(
+      {
+        ...address,
+        fullName: address.fullName || fallbackName,
+        mobileNumber: address.mobileNumber || address.phone || fallbackPhone,
+      },
+      user
+    );
 
   const handleEditAddress = (address) => {
     setEditingAddress(address);
@@ -185,19 +173,16 @@ export default function CheckoutBillingAddress({ checkout, onBackStep, onCreateB
         open={addressForm.value}
         onClose={addressForm.onFalse}
         onCreate={async (newAddress) => {
-          const createdAddress = await createAddress({
-            fullName: newAddress.name,
-            phone: newAddress.phoneNumber,
-            email: user?.email || undefined,
-            address: newAddress.address,
-            city: newAddress.city,
-            state: newAddress.state,
-            country: newAddress.country,
-            zipCode: newAddress.zipCode,
-            isPrimary: newAddress.isPrimary,
-          });
+          const sanitizedPayload = sanitizeAddressPayload(newAddress);
+          const createdAddress = await createAddress(sanitizedPayload);
 
-          onCreateBilling(buildBillingAddress(createdAddress, newAddress.name, newAddress.phoneNumber));
+          onCreateBilling(
+            buildBillingAddress(
+              createdAddress,
+              sanitizedPayload.fullName,
+              sanitizedPayload.mobileNumber
+            )
+          );
           addressForm.onFalse();
           mutate();
         }}

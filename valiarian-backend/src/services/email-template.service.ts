@@ -9,7 +9,23 @@ export class EmailTemplateService {
   private templatesPath: string;
 
   constructor() {
-    this.templatesPath = path.join(__dirname, '..', 'templates', 'emails');
+    this.templatesPath = this.resolveTemplatesPath();
+  }
+
+  private resolveTemplatesPath(): string {
+    const candidatePaths = [
+      path.join(__dirname, '..', 'templates', 'emails'),
+      path.join(process.cwd(), 'dist', 'templates', 'emails'),
+      path.join(process.cwd(), 'src', 'templates', 'emails'),
+    ];
+
+    const existingPath = candidatePaths.find(candidatePath => fs.existsSync(candidatePath));
+
+    if (existingPath) {
+      return existingPath;
+    }
+
+    return candidatePaths[0];
   }
 
   /**

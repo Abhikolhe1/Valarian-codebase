@@ -10,10 +10,42 @@ export class EmailService {
   constructor() { }
 
   async sendMail(mailObj: object): Promise<object> {
-    // const configOption = Utils.getSiteOptions();
-
     const transporter = nodemailer.createTransport(SITE_SETTINGS.email);
+    const payload = mailObj as Record<string, unknown>;
 
-    return await transporter.sendMail(mailObj);
+    console.log('[EmailService] sendMail called', {
+      host: SITE_SETTINGS.email.host,
+      port: SITE_SETTINGS.email.port,
+      secure: SITE_SETTINGS.email.secure,
+      authUser: SITE_SETTINGS.email.auth?.user,
+      from: payload?.from,
+      to: payload?.to,
+      cc: payload?.cc,
+      bcc: payload?.bcc,
+      subject: payload?.subject,
+    });
+
+    try {
+      const info = await transporter.sendMail(mailObj);
+      const infoRecord = info as unknown as Record<string, unknown>;
+
+      console.log('[EmailService] sendMail success', {
+        messageId: infoRecord?.messageId,
+        accepted: infoRecord?.accepted,
+        rejected: infoRecord?.rejected,
+        response: infoRecord?.response,
+      });
+
+      return info;
+    } catch (error: any) {
+      console.error('[EmailService] sendMail failed', {
+        message: error?.message,
+        code: error?.code,
+        command: error?.command,
+        response: error?.response,
+        responseCode: error?.responseCode,
+      });
+      throw error;
+    }
   }
 }

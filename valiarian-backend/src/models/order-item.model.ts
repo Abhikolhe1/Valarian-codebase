@@ -77,6 +77,11 @@ export class OrderItemEntity extends Entity {
     jsonSchema: {
       minimum: 0,
     },
+    postgresql: {
+      dataType: 'decimal',
+      precision: 5,
+      scale: 2,
+    },
   })
   gstRate?: number;
 
@@ -84,6 +89,11 @@ export class OrderItemEntity extends Entity {
     type: 'number',
     jsonSchema: {
       minimum: 0,
+    },
+    postgresql: {
+      dataType: 'decimal',
+      precision: 5,
+      scale: 2,
     },
   })
   cgstRate?: number;
@@ -93,6 +103,11 @@ export class OrderItemEntity extends Entity {
     jsonSchema: {
       minimum: 0,
     },
+    postgresql: {
+      dataType: 'decimal',
+      precision: 5,
+      scale: 2,
+    },
   })
   sgstRate?: number;
 
@@ -100,6 +115,11 @@ export class OrderItemEntity extends Entity {
     type: 'number',
     jsonSchema: {
       minimum: 0,
+    },
+    postgresql: {
+      dataType: 'decimal',
+      precision: 5,
+      scale: 2,
     },
   })
   igstRate?: number;

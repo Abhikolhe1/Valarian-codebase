@@ -1,16 +1,25 @@
 import {authenticate} from '@loopback/authentication';
 import {inject} from '@loopback/core';
 import {IsolationLevel, repository} from '@loopback/repository';
-import {get, HttpErrors, param, patch, post, Request, requestBody, RestBindings} from '@loopback/rest';
+import {
+  get,
+  HttpErrors,
+  param,
+  patch,
+  post,
+  Request,
+  requestBody,
+  RestBindings,
+} from '@loopback/rest';
 import {SecurityBindings, UserProfile} from '@loopback/security';
 import {v4 as uuidv4} from 'uuid';
 import {authorize} from '../authorization';
-import {Invoice, Order, OrderItemEntity, Payment} from '../models';
 import {ValiarianDataSource} from '../datasources';
+import {Invoice, Order, OrderItemEntity, Payment} from '../models';
 import {
   InvoiceRepository,
-  OrderRepository,
   OrderItemRepository,
+  OrderRepository,
   OrderStatusHistoryRepository,
   PaymentRepository,
   ProductRepository,
@@ -20,9 +29,23 @@ import {EmailTemplateService} from '../services/email-template.service';
 import {EmailService} from '../services/email.service';
 import {InvoiceGeneratorService} from '../services/invoice-generator.service';
 import {RazorpayService} from '../services/razorpay.service';
-import {buildInvoiceFromOrder, calculateInclusiveGstBreakup} from '../utils/invoice.utils';
+import {
+  buildInvoiceFromOrder,
+  calculateInclusiveGstBreakup,
+} from '../utils/invoice.utils';
 
 const roundCurrency = (value: number) => Number((value || 0).toFixed(2));
+const normalizeNumericValue = (value: unknown): number => {
+  if (typeof value === 'number') return value;
+  if (typeof value === 'string') {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+  return 0;
+};
+
+const formatCurrencyValue = (value: unknown): string =>
+  normalizeNumericValue(value).toFixed(2);
 
 interface CreateOrderRequest {
   cartItems: Array<{
@@ -99,7 +122,7 @@ export class OrderController {
     public emailTemplateService: EmailTemplateService,
     @inject('services.invoice.generator')
     public invoiceGeneratorService: InvoiceGeneratorService,
-  ) { }
+  ) {}
 
   private async buildOrderDraft(request: CreateOrderRequest) {
     if (!request.cartItems || request.cartItems.length === 0) {
@@ -109,7 +132,8 @@ export class OrderController {
     const orderItems = [];
     let subtotal = 0;
     let tax = 0;
-    const customerState = request.shippingAddress?.state || request.billingAddress?.state;
+    const customerState =
+      request.shippingAddress?.state || request.billingAddress?.state;
     const sellerState = process.env.COMPANY_STATE || 'Maharashtra';
 
     for (const item of request.cartItems) {
@@ -120,7 +144,9 @@ export class OrderController {
       }
 
       if (product.status !== 'published') {
-        throw new HttpErrors.BadRequest(`Product ${product.name} is not available`);
+        throw new HttpErrors.BadRequest(
+          `Product ${product.name} is not available`,
+        );
       }
 
       let availableStock = product.stockQuantity;
@@ -128,7 +154,9 @@ export class OrderController {
       let variantDetails = null;
 
       if (item.variantId) {
-        let variant = await this.productVariantRepository.findById(item.variantId).catch(() => null);
+        let variant = await this.productVariantRepository
+          .findById(item.variantId)
+          .catch(() => null);
 
         if (!variant && Array.isArray(product.variants)) {
           variant = product.variants.find(v => v.id === item.variantId) || null;
@@ -215,7 +243,9 @@ export class OrderController {
       const product = await this.productRepository.findById(item.productId);
 
       if (item.variantId) {
-        const variant = await this.productVariantRepository.findById(item.variantId).catch(() => null);
+        const variant = await this.productVariantRepository
+          .findById(item.variantId)
+          .catch(() => null);
 
         if (variant) {
           await this.productRepository.updateVariantStock(
@@ -232,7 +262,10 @@ export class OrderController {
               return productVariant;
             }
 
-            const nextStock = Math.max(0, (productVariant.stockQuantity || 0) - item.quantity);
+            const nextStock = Math.max(
+              0,
+              (productVariant.stockQuantity || 0) - item.quantity,
+            );
 
             return {
               ...productVariant,
@@ -269,15 +302,21 @@ export class OrderController {
 
   private async incrementOrderStock(orderItems: Array<any>) {
     for (const item of orderItems) {
-      const product = await this.productRepository.findById(item.productId).catch(() => null);
+      const product = await this.productRepository
+        .findById(item.productId)
+        .catch(() => null);
 
       if (!product) {
-        console.warn(`Skipping stock restore. Product ${item.productId} not found for cancelled order item.`);
+        console.warn(
+          `Skipping stock restore. Product ${item.productId} not found for cancelled order item.`,
+        );
         continue;
       }
 
       if (item.variantId) {
-        const variant = await this.productVariantRepository.findById(item.variantId).catch(() => null);
+        const variant = await this.productVariantRepository
+          .findById(item.variantId)
+          .catch(() => null);
 
         if (variant) {
           await this.productRepository.updateVariantStock(
@@ -289,7 +328,9 @@ export class OrderController {
         }
 
         if (Array.isArray(product.variants) && product.variants.length > 0) {
-          const hasVariantInProduct = product.variants.some(productVariant => productVariant.id === item.variantId);
+          const hasVariantInProduct = product.variants.some(
+            productVariant => productVariant.id === item.variantId,
+          );
 
           if (hasVariantInProduct) {
             const updatedVariants = product.variants.map(productVariant => {
@@ -297,7 +338,8 @@ export class OrderController {
                 return productVariant;
               }
 
-              const nextStock = (productVariant.stockQuantity || 0) + item.quantity;
+              const nextStock =
+                (productVariant.stockQuantity || 0) + item.quantity;
 
               return {
                 ...productVariant,
@@ -307,7 +349,8 @@ export class OrderController {
             });
 
             const totalStock = updatedVariants.reduce(
-              (sum, productVariant) => sum + (productVariant.stockQuantity || 0),
+              (sum, productVariant) =>
+                sum + (productVariant.stockQuantity || 0),
               0,
             );
 
@@ -333,36 +376,58 @@ export class OrderController {
     }
   }
 
-  private async sendOrderConfirmationEmail(order: Order, currentUser: UserProfile) {
+  private async sendOrderConfirmationEmail(
+    order: Order,
+    currentUser: UserProfile,
+  ) {
     try {
-      const emailHtml = await this.emailTemplateService.renderTemplate('order-confirmation', {
-        customerName: order.billingAddress.fullName,
+      const fromEmail = process.env.EMAIL_FROM || process.env.EMAIL_USER;
+      const recipientEmail = order.billingAddress.email || currentUser.email;
+      const emailHtml = await this.emailTemplateService.renderTemplate(
+        'order-confirmation',
+        {
+          customerName: order.billingAddress.fullName,
+          orderNumber: order.orderNumber,
+          items: order.items.map(item => ({
+            name: item.name,
+            quantity: item.quantity,
+            price: formatCurrencyValue(item.price),
+          })),
+          subtotal: formatCurrencyValue(order.subtotal),
+          discount:
+            normalizeNumericValue(order.discount) > 0
+              ? formatCurrencyValue(order.discount)
+              : null,
+          shipping: formatCurrencyValue(order.shipping),
+          tax: formatCurrencyValue(order.tax),
+          total: formatCurrencyValue(order.total),
+          shippingAddress: order.shippingAddress,
+          billingAddress: order.billingAddress,
+          trackOrderUrl: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/orders/${order.id}/tracking`,
+          year: new Date().getFullYear(),
+          companyName: 'Valiarian',
+        },
+      );
+
+      console.log('[Order Email] Sending order confirmation email', {
+        from: fromEmail,
+        to: recipientEmail,
         orderNumber: order.orderNumber,
-        items: order.items.map(item => ({
-          name: item.name,
-          quantity: item.quantity,
-          price: item.price.toFixed(2),
-        })),
-        subtotal: order.subtotal.toFixed(2),
-        discount: order.discount > 0 ? order.discount.toFixed(2) : null,
-        shipping: order.shipping.toFixed(2),
-        tax: order.tax.toFixed(2),
-        total: order.total.toFixed(2),
-        shippingAddress: order.shippingAddress,
-        billingAddress: order.billingAddress,
-        trackOrderUrl: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/orders/${order.id}/tracking`,
-        year: new Date().getFullYear(),
-        companyName: 'Valiarian',
       });
 
       await this.emailService.sendMail({
-        to: order.billingAddress.email || currentUser.email,
+        from: fromEmail,
+        to: recipientEmail,
         subject: `Order Confirmation - ${order.orderNumber}`,
         html: emailHtml,
       });
     } catch (emailError) {
       console.error('Error sending confirmation email:', emailError);
     }
+  }
+
+  private getOrderMailSender(): string {
+    return process.env.EMAIL_FROM || process.env.EMAIL_USER || '';
   }
 
   private getAdminOrderNotificationRecipients(): string[] {
@@ -381,57 +446,86 @@ export class OrderController {
 
   private async sendAdminOrderNotificationEmail(order: Order) {
     try {
+      const fromEmail = this.getOrderMailSender();
       const recipients = this.getAdminOrderNotificationRecipients();
 
       if (!recipients.length) {
+        console.warn(
+          '[Order Email] No admin notification recipients configured',
+          {
+            orderNumber: order.orderNumber,
+          },
+        );
         return;
       }
 
-      const emailHtml = await this.emailTemplateService.renderTemplate('admin-new-order-notification', {
-        customerName: order.billingAddress.fullName,
-        customerEmail: order.billingAddress.email || '-',
-        customerPhone: order.billingAddress.phone || '-',
+      const emailHtml = await this.emailTemplateService.renderTemplate(
+        'admin-new-order-notification',
+        {
+          customerName: order.billingAddress.fullName,
+          customerEmail: order.billingAddress.email || '-',
+          customerPhone: order.billingAddress.phone || '-',
+          orderNumber: order.orderNumber,
+          orderStatus: order.status,
+          paymentMethod: order.paymentMethod,
+          paymentStatus: order.paymentStatus,
+          items: order.items.map(item => ({
+            name: item.name,
+            quantity: item.quantity,
+            price: formatCurrencyValue(item.price),
+          })),
+          subtotal: formatCurrencyValue(order.subtotal),
+          shipping: formatCurrencyValue(order.shipping),
+          tax: formatCurrencyValue(order.tax),
+          discount:
+            normalizeNumericValue(order.discount) > 0
+              ? formatCurrencyValue(order.discount)
+              : null,
+          total: formatCurrencyValue(order.total),
+          shippingAddress: order.shippingAddress,
+          billingAddress: order.billingAddress,
+          adminOrderUrl: `${process.env.ADMIN_FRONTEND_URL || 'http://localhost:3001'}/orders/${order.id}`,
+          year: new Date().getFullYear(),
+          companyName: 'Valiarian',
+        },
+      );
+
+      console.log('[Order Email] Sending admin order notification email', {
+        from: fromEmail,
+        to: recipients,
         orderNumber: order.orderNumber,
-        orderStatus: order.status,
-        paymentMethod: order.paymentMethod,
-        paymentStatus: order.paymentStatus,
-        items: order.items.map(item => ({
-          name: item.name,
-          quantity: item.quantity,
-          price: item.price.toFixed(2),
-        })),
-        subtotal: order.subtotal.toFixed(2),
-        shipping: order.shipping.toFixed(2),
-        tax: order.tax.toFixed(2),
-        discount: order.discount > 0 ? order.discount.toFixed(2) : null,
-        total: order.total.toFixed(2),
-        shippingAddress: order.shippingAddress,
-        billingAddress: order.billingAddress,
-        adminOrderUrl: `${process.env.ADMIN_FRONTEND_URL || 'http://localhost:3001'}/orders/${order.id}`,
-        year: new Date().getFullYear(),
-        companyName: 'Valiarian',
       });
 
       await this.emailService.sendMail({
+        from: fromEmail,
         to: recipients.join(','),
         subject: `New Order Placed - ${order.orderNumber}`,
         html: emailHtml,
       });
     } catch (emailError) {
-      console.error('Error sending admin new order notification email:', emailError);
+      console.error(
+        'Error sending admin new order notification email:',
+        emailError,
+      );
     }
   }
 
   private normalizeVerifyPaymentRequest(request: VerifyPaymentRequest) {
     return {
       orderId: request.orderId,
-      razorpayOrderId: request.razorpayOrderId || request.razorpay_order_id || '',
-      razorpayPaymentId: request.razorpayPaymentId || request.razorpay_payment_id || '',
-      razorpaySignature: request.razorpaySignature || request.razorpay_signature || '',
+      razorpayOrderId:
+        request.razorpayOrderId || request.razorpay_order_id || '',
+      razorpayPaymentId:
+        request.razorpayPaymentId || request.razorpay_payment_id || '',
+      razorpaySignature:
+        request.razorpaySignature || request.razorpay_signature || '',
     };
   }
 
-  private buildOrderItemEntities(orderId: string, orderItems: Array<any>): Partial<OrderItemEntity>[] {
+  private buildOrderItemEntities(
+    orderId: string,
+    orderItems: Array<any>,
+  ): Partial<OrderItemEntity>[] {
     return orderItems.map(item => ({
       orderId,
       productId: item.productId,
@@ -453,27 +547,61 @@ export class OrderController {
     }));
   }
 
-  private async createInvoiceRecord(order: Order, options?: object): Promise<Invoice> {
-    const existingInvoice = await this.invoiceRepository.findOne({
-      where: {orderId: order.id},
-    }, options);
+  private async createInvoiceRecord(
+    order: Order,
+    options?: object,
+  ): Promise<Invoice> {
+    const existingInvoice = await this.invoiceRepository.findOne(
+      {
+        where: {orderId: order.id},
+      },
+      options,
+    );
 
     if (existingInvoice) {
       return existingInvoice;
     }
 
-    const invoicePayload = this.invoiceGeneratorService.buildInvoiceRecord(order);
+    const invoicePayload =
+      this.invoiceGeneratorService.buildInvoiceRecord(order);
 
-    return this.invoiceRepository.create({
-      orderId: order.id,
-      invoiceNumber: invoicePayload.invoiceNumber,
-      totalAmount: invoicePayload.totalAmount,
-      taxAmount: invoicePayload.taxAmount,
-      pdfUrl: invoicePayload.pdfUrl,
-    }, options);
+    return this.invoiceRepository.create(
+      {
+        orderId: order.id,
+        invoiceNumber: invoicePayload.invoiceNumber,
+        totalAmount: invoicePayload.totalAmount,
+        taxAmount: invoicePayload.taxAmount,
+        pdfUrl: invoicePayload.pdfUrl,
+      },
+      options,
+    );
   }
 
-  private async getOrderWithRelations(orderId: string, options?: object): Promise<Order> {
+  private async createInvoiceRecordSafely(
+    order: Order,
+    options?: object,
+  ): Promise<Invoice | null> {
+    try {
+      return await this.createInvoiceRecord(order, options);
+    } catch (error: any) {
+      console.error('[Order Invoice] Failed to create invoice record', {
+        orderId: order.id,
+        orderNumber: order.orderNumber,
+        totalAmount: order.totalAmount ?? order.total,
+        taxAmount: order.tax,
+        message: error?.message,
+        code: error?.code,
+        detail: error?.detail,
+      });
+
+      return null;
+    }
+  }
+
+  private async getOrderWithRelations(
+    orderId: string,
+    options?: object,
+  ): Promise<Order> {
     return this.orderRepository.findById(
       orderId,
       {
@@ -491,10 +619,18 @@ export class OrderController {
   private async verifyExistingPayment(
     request: VerifyPaymentRequest,
     currentUser: UserProfile,
-  ): Promise<{success: boolean; verified: boolean; status: string; order: Order; invoice: any}> {
+  ): Promise<{
+    success: boolean;
+    verified: boolean;
+    status: string;
+    order: Order;
+    invoice: any;
+  }> {
     const normalizedRequest = this.normalizeVerifyPaymentRequest(request);
     const userId = currentUser.id;
-    const transaction = await this.dataSource.beginTransaction(IsolationLevel.READ_COMMITTED);
+    const transaction = await this.dataSource.beginTransaction(
+      IsolationLevel.READ_COMMITTED,
+    );
     let transactionCompleted = false;
 
     try {
@@ -517,12 +653,22 @@ export class OrderController {
       }
 
       if (!payment) {
-        throw new HttpErrors.NotFound('Payment record not found for this order');
+        throw new HttpErrors.NotFound(
+          'Payment record not found for this order',
+        );
       }
 
-      if (payment.status === 'success' || order.paymentStatus === 'success' || order.paymentStatus === 'paid') {
-        const existingOrder = await this.getOrderWithRelations(order.id, {transaction});
-        const invoice = await this.createInvoiceRecord(order, {transaction});
+      if (
+        payment.status === 'success' ||
+        order.paymentStatus === 'success' ||
+        order.paymentStatus === 'paid'
+      ) {
+        const existingOrder = await this.getOrderWithRelations(order.id, {
+          transaction,
+        });
+        const invoice = await this.createInvoiceRecordSafely(order, {
+          transaction,
+        });
 
         await transaction.commit();
 
@@ -548,10 +694,14 @@ export class OrderController {
       const isMatchingPayment =
         razorpayPayment?.order_id === normalizedRequest.razorpayOrderId &&
         razorpayPayment?.id === normalizedRequest.razorpayPaymentId;
-      const paymentGatewayStatus = String(razorpayPayment?.status || '').toLowerCase();
-      const isCapturedPayment = isMatchingPayment && paymentGatewayStatus === 'captured';
+      const paymentGatewayStatus = String(
+        razorpayPayment?.status || '',
+      ).toLowerCase();
+      const isCapturedPayment =
+        isMatchingPayment && paymentGatewayStatus === 'captured';
       const isPendingPayment =
-        isMatchingPayment && ['created', 'authorized', 'pending'].includes(paymentGatewayStatus);
+        isMatchingPayment &&
+        ['created', 'authorized', 'pending'].includes(paymentGatewayStatus);
 
       if (!isValid) {
         await this.paymentRepository.updateById(
@@ -701,7 +851,7 @@ export class OrderController {
 
       await this.decrementOrderStock(order.items);
 
-      const invoice = await this.createInvoiceRecord(updatedOrder);
+      const invoice = await this.createInvoiceRecordSafely(updatedOrder);
       await this.sendOrderConfirmationEmail(updatedOrder, currentUser);
       await this.sendAdminOrderNotificationEmail(updatedOrder);
 
@@ -750,7 +900,8 @@ export class OrderController {
         await this.paymentRepository.updateById(payment.id, {
           status: 'failed',
           razorpayOrderId: request.razorpayOrderId || payment.razorpayOrderId,
-          razorpayPaymentId: request.razorpayPaymentId || payment.razorpayPaymentId,
+          razorpayPaymentId:
+            request.razorpayPaymentId || payment.razorpayPaymentId,
         });
       }
 
@@ -769,14 +920,18 @@ export class OrderController {
       return {
         success: true,
         order: await this.getOrderWithRelations(order.id),
-        payment: payment ? await this.paymentRepository.findById(payment.id) : null,
+        payment: payment
+          ? await this.paymentRepository.findById(payment.id)
+          : null,
       };
     } catch (error) {
       console.error('Error marking payment failure:', error);
       if (error instanceof HttpErrors.HttpError) {
         throw error;
       }
-      throw new HttpErrors.InternalServerError(`Failed to mark payment failure: ${error.message}`);
+      throw new HttpErrors.InternalServerError(
+        `Failed to mark payment failure: ${error.message}`,
+      );
     }
   }
 
@@ -786,7 +941,12 @@ export class OrderController {
   async getOrderStatus(
     @param.path.string('orderId') orderId: string,
     @inject(SecurityBindings.USER) currentUser: UserProfile,
-  ): Promise<{success: boolean; orderId: string; status: string; paymentStatus: string}> {
+  ): Promise<{
+    success: boolean;
+    orderId: string;
+    status: string;
+    paymentStatus: string;
+  }> {
     try {
       const order = await this.orderRepository.findById(orderId);
 
@@ -809,8 +969,10 @@ export class OrderController {
       if (error instanceof HttpErrors.HttpError) {
         throw error;
       }
-      throw new HttpErrors.InternalServerError(`Failed to fetch order status: ${error.message}`);
-    };
+      throw new HttpErrors.InternalServerError(
+        `Failed to fetch order status: ${error.message}`,
+      );
+    }
   }
 
   @post('/api/orders/prepare-payment')
@@ -825,17 +987,28 @@ export class OrderController {
     razorpayOrderId: string;
     amount: number;
     currency: string;
-    totals: {subtotal: number; discount: number; shipping: number; tax: number; total: number};
+    totals: {
+      subtotal: number;
+      discount: number;
+      shipping: number;
+      tax: number;
+      total: number;
+    };
   }> {
     try {
       if (request.paymentMethod !== 'razorpay') {
-        throw new HttpErrors.BadRequest('Prepare payment is only available for Razorpay orders');
+        throw new HttpErrors.BadRequest(
+          'Prepare payment is only available for Razorpay orders',
+        );
       }
 
-      const {subtotal, discount, shipping, tax, total} = await this.buildOrderDraft(request);
+      const {subtotal, discount, shipping, tax, total} =
+        await this.buildOrderDraft(request);
       const orderNumber =
         request.orderNumber ||
-        (await this.orderRepository.generateOrderNumber(process.env.ORDER_PREFIX || 'ORD'));
+        (await this.orderRepository.generateOrderNumber(
+          process.env.ORDER_PREFIX || 'ORD',
+        ));
 
       const razorpayOrder = await this.razorpayService.createOrder(
         Math.round(total * 100),
@@ -857,7 +1030,9 @@ export class OrderController {
       if (error instanceof HttpErrors.HttpError) {
         throw error;
       }
-      throw new HttpErrors.InternalServerError(`Failed to prepare payment: ${error.message}`);
+      throw new HttpErrors.InternalServerError(
+        `Failed to prepare payment: ${error.message}`,
+      );
     }
   }
 
@@ -885,11 +1060,15 @@ export class OrderController {
 
       const orderNumber =
         request.orderNumber ||
-        (await this.orderRepository.generateOrderNumber(process.env.ORDER_PREFIX || 'ORD'));
+        (await this.orderRepository.generateOrderNumber(
+          process.env.ORDER_PREFIX || 'ORD',
+        ));
 
       let razorpayOrderId: string | undefined;
-      let paymentStatus: Order['paymentStatus'] = request.paymentMethod === 'razorpay' ? 'created' : 'pending';
-      let status: Order['status'] = request.paymentMethod === 'cod' ? 'confirmed' : 'pending';
+      let paymentStatus: Order['paymentStatus'] =
+        request.paymentMethod === 'razorpay' ? 'created' : 'pending';
+      let status: Order['status'] =
+        request.paymentMethod === 'cod' ? 'confirmed' : 'pending';
       let razorpayPaymentId: string | undefined;
       let razorpaySignature: string | undefined;
 
@@ -944,7 +1123,9 @@ export class OrderController {
         updatedAt: new Date(),
       });
 
-      await this.orderItemRepository.createAll(this.buildOrderItemEntities(order.id, orderItems));
+      await this.orderItemRepository.createAll(
+        this.buildOrderItemEntities(order.id, orderItems),
+      );
 
       let paymentRecord: Payment | null = null;
 
@@ -971,14 +1152,49 @@ export class OrderController {
             : 'Order created and payment initialized',
       );
 
-      let invoice: Invoice | ReturnType<typeof buildInvoiceFromOrder> = buildInvoiceFromOrder(order);
+      let invoice: Invoice | ReturnType<typeof buildInvoiceFromOrder> =
+        buildInvoiceFromOrder(order);
 
       if (order.status === 'confirmed') {
+        console.log(
+          '[Order Email] Order is confirmed during createOrder, sending emails',
+          {
+            orderId: order.id,
+            orderNumber: order.orderNumber,
+            paymentMethod: order.paymentMethod,
+            paymentStatus: order.paymentStatus,
+            status: order.status,
+          },
+        );
         await this.decrementOrderStock(order.items);
         if (request.paymentMethod === 'razorpay') {
           invoice = await this.createInvoiceRecord(order);
         }
         await this.sendOrderConfirmationEmail(order, currentUser);
+        await this.sendAdminOrderNotificationEmail(order);
+      } else if (request.paymentMethod === 'razorpay') {
+        console.log(
+          '[Order Email] Skipping prepaid order emails in createOrder until payment succeeds',
+          {
+            orderId: order.id,
+            orderNumber: order.orderNumber,
+            paymentMethod: order.paymentMethod,
+            paymentStatus: order.paymentStatus,
+            status: order.status,
+          },
+        );
+      } else {
+        console.log(
+          '[Order Email] Sending admin notification for non-prepaid order creation',
+          {
+            orderId: order.id,
+            orderNumber: order.orderNumber,
+            paymentMethod: order.paymentMethod,
+            paymentStatus: order.paymentStatus,
+            status: order.status,
+            adminRecipients: this.getAdminOrderNotificationRecipients(),
+          },
+        );
         await this.sendAdminOrderNotificationEmail(order);
       }
 
@@ -998,7 +1214,9 @@ export class OrderController {
       if (error instanceof HttpErrors.HttpError) {
         throw error;
       }
-      throw new HttpErrors.InternalServerError(`Failed to create order: ${error.message}`);
+      throw new HttpErrors.InternalServerError(
+        `Failed to create order: ${error.message}`,
+      );
     }
   }
 
@@ -1009,7 +1227,13 @@ export class OrderController {
     @requestBody()
     request: VerifyPaymentRequest,
     @inject(SecurityBindings.USER) currentUser: UserProfile,
-  ): Promise<{success: boolean; verified: boolean; status: string; order: Order; invoice: any}> {
+  ): Promise<{
+    success: boolean;
+    verified: boolean;
+    status: string;
+    order: Order;
+    invoice: any;
+  }> {
     try {
       return this.verifyExistingPayment(request, currentUser);
     } catch (error) {
@@ -1017,7 +1241,9 @@ export class OrderController {
       if (error instanceof HttpErrors.HttpError) {
         throw error;
       }
-      throw new HttpErrors.InternalServerError(`Failed to verify payment: ${error.message}`);
+      throw new HttpErrors.InternalServerError(
+        `Failed to verify payment: ${error.message}`,
+      );
     }
   }
 
@@ -1027,7 +1253,13 @@ export class OrderController {
   async verifyPaymentAlias(
     @requestBody() request: VerifyPaymentRequest,
     @inject(SecurityBindings.USER) currentUser: UserProfile,
-  ): Promise<{success: boolean; verified: boolean; status: string; order: Order; invoice: any}> {
+  ): Promise<{
+    success: boolean;
+    verified: boolean;
+    status: string;
+    order: Order;
+    invoice: any;
+  }> {
     try {
       return this.verifyExistingPayment(request, currentUser);
     } catch (error) {
@@ -1035,7 +1267,9 @@ export class OrderController {
       if (error instanceof HttpErrors.HttpError) {
         throw error;
       }
-      throw new HttpErrors.InternalServerError(`Failed to verify payment: ${error.message}`);
+      throw new HttpErrors.InternalServerError(
+        `Failed to verify payment: ${error.message}`,
+      );
     }
   }
 
@@ -1051,7 +1285,12 @@ export class OrderController {
   ): Promise<{
     success: boolean;
     orders: Order[];
-    pagination: {total: number; page: number; limit: number; totalPages: number};
+    pagination: {
+      total: number;
+      page: number;
+      limit: number;
+      totalPages: number;
+    };
   }> {
     try {
       if (currentUser.id !== userId) {
@@ -1092,7 +1331,9 @@ export class OrderController {
       if (error instanceof HttpErrors.HttpError) {
         throw error;
       }
-      throw new HttpErrors.InternalServerError(`Failed to fetch orders: ${error.message}`);
+      throw new HttpErrors.InternalServerError(
+        `Failed to fetch orders: ${error.message}`,
+      );
     }
   }
 
@@ -1102,7 +1343,12 @@ export class OrderController {
   async getOrderDetails(
     @param.path.string('orderId') orderId: string,
     @inject(SecurityBindings.USER) currentUser: UserProfile,
-  ): Promise<{success: boolean; order: Order; statusHistory: any[]; invoice: any}> {
+  ): Promise<{
+    success: boolean;
+    order: Order;
+    statusHistory: any[];
+    invoice: any;
+  }> {
     try {
       const order = await this.orderRepository.findById(orderId);
 
@@ -1119,13 +1365,20 @@ export class OrderController {
         order: ['createdAt DESC'],
       });
 
-      return {success: true, order, statusHistory, invoice: buildInvoiceFromOrder(order)};
+      return {
+        success: true,
+        order,
+        statusHistory,
+        invoice: buildInvoiceFromOrder(order),
+      };
     } catch (error) {
       console.error('Error fetching order details:', error);
       if (error instanceof HttpErrors.HttpError) {
         throw error;
       }
-      throw new HttpErrors.InternalServerError(`Failed to fetch order details: ${error.message}`);
+      throw new HttpErrors.InternalServerError(
+        `Failed to fetch order details: ${error.message}`,
+      );
     }
   }
 
@@ -1157,7 +1410,9 @@ export class OrderController {
       if (error instanceof HttpErrors.HttpError) {
         throw error;
       }
-      throw new HttpErrors.InternalServerError(`Failed to fetch invoice: ${error.message}`);
+      throw new HttpErrors.InternalServerError(
+        `Failed to fetch invoice: ${error.message}`,
+      );
     }
   }
 
@@ -1218,7 +1473,9 @@ export class OrderController {
       if (error instanceof HttpErrors.HttpError) {
         throw error;
       }
-      throw new HttpErrors.InternalServerError(`Failed to fetch tracking: ${error.message}`);
+      throw new HttpErrors.InternalServerError(
+        `Failed to fetch tracking: ${error.message}`,
+      );
     }
   }
 
@@ -1282,22 +1539,30 @@ export class OrderController {
       await this.incrementOrderStock(order.items);
 
       try {
-        const emailHtml = await this.emailTemplateService.renderTemplate('cancellation-confirmation', {
-          customerName: order.billingAddress.fullName,
-          orderNumber: order.orderNumber,
-          cancellationReason: request.reason,
-          orderDate: order.createdAt ? order.createdAt.toLocaleDateString() : new Date().toLocaleDateString(),
-          items: order.items.map(item => ({
-            name: item.name,
-            quantity: item.quantity,
-            price: item.price.toFixed(2),
-          })),
-          total: order.total.toFixed(2),
-          refundAmount: order.paymentStatus === 'paid' ? order.total.toFixed(2) : null,
-          refundProcessingDays: '5-7',
-          year: new Date().getFullYear(),
-          companyName: 'Valiarian',
-        });
+        const emailHtml = await this.emailTemplateService.renderTemplate(
+          'cancellation-confirmation',
+          {
+            customerName: order.billingAddress.fullName,
+            orderNumber: order.orderNumber,
+            cancellationReason: request.reason,
+            orderDate: order.createdAt
+              ? order.createdAt.toLocaleDateString()
+              : new Date().toLocaleDateString(),
+            items: order.items.map(item => ({
+              name: item.name,
+              quantity: item.quantity,
+              price: formatCurrencyValue(item.price),
+            })),
+            total: formatCurrencyValue(order.total),
+            refundAmount:
+              order.paymentStatus === 'paid'
+                ? formatCurrencyValue(order.total)
+                : null,
+            refundProcessingDays: '5-7',
+            year: new Date().getFullYear(),
+            companyName: 'Valiarian',
+          },
+        );
 
         await this.emailService.sendMail({
           to: order.billingAddress.email || currentUser.email,
@@ -1316,7 +1581,9 @@ export class OrderController {
       if (error instanceof HttpErrors.HttpError) {
         throw error;
       }
-      throw new HttpErrors.InternalServerError(`Failed to cancel order: ${error.message}`);
+      throw new HttpErrors.InternalServerError(
+        `Failed to cancel order: ${error.message}`,
+      );
     }
   }
 
@@ -1340,14 +1607,19 @@ export class OrderController {
       }
 
       if (order.status !== 'delivered') {
-        throw new HttpErrors.BadRequest('Only delivered orders can be returned');
+        throw new HttpErrors.BadRequest(
+          'Only delivered orders can be returned',
+        );
       }
 
       if (!order.deliveredAt) {
         throw new HttpErrors.BadRequest('Order delivery date not found');
       }
 
-      const returnWindowDays = parseInt(process.env.RETURN_WINDOW_DAYS || '7', 10);
+      const returnWindowDays = parseInt(
+        process.env.RETURN_WINDOW_DAYS || '7',
+        10,
+      );
       const returnWindowMs = returnWindowDays * 24 * 60 * 60 * 1000;
       const deliveryTime = new Date(order.deliveredAt).getTime();
       const currentTime = new Date().getTime();
@@ -1375,22 +1647,27 @@ export class OrderController {
       );
 
       try {
-        const emailHtml = await this.emailTemplateService.renderTemplate('return-request-received', {
-          customerName: order.billingAddress.fullName,
-          orderNumber: order.orderNumber,
-          returnReason: request.reason,
-          orderDate: order.createdAt ? order.createdAt.toLocaleDateString() : new Date().toLocaleDateString(),
-          deliveryDate: order.deliveredAt?.toLocaleDateString(),
-          items: order.items.map(item => ({
-            name: item.name,
-            quantity: item.quantity,
-            price: item.price.toFixed(2),
-          })),
-          total: order.total.toFixed(2),
-          processingTime: '24-48 hours',
-          year: new Date().getFullYear(),
-          companyName: 'Valiarian',
-        });
+        const emailHtml = await this.emailTemplateService.renderTemplate(
+          'return-request-received',
+          {
+            customerName: order.billingAddress.fullName,
+            orderNumber: order.orderNumber,
+            returnReason: request.reason,
+            orderDate: order.createdAt
+              ? order.createdAt.toLocaleDateString()
+              : new Date().toLocaleDateString(),
+            deliveryDate: order.deliveredAt?.toLocaleDateString(),
+            items: order.items.map(item => ({
+              name: item.name,
+              quantity: item.quantity,
+              price: formatCurrencyValue(item.price),
+            })),
+            total: formatCurrencyValue(order.total),
+            processingTime: '24-48 hours',
+            year: new Date().getFullYear(),
+            companyName: 'Valiarian',
+          },
+        );
 
         await this.emailService.sendMail({
           to: order.billingAddress.email || currentUser.email,
@@ -1409,7 +1686,9 @@ export class OrderController {
       if (error instanceof HttpErrors.HttpError) {
         throw error;
       }
-      throw new HttpErrors.InternalServerError(`Failed to process return: ${error.message}`);
+      throw new HttpErrors.InternalServerError(
+        `Failed to process return: ${error.message}`,
+      );
     }
   }
 
@@ -1428,7 +1707,12 @@ export class OrderController {
   ): Promise<{
     success: boolean;
     orders: any[];
-    pagination: {total: number; page: number; limit: number; totalPages: number};
+    pagination: {
+      total: number;
+      page: number;
+      limit: number;
+      totalPages: number;
+    };
   }> {
     try {
       const skip = (page - 1) * limit;
@@ -1443,9 +1727,7 @@ export class OrderController {
       }
 
       if (search) {
-        where.or = [
-          {orderNumber: {like: `%${search}%`, options: 'i'}},
-        ];
+        where.or = [{orderNumber: {like: `%${search}%`, options: 'i'}}];
       }
 
       const orderClause = [`${sortBy} ${sortOrder.toUpperCase()}`];
@@ -1478,7 +1760,9 @@ export class OrderController {
       if (error instanceof HttpErrors.HttpError) {
         throw error;
       }
-      throw new HttpErrors.InternalServerError(`Failed to fetch orders: ${error.message}`);
+      throw new HttpErrors.InternalServerError(
+        `Failed to fetch orders: ${error.message}`,
+      );
     }
   }
 
@@ -1521,10 +1805,13 @@ export class OrderController {
             fields: ['id', 'orderNumber'],
             limit: 10,
           });
-          console.log('[Admin] Available order IDs:', allOrders.map(o => ({
-            id: o.id,
-            orderNumber: o.orderNumber
-          })));
+          console.log(
+            '[Admin] Available order IDs:',
+            allOrders.map(o => ({
+              id: o.id,
+              orderNumber: o.orderNumber,
+            })),
+          );
         } catch (listError) {
           console.error('[Admin] Could not list available orders:', listError);
         }
@@ -1533,7 +1820,9 @@ export class OrderController {
       if (error instanceof HttpErrors.HttpError) {
         throw error;
       }
-      throw new HttpErrors.InternalServerError(`Failed to fetch order details: ${error.message}`);
+      throw new HttpErrors.InternalServerError(
+        `Failed to fetch order details: ${error.message}`,
+      );
     }
   }
 
@@ -1598,8 +1887,13 @@ export class OrderController {
         order.status !== request.status &&
         !statusTransitions[order.status]?.includes(request.status)
       ) {
-        console.error(`[Admin] Invalid transition from '${order.status}' to '${request.status}'`);
-        console.error(`[Admin] Allowed transitions from '${order.status}':`, statusTransitions[order.status]);
+        console.error(
+          `[Admin] Invalid transition from '${order.status}' to '${request.status}'`,
+        );
+        console.error(
+          `[Admin] Allowed transitions from '${order.status}':`,
+          statusTransitions[order.status],
+        );
         throw new HttpErrors.BadRequest(
           `Cannot transition from '${order.status}' to '${request.status}'. Allowed transitions: ${statusTransitions[order.status]?.join(', ') || 'none'}`,
         );
@@ -1664,8 +1958,13 @@ export class OrderController {
         throw error;
       }
 
-      console.error('Throwing InternalServerError with message:', error.message);
-      throw new HttpErrors.InternalServerError(`Failed to update order status: ${error.message}`);
+      console.error(
+        'Throwing InternalServerError with message:',
+        error.message,
+      );
+      throw new HttpErrors.InternalServerError(
+        `Failed to update order status: ${error.message}`,
+      );
     }
   }
 
@@ -1691,10 +1990,13 @@ export class OrderController {
       }
 
       if (!['approve', 'reject'].includes(request.action)) {
-        throw new HttpErrors.BadRequest('Action must be either "approve" or "reject"');
+        throw new HttpErrors.BadRequest(
+          'Action must be either "approve" or "reject"',
+        );
       }
 
-      const newReturnStatus = request.action === 'approve' ? 'approved' : 'rejected';
+      const newReturnStatus =
+        request.action === 'approve' ? 'approved' : 'rejected';
 
       await this.orderRepository.updateById(order.id, {
         returnStatus: newReturnStatus,
@@ -1710,20 +2012,24 @@ export class OrderController {
 
       try {
         if (request.action === 'approve') {
-          const emailHtml = await this.emailTemplateService.renderTemplate('return-approved', {
-            customerName: order.billingAddress.fullName,
-            orderNumber: order.orderNumber,
-            approvalDate: new Date().toLocaleDateString(),
-            returnReason: order.returnReason || 'Not specified',
-            adminComment: request.comment || '',
-            items: order.items.map(item => ({
-              name: item.name,
-              quantity: item.quantity,
-            })),
-            nextSteps: 'Our team will contact you shortly to schedule a pickup.',
-            year: new Date().getFullYear(),
-            companyName: 'Valiarian',
-          });
+          const emailHtml = await this.emailTemplateService.renderTemplate(
+            'return-approved',
+            {
+              customerName: order.billingAddress.fullName,
+              orderNumber: order.orderNumber,
+              approvalDate: new Date().toLocaleDateString(),
+              returnReason: order.returnReason || 'Not specified',
+              adminComment: request.comment || '',
+              items: order.items.map(item => ({
+                name: item.name,
+                quantity: item.quantity,
+              })),
+              nextSteps:
+                'Our team will contact you shortly to schedule a pickup.',
+              year: new Date().getFullYear(),
+              companyName: 'Valiarian',
+            },
+          );
 
           await this.emailService.sendMail({
             to: order.billingAddress.email,
@@ -1731,19 +2037,24 @@ export class OrderController {
             html: emailHtml,
           });
         } else {
-          const emailHtml = await this.emailTemplateService.renderTemplate('return-rejected', {
-            customerName: order.billingAddress.fullName,
-            orderNumber: order.orderNumber,
-            rejectionDate: new Date().toLocaleDateString(),
-            returnReason: order.returnReason || 'Not specified',
-            rejectionReason: request.comment || 'Return request does not meet our return policy criteria.',
-            items: order.items.map(item => ({
-              name: item.name,
-              quantity: item.quantity,
-            })),
-            year: new Date().getFullYear(),
-            companyName: 'Valiarian',
-          });
+          const emailHtml = await this.emailTemplateService.renderTemplate(
+            'return-rejected',
+            {
+              customerName: order.billingAddress.fullName,
+              orderNumber: order.orderNumber,
+              rejectionDate: new Date().toLocaleDateString(),
+              returnReason: order.returnReason || 'Not specified',
+              rejectionReason:
+                request.comment ||
+                'Return request does not meet our return policy criteria.',
+              items: order.items.map(item => ({
+                name: item.name,
+                quantity: item.quantity,
+              })),
+              year: new Date().getFullYear(),
+              companyName: 'Valiarian',
+            },
+          );
 
           await this.emailService.sendMail({
             to: order.billingAddress.email,
@@ -1763,7 +2074,9 @@ export class OrderController {
       if (error instanceof HttpErrors.HttpError) {
         throw error;
       }
-      throw new HttpErrors.InternalServerError(`Failed to process return: ${error.message}`);
+      throw new HttpErrors.InternalServerError(
+        `Failed to process return: ${error.message}`,
+      );
     }
   }
 
@@ -1818,7 +2131,10 @@ export class OrderController {
         refundId = refund.id;
         console.log('[Admin] Razorpay refund created:', refundId);
       } catch (razorpayError: any) {
-        console.warn('[Admin] Razorpay refund failed (possibly test order):', razorpayError.message);
+        console.warn(
+          '[Admin] Razorpay refund failed (possibly test order):',
+          razorpayError.message,
+        );
         // For test orders or when Razorpay fails, create a mock refund
         refund = {
           id: refundId,
@@ -1851,18 +2167,21 @@ export class OrderController {
       );
 
       try {
-        const emailHtml = await this.emailTemplateService.renderTemplate('refund-initiated', {
-          customerName: order.billingAddress.fullName,
-          orderNumber: order.orderNumber,
-          refundAmount: request.amount.toFixed(2),
-          refundReason: request.reason,
-          refundDate: new Date().toLocaleDateString(),
-          refundTransactionId: refundId,
-          processingDays: '5-7',
-          originalAmount: order.total.toFixed(2),
-          year: new Date().getFullYear(),
-          companyName: 'Valiarian',
-        });
+        const emailHtml = await this.emailTemplateService.renderTemplate(
+          'refund-initiated',
+          {
+            customerName: order.billingAddress.fullName,
+            orderNumber: order.orderNumber,
+            refundAmount: request.amount.toFixed(2),
+            refundReason: request.reason,
+            refundDate: new Date().toLocaleDateString(),
+            refundTransactionId: refundId,
+            processingDays: '5-7',
+            originalAmount: formatCurrencyValue(order.total),
+            year: new Date().getFullYear(),
+            companyName: 'Valiarian',
+          },
+        );
 
         await this.emailService.sendMail({
           to: order.billingAddress.email,
@@ -1881,7 +2200,9 @@ export class OrderController {
       if (error instanceof HttpErrors.HttpError) {
         throw error;
       }
-      throw new HttpErrors.InternalServerError(`Failed to initiate refund: ${error.message}`);
+      throw new HttpErrors.InternalServerError(
+        `Failed to initiate refund: ${error.message}`,
+      );
     }
   }
 
@@ -1921,7 +2242,9 @@ export class OrderController {
       if (error instanceof HttpErrors.HttpError) {
         throw error;
       }
-      throw new HttpErrors.InternalServerError(`Failed to add notes: ${error.message}`);
+      throw new HttpErrors.InternalServerError(
+        `Failed to add notes: ${error.message}`,
+      );
     }
   }
 
@@ -1945,7 +2268,10 @@ export class OrderController {
       }
 
       const rawBody = JSON.stringify(body);
-      const isValid = this.razorpayService.verifyWebhookSignature(rawBody, signature);
+      const isValid = this.razorpayService.verifyWebhookSignature(
+        rawBody,
+        signature,
+      );
 
       if (!isValid) {
         console.error('Invalid webhook signature');
@@ -1993,14 +2319,26 @@ export class OrderController {
       const payment = payload.payment.entity;
       const razorpayOrderId = payment.order_id;
 
-      const order = await this.orderRepository.findByRazorpayOrderId(razorpayOrderId);
+      const order =
+        await this.orderRepository.findByRazorpayOrderId(razorpayOrderId);
 
       if (!order) {
-        console.error(`Order not found for Razorpay order ID: ${razorpayOrderId}`);
+        console.error(
+          `Order not found for Razorpay order ID: ${razorpayOrderId}`,
+        );
         return;
       }
 
       if (order.status === 'pending') {
+        console.log(
+          '[Order Email] Payment captured webhook confirmed pending order, sending emails',
+          {
+            orderId: order.id,
+            orderNumber: order.orderNumber,
+            previousStatus: order.status,
+            paymentId: payment.id,
+          },
+        );
         await this.orderRepository.updateById(order.id, {
           status: 'confirmed',
           paymentStatus: 'paid',
@@ -2018,33 +2356,43 @@ export class OrderController {
         const updatedOrder = await this.orderRepository.findById(order.id);
 
         try {
-          const emailHtml = await this.emailTemplateService.renderTemplate('order-confirmation', {
-            customerName: updatedOrder.billingAddress.fullName,
-            orderNumber: updatedOrder.orderNumber,
-            items: updatedOrder.items.map(item => ({
-              name: item.name,
-              quantity: item.quantity,
-              price: item.price.toFixed(2),
-            })),
-            subtotal: updatedOrder.subtotal.toFixed(2),
-            discount: updatedOrder.discount > 0 ? updatedOrder.discount.toFixed(2) : null,
-            shipping: updatedOrder.shipping.toFixed(2),
-            tax: updatedOrder.tax.toFixed(2),
-            total: updatedOrder.total.toFixed(2),
-            shippingAddress: updatedOrder.shippingAddress,
-            billingAddress: updatedOrder.billingAddress,
-            trackOrderUrl: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/orders/${updatedOrder.id}/tracking`,
-            year: new Date().getFullYear(),
-            companyName: 'Valiarian',
-          });
+          const emailHtml = await this.emailTemplateService.renderTemplate(
+            'order-confirmation',
+            {
+              customerName: updatedOrder.billingAddress.fullName,
+              orderNumber: updatedOrder.orderNumber,
+              items: updatedOrder.items.map(item => ({
+                name: item.name,
+                quantity: item.quantity,
+                price: formatCurrencyValue(item.price),
+              })),
+              subtotal: formatCurrencyValue(updatedOrder.subtotal),
+              discount:
+                normalizeNumericValue(updatedOrder.discount) > 0
+                  ? formatCurrencyValue(updatedOrder.discount)
+                  : null,
+              shipping: formatCurrencyValue(updatedOrder.shipping),
+              tax: formatCurrencyValue(updatedOrder.tax),
+              total: formatCurrencyValue(updatedOrder.total),
+              shippingAddress: updatedOrder.shippingAddress,
+              billingAddress: updatedOrder.billingAddress,
+              trackOrderUrl: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/orders/${updatedOrder.id}/tracking`,
+              year: new Date().getFullYear(),
+              companyName: 'Valiarian',
+            },
+          );
 
           await this.emailService.sendMail({
+            from: this.getOrderMailSender(),
             to: updatedOrder.billingAddress.email,
             subject: `Payment Confirmed - ${updatedOrder.orderNumber}`,
             html: emailHtml,
           });
         } catch (emailError) {
-          console.error('Error sending payment confirmation email:', emailError);
+          console.error(
+            'Error sending payment confirmation email:',
+            emailError,
+          );
         }
 
         await this.sendAdminOrderNotificationEmail(updatedOrder);
@@ -2059,10 +2407,13 @@ export class OrderController {
       const payment = payload.payment.entity;
       const razorpayOrderId = payment.order_id;
 
-      const order = await this.orderRepository.findByRazorpayOrderId(razorpayOrderId);
+      const order =
+        await this.orderRepository.findByRazorpayOrderId(razorpayOrderId);
 
       if (!order) {
-        console.error(`Order not found for Razorpay order ID: ${razorpayOrderId}`);
+        console.error(
+          `Order not found for Razorpay order ID: ${razorpayOrderId}`,
+        );
         return;
       }
 
@@ -2169,22 +2520,28 @@ export class OrderController {
       );
 
       try {
-        const emailHtml = await this.emailTemplateService.renderTemplate('refund-completed', {
-          customerName: order.billingAddress.fullName,
-          orderNumber: order.orderNumber,
-          refundAmount: (refund.amount / 100).toFixed(2),
-          refundDate: new Date().toLocaleDateString(),
-          transactionId: refund.id,
-          refundInitiatedDate: order.refundInitiatedAt?.toLocaleDateString() || 'N/A',
-          refundCompletedDate: new Date().toLocaleDateString(),
-          orderDate: order.createdAt ? order.createdAt.toLocaleDateString() : 'N/A',
-          originalAmount: order.total.toFixed(2),
-          refundMethod: 'Original payment method',
-          orderDetailsUrl: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/orders/${order.id}`,
-          feedbackUrl: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/feedback`,
-          year: new Date().getFullYear(),
-          companyName: 'Valiarian',
-        });
+        const emailHtml = await this.emailTemplateService.renderTemplate(
+          'refund-completed',
+          {
+            customerName: order.billingAddress.fullName,
+            orderNumber: order.orderNumber,
+            refundAmount: (refund.amount / 100).toFixed(2),
+            refundDate: new Date().toLocaleDateString(),
+            transactionId: refund.id,
+            refundInitiatedDate:
+              order.refundInitiatedAt?.toLocaleDateString() || 'N/A',
+            refundCompletedDate: new Date().toLocaleDateString(),
+            orderDate: order.createdAt
+              ? order.createdAt.toLocaleDateString()
+              : 'N/A',
+            originalAmount: formatCurrencyValue(order.total),
+            refundMethod: 'Original payment method',
+            orderDetailsUrl: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/orders/${order.id}`,
+            feedbackUrl: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/feedback`,
+            year: new Date().getFullYear(),
+            companyName: 'Valiarian',
+          },
+        );
 
         await this.emailService.sendMail({
           to: order.billingAddress.email,
