@@ -1,7 +1,9 @@
 import { yupResolver } from '@hookform/resolvers/yup';
 import LoadingButton from '@mui/lab/LoadingButton';
 import Alert from '@mui/material/Alert';
+import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
+import Stack from '@mui/material/Stack';
 import Grid from '@mui/material/Unstable_Grid2';
 import PropTypes from 'prop-types';
 import { useEffect, useState } from 'react';
@@ -26,6 +28,7 @@ import {
 import * as Yup from 'yup';
 import CheckoutBillingInfo from './checkout-billing-info';
 import CheckoutDelivery from './checkout-delivery';
+import CheckoutEmailVerificationDialog from './checkout-email-verification-dialog';
 import CheckoutPaymentMethods from './checkout-payment-methods';
 import CheckoutSummary from './checkout-summary';
 
@@ -63,6 +66,22 @@ const normalizeAmount = (amount) => {
   return Number.isFinite(numericAmount) ? numericAmount : 0;
 };
 
+const EmailPromptAction = ({ onClick }) => (
+  <Button
+    color="inherit"
+    size="small"
+    variant="outlined"
+    onClick={onClick}
+    sx={{ width: { xs: '100%', sm: 'auto' } }}
+  >
+    Add Email
+  </Button>
+);
+
+EmailPromptAction.propTypes = {
+  onClick: PropTypes.func,
+};
+
 export default function CheckoutPayment({ checkout, onBackStep, onGotoStep, onApplyShipping }) {
   const { total, discount, subTotal, shipping, billing, cart } = checkout;
   const { user } = useAuthContext();
@@ -73,6 +92,8 @@ export default function CheckoutPayment({ checkout, onBackStep, onGotoStep, onAp
 
   const [checkoutError, setCheckoutError] = useState('');
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+  const [emailPromptDismissed, setEmailPromptDismissed] = useState(false);
+  const [emailDialogOpen, setEmailDialogOpen] = useState(false);
 
   const PaymentSchema = Yup.object().shape({
     payment: Yup.string().required('Payment method is required!'),
@@ -99,6 +120,16 @@ export default function CheckoutPayment({ checkout, onBackStep, onGotoStep, onAp
       loadScript().catch(() => undefined);
     }
   }, [loadScript, selectedPayment]);
+
+  useEffect(() => {
+    const hasProfileEmail = Boolean((user?.email || '').trim());
+
+    if (!hasProfileEmail && !emailPromptDismissed) {
+      setEmailDialogOpen(true);
+    } else {
+      setEmailDialogOpen(false);
+    }
+  }, [emailPromptDismissed, user?.email]);
 
   const clearCheckoutCart = async () => {
     if (!checkout.isBuyNow && user?.id) {
@@ -383,53 +414,104 @@ export default function CheckoutPayment({ checkout, onBackStep, onGotoStep, onAp
 
   return (
     <FormProvider methods={methods} onSubmit={onSubmit}>
-      <Grid container spacing={3}>
-        <Grid xs={12} md={8}>
-          {!!checkoutError && (
-            <Alert severity="error" sx={{ mb: 3 }}>
-              {checkoutError}
-            </Alert>
-          )}
+      <>
+        <Grid container spacing={3}>
+          <Grid xs={12} md={8}>
+            {!!checkoutError && (
+              <Alert severity="error" sx={{ mb: 3 }}>
+                {checkoutError}
+              </Alert>
+            )}
 
-          <CheckoutDelivery onApplyShipping={onApplyShipping} options={DELIVERY_OPTIONS} />
+            {!user?.email && (
+              <Box sx={{ mb: 3 }}>
+                <Box sx={{ display: { xs: 'block', sm: 'none' } }}>
+                  <Alert severity="info">
+                    <Stack spacing={1.5} sx={{ width: '100%' }}>
+                      <Box>
+                        Add and verify your email to receive order updates by email. You can also
+                        skip this for now.
+                      </Box>
+                      <EmailPromptAction
+                        onClick={() => {
+                          setEmailPromptDismissed(false);
+                          setEmailDialogOpen(true);
+                        }}
+                      />
+                    </Stack>
+                  </Alert>
+                </Box>
 
-          <CheckoutPaymentMethods options={PAYMENT_OPTIONS} sx={{ my: 3 }} />
+                <Box sx={{ display: { xs: 'none', sm: 'block' } }}>
+                  <Alert
+                    severity="info"
+                    action={
+                      <EmailPromptAction
+                        onClick={() => {
+                          setEmailPromptDismissed(false);
+                          setEmailDialogOpen(true);
+                        }}
+                      />
+                    }
+                  >
+                    Add and verify your email to receive order updates by email. You can also skip
+                    this for now.
+                  </Alert>
+                </Box>
+              </Box>
+            )}
 
-          <Button
-            size="small"
-            color="inherit"
-            onClick={onBackStep}
-            startIcon={<Iconify icon="eva:arrow-ios-back-fill" />}
-            sx={{ display: { xs: 'none', md: 'inline-flex' } }}
-          >
-            Back
-          </Button>
+            <CheckoutDelivery onApplyShipping={onApplyShipping} options={DELIVERY_OPTIONS} />
+
+            <CheckoutPaymentMethods options={PAYMENT_OPTIONS} sx={{ my: 3 }} />
+
+            <Button
+              size="small"
+              color="inherit"
+              onClick={onBackStep}
+              startIcon={<Iconify icon="eva:arrow-ios-back-fill" />}
+              sx={{ display: { xs: 'none', md: 'inline-flex' } }}
+            >
+              Back
+            </Button>
+          </Grid>
+
+          <Grid xs={12} md={4}>
+            <CheckoutBillingInfo onBackStep={onBackStep} billing={billing} />
+
+            <CheckoutSummary
+              enableEdit
+              total={total}
+              subTotal={subTotal}
+              discount={discount}
+              shipping={shipping}
+              onEdit={() => onGotoStep(0)}
+            />
+
+            <LoadingButton
+              fullWidth
+              size="large"
+              type="submit"
+              variant="contained"
+              loading={isSubmitting || isProcessingPayment || isLoadingScript}
+              disabled={isSubmitting || isProcessingPayment}
+            >
+              Place Order
+            </LoadingButton>
+          </Grid>
         </Grid>
 
-        <Grid xs={12} md={4}>
-          <CheckoutBillingInfo onBackStep={onBackStep} billing={billing} />
-
-          <CheckoutSummary
-            enableEdit
-            total={total}
-            subTotal={subTotal}
-            discount={discount}
-            shipping={shipping}
-            onEdit={() => onGotoStep(0)}
-          />
-
-          <LoadingButton
-            fullWidth
-            size="large"
-            type="submit"
-            variant="contained"
-            loading={isSubmitting || isProcessingPayment || isLoadingScript}
-            disabled={isSubmitting || isProcessingPayment}
-          >
-            Place Order
-          </LoadingButton>
-        </Grid>
-      </Grid>
+        <CheckoutEmailVerificationDialog
+          open={emailDialogOpen}
+          initialEmail={billing?.email || user?.email || ''}
+          onClose={(verified) => {
+            setEmailDialogOpen(false);
+            if (!verified) {
+              setEmailPromptDismissed(true);
+            }
+          }}
+        />
+      </>
     </FormProvider>
   );
 }
