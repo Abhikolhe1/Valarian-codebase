@@ -12,7 +12,6 @@ import Typography from '@mui/material/Typography';
 import InputAdornment from '@mui/material/InputAdornment';
 // routes
 import { paths } from 'src/routes/paths';
-import { RouterLink } from 'src/routes/components';
 import { useSearchParams, useRouter } from 'src/routes/hook';
 // config
 import { PATH_AFTER_LOGIN } from 'src/config-global';
@@ -20,13 +19,15 @@ import { PATH_AFTER_LOGIN } from 'src/config-global';
 import { useBoolean } from 'src/hooks/use-boolean';
 // auth
 import { useAuthContext } from 'src/auth/hooks';
+import { getDefaultDashboardPath } from 'src/auth/utils/role';
 // components
 import Iconify from 'src/components/iconify';
 import FormProvider, { RHFCheckbox, RHFTextField } from 'src/components/hook-form';
+import PropTypes from 'prop-types';
 
 // ----------------------------------------------------------------------
 
-export default function JwtLoginView() {
+export default function JwtLoginView({ loginType = 'super_admin' }) {
   const { login } = useAuthContext();
 
   const router = useRouter();
@@ -36,6 +37,7 @@ export default function JwtLoginView() {
   const searchParams = useSearchParams();
 
   const returnTo = searchParams.get('returnTo');
+  const isAdminLogin = loginType === 'admin';
 
   const password = useBoolean();
 
@@ -57,16 +59,15 @@ export default function JwtLoginView() {
   });
 
   const {
-    reset,
     handleSubmit,
     formState: { isSubmitting },
   } = methods;
 
   const onSubmit = handleSubmit(async (data) => {
     try {
-      await login?.(data.email, data.password, data.rememberMe);
+      const user = await login?.(data.email, data.password, data.rememberMe, loginType);
 
-      router.push(returnTo || PATH_AFTER_LOGIN);
+      router.push(returnTo || getDefaultDashboardPath(user) || PATH_AFTER_LOGIN);
     } catch (error) {
       console.error(error);
       const message =
@@ -79,15 +80,26 @@ export default function JwtLoginView() {
 
   const renderHead = (
     <Stack spacing={2} sx={{ mb: 5 }}>
-      <Typography variant="h4">Sign in to Valiarian</Typography>
+      <Typography variant="h4">
+        {isAdminLogin ? 'Admin sign in to Valiarian' : 'Super Admin sign in to Valiarian'}
+      </Typography>
 
-      {/* <Stack direction="row" spacing={0.5}>
-        <Typography variant="body2">New user?</Typography>
+      <Stack direction="row" spacing={0.5}>
+        <Typography variant="body2">
+          {isAdminLogin ? 'Super admin login?' : 'Admin login?'}
+        </Typography>
 
-        <Link component={RouterLink} href={paths.auth.jwt.register} variant="subtitle2">
-          Create an account
+        <Link
+          variant="subtitle2"
+          underline="hover"
+          sx={{ cursor: 'pointer' }}
+          onClick={() =>
+            router.push(isAdminLogin ? paths.auth.jwt.login : paths.auth.jwt.adminLogin)
+          }
+        >
+          {isAdminLogin ? 'Use super admin login' : 'Use admin login'}
         </Link>
-      </Stack> */}
+      </Stack>
     </Stack>
   );
 
@@ -154,3 +166,7 @@ export default function JwtLoginView() {
     </FormProvider>
   );
 }
+
+JwtLoginView.propTypes = {
+  loginType: PropTypes.oneOf(['super_admin', 'admin']),
+};

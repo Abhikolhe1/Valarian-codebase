@@ -6,28 +6,32 @@ import Stack from '@mui/material/Stack';
 import Drawer from '@mui/material/Drawer';
 // hooks
 import { useResponsive } from 'src/hooks/use-responsive';
-// hooks
-import { useMockedUser } from 'src/hooks/use-mocked-user';
 // components
 import Logo from 'src/components/logo';
 import Scrollbar from 'src/components/scrollbar';
 import { usePathname } from 'src/routes/hook';
 import { NavSectionVertical } from 'src/components/nav-section';
+// auth
+import { useAuthContext } from 'src/auth/hooks';
+import { getUserPrimaryRole } from 'src/auth/utils/role';
 //
 import { NAV } from '../config-layout';
 import { useNavData } from './config-navigation';
-import { NavToggleButton, NavUpgrade } from '../_common';
+import { filterNavGroupsByRole } from './nav-utils';
+import { NavToggleButton } from '../_common';
 
 // ----------------------------------------------------------------------
 
 export default function NavVertical({ openNav, onCloseNav }) {
-  const { user } = useMockedUser();
+  const { user } = useAuthContext();
+  const currentRole = getUserPrimaryRole(user);
 
   const pathname = usePathname();
 
   const lgUp = useResponsive('up', 'lg');
 
   const navData = useNavData();
+  const filteredNavData = filterNavGroupsByRole(navData, currentRole);
 
   useEffect(() => {
     if (openNav) {
@@ -49,12 +53,12 @@ export default function NavVertical({ openNav, onCloseNav }) {
     >
       <Logo sx={{ mt: 3, ml: 4, mb: 1 }} />
 
-      <NavSectionVertical
-        data={navData}
-        config={{
-          currentRole: user?.role || 'admin',
-        }}
-      />
+        <NavSectionVertical
+          data={filteredNavData}
+          config={{
+            currentRole,
+          }}
+        />
 
       <Box sx={{ flexGrow: 1 }} />
 

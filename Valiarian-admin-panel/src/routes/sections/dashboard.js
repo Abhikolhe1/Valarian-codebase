@@ -1,7 +1,10 @@
 import { lazy, Suspense } from 'react';
-import { Outlet } from 'react-router-dom';
+import { Navigate, Outlet } from 'react-router-dom';
 // auth
-import { AuthGuard } from 'src/auth/guard';
+import { AuthGuard, DashboardRoleGuard } from 'src/auth/guard';
+import { useAuthContext } from 'src/auth/hooks';
+import { getDefaultDashboardPath, isAdmin } from 'src/auth/utils/role';
+import { paths } from 'src/routes/paths';
 // layouts
 import DashboardLayout from 'src/layouts/dashboard';
 // components
@@ -10,7 +13,6 @@ import { LoadingScreen } from 'src/components/loading-screen';
 // ----------------------------------------------------------------------
 
 // OVERVIEW
-const IndexPage = lazy(() => import('src/pages/dashboard/app'));
 const OverviewEcommercePage = lazy(() => import('src/pages/dashboard/ecommerce'));
 const OverviewAnalyticsPage = lazy(() => import('src/pages/dashboard/analytics'));
 const OverviewBankingPage = lazy(() => import('src/pages/dashboard/banking'));
@@ -43,6 +45,10 @@ const UserListPage = lazy(() => import('src/pages/dashboard/user/list'));
 const UserAccountPage = lazy(() => import('src/pages/dashboard/user/account'));
 const UserCreatePage = lazy(() => import('src/pages/dashboard/user/new'));
 const UserEditPage = lazy(() => import('src/pages/dashboard/user/edit'));
+// ADMINS
+const AdminListPage = lazy(() => import('src/pages/dashboard/admins/list'));
+const AdminCreatePage = lazy(() => import('src/pages/dashboard/admins/new'));
+const AdminEditPage = lazy(() => import('src/pages/dashboard/admins/edit'));
 // BLOG
 const BlogPostsPage = lazy(() => import('src/pages/dashboard/post/list'));
 const BlogPostPage = lazy(() => import('src/pages/dashboard/post/details'));
@@ -83,6 +89,33 @@ const BlankPage = lazy(() => import('src/pages/dashboard/blank'));
 
 // ----------------------------------------------------------------------
 
+const SUPER_ADMIN_ROLES = ['super_admin'];
+const ADMIN_PANEL_ROLES = ['super_admin', 'admin'];
+
+function DashboardHomeRedirect() {
+  const { user, loading } = useAuthContext();
+
+  if (loading) {
+    return <LoadingScreen />;
+  }
+
+  return <Navigate to={getDefaultDashboardPath(user)} replace />;
+}
+
+function DashboardCmsRedirect() {
+  const { user, loading } = useAuthContext();
+
+  if (loading) {
+    return <LoadingScreen />;
+  }
+
+  const destination = isAdmin(user)
+    ? paths.dashboard.cms.contactSubmissions.list
+    : paths.dashboard.cms.pages.list;
+
+  return <Navigate to={destination} replace />;
+}
+
 export const dashboardRoutes = [
   {
     path: 'dashboard',
@@ -96,14 +129,54 @@ export const dashboardRoutes = [
       </AuthGuard>
     ),
     children: [
-      { element: <IndexPage />, index: true },
-      { path: 'ecommerce', element: <OverviewEcommercePage /> },
-      { path: 'analytics', element: <OverviewAnalyticsPage /> },
-      { path: 'banking', element: <OverviewBankingPage /> },
-      { path: 'booking', element: <OverviewBookingPage /> },
-      { path: 'file', element: <OverviewFilePage /> },
+      { element: <DashboardHomeRedirect />, index: true },
+      {
+        path: 'ecommerce',
+        element: (
+          <DashboardRoleGuard roles={SUPER_ADMIN_ROLES}>
+            <OverviewEcommercePage />
+          </DashboardRoleGuard>
+        ),
+      },
+      {
+        path: 'analytics',
+        element: (
+          <DashboardRoleGuard roles={SUPER_ADMIN_ROLES}>
+            <OverviewAnalyticsPage />
+          </DashboardRoleGuard>
+        ),
+      },
+      {
+        path: 'banking',
+        element: (
+          <DashboardRoleGuard roles={SUPER_ADMIN_ROLES}>
+            <OverviewBankingPage />
+          </DashboardRoleGuard>
+        ),
+      },
+      {
+        path: 'booking',
+        element: (
+          <DashboardRoleGuard roles={SUPER_ADMIN_ROLES}>
+            <OverviewBookingPage />
+          </DashboardRoleGuard>
+        ),
+      },
+      {
+        path: 'file',
+        element: (
+          <DashboardRoleGuard roles={SUPER_ADMIN_ROLES}>
+            <OverviewFilePage />
+          </DashboardRoleGuard>
+        ),
+      },
       {
         path: 'user',
+        element: (
+          <DashboardRoleGuard roles={SUPER_ADMIN_ROLES}>
+            <Outlet />
+          </DashboardRoleGuard>
+        ),
         children: [
           { element: <UserProfilePage />, index: true },
           { path: 'profile', element: <UserProfilePage /> },
@@ -115,7 +188,26 @@ export const dashboardRoutes = [
         ],
       },
       {
+        path: 'admins',
+        element: (
+          <DashboardRoleGuard roles={SUPER_ADMIN_ROLES}>
+            <Outlet />
+          </DashboardRoleGuard>
+        ),
+        children: [
+          { index: true, element: <AdminListPage /> },
+          { path: 'list', element: <AdminListPage /> },
+          { path: 'new', element: <AdminCreatePage /> },
+          { path: ':id/edit', element: <AdminEditPage /> },
+        ],
+      },
+      {
         path: 'product',
+        element: (
+          <DashboardRoleGuard roles={SUPER_ADMIN_ROLES}>
+            <Outlet />
+          </DashboardRoleGuard>
+        ),
         children: [
           { element: <ProductListPage />, index: true },
           { path: 'list', element: <ProductListPage /> },
@@ -126,6 +218,11 @@ export const dashboardRoutes = [
       },
       {
         path: 'category',
+        element: (
+          <DashboardRoleGuard roles={SUPER_ADMIN_ROLES}>
+            <Outlet />
+          </DashboardRoleGuard>
+        ),
         children: [
           { element: <CategoryListPage />, index: true },
           { path: 'list', element: <CategoryListPage /> },
@@ -135,6 +232,11 @@ export const dashboardRoutes = [
       },
       {
         path: 'parent-category',
+        element: (
+          <DashboardRoleGuard roles={SUPER_ADMIN_ROLES}>
+            <Outlet />
+          </DashboardRoleGuard>
+        ),
         children: [
           { element: <ParentCategoryListPage />, index: true },
           { path: 'list', element: <ParentCategoryListPage /> },
@@ -144,6 +246,11 @@ export const dashboardRoutes = [
       },
       {
         path: 'order',
+        element: (
+          <DashboardRoleGuard roles={ADMIN_PANEL_ROLES}>
+            <Outlet />
+          </DashboardRoleGuard>
+        ),
         children: [
           { element: <OrderListPage />, index: true },
           { path: 'list', element: <OrderListPage /> },
@@ -152,6 +259,11 @@ export const dashboardRoutes = [
       },
       {
         path: 'invoice',
+        element: (
+          <DashboardRoleGuard roles={SUPER_ADMIN_ROLES}>
+            <Outlet />
+          </DashboardRoleGuard>
+        ),
         children: [
           { element: <InvoiceListPage />, index: true },
           { path: 'list', element: <InvoiceListPage /> },
@@ -162,6 +274,11 @@ export const dashboardRoutes = [
       },
       {
         path: 'post',
+        element: (
+          <DashboardRoleGuard roles={SUPER_ADMIN_ROLES}>
+            <Outlet />
+          </DashboardRoleGuard>
+        ),
         children: [
           { element: <BlogPostsPage />, index: true },
           { path: 'list', element: <BlogPostsPage /> },
@@ -172,6 +289,11 @@ export const dashboardRoutes = [
       },
       {
         path: 'job',
+        element: (
+          <DashboardRoleGuard roles={SUPER_ADMIN_ROLES}>
+            <Outlet />
+          </DashboardRoleGuard>
+        ),
         children: [
           { element: <JobListPage />, index: true },
           { path: 'list', element: <JobListPage /> },
@@ -182,6 +304,11 @@ export const dashboardRoutes = [
       },
       {
         path: 'tour',
+        element: (
+          <DashboardRoleGuard roles={SUPER_ADMIN_ROLES}>
+            <Outlet />
+          </DashboardRoleGuard>
+        ),
         children: [
           { element: <TourListPage />, index: true },
           { path: 'list', element: <TourListPage /> },
@@ -193,13 +320,22 @@ export const dashboardRoutes = [
       {
         path: 'cms',
         children: [
-          { element: <CMSPagesListPage />, index: true },
+          { index: true, element: <DashboardCmsRedirect /> },
           {
             path: 'about-us',
-            element: <CMSAboutPage />,
+            element: (
+              <DashboardRoleGuard roles={SUPER_ADMIN_ROLES}>
+                <CMSAboutPage />
+              </DashboardRoleGuard>
+            ),
           },
           {
             path: 'pages',
+            element: (
+              <DashboardRoleGuard roles={SUPER_ADMIN_ROLES}>
+                <Outlet />
+              </DashboardRoleGuard>
+            ),
             children: [
               { element: <CMSPagesListPage />, index: true },
               { path: 'list', element: <CMSPagesListPage /> },
@@ -210,6 +346,11 @@ export const dashboardRoutes = [
           },
           {
             path: 'media',
+            element: (
+              <DashboardRoleGuard roles={SUPER_ADMIN_ROLES}>
+                <Outlet />
+              </DashboardRoleGuard>
+            ),
             children: [
               { element: <CMSMediaListPage />, index: true },
               { path: 'list', element: <CMSMediaListPage /> },
@@ -217,14 +358,27 @@ export const dashboardRoutes = [
           },
           {
             path: 'navigation',
-            element: <CMSNavigationPage />,
+            element: (
+              <DashboardRoleGuard roles={SUPER_ADMIN_ROLES}>
+                <CMSNavigationPage />
+              </DashboardRoleGuard>
+            ),
           },
           {
             path: 'settings',
-            element: <CMSSettingsPage />,
+            element: (
+              <DashboardRoleGuard roles={SUPER_ADMIN_ROLES}>
+                <CMSSettingsPage />
+              </DashboardRoleGuard>
+            ),
           },
           {
             path: 'contactSubmissions',
+            element: (
+              <DashboardRoleGuard roles={ADMIN_PANEL_ROLES}>
+                <Outlet />
+              </DashboardRoleGuard>
+            ),
             children: [
               { element: <CMSContactSubmissionsPage />, index: true },
               { path: 'list', element: <CMSContactSubmissionsPage /> },
@@ -233,13 +387,62 @@ export const dashboardRoutes = [
           },
         ],
       },
-      { path: 'file-manager', element: <FileManagerPage /> },
-      { path: 'mail', element: <MailPage /> },
-      { path: 'chat', element: <ChatPage /> },
-      { path: 'calendar', element: <CalendarPage /> },
-      { path: 'kanban', element: <KanbanPage /> },
-      { path: 'permission', element: <PermissionDeniedPage /> },
-      { path: 'blank', element: <BlankPage /> },
+      {
+        path: 'file-manager',
+        element: (
+          <DashboardRoleGuard roles={SUPER_ADMIN_ROLES}>
+            <FileManagerPage />
+          </DashboardRoleGuard>
+        ),
+      },
+      {
+        path: 'mail',
+        element: (
+          <DashboardRoleGuard roles={SUPER_ADMIN_ROLES}>
+            <MailPage />
+          </DashboardRoleGuard>
+        ),
+      },
+      {
+        path: 'chat',
+        element: (
+          <DashboardRoleGuard roles={SUPER_ADMIN_ROLES}>
+            <ChatPage />
+          </DashboardRoleGuard>
+        ),
+      },
+      {
+        path: 'calendar',
+        element: (
+          <DashboardRoleGuard roles={SUPER_ADMIN_ROLES}>
+            <CalendarPage />
+          </DashboardRoleGuard>
+        ),
+      },
+      {
+        path: 'kanban',
+        element: (
+          <DashboardRoleGuard roles={SUPER_ADMIN_ROLES}>
+            <KanbanPage />
+          </DashboardRoleGuard>
+        ),
+      },
+      {
+        path: 'permission',
+        element: (
+          <DashboardRoleGuard roles={SUPER_ADMIN_ROLES}>
+            <PermissionDeniedPage />
+          </DashboardRoleGuard>
+        ),
+      },
+      {
+        path: 'blank',
+        element: (
+          <DashboardRoleGuard roles={SUPER_ADMIN_ROLES}>
+            <BlankPage />
+          </DashboardRoleGuard>
+        ),
+      },
     ],
   },
 ];

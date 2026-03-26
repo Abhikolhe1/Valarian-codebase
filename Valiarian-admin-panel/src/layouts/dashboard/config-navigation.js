@@ -57,7 +57,12 @@ export function useNavData() {
         items: [
           // { title: t('app'), path: paths.dashboard.root, icon: ICONS.dashboard },
           // { title: t('ecommerce'), path: paths.dashboard.general.ecommerce, icon: ICONS.ecommerce },
-          { title: t('Dashboard'), path: paths.dashboard.general.analytics, icon: ICONS.dashboard },
+          {
+            title: t('Dashboard'),
+            path: paths.dashboard.general.analytics,
+            icon: ICONS.dashboard,
+            roles: ['super_admin'],
+          },
           // {
           //   title: t('pending appointments'),
           //   path: paths.dashboard.pendingAppointments.list,
@@ -95,13 +100,13 @@ export function useNavData() {
             title: t('CMS'),
             path: paths.dashboard.cms.pages.list,
             icon: ICONS.file,
+            roles: ['super_admin'],
             children: [
               { title: t('Pages'), path: paths.dashboard.cms.pages.list },
               { title: t('About Us'), path: paths.dashboard.cms.about.root },
               { title: t('Media Library'), path: paths.dashboard.cms.media.list },
               { title: t('Navigation'), path: paths.dashboard.cms.navigation.root },
               { title: t('Settings'), path: paths.dashboard.cms.settings.root },
-              { title: t('Contact Requests'), path: paths.dashboard.cms.contactSubmissions.list },
             ],
           },
           // USER
@@ -123,6 +128,7 @@ export function useNavData() {
             title: t('Products'),
             path: paths.dashboard.product.root,
             icon: ICONS.product,
+            roles: ['super_admin'],
             children: [
               { title: t('List'), path: paths.dashboard.product.root },
               { title: t('Create'), path: paths.dashboard.product.new },
@@ -133,6 +139,7 @@ export function useNavData() {
             title: t('Categories'),
             path: paths.dashboard.category.root,
             icon: ICONS.label,
+            roles: ['super_admin'],
             children: [
               { title: t('Category List'), path: paths.dashboard.category.list },
               { title: t('Create Category'), path: paths.dashboard.category.new },
@@ -149,6 +156,22 @@ export function useNavData() {
             children: [
               { title: t('List'), path: paths.dashboard.order.root },
               // { title: t('Details'), path: paths.dashboard.order.demo.details },
+            ],
+          },
+          {
+            title: t('Contact Requests'),
+            path: paths.dashboard.cms.contactSubmissions.list,
+            icon: ICONS.mail,
+            roles: ['super_admin', 'admin'],
+          },
+          {
+            title: t('Admins'),
+            path: paths.dashboard.admins.list,
+            icon: ICONS.user,
+            roles: ['super_admin'],
+            children: [
+              { title: t('Admin List'), path: paths.dashboard.admins.list },
+              { title: t('Create Admin'), path: paths.dashboard.admins.new },
             ],
           },
           // // INVOICE

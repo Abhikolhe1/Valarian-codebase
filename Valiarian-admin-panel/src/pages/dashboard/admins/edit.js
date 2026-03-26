@@ -1,17 +1,17 @@
 import { Helmet } from 'react-helmet-async';
 // sections
-import { JwtLoginView } from 'src/sections/auth/jwt';
+import AdminEditView from 'src/sections/admin/view/admin-edit-view';
 
 // ----------------------------------------------------------------------
 
-export default function LoginPage() {
+export default function AdminEditPage() {
   return (
     <>
       <Helmet>
-        <title> Super Admin Login</title>
+        <title> Dashboard: Edit Admin</title>
       </Helmet>
 
-      <JwtLoginView loginType="super_admin" />
+      <AdminEditView />
     </>
   );
 }

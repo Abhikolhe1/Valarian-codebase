@@ -54,7 +54,12 @@ export const endpoints = {
   auth: {
     me: '/api/auth/me',
     login: '/api/auth/login',
-    adminLogin: '/api/auth/super-admin-login',
+    superAdminLogin: '/api/auth/super-admin-login',
+    adminLogin: '/api/auth/admin-login',
+    createAdmin: '/api/auth/admin',
+    adminList: '/api/auth/admins',
+    adminDetails: (id) => `/api/auth/admins/${id}`,
+    adminUpdate: (id) => `/api/auth/admins/${id}`,
     register: '/api/auth/register',
   },
   mail: {

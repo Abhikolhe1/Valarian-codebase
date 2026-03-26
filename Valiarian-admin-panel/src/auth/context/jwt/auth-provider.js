@@ -103,7 +103,7 @@ export function AuthProvider({ children }) {
   }, [initialize]);
 
   // LOGIN
-  const login = useCallback(async (email, password, rememberMe) => {
+  const login = useCallback(async (email, password, rememberMe, loginType = 'super_admin') => {
     const data = {
       email,
       password,
@@ -112,7 +112,10 @@ export function AuthProvider({ children }) {
 
     console.log('Attempting login with:', { email, rememberMe });
 
-    const response = await axios.post(endpoints.auth.adminLogin, data);
+    const loginEndpoint =
+      loginType === 'admin' ? endpoints.auth.adminLogin : endpoints.auth.superAdminLogin;
+
+    const response = await axios.post(loginEndpoint, data);
 
     console.log('Login response:', response.data);
 
@@ -129,6 +132,7 @@ export function AuthProvider({ children }) {
     });
 
     console.log('Login successful, user:', user);
+    return user;
   }, []);
 
   // REGISTER
@@ -152,6 +156,8 @@ export function AuthProvider({ children }) {
         user,
       },
     });
+
+    return user;
   }, []);
 
   // LOGOUT

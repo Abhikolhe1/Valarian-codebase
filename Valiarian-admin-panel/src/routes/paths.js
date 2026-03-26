@@ -61,6 +61,7 @@ export const paths = {
     },
     jwt: {
       login: `${ROOTS.AUTH}/jwt/login`,
+      adminLogin: `${ROOTS.AUTH}/jwt/admin-login`,
       register: `${ROOTS.AUTH}/jwt/register`,
       forgotPassword: `${ROOTS.AUTH}/jwt/forgot-password`,
       newPassword: `${ROOTS.AUTH}/jwt/new-password`,
@@ -120,6 +121,12 @@ export const paths = {
       demo: {
         edit: `${ROOTS.DASHBOARD}/user/${MOCK_ID}/edit`,
       },
+    },
+    admins: {
+      root: `${ROOTS.DASHBOARD}/admins`,
+      list: `${ROOTS.DASHBOARD}/admins/list`,
+      new: `${ROOTS.DASHBOARD}/admins/new`,
+      edit: (id) => `${ROOTS.DASHBOARD}/admins/${id}/edit`,
     },
     product: {
       root: `${ROOTS.DASHBOARD}/product`,

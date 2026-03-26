@@ -146,6 +146,73 @@ export class AuthController {
     };
   }
 
+  @authenticate('jwt')
+  @authorize({roles: ['super_admin']})
+  @post('/api/auth/admin')
+  async createAdmin(
+    @requestBody({
+      content: {
+        'application/json': {
+          schema: {
+            type: 'object',
+            required: ['email', 'phone', 'password', 'fullName'],
+            properties: {
+              email: {type: 'string'},
+              phone: {type: 'string'},
+              password: {type: 'string'},
+              fullName: {type: 'string'},
+            },
+          },
+        },
+      },
+    })
+    body: {
+      fullName: string;
+      email: string;
+      phone: string;
+      password: string
+    },
+  ): Promise<{success: boolean; message: string; userId: string}> {
+    const adminRole = await this.rolesRepository.findOne({
+      where: {value: 'admin'},
+    });
+
+    if (!adminRole) {
+      throw new HttpErrors.BadRequest('Admin role does not exist in roles table');
+    }
+
+    const existUser = await this.usersRepository.findOne({
+      where: {email: body.email},
+    });
+
+    if (existUser) {
+      throw new HttpErrors.BadRequest('User already exists with this email');
+    }
+
+    const hashedPassword = await this.hasher.hashPassword(body.password);
+
+    const newUser = await this.usersRepository.create({
+      fullName: body.fullName,
+      email: body.email,
+      phone: body.phone,
+      password: hashedPassword,
+      isActive: true,
+    });
+
+    await this.userRolesRepository.create({
+      usersId: newUser.id!,
+      rolesId: adminRole.id!,
+      isActive: true,
+      isDeleted: false,
+    });
+
+    return {
+      success: true,
+      message: 'Admin created successfully',
+      userId: newUser.id,
+    };
+  }
+
   @post('/api/auth/super-admin-login')
   async superAdminLogin(
     @requestBody({
@@ -246,6 +313,270 @@ export class AuthController {
       message: "Super Admin login successful",
       accessToken: token,
       user: profile
+    };
+  }
+
+  @post('/api/auth/admin-login')
+  async adminLogin(
+    @requestBody({
+      content: {
+        'application/json': {
+          schema: {
+            type: 'object',
+            required: ['email', 'password', 'rememberMe'],
+            properties: {
+              email: {type: 'string'},
+              password: {type: 'string'},
+              rememberMe: {type: 'boolean'}
+            }
+          }
+        }
+      }
+    })
+    body: {email: string; password: string; rememberMe: boolean}
+  ): Promise<{success: boolean; message: string; accessToken: string; user: object}> {
+    const clientIp = this.getClientIp();
+    this.rateLimiterService.checkLoginAttempt(clientIp);
+
+    const userData = await this.usersRepository.findOne({
+      where: {
+        and: [
+          {email: body.email},
+          {isDeleted: false}
+        ]
+      }
+    });
+
+    if (!userData) {
+      throw new HttpErrors.BadRequest('User not exist');
+    }
+
+    const user = await this.userService.verifyCredentials(body);
+
+    const {roles, permissions} = await this.rbacService.getUserRoleAndPermissionsByRole(user.id!, 'admin');
+
+    if (!roles.includes('admin')) {
+      throw new HttpErrors.Forbidden('Access denied. Only admin can login here.');
+    }
+
+    this.rateLimiterService.resetLoginAttempts(clientIp);
+
+    const userProfile: UserProfile & {
+      roles: string[];
+      permissions: string[];
+      phoneNumber: string;
+      fullName: string;
+    } = {
+      [securityId]: user.id!,
+      id: user.id!,
+      email: user.email,
+      phoneNumber: user.phone || '',
+      fullName: user.fullName || '',
+      roles,
+      permissions,
+    };
+
+    const token = await this.jwtService.generateToken(userProfile);
+    const profile = await this.rbacService.returnSuperAdminProfile(user.id, roles, permissions);
+
+    return {
+      success: true,
+      message: 'Admin login successful',
+      accessToken: token,
+      user: profile
+    };
+  }
+
+  @authenticate('jwt')
+  @authorize({roles: ['super_admin']})
+  @get('/api/auth/admins')
+  async getAdmins(
+    @param.query.number('page') page = 1,
+    @param.query.number('limit') limit = 10,
+    @param.query.string('search') search?: string,
+    @param.query.string('sortBy') sortBy = 'createdAt',
+    @param.query.string('sortOrder') sortOrder: 'ASC' | 'DESC' = 'DESC',
+  ): Promise<{admins: object[]; pagination: object}> {
+    const adminRole = await this.rolesRepository.findOne({
+      where: {value: 'admin'},
+    });
+
+    if (!adminRole) {
+      return {
+        admins: [],
+        pagination: {
+          total: 0,
+          page,
+          limit,
+          totalPages: 0,
+        },
+      };
+    }
+
+    const adminAssignments = await this.userRolesRepository.find({
+      where: {
+        rolesId: adminRole.id,
+        isDeleted: false,
+      },
+    });
+
+    const adminUserIds = adminAssignments.map((item) => item.usersId).filter(Boolean);
+
+    if (!adminUserIds.length) {
+      return {
+        admins: [],
+        pagination: {
+          total: 0,
+          page,
+          limit,
+          totalPages: 0,
+        },
+      };
+    }
+
+    const where: any = {
+      id: {inq: adminUserIds},
+      isDeleted: false,
+    };
+
+    if (search) {
+      where.or = [
+        {fullName: {like: `%${search}%`, options: 'i'}},
+        {email: {like: `%${search}%`, options: 'i'}},
+        {phone: {like: `%${search}%`, options: 'i'}},
+      ];
+    }
+
+    const total = await this.usersRepository.count(where);
+
+    const admins = await this.usersRepository.find({
+      where,
+      order: [`${sortBy} ${sortOrder}`],
+      limit,
+      skip: (page - 1) * limit,
+    });
+
+    return {
+      admins,
+      pagination: {
+        total: total.count,
+        page,
+        limit,
+        totalPages: Math.ceil(total.count / limit),
+      },
+    };
+  }
+
+  @authenticate('jwt')
+  @authorize({roles: ['super_admin']})
+  @get('/api/auth/admins/{id}')
+  async getAdminById(
+    @param.path.string('id') id: string,
+  ): Promise<object> {
+    const user = await this.usersRepository.findById(id);
+
+    if (user.isDeleted) {
+      throw new HttpErrors.NotFound('Admin not found');
+    }
+
+    const {roles, permissions} = await this.rbacService.getUserRolesAndPermissions(id);
+
+    if (!roles.includes('admin')) {
+      throw new HttpErrors.NotFound('Admin not found');
+    }
+
+    return {
+      ...user,
+      roles,
+      permissions,
+    };
+  }
+
+  @authenticate('jwt')
+  @authorize({roles: ['super_admin']})
+  @patch('/api/auth/admins/{id}')
+  async updateAdmin(
+    @param.path.string('id') id: string,
+    @requestBody({
+      content: {
+        'application/json': {
+          schema: {
+            type: 'object',
+            properties: {
+              fullName: {type: 'string'},
+              email: {type: 'string'},
+              phone: {type: 'string'},
+              password: {type: 'string'},
+              isActive: {type: 'boolean'},
+            },
+          },
+        },
+      },
+    })
+    body: {
+      fullName?: string;
+      email?: string;
+      phone?: string;
+      password?: string;
+      isActive?: boolean;
+    },
+  ): Promise<{success: boolean; message: string}> {
+    const existingUser = await this.usersRepository.findById(id);
+
+    if (existingUser.isDeleted) {
+      throw new HttpErrors.NotFound('Admin not found');
+    }
+
+    const {roles} = await this.rbacService.getUserRolesAndPermissions(id);
+
+    if (!roles.includes('admin')) {
+      throw new HttpErrors.NotFound('Admin not found');
+    }
+
+    if (body.email && body.email !== existingUser.email) {
+      const duplicateEmailUser = await this.usersRepository.findOne({
+        where: {
+          and: [
+            {email: body.email},
+            {id: {neq: id}},
+          ],
+        },
+      });
+
+      if (duplicateEmailUser) {
+        throw new HttpErrors.BadRequest('User already exists with this email');
+      }
+    }
+
+    const updatePayload: Partial<typeof existingUser> = {
+      updatedAt: new Date(),
+    };
+
+    if (typeof body.fullName !== 'undefined') {
+      updatePayload.fullName = body.fullName;
+    }
+
+    if (typeof body.email !== 'undefined') {
+      updatePayload.email = body.email;
+    }
+
+    if (typeof body.phone !== 'undefined') {
+      updatePayload.phone = body.phone;
+    }
+
+    if (typeof body.isActive !== 'undefined') {
+      updatePayload.isActive = body.isActive;
+    }
+
+    if (body.password) {
+      updatePayload.password = await this.hasher.hashPassword(body.password);
+    }
+
+    await this.usersRepository.updateById(id, updatePayload);
+
+    return {
+      success: true,
+      message: 'Admin updated successfully',
     };
   }
 

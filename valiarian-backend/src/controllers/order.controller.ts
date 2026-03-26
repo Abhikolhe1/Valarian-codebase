@@ -1415,7 +1415,7 @@ export class OrderController {
 
   @get('/api/admin/orders')
   @authenticate('jwt')
-  @authorize({roles: ['super_admin']})
+  @authorize({roles: ['super_admin', 'admin']})
   async adminGetAllOrders(
     @inject(SecurityBindings.USER) currentUser: UserProfile,
     @param.query.number('page') page: number = 1,
@@ -1484,7 +1484,7 @@ export class OrderController {
 
   @get('/api/admin/orders/{orderId}')
   @authenticate('jwt')
-  @authorize({roles: ['super_admin']})
+  @authorize({roles: ['super_admin', 'admin']})
   async adminGetOrderDetails(
     @param.path.string('orderId') orderId: string,
     @inject(SecurityBindings.USER) currentUser: UserProfile,
@@ -1539,7 +1539,7 @@ export class OrderController {
 
   @patch('/api/admin/orders/{orderId}/status')
   @authenticate('jwt')
-  @authorize({roles: ['super_admin']})
+  @authorize({roles: ['super_admin', 'admin']})
   async adminUpdateOrderStatus(
     @param.path.string('orderId') orderId: string,
     @requestBody()
@@ -1671,7 +1671,7 @@ export class OrderController {
 
   @patch('/api/admin/orders/{orderId}/return')
   @authenticate('jwt')
-  @authorize({roles: ['super_admin']})
+  @authorize({roles: ['super_admin', 'admin']})
   async adminProcessReturn(
     @param.path.string('orderId') orderId: string,
     @requestBody() request: {action: 'approve' | 'reject'; comment?: string},
@@ -1769,7 +1769,7 @@ export class OrderController {
 
   @post('/api/admin/orders/{orderId}/refund')
   @authenticate('jwt')
-  @authorize({roles: ['super_admin']})
+  @authorize({roles: ['super_admin', 'admin']})
   async adminInitiateRefund(
     @param.path.string('orderId') orderId: string,
     @requestBody() request: {amount: number; reason: string},
@@ -1887,7 +1887,7 @@ export class OrderController {
 
   @post('/api/admin/orders/{orderId}/notes')
   @authenticate('jwt')
-  @authorize({roles: ['super_admin']})
+  @authorize({roles: ['super_admin', 'admin']})
   async adminAddOrderNotes(
     @param.path.string('orderId') orderId: string,
     @requestBody() request: {note: string},

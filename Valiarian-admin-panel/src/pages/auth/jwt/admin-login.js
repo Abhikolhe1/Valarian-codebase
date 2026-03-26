@@ -4,14 +4,14 @@ import { JwtLoginView } from 'src/sections/auth/jwt';
 
 // ----------------------------------------------------------------------
 
-export default function LoginPage() {
+export default function AdminLoginPage() {
   return (
     <>
       <Helmet>
-        <title> Super Admin Login</title>
+        <title> Admin Login</title>
       </Helmet>
 
-      <JwtLoginView loginType="super_admin" />
+      <JwtLoginView loginType="admin" />
     </>
   );
 }

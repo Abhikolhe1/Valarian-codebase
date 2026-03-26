@@ -21,8 +21,8 @@ export class RolesController {
     public rolesRepository: RolesRepository,
   ) { }
 
-  // @authenticate('jwt')
-  // @authorize({roles: ['super_admin']})
+  @authenticate('jwt')
+  @authorize({roles: ['super_admin']})
   @post('/roles')
   @response(200, {
     description: 'Roles model instance',
