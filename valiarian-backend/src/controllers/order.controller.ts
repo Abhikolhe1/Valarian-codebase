@@ -444,6 +444,204 @@ export class OrderController {
     return Array.from(new Set(configuredRecipients));
   }
 
+  private getOrderCustomerEmail(order: Order, fallbackEmail?: string): string {
+    return (
+      order.billingAddress?.email ||
+      order.shippingAddress?.email ||
+      fallbackEmail ||
+      ''
+    );
+  }
+
+  private getOrderDetailsUrl(orderId: string): string {
+    return `${process.env.FRONTEND_URL || 'http://localhost:3000'}/orders/${orderId}`;
+  }
+
+  private getOrderTrackingUrl(orderId: string): string {
+    return `${this.getOrderDetailsUrl(orderId)}/tracking`;
+  }
+
+  private buildEmailAddress(address: Order['shippingAddress']) {
+    if (!address) {
+      return undefined;
+    }
+
+    return {
+      ...address,
+      addressLine1: (address as any).addressLine1 || address.address,
+      addressLine2: (address as any).addressLine2 || '',
+      postalCode: (address as any).postalCode || address.zipCode,
+    };
+  }
+
+  private buildStatusTimeline(order: Order, status: string) {
+    const updatedDate = new Date().toLocaleDateString();
+
+    return {
+      confirmed:
+        ['confirmed', 'processing', 'packed', 'shipped', 'delivered', 'returned', 'refunded'].includes(
+          status,
+        )
+          ? order.createdAt?.toLocaleDateString() || updatedDate
+          : null,
+      processing: ['processing', 'packed', 'shipped', 'delivered', 'returned', 'refunded'].includes(
+        status,
+      )
+        ? updatedDate
+        : null,
+      packed: ['packed', 'shipped', 'delivered', 'returned', 'refunded'].includes(
+        status,
+      )
+        ? updatedDate
+        : null,
+      shipped: ['shipped', 'delivered', 'returned', 'refunded'].includes(status)
+        ? updatedDate
+        : null,
+      delivered: ['delivered', 'returned', 'refunded'].includes(status)
+        ? order.deliveredAt?.toLocaleDateString() || updatedDate
+        : null,
+    };
+  }
+
+  private async sendAdminStatusUpdateEmail(
+    order: Order,
+    status: string,
+    request: {
+      comment?: string;
+      trackingNumber?: string;
+      carrier?: string;
+      estimatedDelivery?: string;
+    },
+    fallbackEmail?: string,
+  ): Promise<void> {
+    const recipientEmail = this.getOrderCustomerEmail(order, fallbackEmail);
+
+    if (!recipientEmail) {
+      console.warn('[Order Email] Skipping status email, no customer email', {
+        orderId: order.id,
+        orderNumber: order.orderNumber,
+        status,
+      });
+      return;
+    }
+
+    const fromEmail = this.getOrderMailSender();
+    const customerName = order.billingAddress?.fullName || 'Customer';
+    const items = order.items.map(item => ({
+      name: item.name,
+      quantity: item.quantity,
+      price: formatCurrencyValue(item.price),
+    }));
+
+    let subject = `Order Update - ${order.orderNumber}`;
+    let html = '';
+
+    if (status === 'shipped') {
+      html = await this.emailTemplateService.renderTemplate(
+        'shipment-notification',
+        {
+          customerName,
+          orderNumber: order.orderNumber,
+          trackingNumber: order.trackingNumber || request.trackingNumber || 'Will be shared soon',
+          carrier: order.carrier || request.carrier || 'Our delivery partner',
+          shippedDate: new Date().toLocaleDateString(),
+          estimatedDelivery:
+            order.estimatedDelivery?.toLocaleDateString() ||
+            (request.estimatedDelivery
+              ? new Date(request.estimatedDelivery).toLocaleDateString()
+              : 'Will be updated soon'),
+          trackingUrl: this.getOrderTrackingUrl(order.id),
+          shippingAddress: this.buildEmailAddress(order.shippingAddress),
+          items,
+          year: new Date().getFullYear(),
+          companyName: 'Valiarian',
+        },
+      );
+      subject = `Order Shipped - ${order.orderNumber}`;
+    } else if (status === 'delivered') {
+      html = await this.emailTemplateService.renderTemplate(
+        'delivery-confirmation',
+        {
+          customerName,
+          orderNumber: order.orderNumber,
+          deliveredDate: order.deliveredAt?.toLocaleDateString() || new Date().toLocaleDateString(),
+          deliveredTo: order.shippingAddress?.fullName || customerName,
+          trackingNumber: order.trackingNumber,
+          items,
+          reviewUrl: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/orders/${order.id}/review`,
+          returnWindowDays: process.env.RETURN_WINDOW_DAYS || '7',
+          returnUrl: `${this.getOrderDetailsUrl(order.id)}/return`,
+          orderDetailsUrl: this.getOrderDetailsUrl(order.id),
+          year: new Date().getFullYear(),
+          companyName: 'Valiarian',
+        },
+      );
+      subject = `Order Delivered - ${order.orderNumber}`;
+    } else if (status === 'refunded') {
+      html = await this.emailTemplateService.renderTemplate(
+        'refund-completed',
+        {
+          customerName,
+          orderNumber: order.orderNumber,
+          refundAmount: formatCurrencyValue(order.refundAmount || order.total),
+          refundDate: new Date().toLocaleDateString(),
+          transactionId: order.refundTransactionId || 'Will be shared soon',
+          refundInitiatedDate:
+            order.refundInitiatedAt?.toLocaleDateString() ||
+            new Date().toLocaleDateString(),
+          refundCompletedDate:
+            order.refundCompletedAt?.toLocaleDateString() ||
+            new Date().toLocaleDateString(),
+          orderDate: order.createdAt?.toLocaleDateString() || 'N/A',
+          originalAmount: formatCurrencyValue(order.total),
+          refundMethod: 'Original payment method',
+          orderDetailsUrl: this.getOrderDetailsUrl(order.id),
+          feedbackUrl: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/feedback`,
+          year: new Date().getFullYear(),
+          companyName: 'Valiarian',
+        },
+      );
+      subject = `Refund Processed - ${order.orderNumber}`;
+    } else if (status === 'returned') {
+      html = await this.emailTemplateService.renderTemplate(
+        'order-status-update',
+        {
+          customerName,
+          statusClass: 'delivered',
+          statusText: 'Returned',
+          orderNumber: order.orderNumber,
+          orderDate:
+            order.createdAt?.toLocaleDateString() || new Date().toLocaleDateString(),
+          total: formatCurrencyValue(order.total),
+          comment:
+            request.comment ||
+            'Your return has been processed successfully by our team.',
+          timeline: this.buildStatusTimeline(order, status),
+          trackOrderUrl: this.getOrderTrackingUrl(order.id),
+          year: new Date().getFullYear(),
+          companyName: 'Valiarian',
+        },
+      );
+      subject = `Order Returned - ${order.orderNumber}`;
+    } else {
+      return;
+    }
+
+    console.log('[Order Email] Sending admin status update email', {
+      from: fromEmail,
+      to: recipientEmail,
+      orderNumber: order.orderNumber,
+      status,
+    });
+
+    await this.emailService.sendMail({
+      from: fromEmail,
+      to: recipientEmail,
+      subject,
+      html,
+    });
+  }
+
   private async sendAdminOrderNotificationEmail(order: Order) {
     try {
       const fromEmail = this.getOrderMailSender();
@@ -1936,12 +2134,24 @@ export class OrderController {
 
       console.log(`[Admin] ✅ Status history entry created`);
 
-      // Skip email notification for now - can be enabled later
-      console.log(`[Admin] Email notification skipped (can be enabled later)`);
-
       console.log(`[Admin] Fetching updated order...`);
       const updatedOrder = await this.orderRepository.findById(order.id);
       console.log(`[Admin] Updated order fetched successfully`);
+
+      if (order.status !== request.status) {
+        try {
+          await this.sendAdminStatusUpdateEmail(
+            updatedOrder,
+            request.status,
+            request,
+          );
+        } catch (emailError) {
+          console.error(
+            `[Admin] Error sending customer status email for ${request.status}:`,
+            emailError,
+          );
+        }
+      }
 
       console.log(`[Admin] Returning success response`);
       return {success: true, order: updatedOrder};
