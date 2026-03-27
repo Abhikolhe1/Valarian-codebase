@@ -85,7 +85,7 @@ export default function ProductDetailsCarousel({ product, selectedVariant }) {
     rtl: false,
     centerMode: true,
     swipeToSlide: true,
-    focusOnSelect: true,
+    focusOnSelect: false,
     variableWidth: true,
     centerPadding: '0px',
     slidesToShow: slides.length > 3 ? 3 : slides.length,
@@ -159,6 +159,10 @@ export default function ProductDetailsCarousel({ product, selectedVariant }) {
               alt={item.src}
               src={item.src}
               variant="rounded"
+              onClick={() => {
+                carouselLarge.onTogo(index);
+                carouselThumb.onTogo(index);
+              }}
               sx={{
                 width: THUMB_SIZE,
                 height: THUMB_SIZE,

@@ -1,37 +1,35 @@
-import * as Yup from 'yup';
-import { useCallback } from 'react';
-import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
+import { useCallback, useContext } from 'react';
+import { useForm } from 'react-hook-form';
+import * as Yup from 'yup';
 // @mui
 import LoadingButton from '@mui/lab/LoadingButton';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import Stack from '@mui/material/Stack';
-import Button from '@mui/material/Button';
-import Grid from '@mui/material/Unstable_Grid2';
 import Typography from '@mui/material/Typography';
+import Grid from '@mui/material/Unstable_Grid2';
 // hooks
-import { useMockedUser } from 'src/hooks/use-mocked-user';
 // utils
 import { fData } from 'src/utils/format-number';
 // assets
-import { countries } from 'src/assets/data';
 // components
-import Iconify from 'src/components/iconify';
-import { useSnackbar } from 'src/components/snackbar';
+import { AuthContext } from 'src/auth/context/jwt';
 import FormProvider, {
-  RHFSwitch,
   RHFTextField,
-  RHFUploadAvatar,
-  RHFAutocomplete,
+  RHFUploadAvatar
 } from 'src/components/hook-form';
+import { useSnackbar } from 'src/components/snackbar';
+import axiosInstance from 'src/utils/axios';
 
 // ----------------------------------------------------------------------
 
 export default function AccountGeneral() {
   const { enqueueSnackbar } = useSnackbar();
+  const { user } = useContext(AuthContext);
 
-  const { user } = useMockedUser();
+  console.log("user", user);
+  // const { user } = useMockedUser();
 
   const UpdateUserSchema = Yup.object().shape({
     displayName: Yup.string().required('Name is required'),
@@ -49,10 +47,10 @@ export default function AccountGeneral() {
   });
 
   const defaultValues = {
-    displayName: user?.displayName || '',
+    displayName: user?.fullName || '',
     email: user?.email || '',
     photoURL: user?.photoURL || null,
-    phoneNumber: user?.phoneNumber || '',
+    phoneNumber: user?.phone || '',
     country: user?.country || '',
     address: user?.address || '',
     state: user?.state || '',
@@ -61,6 +59,8 @@ export default function AccountGeneral() {
     about: user?.about || '',
     isPublic: user?.isPublic || false,
   };
+
+
 
   const methods = useForm({
     resolver: yupResolver(UpdateUserSchema),
@@ -75,6 +75,7 @@ export default function AccountGeneral() {
 
   const onSubmit = handleSubmit(async (data) => {
     try {
+      await axiosInstance.patch(`  ${user.id}`, data);
       await new Promise((resolve) => setTimeout(resolve, 500));
       enqueueSnackbar('Update success!');
       console.info('DATA', data);
@@ -140,7 +141,7 @@ export default function AccountGeneral() {
               <RHFTextField name="displayName" label="Name" />
               <RHFTextField name="email" label="Email Address" />
               <RHFTextField name="phoneNumber" label="Phone Number" />
-              <RHFTextField name="address" label="Address" />
+              {/* <RHFTextField name="address" label="Address" />
 
               <RHFAutocomplete
                 name="country"
@@ -172,7 +173,7 @@ export default function AccountGeneral() {
 
               <RHFTextField name="state" label="State/Region" />
               <RHFTextField name="city" label="City" />
-              <RHFTextField name="zipCode" label="Zip/Code" />
+              <RHFTextField name="zipCode" label="Zip/Code" /> */}
             </Box>
 
             <Stack spacing={3} alignItems="flex-end" sx={{ mt: 3 }}>
@@ -188,3 +189,5 @@ export default function AccountGeneral() {
     </FormProvider>
   );
 }
+
+
