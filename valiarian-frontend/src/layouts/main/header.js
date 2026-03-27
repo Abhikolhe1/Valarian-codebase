@@ -258,6 +258,7 @@ export default function Header() {
 
   // Marquee height: 36px desktop, 32px mobile
   const marqueeHeight = mdUp ? 36 : 32;
+  const desktopOffsetTop = mdUp && offsetTop;
 
   // Show header logo and background after scroll threshold (when animated logo fades out)
   useEffect(() => {
@@ -420,9 +421,12 @@ export default function Header() {
     <AppBar
       data-header="main"
       sx={{
+        zIndex: theme.zIndex.appBar + 2,
+        isolation: 'isolate',
+        pointerEvents: 'auto',
         backgroundColor: `rgba(255, 255, 255, ${headerBgOpacity})`,
         color: theme.palette.text.primary,
-        boxShadow: offsetTop && headerBgOpacity > 0 ? theme.shadows[4] : 'none',
+        boxShadow: desktopOffsetTop && headerBgOpacity > 0 ? theme.shadows[4] : 'none',
         top: marqueeVisible ? marqueeHeight : 0,
         transition: theme.transitions.create(['backgroundColor', 'boxShadow', 'top'], {
           duration: theme.transitions.duration.standard,
@@ -432,6 +436,9 @@ export default function Header() {
       <Toolbar
         disableGutters
         sx={{
+          position: 'relative',
+          zIndex: 1,
+          pointerEvents: 'auto',
           height: {
             xs: HEADER.H_MOBILE,
             md: HEADER.H_DESKTOP,
@@ -440,7 +447,7 @@ export default function Header() {
             easing: theme.transitions.easing.easeInOut,
             duration: theme.transitions.duration.shorter,
           }),
-          ...(offsetTop && {
+          ...(desktopOffsetTop && {
             ...bgBlur({
               color: theme.palette.background.default,
             }),
@@ -450,7 +457,16 @@ export default function Header() {
           }),
         }}
       >
-        <Container sx={{ height: 1, display: 'flex', alignItems: 'center', position: 'relative' }}>
+        <Container
+          sx={{
+            height: 1,
+            display: 'flex',
+            alignItems: 'center',
+            position: 'relative',
+            zIndex: 2,
+            pointerEvents: 'auto',
+          }}
+        >
           {/* Left: Expandable Search - Desktop only inline expansion */}
           {mdUp && (
             <>
@@ -511,6 +527,7 @@ export default function Header() {
               onClick={handleMobileSearchClick}
               expanded={false}
               isTransparent={headerBgOpacity === 0}
+              sx={{ position: 'relative', zIndex: 3 }}
             >
               <Iconify icon="eva:search-fill" width={20} />
             </StyledSearchIconButton>
@@ -522,6 +539,9 @@ export default function Header() {
               position: 'absolute',
               left: '50%',
               transform: 'translateX(-50%)',
+              width: 'max-content',
+              maxWidth: 'calc(100% - 140px)',
+              zIndex: 2,
               opacity: showLogo ? 1 : 0,
               transition: theme.transitions.create('opacity', {
                 duration: theme.transitions.duration.short,
@@ -534,7 +554,12 @@ export default function Header() {
           {/* Spacer between search and center logo */}
           <Box sx={{ flexGrow: 1 }} />
 
-          <Stack direction="row" spacing={{ xs: 1, md: 3 }} alignItems="center">
+          <Stack
+            direction="row"
+            spacing={{ xs: 1, md: 3 }}
+            alignItems="center"
+            sx={{ position: 'relative', zIndex: 3 }}
+          >
             {/* Navigation Links */}
             {mdUp && (
               <Stack direction="row" spacing={3} sx={{ mr: 2 }}>
@@ -695,7 +720,7 @@ export default function Header() {
               {/* Mobile Menu */}
               {!mdUp && (
                 <NavMobile
-                  offsetTop={offsetTop && headerBgOpacity > 0}
+                  offsetTop={desktopOffsetTop && headerBgOpacity > 0}
                   isTransparent={headerBgOpacity === 0}
                 />
               )}
@@ -704,7 +729,7 @@ export default function Header() {
         </Container>
       </Toolbar>
 
-      {offsetTop && headerBgOpacity > 0 && <HeaderShadow />}
+      {desktopOffsetTop && headerBgOpacity > 0 && <HeaderShadow />}
 
       {/* Mobile Search Overlay */}
       {!mdUp && searchExpanded && (

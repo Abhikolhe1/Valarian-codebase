@@ -24,9 +24,9 @@ const StyledMarqueeContainer = styled(Box)(({ theme, visible }) => ({
   backgroundColor: theme.palette.grey[900],
   color: theme.palette.common.white,
   overflow: 'hidden',
+  pointerEvents: 'none',
   transform: visible ? 'translateY(0)' : 'translateY(-100%)',
   opacity: visible ? 1 : 0,
-  pointerEvents: visible ? 'auto' : 'none',
   transition: theme.transitions.create(['transform', 'opacity'], {
     duration: theme.transitions.duration.standard,
     easing: theme.transitions.easing.easeInOut,

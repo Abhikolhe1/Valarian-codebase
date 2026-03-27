@@ -29,6 +29,8 @@ import Iconify from 'src/components/iconify';
 import Image from 'src/components/image';
 import { useSnackbar } from 'src/components/snackbar';
 import { Upload } from 'src/components/upload';
+import { useBoolean } from 'src/hooks/use-boolean';
+import CMSMediaPicker from 'src/sections/cms/cms-media-picker';
 // utils
 import { fCurrency } from 'src/utils/format-number';
 
@@ -55,6 +57,7 @@ const COLOR_PRESETS = [
 
 export default function ProductVariantManager({ variants = [], onChange, productName = '' }) {
   const { enqueueSnackbar } = useSnackbar();
+  const mediaPicker = useBoolean();
 
   const [openDialog, setOpenDialog] = useState(false);
   const [editingVariant, setEditingVariant] = useState(null);
@@ -174,6 +177,34 @@ export default function ProductVariantManager({ variants = [], onChange, product
     }));
   }, []);
 
+  // Handle image reorder
+  const handleImageReorder = useCallback((reorderedImages) => {
+    setFormData(prev => ({
+      ...prev,
+      images: reorderedImages,
+    }));
+  }, []);
+
+  const handleSelectExistingImages = useCallback((selectedMedia) => {
+    const selectedUrls = (Array.isArray(selectedMedia) ? selectedMedia : [])
+      .map((item) => item?.url)
+      .filter(Boolean);
+
+    if (selectedUrls.length === 0) {
+      return;
+    }
+
+    setFormData((prev) => ({
+      ...prev,
+      images: [...prev.images, ...selectedUrls.filter((url) => !prev.images.includes(url))],
+    }));
+
+    enqueueSnackbar(`${selectedUrls.length} image${selectedUrls.length > 1 ? 's' : ''} added from media library`, {
+      variant: 'success',
+    });
+    mediaPicker.onFalse();
+  }, [enqueueSnackbar, mediaPicker]);
+
   // Handle remove all images
   const handleRemoveAllImages = useCallback(() => {
     setFormData(prev => ({
@@ -284,7 +315,7 @@ export default function ProductVariantManager({ variants = [], onChange, product
       console.log('✓ Valid variant images:', validImages);
 
       const variantData = {
-        id: uuidv4(),
+        id: editingVariant?.id || uuidv4(),
         sku: formData.sku,
         color: formData.color,
         colorName: formData.colorName,
@@ -630,13 +661,30 @@ export default function ProductVariantManager({ variants = [], onChange, product
 
             {/* Images Upload */}
             <Stack spacing={1}>
-              <Typography variant="subtitle2">Variant Images</Typography>
+              <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={2}>
+                <Typography variant="subtitle2">Variant Images</Typography>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  startIcon={<Iconify icon="solar:gallery-add-bold-duotone" />}
+                  onClick={mediaPicker.onTrue}
+                >
+                  Choose Existing
+                </Button>
+              </Stack>
               <Upload
                 multiple
+                thumbnail
                 files={formData.images}
                 onDrop={handleImageDrop}
                 onRemove={handleImageRemove}
                 onRemoveAll={handleRemoveAllImages}
+                onReorder={handleImageReorder}
+                helperText={
+                  <Typography variant="caption" sx={{ px: 0.5, color: 'text.secondary' }}>
+                    Choose from Media Library, upload new ones, and drag to set the display order.
+                  </Typography>
+                }
               />
             </Stack>
 
@@ -652,13 +700,22 @@ export default function ProductVariantManager({ variants = [], onChange, product
             />
           </Stack>
         </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCloseDialog}>Cancel</Button>
-          <Button variant="contained" onClick={handleSaveVariant}>
-            {editingVariant ? 'Update' : 'Add'} Variant
-          </Button>
-        </DialogActions>
+      <DialogActions>
+        <Button onClick={handleCloseDialog}>Cancel</Button>
+        <Button variant="contained" onClick={handleSaveVariant}>
+          {editingVariant ? 'Update' : 'Add'} Variant
+        </Button>
+      </DialogActions>
       </Dialog>
+
+      <CMSMediaPicker
+        open={mediaPicker.value}
+        onClose={mediaPicker.onFalse}
+        onSelect={handleSelectExistingImages}
+        multiple
+        selectedMedia={[]}
+        accept={{ 'image/*': ['.jpg', '.jpeg', '.png', '.webp', '.svg'] }}
+      />
 
       {/* Delete Confirmation Dialog */}
       <ConfirmDialog

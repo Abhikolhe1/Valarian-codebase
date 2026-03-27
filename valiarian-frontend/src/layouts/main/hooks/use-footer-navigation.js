@@ -16,7 +16,7 @@ export function useFooterNavigation() {
       {
         headline: 'Valiarian',
         children: [
-          { name: 'Products', href: paths.about },
+          { name: 'Products', href: paths.product.root },
           { name: 'Our Story', href: paths.contact },
           { name: 'FAQs', href: paths.faqs },
         ],
@@ -30,7 +30,9 @@ export function useFooterNavigation() {
       },
       {
         headline: 'Contact',
-        children: [{ name: 'support@valiarian.in', href: '#' }],
+        children: [{ name: 'support@valiarian.in', href: '#' },
+          { name: 'Contact Us', href: paths.contact}
+        ],
       },
     ],
     []
