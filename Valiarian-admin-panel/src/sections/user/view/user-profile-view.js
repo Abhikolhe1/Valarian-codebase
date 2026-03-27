@@ -1,25 +1,25 @@
-import { useState, useCallback } from 'react';
+import { useCallback, useState } from 'react';
 // @mui
-import Tab from '@mui/material/Tab';
 import Card from '@mui/material/Card';
 import Container from '@mui/material/Container';
+import Tab from '@mui/material/Tab';
 import Tabs, { tabsClasses } from '@mui/material/Tabs';
 // routes
 import { paths } from 'src/routes/paths';
 // hooks
-import { useMockedUser } from 'src/hooks/use-mocked-user';
 // _mock
-import { _userAbout, _userFeeds, _userFriends, _userGallery, _userFollowers } from 'src/_mock';
+import { _userAbout, _userFeeds, _userFollowers, _userFriends, _userGallery } from 'src/_mock';
 // components
+import CustomBreadcrumbs from 'src/components/custom-breadcrumbs';
 import Iconify from 'src/components/iconify';
 import { useSettingsContext } from 'src/components/settings';
-import CustomBreadcrumbs from 'src/components/custom-breadcrumbs';
 //
-import ProfileHome from '../profile-home';
+import { useAuthContext } from 'src/auth/hooks';
 import ProfileCover from '../profile-cover';
+import ProfileFollowers from '../profile-followers';
 import ProfileFriends from '../profile-friends';
 import ProfileGallery from '../profile-gallery';
-import ProfileFollowers from '../profile-followers';
+import ProfileHome from '../profile-home';
 
 // ----------------------------------------------------------------------
 
@@ -51,7 +51,7 @@ const TABS = [
 export default function UserProfileView() {
   const settings = useSettingsContext();
 
-  const { user } = useMockedUser();
+  const { user } = useAuthContext();
 
   const [searchFriends, setSearchFriends] = useState('');
 
@@ -86,8 +86,8 @@ export default function UserProfileView() {
         }}
       >
         <ProfileCover
-          role={_userAbout.role}
-          name={user?.displayName}
+          role={user?.roles}
+          name={user?.fullName}
           avatarUrl={user?.photoURL}
           coverUrl={_userAbout.coverUrl}
         />
