@@ -34,6 +34,7 @@ export default function OrderTableRow({ row, onViewRow, onEditRow }) {
   const getStatusColor = (orderStatus) => {
     switch (orderStatus) {
       case 'delivered':
+      case 'parcel_received':
         return 'success';
       case 'pending':
         return 'warning';
@@ -69,6 +70,12 @@ export default function OrderTableRow({ row, onViewRow, onEditRow }) {
     }
   };
 
+  const formatStatusLabel = (value) =>
+    value
+      .split('_')
+      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+      .join(' ');
+
   return (
     <>
       <TableRow hover>
@@ -88,7 +95,7 @@ export default function OrderTableRow({ row, onViewRow, onEditRow }) {
             color={getStatusColor(status)}
             sx={{ textTransform: 'capitalize' }}
           >
-            {status}
+            {formatStatusLabel(status)}
           </Label>
         </TableCell>
 

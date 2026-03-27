@@ -116,6 +116,7 @@ export class Order extends Entity {
         'cancelled',
         'returned',
         'refunded',
+        'parcel_received',
       ],
     },
   })
@@ -130,7 +131,8 @@ export class Order extends Entity {
     | 'delivered'
     | 'cancelled'
     | 'returned'
-    | 'refunded';
+    | 'refunded'
+    | 'parcel_received';
 
   // Payment Information
   @property({
@@ -379,6 +381,11 @@ export class Order extends Entity {
     type: 'date',
   })
   refundCompletedAt?: Date;
+
+  @property({
+    type: 'date',
+  })
+  parcelReceivedAt?: Date;
 
   @property({
     type: 'string',

@@ -40,6 +40,7 @@ const STATUS_OPTIONS = [
   'cancelled',
   'returned',
   'refunded',
+  'parcel_received',
 ];
 
 export default function OrderDetailsView() {
@@ -226,6 +227,7 @@ export default function OrderDetailsView() {
   const getStatusColor = (status) => {
     switch (status) {
       case 'delivered':
+      case 'parcel_received':
         return 'success';
       case 'pending':
         return 'warning';
@@ -499,7 +501,10 @@ export default function OrderDetailsView() {
             >
               {STATUS_OPTIONS.map((option) => (
                 <MenuItem key={option} value={option}>
-                  {option.charAt(0).toUpperCase() + option.slice(1)}
+                  {option
+                    .split('_')
+                    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+                    .join(' ')}
                 </MenuItem>
               ))}
             </TextField>

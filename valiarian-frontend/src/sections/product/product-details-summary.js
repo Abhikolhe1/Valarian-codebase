@@ -74,8 +74,16 @@ export default function ProductDetailsSummary({
     if (variants && variants.length > 0) {
       const defaultVariant = variants.find((v) => v.isDefault) || variants[0];
       setSelectedVariant(defaultVariant);
+      if (onVariantChange) {
+        onVariantChange(defaultVariant);
+      }
+    } else {
+      setSelectedVariant(null);
+      if (onVariantChange) {
+        onVariantChange(null);
+      }
     }
-  }, [variants]);
+  }, [variants, onVariantChange]);
 
   // Get variant-specific values or fallback to product values
   const currentPrice = resolveEffectivePrice(selectedVariant);
@@ -163,19 +171,45 @@ export default function ProductDetailsSummary({
   // Handle size change - find matching variant
   const handleSizeChange = useCallback((size) => {
     if (variants && variants.length > 0) {
-      const variant = variants.find(v =>
-        v.color === values.colors && v.size === size
+      let variant = variants.find(
+        (v) =>
+          v.color === values.colors &&
+          v.size === size &&
+          v.inStock &&
+          v.stockQuantity > 0
       );
+
+      if (!variant) {
+        variant = variants.find(
+          (v) =>
+            v.size === size &&
+            v.inStock &&
+            v.stockQuantity > 0
+        );
+      }
+
+      setValue('size', size);
+
       if (variant) {
         setSelectedVariant(variant);
-        setValue('size', size);
+        setValue('colors', variant.color);
         setValue('variantId', variant.id);
         setValue('price', resolveEffectivePrice(variant));
         setValue('available', variant.stockQuantity);
-        setValue('quantity', variant.stockQuantity < 1 ? 0 : Math.min(values.quantity, variant.stockQuantity));
+        setValue(
+          'quantity',
+          variant.stockQuantity < 1 ? 0 : Math.min(values.quantity, variant.stockQuantity)
+        );
+
         if (onVariantChange) {
           onVariantChange(variant);
         }
+      } else {
+        setSelectedVariant(null);
+        setValue('colors', '');
+        setValue('variantId', null);
+        setValue('available', 0);
+        setValue('quantity', 0);
       }
     } else {
       setValue('size', size);
@@ -185,8 +219,17 @@ export default function ProductDetailsSummary({
   // Check if a color/size combination is available
   const isColorAvailable = useCallback((color) => {
     if (!variants || variants.length === 0) return true;
-    return variants.some(v => v.color === color && v.inStock);
-  }, [variants]);
+
+    return variants.some(
+      (v) =>
+        v.color === color &&
+        v.size === values.size &&
+        v.inStock &&
+        v.stockQuantity > 0
+    );
+  }, [variants, values.size]);
+  const filteredAvailableColors =
+    availableColors?.filter((color) => isColorAvailable(color)) || [];
 
   const isSizeAvailable = useCallback((size) => {
     if (!variants || variants.length === 0) return true;
@@ -265,7 +308,7 @@ export default function ProductDetailsSummary({
     </Stack>
   );
 
-  const renderColorOptions = availableColors && availableColors.length > 0 && (
+  const renderColorOptions = filteredAvailableColors.length > 0 && (
     <Stack direction="row">
       <Typography variant="subtitle2" sx={{ flexGrow: 1 }}>
         Color
@@ -276,21 +319,13 @@ export default function ProductDetailsSummary({
         control={control}
         render={({ field }) => (
           <ColorPicker
-            colors={availableColors}
+            colors={filteredAvailableColors}
             selected={field.value}
             onSelectColor={(color) => {
               field.onChange(color);
               handleColorChange(color);
             }}
             limit={4}
-            sx={{
-              '& .MuiButtonBase-root': {
-                opacity: (theme) => {
-                  const color = theme.palette.mode === 'light' ? field.value : field.value;
-                  return isColorAvailable(color) ? 1 : 0.3;
-                },
-              },
-            }}
           />
         )}
       />
@@ -322,7 +357,7 @@ export default function ProductDetailsSummary({
         }}
       >
         {availableSizes.map((size) => (
-          <MenuItem key={size} value={size} disabled={!isSizeAvailable(size)}>
+          <MenuItem key={size} value={size} >
             {size}
           </MenuItem>
         ))}
@@ -451,10 +486,10 @@ export default function ProductDetailsSummary({
         </Stack>
 
         <Divider sx={{ borderStyle: 'dashed' }} />
-
+        {renderSizeOptions}
         {renderColorOptions}
 
-        {renderSizeOptions}
+
 
         {renderQuantity}
 
