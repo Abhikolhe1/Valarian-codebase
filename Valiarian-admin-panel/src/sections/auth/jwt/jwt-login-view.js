@@ -135,7 +135,7 @@ export default function JwtLoginView({ loginType = 'super_admin' }) {
               textDecoration: 'underline',
             },
           }}
-          onClick={() => router.push(paths.auth.jwt.forgotPassword)}
+          onClick={() => router.push(`${paths.auth.jwt.forgotPassword}?loginType=${loginType}`)}
         >
           Forgot password?
         </Link>

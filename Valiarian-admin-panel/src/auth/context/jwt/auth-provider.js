@@ -160,6 +160,23 @@ export function AuthProvider({ children }) {
     return user;
   }, []);
 
+  // FORGOT PASSWORD
+  const forgotPassword = useCallback(async (email, role = 'super_admin') => {
+    await axios.post(endpoints.auth.forgotPasswordSendOtp, {
+      email,
+      role,
+    });
+  }, []);
+
+  const newPassword = useCallback(async (email, otp, password, role = 'super_admin') => {
+    await axios.post(endpoints.auth.forgotPasswordVerifyOtp, {
+      email,
+      otp,
+      newPassword: password,
+      role,
+    });
+  }, []);
+
   // LOGOUT
   const logout = useCallback(async () => {
     setSession(null);
@@ -184,9 +201,11 @@ export function AuthProvider({ children }) {
       //
       login,
       register,
+      forgotPassword,
+      newPassword,
       logout,
     }),
-    [login, logout, register, state.user, status]
+    [forgotPassword, login, logout, newPassword, register, state.user, status]
   );
 
   return <AuthContext.Provider value={memoizedValue}>{children}</AuthContext.Provider>;

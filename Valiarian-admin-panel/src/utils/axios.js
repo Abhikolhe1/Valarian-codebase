@@ -56,6 +56,8 @@ export const endpoints = {
     login: '/api/auth/login',
     superAdminLogin: '/api/auth/super-admin-login',
     adminLogin: '/api/auth/admin-login',
+    forgotPasswordSendOtp: '/api/auth/forget-password/send-email-otp',
+    forgotPasswordVerifyOtp: '/api/auth/forget-password/verify-email-otp',
     createAdmin: '/api/auth/admin',
     adminList: '/api/auth/admins',
     adminDetails: (id) => `/api/auth/admins/${id}`,

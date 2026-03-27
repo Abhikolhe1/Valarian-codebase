@@ -1357,8 +1357,8 @@ export class AuthController {
       {identifier: sanitizedEmail, type: 1}
     );
 
-    // Generate random 4-digit OTP
-    const otpCode = (process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'dev' ? '123456' : Math.floor(1000 + Math.random() * 9000).toString());
+    // Generate a real random 4-digit OTP to match the admin reset UI
+    const otpCode = Math.floor(1000 + Math.random() * 9000).toString();
 
     const otp = await this.otpRepository.create({
       otp: otpCode,
@@ -1549,8 +1549,8 @@ export class AuthController {
       {identifier: sanitizedEmail, type: 1}
     );
 
-    // Generate random 4-digit OTP
-    const otpCode = (process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'dev' ? '123456' : Math.floor(1000 + Math.random() * 9000).toString());
+    // Generate a real random 4-digit OTP to match the admin reset UI
+    const otpCode = Math.floor(1000 + Math.random() * 9000).toString();
 
     const otp = await this.otpRepository.create({
       otp: otpCode,
