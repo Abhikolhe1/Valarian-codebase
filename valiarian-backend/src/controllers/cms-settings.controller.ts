@@ -44,6 +44,11 @@ const defaultContactPage = {
   ],
 };
 
+const defaultLegalDocuments = {
+  termsAndConditionsUrl: '',
+  privacyPolicyUrl: '',
+};
+
 export class CMSSettingsController {
   constructor(
     @repository(SiteSettingsRepository)
@@ -84,6 +89,7 @@ export class CMSSettingsController {
         gtmId: '',
         gaId: '',
         contactPage: defaultContactPage,
+        legalDocuments: defaultLegalDocuments,
         createdAt: new Date(),
         updatedAt: new Date(),
       };
@@ -98,6 +104,10 @@ export class CMSSettingsController {
         settings.contactPage?.locations?.length
           ? settings.contactPage.locations
           : defaultContactPage.locations,
+    };
+    settings.legalDocuments = {
+      ...defaultLegalDocuments,
+      ...(settings.legalDocuments || {}),
     };
 
     return settings;
@@ -170,6 +180,13 @@ export class CMSSettingsController {
                       },
                     },
                   },
+                },
+              },
+              legalDocuments: {
+                type: 'object',
+                properties: {
+                  termsAndConditionsUrl: {type: 'string'},
+                  privacyPolicyUrl: {type: 'string'},
                 },
               },
             },

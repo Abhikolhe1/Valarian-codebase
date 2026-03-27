@@ -54,6 +54,11 @@ const TABS = [
     label: 'Contact Page',
     icon: 'solar:map-point-bold',
   },
+  {
+    value: 'legal',
+    label: 'Legal Docs',
+    icon: 'solar:document-text-bold',
+  },
 ];
 
 // ----------------------------------------------------------------------
@@ -113,6 +118,10 @@ export default function CMSSettingsView() {
                 longitude: 65,
               },
             ],
+      },
+      legalDocuments: {
+        termsAndConditionsUrl: siteSettings?.legalDocuments?.termsAndConditionsUrl || '',
+        privacyPolicyUrl: siteSettings?.legalDocuments?.privacyPolicyUrl || '',
       },
     }),
     [siteSettings]
@@ -560,6 +569,39 @@ export default function CMSSettingsView() {
     </Stack>
   );
 
+  const renderLegal = (
+    <Stack spacing={3}>
+      <Typography variant="h6">Legal Documents</Typography>
+
+      <Typography variant="body2" color="text.secondary">
+        Upload the final Terms and Conditions and Privacy Policy documents here. These file links
+        will be used on the storefront and will open in a new browser tab.
+      </Typography>
+
+      <CMSMediaPickerField
+        label="Terms and Conditions Document"
+        value={values.legalDocuments?.termsAndConditionsUrl}
+        onChange={(url) => setValue('legalDocuments.termsAndConditionsUrl', url)}
+        helperText="Upload a PDF document for Terms and Conditions."
+        compact
+        accept={{
+          'application/pdf': ['.pdf'],
+        }}
+      />
+
+      <CMSMediaPickerField
+        label="Privacy Policy Document"
+        value={values.legalDocuments?.privacyPolicyUrl}
+        onChange={(url) => setValue('legalDocuments.privacyPolicyUrl', url)}
+        helperText="Upload a PDF document for Privacy Policy."
+        compact
+        accept={{
+          'application/pdf': ['.pdf'],
+        }}
+      />
+    </Stack>
+  );
+
   return (
     <Container maxWidth={settings.themeStretch ? false : 'xl'}>
       <CustomBreadcrumbs
@@ -607,6 +649,7 @@ export default function CMSSettingsView() {
                 {currentTab === 'social' && renderSocial}
                 {currentTab === 'analytics' && renderAnalytics}
                 {currentTab === 'contact' && renderContact}
+                {currentTab === 'legal' && renderLegal}
 
                 <Stack direction="row" justifyContent="flex-end" sx={{ mt: 4 }}>
                   <LoadingButton

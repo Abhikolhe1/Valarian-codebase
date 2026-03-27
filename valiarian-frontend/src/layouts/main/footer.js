@@ -20,6 +20,72 @@ import { useFooterNavigation } from './hooks/use-footer-navigation';
 export default function Footer() {
   const { navigation: footerLinks } = useFooterNavigation();
   const { settings } = useSiteSettings();
+  const legalDocuments = settings?.legalDocuments || {};
+
+  const isExternalLink = (href) =>
+    typeof href === 'string' &&
+    (href.startsWith('http://') ||
+      href.startsWith('https://') ||
+      href.startsWith('blob:') ||
+      /\.(pdf|doc|docx)$/i.test(href));
+
+  const normalizeHref = (href) => {
+    if (!href || typeof href !== 'string') {
+      return '';
+    }
+
+    const trimmedHref = href.trim();
+
+    if (!trimmedHref) {
+      return '';
+    }
+
+    if (
+      trimmedHref.startsWith('http://') ||
+      trimmedHref.startsWith('https://') ||
+      trimmedHref.startsWith('/')
+    ) {
+      return trimmedHref;
+    }
+
+    return `/${trimmedHref}`;
+  };
+
+  const resolveFooterLink = (listHeadline, link) => {
+    if (listHeadline?.toLowerCase() !== 'legal') {
+      return {
+        href: normalizeHref(link.href),
+        target: link.target,
+        rel: link.rel,
+      };
+    }
+
+    const linkName = link.name?.toLowerCase();
+    const termsHref = normalizeHref(legalDocuments.termsAndConditionsUrl);
+    const privacyHref = normalizeHref(legalDocuments.privacyPolicyUrl);
+
+    if (linkName?.includes('terms')) {
+      return {
+        href: termsHref || '#',
+        target: termsHref ? '_blank' : undefined,
+        rel: termsHref ? 'noopener noreferrer' : undefined,
+      };
+    }
+
+    if (linkName?.includes('privacy')) {
+      return {
+        href: privacyHref || '#',
+        target: privacyHref ? '_blank' : undefined,
+        rel: privacyHref ? 'noopener noreferrer' : undefined,
+      };
+    }
+
+    return {
+      href: normalizeHref(link.href),
+      target: link.target,
+      rel: link.rel,
+    };
+  };
 
   const socialLinks = [
     {
@@ -166,15 +232,23 @@ export default function Footer() {
                   </Typography>
 
                   {list.children.map((link) => (
-                    <Link
-                      key={link.name}
-                      component={RouterLink}
-                      href={link.href}
-                      color="inherit"
-                      variant="body2"
-                    >
-                      {link.name}
-                    </Link>
+                    (() => {
+                      const resolvedLink = resolveFooterLink(list.headline, link);
+
+                      return (
+                        <Link
+                          key={link.name}
+                          component={isExternalLink(resolvedLink.href) ? 'a' : RouterLink}
+                          href={resolvedLink.href}
+                          target={resolvedLink.target}
+                          rel={resolvedLink.rel}
+                          color="inherit"
+                          variant="body2"
+                        >
+                          {link.name}
+                        </Link>
+                      );
+                    })()
                   ))}
                 </Stack>
               ))}

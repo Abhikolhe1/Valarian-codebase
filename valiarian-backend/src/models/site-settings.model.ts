@@ -32,6 +32,11 @@ export interface ContactPageSettings {
   locations?: ContactLocation[];
 }
 
+export interface LegalDocumentsSettings {
+  termsAndConditionsUrl?: string;
+  privacyPolicyUrl?: string;
+}
+
 @model({
   settings: {
     postgresql: {
@@ -117,6 +122,14 @@ export class SiteSettings extends Entity {
     },
   })
   contactPage?: ContactPageSettings;
+
+  @property({
+    type: 'object',
+    postgresql: {
+      dataType: 'jsonb',
+    },
+  })
+  legalDocuments?: LegalDocumentsSettings;
 
   
   
