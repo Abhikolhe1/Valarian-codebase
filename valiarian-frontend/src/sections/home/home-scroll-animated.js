@@ -604,7 +604,7 @@ export default function HomeScrollAnimated({ products: propProducts, cmsData, ..
         position: 'relative',
         width: '100%',
         height: { md: '80vh' },
-        minHeight: { xs: 350, md: 600 },
+        minHeight: { xs: 350, sm: 600, md: 600 },
         overflow: 'visible',
       }}
     >
