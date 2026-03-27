@@ -38,6 +38,12 @@ const reducer = (state, action) => {
       user: action.payload.user,
     };
   }
+  if (action.type === 'UPDATE_USER') {
+    return {
+      ...state,
+      user: action.payload.user,
+    };
+  }
   if (action.type === 'LOGOUT') {
     return {
       ...state,
@@ -177,6 +183,15 @@ export function AuthProvider({ children }) {
     });
   }, []);
 
+  const updateUser = useCallback((user) => {
+    dispatch({
+      type: 'UPDATE_USER',
+      payload: {
+        user,
+      },
+    });
+  }, []);
+
   // LOGOUT
   const logout = useCallback(async () => {
     setSession(null);
@@ -203,9 +218,10 @@ export function AuthProvider({ children }) {
       register,
       forgotPassword,
       newPassword,
+      updateUser,
       logout,
     }),
-    [forgotPassword, login, logout, newPassword, register, state.user, status]
+    [forgotPassword, login, logout, newPassword, register, state.user, status, updateUser]
   );
 
   return <AuthContext.Provider value={memoizedValue}>{children}</AuthContext.Provider>;

@@ -1,17 +1,13 @@
 import PropTypes from 'prop-types';
 import { useCallback, useEffect, useState } from 'react';
 // @mui
-import { darken, lighten, alpha } from '@mui/material/styles';
 import Box from '@mui/material/Box';
 import Link from '@mui/material/Link';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
 import Avatar from '@mui/material/Avatar';
 import Divider from '@mui/material/Divider';
-import Tooltip from '@mui/material/Tooltip';
 import Collapse from '@mui/material/Collapse';
-import Checkbox from '@mui/material/Checkbox';
-import IconButton from '@mui/material/IconButton';
 import ButtonBase from '@mui/material/ButtonBase';
 import Typography from '@mui/material/Typography';
 import ListItemText from '@mui/material/ListItemText';
@@ -29,6 +25,16 @@ import FileThumbnail from 'src/components/file-thumbnail';
 import MailBox from './mail-box';
 
 // ----------------------------------------------------------------------
+
+function formatIssueTypeLabel(value) {
+  if (!value) return '-';
+
+  return value
+    .split('_')
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
+}
 
 export default function ContactUsDetails({ currentUser, renderLabel = () => null }) {
   const showAttachments = useBoolean(true);
@@ -73,23 +79,14 @@ export default function ContactUsDetails({ currentUser, renderLabel = () => null
   }
 
 
-  const renderHead = (
-    <Stack direction="row" alignItems="center" flexShrink={0} sx={{ height: 56, pl: 2, pr: 1 }}>
-      <Stack direction="row" spacing={1} flexGrow={1}>
+  const renderSubject = (
+    <Stack spacing={2} flexShrink={0} sx={{ p: 2 }}>
+      <Stack direction="row" spacing={1} alignItems="center">
         {labelIds.map((labelId) => {
           const label = renderLabel(labelId);
 
           return label ? (
-            <Label
-              key={label.id}
-              sx={{
-                bgcolor: alpha(label.color, 0.16),
-                color: (theme) =>
-                  theme.palette.mode === 'light'
-                    ? darken(label.color, 0.24)
-                    : lighten(label.color, 0.24),
-              }}
-            >
+            <Label key={label.id} color={label.color === 'default' ? 'default' : undefined}>
               {label.name}
             </Label>
           ) : (
@@ -100,49 +97,7 @@ export default function ContactUsDetails({ currentUser, renderLabel = () => null
         })}
       </Stack>
 
-      <Stack direction="row" alignItems="center">
-        <Checkbox
-          color="warning"
-          icon={<Iconify icon="eva:star-outline" />}
-          checkedIcon={<Iconify icon="eva:star-fill" />}
-          checked={false}
-        />
-
-        <Checkbox
-          color="warning"
-          icon={<Iconify icon="material-symbols:label-important-rounded" />}
-          checkedIcon={<Iconify icon="material-symbols:label-important-rounded" />}
-          checked={false}
-        />
-
-        <Tooltip title="Archive">
-          <IconButton>
-            <Iconify icon="solar:archive-down-minimlistic-bold" />
-          </IconButton>
-        </Tooltip>
-
-        <Tooltip title="Mark Unread">
-          <IconButton>
-            <Iconify icon="fluent:mail-unread-20-filled" />
-          </IconButton>
-        </Tooltip>
-
-        <Tooltip title="Trash">
-          <IconButton>
-            <Iconify icon="solar:trash-bin-trash-bold" />
-          </IconButton>
-        </Tooltip>
-
-        <IconButton>
-          <Iconify icon="eva:more-vertical-fill" />
-        </IconButton>
-      </Stack>
-    </Stack>
-  );
-
-  const renderSubject = (
-    <Stack spacing={2} direction="row" flexShrink={0} sx={{ p: 2 }}>
-      <TextMaxLine variant="subtitle2" sx={{ flexGrow: 1 }}>
+      <TextMaxLine variant="subtitle2">
         <Stack
           flexShrink={0}
           direction="row"
@@ -183,26 +138,6 @@ export default function ContactUsDetails({ currentUser, renderLabel = () => null
           />
         </Stack>
       </TextMaxLine>
-
-      <Stack spacing={0.5}>
-        <Stack direction="row" alignItems="center" justifyContent="flex-end">
-          <IconButton size="small">
-            <Iconify width={18} icon="solar:reply-bold" />
-          </IconButton>
-
-          <IconButton size="small">
-            <Iconify width={18} icon="solar:multiple-forward-left-broken" />
-          </IconButton>
-
-          <IconButton size="small">
-            <Iconify width={18} icon="solar:forward-bold" />
-          </IconButton>
-        </Stack>
-
-        <Typography variant="caption" noWrap sx={{ color: 'text.disabled' }}>
-          {submission.createdAt ? fDateTime(submission.createdAt) : '-'}
-        </Typography>
-      </Stack>
     </Stack>
   );
 
@@ -344,7 +279,7 @@ export default function ContactUsDetails({ currentUser, renderLabel = () => null
               Issue Type:
             </Typography>
             <Typography variant="subtitle2">
-              {submission.customIssueType || submission.issueType || '-'}
+              {submission.customIssueType || formatIssueTypeLabel(submission.issueType)}
             </Typography>
           </Stack>
 
@@ -481,10 +416,6 @@ export default function ContactUsDetails({ currentUser, renderLabel = () => null
         bgcolor: 'background.default',
       }}
     >
-      {renderHead}
-
-      <Divider sx={{ borderStyle: 'dashed' }} />
-
       {renderSubject}
 
       <Divider sx={{ borderStyle: 'dashed' }} />

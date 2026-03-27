@@ -6,8 +6,6 @@ import * as Yup from 'yup';
 // @mui
 import LoadingButton from '@mui/lab/LoadingButton';
 import Card from '@mui/material/Card';
-import IconButton from '@mui/material/IconButton';
-import InputAdornment from '@mui/material/InputAdornment';
 import MenuItem from '@mui/material/MenuItem';
 import Stack from '@mui/material/Stack';
 import Grid from '@mui/material/Unstable_Grid2';
@@ -18,41 +16,29 @@ import { useRouter } from 'src/routes/hook';
 import axios, { endpoints } from 'src/utils/axios';
 // components
 import FormProvider, { RHFTextField } from 'src/components/hook-form';
-import Iconify from 'src/components/iconify';
 import { useSnackbar } from 'src/components/snackbar';
-import { useBoolean } from 'src/hooks/use-boolean';
 
 // ----------------------------------------------------------------------
 
-export default function AdminNewEditForm({ currentAdmin }) {
+export default function AdminNewEditForm({ currentAdmin, includePasswordFields }) {
   const router = useRouter();
   const { enqueueSnackbar } = useSnackbar();
-  const password = useBoolean();
-  const confirmPassword = useBoolean();
   const isEdit = !!currentAdmin;
 
   const schema = Yup.object().shape({
     fullName: Yup.string().required('Full name is required'),
     email: Yup.string().required('Email is required').email('Email must be a valid email address'),
     phone: Yup.string().required('Phone is required'),
-    password: isEdit
-      ? Yup.string().min(6, 'Password must be at least 6 characters')
-      : Yup.string()
+    password: includePasswordFields
+      ? Yup.string()
           .required('Password is required')
-          .min(6, 'Password must be at least 6 characters'),
-    confirmPassword: Yup.string().test(
-      'passwords-match',
-      'Passwords must match',
-      (value, context) => {
-        const formPassword = context.parent.password;
-
-        if (!formPassword) {
-          return true;
-        }
-
-        return value === formPassword;
-      }
-    ),
+          .min(6, 'Password must be at least 6 characters')
+      : Yup.string(),
+    confirmPassword: includePasswordFields
+      ? Yup.string()
+          .required('Confirm password is required')
+          .oneOf([Yup.ref('password')], 'Passwords must match')
+      : Yup.string(),
     isActive: Yup.string().oneOf(['true', 'false']).required('Status is required'),
   });
 
@@ -94,7 +80,7 @@ export default function AdminNewEditForm({ currentAdmin }) {
         isActive: data.isActive === 'true',
       };
 
-      if (data.password) {
+      if (includePasswordFields && data.password) {
         payload.password = data.password;
       }
 
@@ -129,38 +115,16 @@ export default function AdminNewEditForm({ currentAdmin }) {
                 <MenuItem value="true">Active</MenuItem>
                 <MenuItem value="false">Inactive</MenuItem>
               </RHFTextField>
-              <RHFTextField
-                name="password"
-                label={isEdit ? 'New Password' : 'Password'}
-                type={password.value ? 'text' : 'password'}
-                InputProps={{
-                  endAdornment: (
-                    <InputAdornment position="end">
-                      <IconButton onClick={password.onToggle} edge="end">
-                        <Iconify
-                          icon={password.value ? 'solar:eye-bold' : 'solar:eye-closed-bold'}
-                        />
-                      </IconButton>
-                    </InputAdornment>
-                  ),
-                }}
-              />
-              <RHFTextField
-                name="confirmPassword"
-                label={isEdit ? 'Confirm New Password' : 'Confirm Password'}
-                type={confirmPassword.value ? 'text' : 'password'}
-                InputProps={{
-                  endAdornment: (
-                    <InputAdornment position="end">
-                      <IconButton onClick={confirmPassword.onToggle} edge="end">
-                        <Iconify
-                          icon={confirmPassword.value ? 'solar:eye-bold' : 'solar:eye-closed-bold'}
-                        />
-                      </IconButton>
-                    </InputAdornment>
-                  ),
-                }}
-              />
+              {includePasswordFields && (
+                <>
+                  <RHFTextField name="password" label="Password" type="password" />
+                  <RHFTextField
+                    name="confirmPassword"
+                    label="Confirm Password"
+                    type="password"
+                  />
+                </>
+              )}
             </Stack>
 
             <Stack direction="row" justifyContent="flex-end" sx={{ mt: 3 }}>
@@ -177,4 +141,9 @@ export default function AdminNewEditForm({ currentAdmin }) {
 
 AdminNewEditForm.propTypes = {
   currentAdmin: PropTypes.object,
+  includePasswordFields: PropTypes.bool,
+};
+
+AdminNewEditForm.defaultProps = {
+  includePasswordFields: true,
 };

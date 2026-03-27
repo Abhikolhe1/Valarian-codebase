@@ -53,6 +53,7 @@ export const endpoints = {
   },
   auth: {
     me: '/api/auth/me',
+    updateMe: '/api/auth/me',
     login: '/api/auth/login',
     superAdminLogin: '/api/auth/super-admin-login',
     adminLogin: '/api/auth/admin-login',

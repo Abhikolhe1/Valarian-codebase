@@ -7,10 +7,8 @@ import Tabs from '@mui/material/Tabs';
 import Card from '@mui/material/Card';
 import Table from '@mui/material/Table';
 import Button from '@mui/material/Button';
-import Tooltip from '@mui/material/Tooltip';
 import Container from '@mui/material/Container';
 import TableBody from '@mui/material/TableBody';
-import IconButton from '@mui/material/IconButton';
 import TableContainer from '@mui/material/TableContainer';
 
 import { useGetContactSubmissions } from 'src/api/contact-submissions';
@@ -24,7 +22,6 @@ import { useBoolean } from 'src/hooks/use-boolean';
 
 // components
 import Label from 'src/components/label';
-import Iconify from 'src/components/iconify';
 import Scrollbar from 'src/components/scrollbar';
 import { ConfirmDialog } from 'src/components/custom-dialog';
 import { useSettingsContext } from 'src/components/settings';
@@ -129,18 +126,14 @@ export default function ContactRequestListView() {
   const TABS = [
     { value: 'all', label: 'All' },
     { value: 'new', label: 'New' },
-    { value: 'in_review', label: 'In Review' },
-    { value: 'approved', label: 'Approved' },
-    { value: 'rejected', label: 'Rejected' },
-    { value: 'resolved', label: 'Resolved' },
+    { value: 'replied', label: 'Replied' },
+    { value: 'spam', label: 'Spam' },
   ];
   const statusCounts = {
     all: total,
     new: tableData.filter((item) => item.status === 'new').length,
-    processing: tableData.filter((item) => item.status === 'in_review').length,
-    shipped: tableData.filter((item) => item.status === 'approved').length,
-    delivered: tableData.filter((item) => item.status === 'rejected').length,
-    cancelled: tableData.filter((item) => item.status === 'resolved').length,
+    replied: tableData.filter((item) => item.status === 'replied').length,
+    spam: tableData.filter((item) => item.status === 'spam').length,
   };
 
   return (
@@ -165,38 +158,27 @@ export default function ContactRequestListView() {
               boxShadow: (theme) => `inset 0 -2px 0 0 ${alpha(theme.palette.grey[500], 0.08)}`,
             }}
           >
-            <Tabs
-              value={filters.status}
-              onChange={handleFilterStatus}
-              sx={{
-                px: 2.5,
-                boxShadow: (theme) => `inset 0 -2px 0 0 ${alpha(theme.palette.grey[500], 0.08)}`,
-              }}
-            >
-              {TABS.map((tab) => (
-                <Tab
-                  key={tab.value}
-                  value={tab.value}
-                  label={tab.label}
-                  iconPosition="end"
-                  icon={
-                    <Label
-                      variant={tab.value === filters.status ? 'filled' : 'soft'}
-                      color={
-                        (tab.value === 'new' && 'info') ||
-                        (tab.value === 'in_review' && 'warning') ||
-                        (tab.value === 'resolved' && 'primary') ||
-                        (tab.value === 'approved' && 'success') ||
-                        (tab.value === 'rejected' && 'error') ||
-                        'default'
-                      }
-                    >
-                      {statusCounts[tab.value] || 0}
-                    </Label>
-                  }
-                />
-              ))}
-            </Tabs>
+            {TABS.map((tab) => (
+              <Tab
+                key={tab.value}
+                value={tab.value}
+                label={tab.label}
+                iconPosition="end"
+                icon={
+                  <Label
+                    variant={tab.value === filters.status ? 'filled' : 'soft'}
+                    color={
+                      (tab.value === 'new' && 'info') ||
+                      (tab.value === 'replied' && 'success') ||
+                      (tab.value === 'spam' && 'error') ||
+                      'default'
+                    }
+                  >
+                    {statusCounts[tab.value] || 0}
+                  </Label>
+                }
+              />
+            ))}
           </Tabs>
 
           <ConatctRequestTableToolbar

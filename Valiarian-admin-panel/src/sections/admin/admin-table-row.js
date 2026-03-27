@@ -13,13 +13,7 @@ import Iconify from 'src/components/iconify';
 // ----------------------------------------------------------------------
 
 export default function AdminTableRow({ row, onEditRow, onQuickEditRow }) {
-  const {
-    fullName,
-    email,
-    phone,
-    isActive,
-    createdAt,
-  } = row;
+  const { fullName, email, phone, isActive, createdAt } = row;
 
   const createdAtLabel = createdAt ? new Date(createdAt).toLocaleString() : '-';
 
@@ -34,15 +28,13 @@ export default function AdminTableRow({ row, onEditRow, onQuickEditRow }) {
       <TableCell>{email || '-'}</TableCell>
       <TableCell>{phone || '-'}</TableCell>
       <TableCell>
-        <Label color={isActive ? 'success' : 'default'}>
-          {isActive ? 'Active' : 'Inactive'}
-        </Label>
+        <Label color={isActive ? 'success' : 'default'}>{isActive ? 'Active' : 'Inactive'}</Label>
       </TableCell>
       <TableCell>{createdAtLabel}</TableCell>
       <TableCell align="right">
         <Tooltip title="Quick Edit">
-          <IconButton color="primary" onClick={onQuickEditRow}>
-            <Iconify icon="solar:pen-new-square-bold" />
+          <IconButton color="default" onClick={onQuickEditRow}>
+            <Iconify icon="glyphs:edit-bold" />
           </IconButton>
         </Tooltip>
 

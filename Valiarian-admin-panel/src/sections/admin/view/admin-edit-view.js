@@ -1,7 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 // @mui
 import Alert from '@mui/material/Alert';
 import Container from '@mui/material/Container';
+import Tab from '@mui/material/Tab';
+import Tabs from '@mui/material/Tabs';
 // routes
 import { paths } from 'src/routes/paths';
 import { useParams } from 'src/routes/hook';
@@ -10,17 +12,37 @@ import axios, { endpoints } from 'src/utils/axios';
 // components
 import { useSettingsContext } from 'src/components/settings';
 import CustomBreadcrumbs from 'src/components/custom-breadcrumbs';
+import Iconify from 'src/components/iconify';
 // local
+import AdminChangePasswordForm from '../admin-change-password-form';
 import AdminNewEditForm from '../admin-new-edit-form';
 
 // ----------------------------------------------------------------------
+
+const TABS = [
+  {
+    value: 'general',
+    label: 'General',
+    icon: <Iconify icon="solar:user-id-bold" width={24} />,
+  },
+  {
+    value: 'security',
+    label: 'Security',
+    icon: <Iconify icon="ic:round-vpn-key" width={24} />,
+  },
+];
 
 export default function AdminEditView() {
   const settings = useSettingsContext();
   const { id } = useParams();
 
   const [currentAdmin, setCurrentAdmin] = useState(null);
+  const [currentTab, setCurrentTab] = useState('general');
   const [errorMessage, setErrorMessage] = useState('');
+
+  const handleChangeTab = useCallback((event, newValue) => {
+    setCurrentTab(newValue);
+  }, []);
 
   useEffect(() => {
     const fetchAdmin = async () => {
@@ -57,7 +79,27 @@ export default function AdminEditView() {
         </Alert>
       )}
 
-      <AdminNewEditForm currentAdmin={currentAdmin} />
+      {!errorMessage && !!currentAdmin && (
+        <>
+          <Tabs
+            value={currentTab}
+            onChange={handleChangeTab}
+            sx={{
+              mb: { xs: 3, md: 5 },
+            }}
+          >
+            {TABS.map((tab) => (
+              <Tab key={tab.value} label={tab.label} icon={tab.icon} value={tab.value} />
+            ))}
+          </Tabs>
+
+          {currentTab === 'general' && (
+            <AdminNewEditForm currentAdmin={currentAdmin} includePasswordFields={false} />
+          )}
+
+          {currentTab === 'security' && <AdminChangePasswordForm currentAdmin={currentAdmin} />}
+        </>
+      )}
     </Container>
   );
 }
