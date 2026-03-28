@@ -70,6 +70,12 @@ export function useMobileNavigation() {
         path: paths.profile,
         icon: <Iconify icon="eva:person-fill" />,
       },
+
+      // { title: 'My Profile', path: paths.profile },
+      { title: 'Order History', path: paths.order.history, icon: <Iconify icon="mdi:clipboard-text-history" />, },
+      { title: 'Favorites', path: paths.favorites, icon: <Iconify icon="mdi:heart" />, },
+
+
     ],
     []
   );

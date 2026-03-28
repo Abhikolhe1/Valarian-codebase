@@ -18,8 +18,12 @@ import { useAuthContext } from 'src/auth/hooks';
 // utils
 import { resolveAuthRedirect } from 'src/utils/auth-redirect';
 // components
+import { Button } from '@mui/material';
 import FormProvider, { RHFTextField } from 'src/components/hook-form';
+import { RouterLink } from 'src/routes/components';
 import GoogleLoginButton from './google-login-button';
+
+
 
 // ----------------------------------------------------------------------
 
@@ -179,14 +183,9 @@ export default function JwtLoginView() {
 
   const renderHead = (
     <Stack spacing={2} sx={{ mb: 5 }}>
-      <Typography variant="h4">Sign in to Valiarian</Typography>
-
-      {!otpSent && (
-        <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-          Enter your mobile number to continue
-        </Typography>
-      )}
-
+      <Box sx={{ display: "flex", justifyContent: { xs: "center", md: "flex-start" } }}>
+        <Typography variant="h4" >Sign in to Valiarian</Typography>
+      </Box>
       {otpSent && (
         <Typography variant="body2" sx={{ color: 'text.secondary' }}>
           Enter the 4-digit OTP sent to +91 {phone}
@@ -200,14 +199,24 @@ export default function JwtLoginView() {
       {!!errorMsg && <Alert severity="error">{errorMsg}</Alert>}
 
       <GoogleLoginButton />
+      <Link component={RouterLink} href="/" sx={{ display: 'contents' }}>
+        <Button fullWidth size="large" variant="outlined"> Login As Guest</Button>
+      </Link>
 
-      <Divider sx={{ my: 2 }}>
+      <Divider sx={{ my: 1 }}>
+
         <Typography variant="body2" sx={{ color: 'text.secondary' }}>
           OR
         </Typography>
       </Divider>
 
       <Box>
+
+        {!otpSent && (
+          <Typography variant="body2" sx={{ color: 'text.secondary', mb: 1 }}>
+            Enter your mobile number to continue
+          </Typography>
+        )}
         <RHFTextField
           name="phone"
           label="Mobile Number"
