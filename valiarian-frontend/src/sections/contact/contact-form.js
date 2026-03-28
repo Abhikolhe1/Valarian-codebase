@@ -66,7 +66,7 @@ export default function ContactForm({
     message: Yup.string()
       .trim()
       .required('Message is required')
-      .min(5, 'Message must be at least 5 characters'),
+      .min(10, 'Message must be at least 10 characters'),
   });
 
   const methods = useForm({
