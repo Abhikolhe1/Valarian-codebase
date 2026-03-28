@@ -15,10 +15,14 @@ import IconButton from '@mui/material/IconButton';
 import InputAdornment from '@mui/material/InputAdornment';
 import MenuItem from '@mui/material/MenuItem';
 import Stack from '@mui/material/Stack';
+import Table from '@mui/material/Table';
+import TableBody from '@mui/material/TableBody';
+import TableCell from '@mui/material/TableCell';
+import TableContainer from '@mui/material/TableContainer';
+import TableRow from '@mui/material/TableRow';
 import TextField from '@mui/material/TextField';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
-import { DataGrid } from '@mui/x-data-grid';
 import axiosInstance, { endpoints } from 'src/utils/axios';
 import {v4 as uuidv4} from 'uuid';
 
@@ -27,7 +31,19 @@ import { ColorPicker } from 'src/components/color-utils';
 import { ConfirmDialog } from 'src/components/custom-dialog';
 import Iconify from 'src/components/iconify';
 import Image from 'src/components/image';
+import Label from 'src/components/label';
+import Scrollbar from 'src/components/scrollbar';
 import { useSnackbar } from 'src/components/snackbar';
+import {
+  emptyRows,
+  getComparator,
+  TableEmptyRows,
+  TableHeadCustom,
+  TableNoData,
+  TablePaginationCustom,
+  TableSelectedAction,
+  useTable,
+} from 'src/components/table';
 import { Upload } from 'src/components/upload';
 import { useBoolean } from 'src/hooks/use-boolean';
 import CMSMediaPicker from 'src/sections/cms/cms-media-picker';
@@ -53,15 +69,24 @@ const COLOR_PRESETS = [
   { name: 'Brown', hex: '#A52A2A' },
 ];
 
+const TABLE_HEAD = [
+  { id: 'variant', label: 'Variant' },
+  { id: 'sku', label: 'SKU', width: 160 },
+  { id: 'stockQuantity', label: 'Stock', width: 120 },
+  { id: 'price', label: 'Offer Price', width: 140 },
+  { id: 'isDefault', label: 'Default', width: 100 },
+  { id: 'actions', label: 'Actions', width: 140, align: 'right' },
+];
+
 // ----------------------------------------------------------------------
 
 export default function ProductVariantManager({ variants = [], onChange, productName = '' }) {
   const { enqueueSnackbar } = useSnackbar();
   const mediaPicker = useBoolean();
+  const table = useTable({ defaultOrderBy: 'colorName', defaultRowsPerPage: 5 });
 
   const [openDialog, setOpenDialog] = useState(false);
   const [editingVariant, setEditingVariant] = useState(null);
-  const [selectedRows, setSelectedRows] = useState([]);
   const [confirmDialog, setConfirmDialog] = useState({ open: false, variantId: null });
   const [bulkDeleteDialog, setBulkDeleteDialog] = useState(false);
   const [bulkStockDialog, setBulkStockDialog] = useState(false);
@@ -364,12 +389,12 @@ export default function ProductVariantManager({ variants = [], onChange, product
 
   // Handle bulk delete
   const handleBulkDelete = useCallback(() => {
-    const updatedVariants = variants.filter(v => !selectedRows.includes(v.id));
+    const updatedVariants = variants.filter(v => !table.selected.includes(v.id));
     onChange(updatedVariants);
-    setSelectedRows([]);
+    table.setSelected([]);
     setBulkDeleteDialog(false);
-    enqueueSnackbar(`${selectedRows.length} variants deleted successfully`, { variant: 'success' });
-  }, [variants, selectedRows, onChange, enqueueSnackbar]);
+    enqueueSnackbar(`${table.selected.length} variants deleted successfully`, { variant: 'success' });
+  }, [variants, table, onChange, enqueueSnackbar]);
 
   // Handle bulk stock update
   const handleBulkStockUpdate = useCallback(() => {
@@ -380,129 +405,37 @@ export default function ProductVariantManager({ variants = [], onChange, product
     }
 
     const updatedVariants = variants.map(v =>
-      selectedRows.includes(v.id)
+      table.selected.includes(v.id)
         ? { ...v, stockQuantity: stockValue, inStock: stockValue > 0 }
         : v
     );
 
     onChange(updatedVariants);
-    setSelectedRows([]);
+    table.setSelected([]);
     setBulkStockDialog(false);
     setBulkStockValue('');
-    enqueueSnackbar(`Stock updated for ${selectedRows.length} variants`, { variant: 'success' });
-  }, [variants, selectedRows, bulkStockValue, onChange, enqueueSnackbar]);
+    enqueueSnackbar(`Stock updated for ${table.selected.length} variants`, { variant: 'success' });
+  }, [variants, table, bulkStockValue, onChange, enqueueSnackbar]);
 
-  // DataGrid columns
-  const columns = useMemo(() => [
-    {
-      field: 'color',
-      headerName: 'Color',
-      width: 150,
-      renderCell: (params) => (
-        <Stack direction="row" spacing={1} alignItems="center">
-          <Box
-            sx={{
-              width: 24,
-              height: 24,
-              borderRadius: '50%',
-              bgcolor: params.value,
-              border: '1px solid',
-              borderColor: 'divider',
-            }}
-          />
-          <Typography variant="body2">{params.row.colorName}</Typography>
-        </Stack>
-      ),
-    },
-    {
-      field: 'size',
-      headerName: 'Size',
-      width: 80,
-    },
-    {
-      field: 'sku',
-      headerName: 'SKU',
-      width: 150,
-    },
-    {
-      field: 'stockQuantity',
-      headerName: 'Stock',
-      width: 100,
-      renderCell: (params) => {
-        let color = 'success.main';
-        if (params.value === 0) {
-          color = 'error.main';
-        } else if (params.value < 10) {
-          color = 'warning.main';
-        }
+  const dataFiltered = useMemo(() => {
+    const stabilized = variants.map((el, index) => [el, index]);
 
-        return (
-          <Typography variant="body2" sx={{ color }}>
-            {params.value}
-          </Typography>
-        );
-      },
-    },
-    {
-      field: 'images',
-      headerName: 'Images',
-      width: 120,
-      renderCell: (params) => (
-        <Stack direction="row" spacing={0.5}>
-          {params.value?.slice(0, 3).map((img, index) => (
-            <Image
-              key={index}
-              src={img}
-              sx={{ width: 32, height: 32, borderRadius: 1 }}
-            />
-          ))}
-          {params.value?.length > 3 && (
-            <Typography variant="caption" sx={{ alignSelf: 'center' }}>
-              +{params.value.length - 3}
-            </Typography>
-          )}
-        </Stack>
-      ),
-    },
-    {
-      field: 'price',
-      headerName: 'Price',
-      width: 100,
-      renderCell: (params) => (params.value ? fCurrency(params.value) : '-'),
-    },
-    {
-      field: 'isDefault',
-      headerName: 'Default',
-      width: 80,
-      renderCell: (params) => (
-        params.value ? <Iconify icon="eva:checkmark-circle-2-fill" sx={{ color: 'success.main' }} /> : '-'
-      ),
-    },
-    {
-      field: 'actions',
-      headerName: 'Actions',
-      width: 100,
-      sortable: false,
-      renderCell: (params) => (
-        <Stack direction="row" spacing={0.5}>
-          <Tooltip title="Edit">
-            <IconButton size="small" onClick={() => handleOpenDialog(params.row)}>
-              <Iconify icon="eva:edit-fill" />
-            </IconButton>
-          </Tooltip>
-          <Tooltip title="Delete">
-            <IconButton
-              size="small"
-              color="error"
-              onClick={() => setConfirmDialog({ open: true, variantId: params.row.id })}
-            >
-              <Iconify icon="eva:trash-2-outline" />
-            </IconButton>
-          </Tooltip>
-        </Stack>
-      ),
-    },
-  ], [handleOpenDialog]);
+    stabilized.sort((a, b) => {
+      const order = getComparator(table.order, table.orderBy)(a[0], b[0]);
+      if (order !== 0) return order;
+      return a[1] - b[1];
+    });
+
+    return stabilized.map((el) => el[0]);
+  }, [table.order, table.orderBy, variants]);
+
+  const dataInPage = dataFiltered.slice(
+    table.page * table.rowsPerPage,
+    table.page * table.rowsPerPage + table.rowsPerPage
+  );
+
+  const denseHeight = table.dense ? 56 : 76;
+  const notFound = !dataFiltered.length;
 
   return (
     <>
@@ -512,7 +445,7 @@ export default function ProductVariantManager({ variants = [], onChange, product
           subheader={`${variants.length} variant${variants.length !== 1 ? 's' : ''}`}
           action={
             <Stack direction="row" spacing={1}>
-              {selectedRows.length > 0 && (
+              {table.selected.length > 0 && (
                 <>
                   <Button
                     size="small"
@@ -520,14 +453,14 @@ export default function ProductVariantManager({ variants = [], onChange, product
                     startIcon={<Iconify icon="eva:trash-2-outline" />}
                     onClick={() => setBulkDeleteDialog(true)}
                   >
-                    Delete ({selectedRows.length})
+                    Delete ({table.selected.length})
                   </Button>
                   <Button
                     size="small"
                     startIcon={<Iconify icon="eva:cube-outline" />}
                     onClick={() => setBulkStockDialog(true)}
                   >
-                    Update Stock ({selectedRows.length})
+                    Update Stock ({table.selected.length})
                   </Button>
                 </>
               )}
@@ -542,20 +475,75 @@ export default function ProductVariantManager({ variants = [], onChange, product
           }
         />
 
-        <Box sx={{ height: 500, px: 2, pb: 2 }}>
-          <DataGrid
-            rows={variants}
-            columns={columns}
-            checkboxSelection
-            disableRowSelectionOnClick
-            onRowSelectionModelChange={(newSelection) => setSelectedRows(newSelection)}
-            rowSelectionModel={selectedRows}
-            pageSizeOptions={[5, 10, 25]}
-            initialState={{
-              pagination: { paginationModel: { pageSize: 10 } },
-            }}
+        <TableContainer sx={{ position: 'relative', overflow: 'unset' }}>
+          <TableSelectedAction
+            dense={table.dense}
+            numSelected={table.selected.length}
+            rowCount={dataFiltered.length}
+            onSelectAllRows={(checked) =>
+              table.onSelectAllRows(
+                checked,
+                dataFiltered.map((row) => row.id)
+              )
+            }
+            action={
+              <Tooltip title="Delete">
+                <IconButton color="primary" onClick={() => setBulkDeleteDialog(true)}>
+                  <Iconify icon="solar:trash-bin-trash-bold" />
+                </IconButton>
+              </Tooltip>
+            }
           />
-        </Box>
+
+          <Scrollbar>
+            <Table size={table.dense ? 'small' : 'medium'} sx={{ minWidth: 960 }}>
+              <TableHeadCustom
+                order={table.order}
+                orderBy={table.orderBy}
+                headLabel={TABLE_HEAD}
+                rowCount={dataFiltered.length}
+                numSelected={table.selected.length}
+                onSort={table.onSort}
+                onSelectAllRows={(checked) =>
+                  table.onSelectAllRows(
+                    checked,
+                    dataFiltered.map((row) => row.id)
+                  )
+                }
+              />
+
+              <TableBody>
+                {dataInPage.map((row) => (
+                  <VariantTableRow
+                    key={row.id}
+                    row={row}
+                    selected={table.selected.includes(row.id)}
+                    onSelectRow={() => table.onSelectRow(row.id)}
+                    onEditRow={() => handleOpenDialog(row)}
+                    onDeleteRow={() => setConfirmDialog({ open: true, variantId: row.id })}
+                  />
+                ))}
+
+                <TableEmptyRows
+                  height={denseHeight}
+                  emptyRows={emptyRows(table.page, table.rowsPerPage, dataFiltered.length)}
+                />
+
+                <TableNoData notFound={notFound} />
+              </TableBody>
+            </Table>
+          </Scrollbar>
+        </TableContainer>
+
+        <TablePaginationCustom
+          count={dataFiltered.length}
+          page={table.page}
+          rowsPerPage={table.rowsPerPage}
+          onPageChange={table.onChangePage}
+          onRowsPerPageChange={table.onChangeRowsPerPage}
+          dense={table.dense}
+          onChangeDense={table.onChangeDense}
+        />
       </Card>
 
       {/* Add/Edit Variant Dialog */}
@@ -739,7 +727,7 @@ export default function ProductVariantManager({ variants = [], onChange, product
         open={bulkDeleteDialog}
         onClose={() => setBulkDeleteDialog(false)}
         title="Delete Multiple Variants"
-        content={`Are you sure you want to delete ${selectedRows.length} variants? This action cannot be undone.`}
+        content={`Are you sure you want to delete ${table.selected.length} variants? This action cannot be undone.`}
         action={
           <Button variant="contained" color="error" onClick={handleBulkDelete}>
             Delete All
@@ -749,7 +737,7 @@ export default function ProductVariantManager({ variants = [], onChange, product
 
       {/* Bulk Stock Update Dialog */}
       <Dialog open={bulkStockDialog} onClose={() => setBulkStockDialog(false)}>
-        <DialogTitle>Update Stock for {selectedRows.length} Variants</DialogTitle>
+        <DialogTitle>Update Stock for {table.selected.length} Variants</DialogTitle>
         <DialogContent>
           <TextField
             autoFocus
@@ -775,8 +763,122 @@ export default function ProductVariantManager({ variants = [], onChange, product
   );
 }
 
+function VariantTableRow({ row, selected, onSelectRow, onEditRow, onDeleteRow }) {
+  const stockColor =
+    (row.stockQuantity === 0 && 'error') ||
+    (row.stockQuantity < 10 && 'warning') ||
+    'success';
+  let stockLabel = 'In Stock';
+  if (row.stockQuantity === 0) {
+    stockLabel = 'Out';
+  } else if (row.stockQuantity < 10) {
+    stockLabel = 'Low';
+  }
+
+  return (
+    <TableRow hover selected={selected}>
+      <TableCell padding="checkbox">
+        <Checkbox checked={selected} onClick={onSelectRow} />
+      </TableCell>
+
+      <TableCell>
+        <Stack direction="row" spacing={2} alignItems="center">
+          {row.images?.[0] ? (
+            <Image src={row.images[0]} sx={{ width: 56, height: 56, borderRadius: 1.5, flexShrink: 0 }} />
+          ) : (
+            <Box
+              sx={{
+                width: 56,
+                height: 56,
+                borderRadius: 1.5,
+                bgcolor: 'background.neutral',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: 'text.disabled',
+                flexShrink: 0,
+              }}
+            >
+              <Iconify icon="solar:gallery-wide-bold" width={24} />
+            </Box>
+          )}
+
+          <Stack spacing={0.5}>
+            <Stack direction="row" spacing={1} alignItems="center">
+              <Box
+                sx={{
+                  width: 18,
+                  height: 18,
+                  borderRadius: '50%',
+                  bgcolor: row.color,
+                  border: '1px solid',
+                  borderColor: 'divider',
+                }}
+              />
+              <Typography variant="subtitle2">{row.colorName}</Typography>
+              <Label variant="soft" color="default">
+                {row.size}
+              </Label>
+            </Stack>
+
+            <Typography variant="body2" color="text.secondary">
+              {row.images?.length ? `${row.images.length} image${row.images.length > 1 ? 's' : ''}` : 'No images'}
+            </Typography>
+          </Stack>
+        </Stack>
+      </TableCell>
+
+      <TableCell>{row.sku}</TableCell>
+
+      <TableCell>
+        <Stack direction="row" spacing={1} alignItems="center">
+          <Typography variant="body2">{row.stockQuantity}</Typography>
+          <Label variant="soft" color={stockColor}>
+            {stockLabel}
+          </Label>
+        </Stack>
+      </TableCell>
+
+      <TableCell>{row.price ? fCurrency(row.price) : '-'}</TableCell>
+
+      <TableCell>
+        {row.isDefault ? (
+          <Label variant="soft" color="success">
+            Default
+          </Label>
+        ) : (
+          '-'
+        )}
+      </TableCell>
+
+      <TableCell align="right">
+        <Stack direction="row" spacing={0.5} justifyContent="flex-end">
+          <Tooltip title="Edit">
+            <IconButton size="small" onClick={onEditRow}>
+              <Iconify icon="solar:pen-bold" />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title="Delete">
+            <IconButton size="small" color="error" onClick={onDeleteRow}>
+              <Iconify icon="solar:trash-bin-trash-bold" />
+            </IconButton>
+          </Tooltip>
+        </Stack>
+      </TableCell>
+    </TableRow>
+  );
+}
+
 ProductVariantManager.propTypes = {
   variants: PropTypes.array,
   onChange: PropTypes.func.isRequired,
   productName: PropTypes.string,
+};
+
+VariantTableRow.propTypes = {
+  onDeleteRow: PropTypes.func,
+  onEditRow: PropTypes.func,
+  onSelectRow: PropTypes.func,
+  row: PropTypes.object,
+  selected: PropTypes.bool,
 };

@@ -198,7 +198,7 @@ export function useSiteSettings() {
   const cachedSettings = getCachedValue('settings');
   const shouldFetch = !isSettingsMarkedMissing();
   const { data, error, isLoading } = useSWR(
-    shouldFetch && !cachedSettings ? '/api/cms/settings' : null,
+    shouldFetch ? '/api/cms/settings' : null,
     async (url) => {
       try {
         const response = await fetcher(url);
@@ -214,9 +214,10 @@ export function useSiteSettings() {
       }
     },
     {
+      fallbackData: cachedSettings,
       revalidateOnFocus: false,
       revalidateOnReconnect: false,
-      revalidateIfStale: false,
+      revalidateIfStale: true,
       shouldRetryOnError: false,
       dedupingInterval: 5 * 60 * 1000,
     }

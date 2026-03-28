@@ -76,6 +76,10 @@ export function SiteSettingsProvider({ children }) {
           mapEmbedUrl: settings.contactPage?.mapEmbedUrl,
           locations: settings.contactPage?.locations || [],
         },
+        legalDocuments: {
+          termsAndConditionsUrl: settings.legalDocuments?.termsAndConditionsUrl || '',
+          privacyPolicyUrl: settings.legalDocuments?.privacyPolicyUrl || '',
+        },
         footerText: settings.footerText,
         copyrightText: settings.copyrightText,
       } : getDefaultSettings(),
@@ -231,6 +235,10 @@ function getDefaultSettings() {
           longitude: 18.5,
         },
       ],
+    },
+    legalDocuments: {
+      termsAndConditionsUrl: '',
+      privacyPolicyUrl: '',
     },
   };
 }

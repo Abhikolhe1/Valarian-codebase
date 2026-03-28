@@ -25,9 +25,14 @@ export const ALLOWED_VIDEO_TYPES = [
   'video/webm',
 ];
 
+export const ALLOWED_DOCUMENT_TYPES = [
+  'application/pdf',
+];
+
 export const ALLOWED_MIME_TYPES = [
   ...ALLOWED_IMAGE_TYPES,
   ...ALLOWED_VIDEO_TYPES,
+  ...ALLOWED_DOCUMENT_TYPES,
 ];
 
 /**
@@ -36,6 +41,7 @@ export const ALLOWED_MIME_TYPES = [
 export const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 export const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10MB
 export const MAX_VIDEO_SIZE = 50 * 1024 * 1024; // 50MB (videos can be larger)
+export const MAX_DOCUMENT_SIZE = 20 * 1024 * 1024; // 20MB
 
 /**
  * Interface for uploaded file information
@@ -154,11 +160,14 @@ export class MediaUploadService {
     // Check if it's an image or video
     const isImage = ALLOWED_IMAGE_TYPES.includes(file.mimetype);
     const isVideo = ALLOWED_VIDEO_TYPES.includes(file.mimetype);
+    const isDocument = ALLOWED_DOCUMENT_TYPES.includes(file.mimetype);
 
     if (isImage) {
       return file.size <= MAX_IMAGE_SIZE;
     } else if (isVideo) {
       return file.size <= MAX_VIDEO_SIZE;
+    } else if (isDocument) {
+      return file.size <= MAX_DOCUMENT_SIZE;
     }
 
     // Default to general max file size

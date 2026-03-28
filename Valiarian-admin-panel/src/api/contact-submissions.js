@@ -19,9 +19,12 @@ export function useGetContactSubmissions(params) {
     : endpoints.cms.contactSubmissions.list;
 
   const {data, isLoading, error, isValidating, mutate: submissionsMutate} = useSWR(url, fetcher, {
-    revalidateIfStale: false,
-    revalidateOnFocus: false,
-    revalidateOnReconnect: false,
+    revalidateIfStale: true,
+    revalidateOnFocus: true,
+    revalidateOnReconnect: true,
+    refreshInterval: 10000,
+    refreshWhenHidden: false,
+    dedupingInterval: 2000,
   });
 
   return useMemo(

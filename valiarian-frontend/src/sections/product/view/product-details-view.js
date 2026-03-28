@@ -177,7 +177,7 @@ export default function ProductDetailsView() {
             },
             {
               value: 'reviews',
-              label: `Reviews (${product.reviews.length})`,
+              label: 'Reviews',
             },
           ].map((tab) => (
             <Tab key={tab.value} value={tab.value} label={tab.label} />
@@ -189,12 +189,7 @@ export default function ProductDetailsView() {
         )}
 
         {currentTab === 'reviews' && (
-          <ProductDetailsReview
-            ratings={product.ratings}
-            reviews={product.reviews}
-            totalRatings={product.totalRatings}
-            totalReviews={product.totalReviews}
-          />
+          <ProductDetailsReview productId={product?.id} />
         )}
       </Card>
     </>

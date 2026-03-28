@@ -28,8 +28,7 @@ import {EmailService} from '../services/email.service';
 
 const CONTACT_SUBMISSION_STATUSES = [
   'new',
-  'in_progress',
-  'resolved',
+  'replied',
   'spam',
 ] as const;
 
@@ -271,7 +270,7 @@ export class ContactSubmissionController {
             properties: {
               status: {
                 type: 'string',
-                enum: ['new', 'in_progress', 'resolved', 'spam'],
+                enum: ['new', 'replied', 'spam'],
               },
               isRead: {type: 'boolean'},
               adminNotes: {type: 'string'},
@@ -377,7 +376,7 @@ export class ContactSubmissionController {
         '',
       repliedAt: new Date(),
       isRead: true,
-      status: existing.status === 'new' ? 'in_progress' : existing.status,
+      status: 'replied',
     });
 
     return this.contactSubmissionRepository.findById(id);

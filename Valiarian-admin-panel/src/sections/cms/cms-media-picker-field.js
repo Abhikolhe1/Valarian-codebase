@@ -25,6 +25,7 @@ export default function CMSMediaPickerField({
   helperText,
   error,
   accept,
+  compact = false,
 }) {
   const pickerOpen = useBoolean();
 
@@ -56,6 +57,77 @@ export default function CMSMediaPickerField({
   );
 
   const renderSingleValue = () => {
+    const isImage = value?.match(/\.(jpg|jpeg|png|gif|webp|svg)$/i);
+    const isVideo = value?.match(/\.(mp4|webm)$/i);
+    const fileName = value ? decodeURIComponent(value.split('/').pop()?.split('?')[0] || '') : '';
+
+    if (compact) {
+      return (
+        <Box
+          sx={{
+            borderRadius: 1,
+            border: (theme) => `1px solid ${error ? theme.palette.error.main : theme.palette.divider}`,
+            bgcolor: 'background.paper',
+            px: 2,
+            py: 1.5,
+          }}
+        >
+          <Stack direction="row" alignItems="center" spacing={1.5}>
+            <Box
+              sx={{
+                width: 40,
+                height: 40,
+                borderRadius: 1,
+                bgcolor: 'background.neutral',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: 'text.secondary',
+                flexShrink: 0,
+              }}
+            >
+              <Iconify icon={value ? 'solar:file-text-bold' : 'solar:gallery-add-bold-duotone'} width={22} />
+            </Box>
+
+            <Box sx={{ flexGrow: 1, minWidth: 0 }}>
+              <Typography variant="body2" noWrap>
+                {fileName || 'No file selected'}
+              </Typography>
+              {helperText && (
+                <Typography variant="caption" color={error ? 'error.main' : 'text.secondary'}>
+                  {helperText}
+                </Typography>
+              )}
+            </Box>
+
+            <Stack direction="row" spacing={0.5} sx={{ flexShrink: 0 }}>
+              <IconButton size="small" onClick={pickerOpen.onTrue}>
+                <Iconify icon={value ? 'solar:pen-bold' : 'solar:gallery-add-bold-duotone'} width={18} />
+              </IconButton>
+
+              {value && (
+                <IconButton
+                  size="small"
+                  component="a"
+                  href={value}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <Iconify icon="solar:eye-bold" width={18} />
+                </IconButton>
+              )}
+
+              {value && (
+                <IconButton size="small" color="error" onClick={() => handleRemove()}>
+                  <Iconify icon="solar:trash-bin-trash-bold" width={18} />
+                </IconButton>
+              )}
+            </Stack>
+          </Stack>
+        </Box>
+      );
+    }
+
     if (!value) {
       return (
         <Box
@@ -96,9 +168,6 @@ export default function CMSMediaPickerField({
         </Box>
       );
     }
-
-    const isImage = value.match(/\.(jpg|jpeg|png|gif|webp|svg)$/i);
-    const isVideo = value.match(/\.(mp4|webm)$/i);
 
     return (
       <Card
@@ -355,4 +424,5 @@ CMSMediaPickerField.propTypes = {
   helperText: PropTypes.string,
   error: PropTypes.bool,
   accept: PropTypes.object,
+  compact: PropTypes.bool,
 };

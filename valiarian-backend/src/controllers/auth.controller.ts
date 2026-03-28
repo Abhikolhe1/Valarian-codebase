@@ -682,6 +682,97 @@ export class AuthController {
     });
   }
 
+  @authenticate('jwt')
+  @patch('/api/auth/me')
+  async updateMyProfile(
+    @inject(AuthenticationBindings.CURRENT_USER) currentUser: UserProfile,
+    @requestBody({
+      content: {
+        'application/json': {
+          schema: {
+            type: 'object',
+            properties: {
+              fullName: {type: 'string'},
+              email: {type: 'string'},
+              phone: {type: 'string'},
+            },
+          },
+        },
+      },
+    })
+    body: {
+      fullName?: string;
+      email?: string;
+      phone?: string;
+    },
+  ): Promise<object> {
+    const existingUser = await this.usersRepository.findById(currentUser.id);
+
+    if (!existingUser || existingUser.isDeleted) {
+      throw new HttpErrors.NotFound('User not found');
+    }
+
+    const updatePayload: Partial<typeof existingUser> = {
+      updatedAt: new Date(),
+    };
+
+    if (typeof body.fullName !== 'undefined') {
+      const fullName = sanitizeInput(body.fullName).trim();
+      if (!fullName) {
+        throw new HttpErrors.UnprocessableEntity('Full name is required');
+      }
+      updatePayload.fullName = fullName;
+    }
+
+    if (typeof body.email !== 'undefined') {
+      const email = validateAndSanitizeEmail(body.email);
+
+      if (email !== existingUser.email) {
+        const duplicateEmailUser = await this.usersRepository.findOne({
+          where: {
+            and: [
+              {email},
+              {id: {neq: currentUser.id}},
+              {isDeleted: false},
+            ],
+          },
+        });
+
+        if (duplicateEmailUser) {
+          throw new HttpErrors.BadRequest('User already exists with this email');
+        }
+      }
+
+      updatePayload.email = email;
+    }
+
+    if (typeof body.phone !== 'undefined') {
+      const phone = validateAndSanitizeMobile(body.phone);
+
+      if (phone !== existingUser.phone) {
+        const duplicatePhoneUser = await this.usersRepository.findOne({
+          where: {
+            and: [
+              {phone},
+              {id: {neq: currentUser.id}},
+              {isDeleted: false},
+            ],
+          },
+        });
+
+        if (duplicatePhoneUser) {
+          throw new HttpErrors.BadRequest('User already exists with this phone');
+        }
+      }
+
+      updatePayload.phone = phone;
+    }
+
+    await this.usersRepository.updateById(currentUser.id, updatePayload);
+
+    return this.whoAmI(currentUser);
+  }
+
   // -----------------------------------------registration verification Otp's---------------------------
   @post('/api/auth/send-phone-otp')
   async sendPhoneOtp(
@@ -1357,8 +1448,8 @@ export class AuthController {
       {identifier: sanitizedEmail, type: 1}
     );
 
-    // Generate random 4-digit OTP
-    const otpCode = (process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'dev' ? '123456' : Math.floor(1000 + Math.random() * 9000).toString());
+    // Generate a real random 4-digit OTP to match the admin reset UI
+    const otpCode = Math.floor(1000 + Math.random() * 9000).toString();
 
     const otp = await this.otpRepository.create({
       otp: otpCode,
@@ -1549,8 +1640,8 @@ export class AuthController {
       {identifier: sanitizedEmail, type: 1}
     );
 
-    // Generate random 4-digit OTP
-    const otpCode = (process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'dev' ? '123456' : Math.floor(1000 + Math.random() * 9000).toString());
+    // Generate a real random 4-digit OTP to match the admin reset UI
+    const otpCode = Math.floor(1000 + Math.random() * 9000).toString();
 
     const otp = await this.otpRepository.create({
       otp: otpCode,

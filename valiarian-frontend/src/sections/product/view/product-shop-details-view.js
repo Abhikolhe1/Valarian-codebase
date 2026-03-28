@@ -1,7 +1,6 @@
 import { useCallback, useLayoutEffect, useMemo, useState } from 'react';
 // @mui
 import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
 import Container from '@mui/material/Container';
 import { alpha } from '@mui/material/styles';
@@ -11,12 +10,10 @@ import Typography from '@mui/material/Typography';
 import Grid from '@mui/material/Unstable_Grid2';
 // routes
 import { useGetProduct } from 'src/api/product';
-import { RouterLink } from 'src/routes/components';
 import { useParams } from 'src/routes/hook';
 import { paths } from 'src/routes/paths';
 // components
 import CustomBreadcrumbs from 'src/components/custom-breadcrumbs';
-import EmptyContent from 'src/components/empty-content';
 import Iconify from 'src/components/iconify';
 import { useSettingsContext } from 'src/components/settings';
 //
@@ -311,7 +308,7 @@ export default function ProductShopDetailsView() {
   const [currentTab, setCurrentTab] = useState('description');
   const [selectedVariant, setSelectedVariant] = useState(null);
 
-  const { product: apiProduct, productLoading, productError } = useGetProduct(`${id}`);
+  const { product: apiProduct, productLoading } = useGetProduct(`${id}`);
 
   // Use dummy product if API doesn't return data
   const dummyProduct = useMemo(() => getDummyProductById(id), [id]);
@@ -333,24 +330,6 @@ export default function ProductShopDetailsView() {
 
 
   const renderSkeleton = <ProductDetailsSkeleton />;
-
-  const renderError = (
-    <EmptyContent
-      filled
-      title={`${productError?.message}`}
-      action={
-        <Button
-          component={RouterLink}
-          href={paths.product.root}
-          startIcon={<Iconify icon="eva:arrow-ios-back-fill" width={16} />}
-          sx={{ mt: 3 }}
-        >
-          Back to List
-        </Button>
-      }
-      sx={{ py: 10 }}
-    />
-  );
 
   const renderProduct = product && (
     <>
@@ -424,7 +403,7 @@ export default function ProductShopDetailsView() {
             },
             {
               value: 'reviews',
-              label: `Reviews (${product?.reviews?.length || 0})`,
+              label: 'Reviews',
             },
           ].map((tab) => (
             <Tab key={tab.value} value={tab.value} label={tab.label} />
@@ -435,14 +414,7 @@ export default function ProductShopDetailsView() {
           <ProductDetailsDescription description={product?.description} />
         )}
 
-        {currentTab === 'reviews' && (
-          <ProductDetailsReview
-            ratings={product?.ratings || {}}
-            reviews={product?.reviews || []}
-            totalRatings={product?.totalRatings || 0}
-            totalReviews={product?.totalReviews || 0}
-          />
-        )}
+        {currentTab === 'reviews' && <ProductDetailsReview productId={apiProduct?.id} />}
       </Card>
     </>
   );

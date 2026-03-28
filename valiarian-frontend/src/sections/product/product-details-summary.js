@@ -1,5 +1,5 @@
 import PropTypes from 'prop-types';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 // @mui
 import Box from '@mui/material/Box';
@@ -11,16 +11,25 @@ import MenuItem from '@mui/material/MenuItem';
 import Rating from '@mui/material/Rating';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
+// api
+import { addFavorite, removeFavorite } from 'src/api/favorites';
+// auth
+import { useAuthContext } from 'src/auth/hooks';
 // routes
 import { useRouter } from 'src/routes/hook';
 import { paths } from 'src/routes/paths';
+// redux
+import { revertFavorites, toggleFavorite } from 'src/redux/slices/favorites';
+import { useDispatch, useSelector } from 'src/redux/store';
 // utils
 import { fCurrency, fShortenNumber } from 'src/utils/format-number';
 // components
 import { ColorPicker } from 'src/components/color-utils';
+import CustomPopover, { usePopover } from 'src/components/custom-popover';
 import FormProvider, { RHFSelect } from 'src/components/hook-form';
 import Iconify from 'src/components/iconify';
 import Label from 'src/components/label';
+import { useSnackbar } from 'src/components/snackbar';
 import { getCartItemKey } from 'src/utils/cart-utils';
 //
 import IncrementerButton from './common/incrementer-button';
@@ -38,6 +47,12 @@ export default function ProductDetailsSummary({
   ...other
 }) {
   const router = useRouter();
+  const dispatch = useDispatch();
+  const { enqueueSnackbar } = useSnackbar();
+  const { authenticated } = useAuthContext();
+  const sharePopover = usePopover();
+  const [isFavoriteSubmitting, setIsFavoriteSubmitting] = useState(false);
+  const favorites = useSelector((state) => state.favorites.items);
 
   const {
     id,
@@ -90,6 +105,19 @@ export default function ProductDetailsSummary({
   const available = selectedVariant?.stockQuantity ?? stockQuantity ?? 0;
   const variantInStock = selectedVariant?.inStock ?? inStock;
   const variantSKU = selectedVariant?.sku;
+  const shareUrl = useMemo(() => {
+    if (typeof window === 'undefined') {
+      return paths.product.details(id);
+    }
+
+    return window.location.href;
+  }, [id]);
+
+  const shareTitle = useMemo(() => `${name} | Valarian`, [name]);
+  const isFavorited = useMemo(
+    () => favorites.some((item) => item.productId === id),
+    [favorites, id]
+  );
 
   // Map our product structure to what the component expects
   const coverUrl = coverImage;
@@ -111,13 +139,11 @@ export default function ProductDetailsSummary({
   const saleLabel = { enabled: !!(salePrice && salePrice < price), content: 'Sale' };
 
   // Get available colors and sizes from variants
-  const availableColors = variants && variants.length > 0
-    ? [...new Set(variants.map(v => v.color))]
-    : (colors || []);
+  const availableColors =
+    variants && variants.length > 0 ? [...new Set(variants.map((v) => v.color))] : colors || [];
 
-  const availableSizes = variants && variants.length > 0
-    ? [...new Set(variants.map(v => v.size))]
-    : (sizes || []);
+  const availableSizes =
+    variants && variants.length > 0 ? [...new Set(variants.map((v) => v.size))] : sizes || [];
 
   const defaultValues = {
     id,
@@ -147,94 +173,93 @@ export default function ProductDetailsSummary({
   }, [product, selectedVariant]);
 
   // Handle color change - find matching variant
-  const handleColorChange = useCallback((color) => {
-    if (variants && variants.length > 0) {
-      const variant = variants.find(v =>
-        v.color === color && v.size === values.size
-      );
-      if (variant) {
-        setSelectedVariant(variant);
-        setValue('colors', color);
-        setValue('variantId', variant.id);
-        setValue('price', resolveEffectivePrice(variant));
-        setValue('available', variant.stockQuantity);
-        setValue('quantity', variant.stockQuantity < 1 ? 0 : Math.min(values.quantity, variant.stockQuantity));
-        if (onVariantChange) {
-          onVariantChange(variant);
-        }
-      }
-    } else {
-      setValue('colors', color);
-    }
-  }, [variants, values.size, values.quantity, setValue, onVariantChange, resolveEffectivePrice]);
-
-  // Handle size change - find matching variant
-  const handleSizeChange = useCallback((size) => {
-    if (variants && variants.length > 0) {
-      let variant = variants.find(
-        (v) =>
-          v.color === values.colors &&
-          v.size === size &&
-          v.inStock &&
-          v.stockQuantity > 0
-      );
-
-      if (!variant) {
-        variant = variants.find(
-          (v) =>
-            v.size === size &&
-            v.inStock &&
-            v.stockQuantity > 0
-        );
-      }
-
-      setValue('size', size);
-
-      if (variant) {
-        setSelectedVariant(variant);
-        setValue('colors', variant.color);
-        setValue('variantId', variant.id);
-        setValue('price', resolveEffectivePrice(variant));
-        setValue('available', variant.stockQuantity);
-        setValue(
-          'quantity',
-          variant.stockQuantity < 1 ? 0 : Math.min(values.quantity, variant.stockQuantity)
-        );
-
-        if (onVariantChange) {
-          onVariantChange(variant);
+  const handleColorChange = useCallback(
+    (color) => {
+      if (variants && variants.length > 0) {
+        const variant = variants.find((v) => v.color === color && v.size === values.size);
+        if (variant) {
+          setSelectedVariant(variant);
+          setValue('colors', color);
+          setValue('variantId', variant.id);
+          setValue('price', resolveEffectivePrice(variant));
+          setValue('available', variant.stockQuantity);
+          setValue(
+            'quantity',
+            variant.stockQuantity < 1 ? 0 : Math.min(values.quantity, variant.stockQuantity)
+          );
+          if (onVariantChange) {
+            onVariantChange(variant);
+          }
         }
       } else {
-        setSelectedVariant(null);
-        setValue('colors', '');
-        setValue('variantId', null);
-        setValue('available', 0);
-        setValue('quantity', 0);
+        setValue('colors', color);
       }
-    } else {
-      setValue('size', size);
-    }
-  }, [variants, values.colors, values.quantity, setValue, onVariantChange, resolveEffectivePrice]);
+    },
+    [variants, values.size, values.quantity, setValue, onVariantChange, resolveEffectivePrice]
+  );
+
+  // Handle size change - find matching variant
+  const handleSizeChange = useCallback(
+    (size) => {
+      if (variants && variants.length > 0) {
+        let variant = variants.find(
+          (v) => v.color === values.colors && v.size === size && v.inStock && v.stockQuantity > 0
+        );
+
+        if (!variant) {
+          variant = variants.find((v) => v.size === size && v.inStock && v.stockQuantity > 0);
+        }
+
+        setValue('size', size);
+
+        if (variant) {
+          setSelectedVariant(variant);
+          setValue('colors', variant.color);
+          setValue('variantId', variant.id);
+          setValue('price', resolveEffectivePrice(variant));
+          setValue('available', variant.stockQuantity);
+          setValue(
+            'quantity',
+            variant.stockQuantity < 1 ? 0 : Math.min(values.quantity, variant.stockQuantity)
+          );
+
+          if (onVariantChange) {
+            onVariantChange(variant);
+          }
+        } else {
+          setSelectedVariant(null);
+          setValue('colors', '');
+          setValue('variantId', null);
+          setValue('available', 0);
+          setValue('quantity', 0);
+        }
+      } else {
+        setValue('size', size);
+      }
+    },
+    [variants, values.colors, values.quantity, setValue, onVariantChange, resolveEffectivePrice]
+  );
 
   // Check if a color/size combination is available
-  const isColorAvailable = useCallback((color) => {
-    if (!variants || variants.length === 0) return true;
+  const isColorAvailable = useCallback(
+    (color) => {
+      if (!variants || variants.length === 0) return true;
 
-    return variants.some(
-      (v) =>
-        v.color === color &&
-        v.size === values.size &&
-        v.inStock &&
-        v.stockQuantity > 0
-    );
-  }, [variants, values.size]);
-  const filteredAvailableColors =
-    availableColors?.filter((color) => isColorAvailable(color)) || [];
+      return variants.some(
+        (v) => v.color === color && v.size === values.size && v.inStock && v.stockQuantity > 0
+      );
+    },
+    [variants, values.size]
+  );
+  const filteredAvailableColors = availableColors?.filter((color) => isColorAvailable(color)) || [];
 
-  const isSizeAvailable = useCallback((size) => {
-    if (!variants || variants.length === 0) return true;
-    return variants.some(v => v.size === size && v.color === values.colors && v.inStock);
-  }, [variants, values.colors]);
+  const isSizeAvailable = useCallback(
+    (size) => {
+      if (!variants || variants.length === 0) return true;
+      return variants.some((v) => v.size === size && v.color === values.colors && v.inStock);
+    },
+    [variants, values.colors]
+  );
 
   const onSubmit = handleSubmit(async (data) => {
     try {
@@ -263,6 +288,113 @@ export default function ProductDetailsSummary({
     }
   }, [onAddCart, values, selectedVariant]);
 
+  const handleOpenShare = useCallback(
+    (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      sharePopover.setOpen(event.currentTarget);
+    },
+    [sharePopover]
+  );
+
+  const handleCopyLink = useCallback(async () => {
+    try {
+      if (navigator?.clipboard?.writeText) {
+        await navigator.clipboard.writeText(shareUrl);
+      } else {
+        const textArea = document.createElement('textarea');
+        textArea.value = shareUrl;
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+      }
+
+      enqueueSnackbar('Product link copied.', { variant: 'success' });
+      sharePopover.onClose();
+    } catch (error) {
+      console.error(error);
+      enqueueSnackbar('Unable to copy product link.', { variant: 'error' });
+    }
+  }, [enqueueSnackbar, sharePopover, shareUrl]);
+
+  const handleShareTo = useCallback(
+    (platform) => {
+      const encodedUrl = encodeURIComponent(shareUrl);
+      const encodedText = encodeURIComponent(`Check this product: ${name}`);
+
+      const platformUrls = {
+        whatsapp: `https://wa.me/?text=${encodedText}%20${encodedUrl}`,
+        telegram: `https://t.me/share/url?url=${encodedUrl}&text=${encodedText}`,
+        facebook: `https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}`,
+        x: `https://twitter.com/intent/tweet?text=${encodedText}&url=${encodedUrl}`,
+      };
+
+      const targetUrl = platformUrls[platform];
+
+      if (targetUrl && typeof window !== 'undefined') {
+        window.open(targetUrl, '_blank', 'noopener,noreferrer');
+      }
+
+      sharePopover.onClose();
+    },
+    [name, sharePopover, shareUrl]
+  );
+
+  const handleNativeShare = useCallback(async () => {
+    try {
+      if (navigator?.share) {
+        await navigator.share({
+          title: shareTitle,
+          text: `Check this product: ${name}`,
+          url: shareUrl,
+        });
+      }
+
+      sharePopover.onClose();
+    } catch (error) {
+      if (error?.name !== 'AbortError') {
+        console.error(error);
+        enqueueSnackbar('Unable to open share dialog.', { variant: 'error' });
+      }
+    }
+  }, [enqueueSnackbar, name, sharePopover, shareTitle, shareUrl]);
+
+  const handleToggleFavorite = useCallback(
+    async (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+
+      if (!authenticated) {
+        router.push(paths.auth.jwt.login);
+        return;
+      }
+
+      if (isFavoriteSubmitting) {
+        return;
+      }
+
+      const previousFavorites = favorites;
+
+      dispatch(toggleFavorite(id));
+      setIsFavoriteSubmitting(true);
+
+      try {
+        if (isFavorited) {
+          await removeFavorite(id);
+        } else {
+          await addFavorite(id);
+        }
+      } catch (error) {
+        dispatch(revertFavorites(previousFavorites));
+        console.error('Failed to update favorites:', error);
+      } finally {
+        setIsFavoriteSubmitting(false);
+      }
+    },
+    [authenticated, dispatch, favorites, id, isFavoriteSubmitting, isFavorited, router]
+  );
+
   // ----------------------------------------------------------------------
 
   const renderPrice = (
@@ -290,21 +422,93 @@ export default function ProductDetailsSummary({
         Compare
       </Link>
 
-      <Link
-        variant="subtitle2"
-        sx={{ color: 'text.secondary', display: 'inline-flex', alignItems: 'center' }}
+      <Box
+        component="button"
+        type="button"
+        onClick={handleToggleFavorite}
+        disabled={isFavoriteSubmitting}
+        sx={{
+          typography: 'subtitle2',
+          color: isFavorited ? 'error.main' : 'text.secondary',
+          display: 'inline-flex',
+          alignItems: 'center',
+          border: 0,
+          p: 0,
+          m: 0,
+          backgroundColor: 'transparent',
+          cursor: isFavoriteSubmitting ? 'default' : 'pointer',
+          '&:hover': { color: 'error.main' },
+          '&:disabled': {
+            opacity: 0.7,
+          },
+        }}
       >
-        <Iconify icon="solar:heart-bold" width={16} sx={{ mr: 1 }} />
+        <Iconify
+          icon={isFavorited ? 'eva:heart-fill' : 'eva:heart-outline'}
+          width={16}
+          sx={{ mr: 1 }}
+        />
         Favorite
-      </Link>
+      </Box>
 
-      <Link
-        variant="subtitle2"
-        sx={{ color: 'text.secondary', display: 'inline-flex', alignItems: 'center' }}
+      <Box
+        component="button"
+        type="button"
+        sx={{
+          typography: 'subtitle2',
+          color: 'text.secondary',
+          display: 'inline-flex',
+          alignItems: 'center',
+          border: 0,
+          p: 0,
+          m: 0,
+          backgroundColor: 'transparent',
+          cursor: 'pointer',
+          '&:hover': { color: 'text.primary' },
+        }}
+        onClick={handleOpenShare}
       >
         <Iconify icon="solar:share-bold" width={16} sx={{ mr: 1 }} />
         Share
-      </Link>
+      </Box>
+
+      <CustomPopover
+        open={sharePopover.open}
+        onClose={sharePopover.onClose}
+        arrow="top-right"
+        sx={{ width: 220, p: 0.5 }}
+      >
+        <MenuItem onClick={handleCopyLink}>
+          <Iconify icon="solar:link-bold" />
+          Copy Link
+        </MenuItem>
+
+        <MenuItem onClick={() => handleShareTo('whatsapp')}>
+          <Iconify icon="ic:baseline-whatsapp" />
+          WhatsApp
+        </MenuItem>
+
+        <MenuItem onClick={() => handleShareTo('telegram')}>
+          <Iconify icon="ic:baseline-telegram" />
+          Telegram
+        </MenuItem>
+
+        <MenuItem onClick={() => handleShareTo('facebook')}>
+          <Iconify icon="ri:facebook-fill" />
+          Facebook
+        </MenuItem>
+
+        <MenuItem onClick={() => handleShareTo('x')}>
+          <Iconify icon="ri:twitter-x-fill" />X
+        </MenuItem>
+
+        {typeof navigator !== 'undefined' && navigator.share && (
+          <MenuItem onClick={handleNativeShare}>
+            <Iconify icon="solar:share-bold" />
+            More Options
+          </MenuItem>
+        )}
+      </CustomPopover>
     </Stack>
   );
 
@@ -357,7 +561,7 @@ export default function ProductDetailsSummary({
         }}
       >
         {availableSizes.map((size) => (
-          <MenuItem key={size} value={size} >
+          <MenuItem key={size} value={size}>
             {size}
           </MenuItem>
         ))}
@@ -488,8 +692,6 @@ export default function ProductDetailsSummary({
         <Divider sx={{ borderStyle: 'dashed' }} />
         {renderSizeOptions}
         {renderColorOptions}
-
-
 
         {renderQuantity}
 

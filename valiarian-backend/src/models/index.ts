@@ -22,6 +22,7 @@ export * from './product-variant.model';
 export * from './invoice.model';
 export * from './refresh-token.model';
 export * from './registration-sessions.model';
+export * from './review.model';
 export * from './role-permissions.model';
 export * from './roles.model';
 export * from './section-template.model';

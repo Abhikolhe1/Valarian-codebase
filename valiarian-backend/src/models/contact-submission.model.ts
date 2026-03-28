@@ -88,10 +88,10 @@ issueType?: string;
     required: true,
     default: 'new',
     jsonSchema: {
-      enum: ['new', 'in_progress', 'resolved', 'spam'],
+      enum: ['new', 'replied', 'spam'],
     },
   })
-  status: 'new' | 'in_progress' | 'resolved' | 'spam';
+  status: 'new' | 'replied' | 'spam';
 
   @property({
     type: 'boolean',

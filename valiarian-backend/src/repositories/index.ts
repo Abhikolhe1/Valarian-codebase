@@ -20,6 +20,7 @@ export * from './product-variant.repository';
 export * from './invoice.repository';
 export * from './refresh-token.repository';
 export * from './registration-sessions.repository';
+export * from './review.repository';
 export * from './role-permissions.repository';
 export * from './roles.repository';
 export * from './section-template.repository';
