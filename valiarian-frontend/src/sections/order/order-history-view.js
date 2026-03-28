@@ -24,6 +24,11 @@ import EmptyContent from 'src/components/empty-content';
 import Iconify from 'src/components/iconify';
 import Label from 'src/components/label';
 import { useSettingsContext } from 'src/components/settings';
+import {
+  getOrderDisplayColor,
+  getOrderDisplayLabel,
+  shouldPollOrderStatus,
+} from 'src/utils/order-status';
 
 // ----------------------------------------------------------------------
 
@@ -83,6 +88,35 @@ export default function OrderHistoryView() {
 
     loadOrders();
   }, [authenticated, user]);
+
+  useEffect(() => {
+    if (!authenticated || !user) {
+      return undefined;
+    }
+
+    const hasActiveOrders = orders.some((order) =>
+      shouldPollOrderStatus(order.status, order.returnStatus)
+    );
+
+    if (!hasActiveOrders) {
+      return undefined;
+    }
+
+    const interval = setInterval(async () => {
+      try {
+        const response = await axios.get(`/api/orders/user/${user.id}`);
+        const ordersData = response.data.orders || [];
+        const sortedOrders = ordersData.sort(
+          (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
+        );
+        setOrders(sortedOrders);
+      } catch (err) {
+        console.error('Error refreshing orders:', err);
+      }
+    }, 30000);
+
+    return () => clearInterval(interval);
+  }, [authenticated, orders, user]);
 
   const handleViewOrder = (orderId) => {
     router.push(paths.order.details(orderId));
@@ -161,25 +195,7 @@ export default function OrderHistoryView() {
 // ----------------------------------------------------------------------
 
 function OrderCard({ order, onViewOrder, onTrackOrder }) {
-  const { orderNumber, createdAt, status, total, items = [], subtotal, shipping, discount } = order;
-
-  const getStatusColor = (orderStatus) => {
-    switch (orderStatus) {
-      case 'completed':
-      case 'delivered':
-        return 'success';
-      case 'pending':
-      case 'processing':
-        return 'warning';
-      case 'cancelled':
-      case 'refunded':
-        return 'error';
-      case 'shipped':
-        return 'info';
-      default:
-        return 'default';
-    }
-  };
+  const { orderNumber, createdAt, status, returnStatus, total, items = [], subtotal, shipping, discount } = order;
 
   return (
     <Card>
@@ -203,8 +219,8 @@ function OrderCard({ order, onViewOrder, onTrackOrder }) {
                 </Typography>
               </Box>
 
-              <Label variant="soft" color={getStatusColor(status)}>
-                {status}
+              <Label variant="soft" color={getOrderDisplayColor(status, returnStatus)}>
+                {getOrderDisplayLabel(status, returnStatus)}
               </Label>
             </Stack>
           </Grid>
@@ -275,9 +291,11 @@ function OrderCard({ order, onViewOrder, onTrackOrder }) {
               )}
               <Stack direction="row" justifyContent="space-between">
                 <Typography variant="body2" color="text.secondary">
-                  Shipping
+                  Delivery Charge
                 </Typography>
-                <Typography variant="body2">{fCurrency(shipping || 0)}</Typography>
+                <Typography variant="body2">
+                  {shipping ? `${fCurrency(shipping)} included` : 'Included'}
+                </Typography>
               </Stack>
               <Divider />
               <Stack direction="row" justifyContent="space-between">
@@ -322,6 +340,7 @@ OrderCard.propTypes = {
     orderNumber: PropTypes.string,
     createdAt: PropTypes.string,
     status: PropTypes.string,
+    returnStatus: PropTypes.string,
     total: PropTypes.number,
     items: PropTypes.array,
     subtotal: PropTypes.number,

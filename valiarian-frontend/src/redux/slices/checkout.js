@@ -14,10 +14,13 @@ const initialState = {
   activeStep: 0,
   cart: [],
   buyNowItem: null,
+  actualSubTotal: 0,
+  productDiscount: 0,
   subTotal: 0,
   total: 0,
   discount: 0,
   shipping: 0,
+  tax: 0,
   billing: null,
   totalItems: 0,
   paymentSession: null,
@@ -35,15 +38,26 @@ const resetCheckoutProgress = (state) => {
 };
 
 const applyCartState = (state, cart) => {
-  const { cart: normalizedCart, subTotal, total, totalItems } = calculateCheckoutTotals(
+  const {
+    cart: normalizedCart,
+    actualSubTotal,
+    productDiscount,
+    subTotal,
+    taxAmount,
+    total,
+    totalItems,
+  } = calculateCheckoutTotals(
     cart,
     state.discount,
     state.shipping
   );
 
   state.cart = normalizedCart;
+  state.actualSubTotal = actualSubTotal || 0;
+  state.productDiscount = productDiscount || 0;
   state.discount = state.discount || 0;
   state.shipping = state.shipping || 0;
+  state.tax = taxAmount || 0;
   state.billing = state.billing || null;
   state.subTotal = subTotal;
   state.total = total;
@@ -122,9 +136,14 @@ const slice = createSlice({
       state.billing = null;
       state.activeStep = 0;
       state.total = 0;
+      state.actualSubTotal = 0;
+      state.productDiscount = 0;
       state.subTotal = 0;
       state.discount = 0;
       state.shipping = 0;
+      state.actualSubTotal = 0;
+      state.productDiscount = 0;
+      state.tax = 0;
       state.totalItems = 0;
       state.paymentSession = null;
     },
@@ -209,6 +228,7 @@ const slice = createSlice({
       state.activeStep = 0;
       state.discount = 0;
       state.shipping = 0;
+      state.tax = 0;
       state.paymentSession = null;
     },
 
@@ -245,7 +265,7 @@ const slice = createSlice({
       const shipping = action.payload;
 
       state.shipping = shipping;
-      state.total = state.subTotal - state.discount + shipping;
+      state.total = state.subTotal - state.discount;
     },
   },
 });

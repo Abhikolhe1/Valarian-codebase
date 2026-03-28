@@ -126,7 +126,7 @@ export default function ProductFiltersResult({
           </Block>
         )}
 
-        {canReset && (
+        {/* {canReset && (
           <Button
             color="error"
             onClick={onResetFilters}
@@ -134,7 +134,7 @@ export default function ProductFiltersResult({
           >
             Clear
           </Button>
-        )}
+        )} */}
       </Stack>
     </Stack>
   );

@@ -1,22 +1,22 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-// @mui
+import { alpha } from '@mui/material/styles';
 import Card from '@mui/material/Card';
 import Container from '@mui/material/Container';
 import InputAdornment from '@mui/material/InputAdornment';
 import MenuItem from '@mui/material/MenuItem';
 import Stack from '@mui/material/Stack';
+import Tab from '@mui/material/Tab';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
 import TableContainer from '@mui/material/TableContainer';
+import Tabs from '@mui/material/Tabs';
 import TextField from '@mui/material/TextField';
-// routes
 import { paths } from 'src/routes/paths';
-// utils
 import axios from 'src/utils/axios';
-// components
 import CustomBreadcrumbs from 'src/components/custom-breadcrumbs';
 import Iconify from 'src/components/iconify';
+import Label from 'src/components/label';
 import Scrollbar from 'src/components/scrollbar';
 import { useSettingsContext } from 'src/components/settings';
 import {
@@ -24,17 +24,15 @@ import {
   TableHeadCustom,
   TableNoData,
   TablePaginationCustom,
-  useTable
+  useTable,
 } from 'src/components/table';
-//
+import { getOrderStatusColor } from 'src/utils/order-status';
 import OrderTableRow from './order-table-row';
 
-// ----------------------------------------------------------------------
-
 const TABLE_HEAD = [
-  { id: 'orderNumber', label: 'Order'},
-  { id: 'customer', label: 'Customer'},
-  { id: 'createdAt', label: 'Date'},
+  { id: 'orderNumber', label: 'Order' },
+  { id: 'customer', label: 'Customer' },
+  { id: 'createdAt', label: 'Date' },
   { id: 'status', label: 'Status' },
   { id: 'paymentStatus', label: 'Payment' },
   { id: 'total', label: 'Total' },
@@ -49,6 +47,7 @@ const STATUS_OPTIONS = [
   { value: 'packed', label: 'Packed' },
   { value: 'shipped', label: 'Shipped' },
   { value: 'delivered', label: 'Delivered' },
+  { value: 'return_requested', label: 'Return Requested' },
   { value: 'cancelled', label: 'Cancelled' },
   { value: 'returned', label: 'Returned' },
   { value: 'refunded', label: 'Refunded' },
@@ -64,8 +63,6 @@ const PAYMENT_STATUS_OPTIONS = [
   { value: 'partially_refunded', label: 'Partially Refunded' },
 ];
 
-// ----------------------------------------------------------------------
-
 export default function OrdersListView() {
   const table = useTable({ defaultOrderBy: 'createdAt', defaultOrder: 'desc' });
   const settings = useSettingsContext();
@@ -73,24 +70,28 @@ export default function OrdersListView() {
 
   const [tableData, setTableData] = useState([]);
   const [totalCount, setTotalCount] = useState(0);
+  const [statusCounts, setStatusCounts] = useState({ all: 0 });
   const [loading, setLoading] = useState(true);
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterPaymentStatus, setFilterPaymentStatus] = useState('all');
   const [filterSearch, setFilterSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
 
-  // Debounce search input
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearch(filterSearch);
-    }, 500); // 500ms delay
+    }, 500);
 
     return () => clearTimeout(timer);
   }, [filterSearch]);
 
-  const fetchOrders = useCallback(async () => {
+  const fetchOrders = useCallback(async (options = {}) => {
+    const { silent = false } = options;
     try {
-      setLoading(true);
+      if (!silent) {
+        setLoading(true);
+      }
+
       const params = {
         page: table.page + 1,
         limit: table.rowsPerPage,
@@ -98,44 +99,48 @@ export default function OrdersListView() {
         sortOrder: table.order,
       };
 
-      if (filterStatus && filterStatus !== 'all') {
+      if (filterStatus !== 'all') {
         params.status = filterStatus;
       }
 
-      if (filterPaymentStatus && filterPaymentStatus !== 'all') {
+      if (filterPaymentStatus !== 'all') {
         params.paymentStatus = filterPaymentStatus;
       }
 
       if (debouncedSearch) {
         params.search = debouncedSearch;
       }
+
       const response = await axios.get('/api/admin/orders', { params });
-
-      console.log("FULL RESPONSE:", response.data);
-      console.log("ORDERS:", response.data.orders);
-
       setTableData(response.data.orders || []);
-
       setTotalCount(response.data.pagination?.total || 0);
-      console.log("TOTAL:", response.data.pagination.total);
-      console.log("ROW COUNT:", table.rowCount);
+      setStatusCounts(response.data.counts || { all: 0 });
     } catch (error) {
       console.error('Error fetching orders:', error);
+      setTableData([]);
+      setTotalCount(0);
+      setStatusCounts({ all: 0 });
     } finally {
-      setLoading(false);
+      if (!silent) {
+        setLoading(false);
+      }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [table.page, table.rowsPerPage, table.orderBy, table.order, filterStatus, filterPaymentStatus, debouncedSearch]);
+  }, [debouncedSearch, filterPaymentStatus, filterStatus, table.order, table.orderBy, table.page, table.rowsPerPage]);
 
   useEffect(() => {
     fetchOrders();
   }, [fetchOrders]);
 
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchOrders({ silent: true });
+    }, 10000);
 
-  console.log('daaaaaaa', tableData)
+    return () => clearInterval(interval);
+  }, [fetchOrders]);
 
-  const handleFilterStatus = useCallback((event) => {
-    setFilterStatus(event.target.value);
+  const handleFilterStatus = useCallback((event, value) => {
+    setFilterStatus(value);
     table.onChangePage(null, 0);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -153,7 +158,6 @@ export default function OrdersListView() {
   }, []);
 
   const handleViewRow = useCallback((id) => {
-    console.log('🔍 Viewing order with ID:', id);
     navigate(paths.dashboard.order.details(id));
   }, [navigate]);
 
@@ -172,11 +176,33 @@ export default function OrdersListView() {
       />
 
       <Card>
-        <Stack
-          spacing={2}
-          direction={{ xs: 'column', md: 'row' }}
-          sx={{ p: 2.5 }}
+        <Tabs
+          value={filterStatus}
+          onChange={handleFilterStatus}
+          sx={{
+            px: 2.5,
+            boxShadow: (theme) => `inset 0 -2px 0 0 ${alpha(theme.palette.grey[500], 0.08)}`,
+          }}
         >
+          {STATUS_OPTIONS.map((option) => (
+            <Tab
+              key={option.value}
+              value={option.value}
+              label={option.label}
+              iconPosition="end"
+              icon={
+                <Label
+                  variant={((option.value === 'all' || option.value === filterStatus) && 'filled') || 'soft'}
+                  color={option.value === 'all' ? 'default' : getOrderStatusColor(option.value)}
+                >
+                  {statusCounts[option.value] || 0}
+                </Label>
+              }
+            />
+          ))}
+        </Tabs>
+
+        <Stack spacing={2} direction={{ xs: 'column', md: 'row' }} sx={{ p: 2.5 }}>
           <TextField
             fullWidth
             value={filterSearch}
@@ -194,30 +220,6 @@ export default function OrdersListView() {
           <TextField
             select
             fullWidth
-            label="Order Status"
-            value={filterStatus}
-            onChange={handleFilterStatus}
-            SelectProps={{
-              MenuProps: {
-                PaperProps: {
-                  sx: { maxHeight: 240 },
-                },
-              },
-            }}
-            sx={{
-              maxWidth: { md: 200 },
-            }}
-          >
-            {STATUS_OPTIONS.map((option) => (
-              <MenuItem key={option.value} value={option.value}>
-                {option.label}
-              </MenuItem>
-            ))}
-          </TextField>
-
-          <TextField
-            select
-            fullWidth
             label="Payment Status"
             value={filterPaymentStatus}
             onChange={handleFilterPaymentStatus}
@@ -228,9 +230,7 @@ export default function OrdersListView() {
                 },
               },
             }}
-            sx={{
-              maxWidth: { md: 200 },
-            }}
+            sx={{ maxWidth: { md: 220 } }}
           >
             {PAYMENT_STATUS_OPTIONS.map((option) => (
               <MenuItem key={option.value} value={option.value}>

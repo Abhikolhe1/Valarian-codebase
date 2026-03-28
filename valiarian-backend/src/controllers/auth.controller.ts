@@ -468,6 +468,174 @@ export class AuthController {
   }
 
   @authenticate('jwt')
+  @authorize({roles: ['super_admin', 'admin']})
+  @get('/api/auth/users')
+  async getUsers(
+    @param.query.number('page') page = 1,
+    @param.query.number('limit') limit = 10,
+    @param.query.string('search') search?: string,
+    @param.query.string('status') status?: string,
+    @param.query.string('sortBy') sortBy = 'createdAt',
+    @param.query.string('sortOrder') sortOrder: 'ASC' | 'DESC' = 'DESC',
+  ): Promise<{users: object[]; pagination: object; counts: object}> {
+    const userRole = await this.rolesRepository.findOne({
+      where: {value: 'user'},
+    });
+
+    if (!userRole) {
+      return {
+        users: [],
+        pagination: {
+          total: 0,
+          page,
+          limit,
+          totalPages: 0,
+        },
+        counts: {
+          all: 0,
+          active: 0,
+          blocked: 0,
+        },
+      };
+    }
+
+    const userAssignments = await this.userRolesRepository.find({
+      where: {
+        rolesId: userRole.id,
+        isDeleted: false,
+      },
+    });
+
+    const userIds = userAssignments.map((item) => item.usersId).filter(Boolean);
+
+    if (!userIds.length) {
+      return {
+        users: [],
+        pagination: {
+          total: 0,
+          page,
+          limit,
+          totalPages: 0,
+        },
+        counts: {
+          all: 0,
+          active: 0,
+          blocked: 0,
+        },
+      };
+    }
+
+    const where: any = {
+      id: {inq: userIds},
+      isDeleted: false,
+    };
+
+    if (status === 'active') {
+      where.isActive = true;
+    }
+
+    if (status === 'blocked') {
+      where.isActive = false;
+    }
+
+    if (search) {
+      where.or = [
+        {fullName: {like: `%${search}%`, options: 'i'}},
+        {email: {like: `%${search}%`, options: 'i'}},
+        {phone: {like: `%${search}%`, options: 'i'}},
+      ];
+    }
+
+    const total = await this.usersRepository.count(where);
+
+    const users = await this.usersRepository.find({
+      where,
+      fields: {
+        id: true,
+        fullName: true,
+        email: true,
+        phone: true,
+        profilePicture: true,
+        isActive: true,
+        createdAt: true,
+        updatedAt: true,
+        lastLoginAt: true,
+      },
+      order: [`${sortBy} ${sortOrder}`],
+      limit,
+      skip: (page - 1) * limit,
+    });
+
+    const [allCount, activeCount, blockedCount] = await Promise.all([
+      this.usersRepository.count({id: {inq: userIds}, isDeleted: false}),
+      this.usersRepository.count({id: {inq: userIds}, isDeleted: false, isActive: true}),
+      this.usersRepository.count({id: {inq: userIds}, isDeleted: false, isActive: false}),
+    ]);
+
+    return {
+      users: users.map((user) => ({
+        ...user,
+        role: 'user',
+        status: user.isActive ? 'active' : 'blocked',
+      })),
+      pagination: {
+        total: total.count,
+        page,
+        limit,
+        totalPages: Math.ceil(total.count / limit),
+      },
+      counts: {
+        all: allCount.count,
+        active: activeCount.count,
+        blocked: blockedCount.count,
+      },
+    };
+  }
+
+  @authenticate('jwt')
+  @authorize({roles: ['super_admin', 'admin']})
+  @patch('/api/auth/users/{id}/status')
+  async updateUserStatus(
+    @param.path.string('id') id: string,
+    @requestBody({
+      content: {
+        'application/json': {
+          schema: {
+            type: 'object',
+            required: ['isActive'],
+            properties: {
+              isActive: {type: 'boolean'},
+            },
+          },
+        },
+      },
+    })
+    body: {isActive: boolean},
+  ): Promise<{success: boolean; message: string}> {
+    const existingUser = await this.usersRepository.findById(id);
+
+    if (existingUser.isDeleted) {
+      throw new HttpErrors.NotFound('User not found');
+    }
+
+    const {roles} = await this.rbacService.getUserRolesAndPermissions(id);
+
+    if (!roles.includes('user')) {
+      throw new HttpErrors.BadRequest('Only customer users can be blocked or unblocked');
+    }
+
+    await this.usersRepository.updateById(id, {
+      isActive: body.isActive,
+      updatedAt: new Date(),
+    });
+
+    return {
+      success: true,
+      message: body.isActive ? 'User unblocked successfully' : 'User blocked successfully',
+    };
+  }
+
+  @authenticate('jwt')
   @authorize({roles: ['super_admin']})
   @get('/api/auth/admins/{id}')
   async getAdminById(

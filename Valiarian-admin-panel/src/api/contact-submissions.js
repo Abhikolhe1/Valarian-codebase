@@ -22,7 +22,7 @@ export function useGetContactSubmissions(params) {
     revalidateIfStale: true,
     revalidateOnFocus: true,
     revalidateOnReconnect: true,
-    refreshInterval: 10000,
+    refreshInterval: 5000,
     refreshWhenHidden: false,
     dedupingInterval: 2000,
   });

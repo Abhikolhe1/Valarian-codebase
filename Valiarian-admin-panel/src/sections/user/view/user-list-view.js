@@ -1,97 +1,73 @@
 import isEqual from 'lodash/isEqual';
-import { useState, useCallback } from 'react';
-// @mui
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { alpha } from '@mui/material/styles';
+import Alert from '@mui/material/Alert';
 import Tab from '@mui/material/Tab';
 import Tabs from '@mui/material/Tabs';
 import Card from '@mui/material/Card';
 import Table from '@mui/material/Table';
-import Button from '@mui/material/Button';
-import Tooltip from '@mui/material/Tooltip';
+import Stack from '@mui/material/Stack';
 import Container from '@mui/material/Container';
 import TableBody from '@mui/material/TableBody';
-import IconButton from '@mui/material/IconButton';
 import TableContainer from '@mui/material/TableContainer';
-// routes
 import { paths } from 'src/routes/paths';
-import { useRouter } from 'src/routes/hook';
-import { RouterLink } from 'src/routes/components';
-// _mock
-import { _userList, _roles, USER_STATUS_OPTIONS } from 'src/_mock';
-// hooks
-import { useBoolean } from 'src/hooks/use-boolean';
-// components
+import { useSnackbar } from 'src/components/snackbar';
 import Label from 'src/components/label';
-import Iconify from 'src/components/iconify';
 import Scrollbar from 'src/components/scrollbar';
-import { ConfirmDialog } from 'src/components/custom-dialog';
 import { useSettingsContext } from 'src/components/settings';
 import CustomBreadcrumbs from 'src/components/custom-breadcrumbs';
 import {
   useTable,
-  getComparator,
-  emptyRows,
   TableNoData,
   TableEmptyRows,
   TableHeadCustom,
-  TableSelectedAction,
   TablePaginationCustom,
 } from 'src/components/table';
-//
+import { getUsers, updateUserStatus } from 'src/api/users';
 import UserTableRow from '../user-table-row';
 import UserTableToolbar from '../user-table-toolbar';
 import UserTableFiltersResult from '../user-table-filters-result';
 
 // ----------------------------------------------------------------------
 
-const STATUS_OPTIONS = [{ value: 'all', label: 'All' }, ...USER_STATUS_OPTIONS];
+const STATUS_OPTIONS = [
+  { value: 'all', label: 'All' },
+  { value: 'active', label: 'Active' },
+  { value: 'blocked', label: 'Blocked' },
+];
 
 const TABLE_HEAD = [
-  { id: 'name', label: 'Name' },
-  { id: 'phoneNumber', label: 'Phone Number', width: 180 },
-  { id: 'company', label: 'Company', width: 220 },
+  { id: 'fullName', label: 'Name' },
+  { id: 'phone', label: 'Phone Number', width: 180 },
   { id: 'role', label: 'Role', width: 180 },
-  { id: 'status', label: 'Status', width: 100 },
+  { id: 'createdAt', label: 'Created', width: 180 },
+  { id: 'lastLoginAt', label: 'Last Login', width: 180 },
+  { id: 'status', label: 'Status', width: 120 },
   { id: '', width: 88 },
 ];
 
 const defaultFilters = {
   name: '',
-  role: [],
+  role: ['user'],
   status: 'all',
 };
 
 // ----------------------------------------------------------------------
 
 export default function UserListView() {
-  const table = useTable();
-
+  const table = useTable({ defaultOrderBy: 'createdAt', defaultOrder: 'desc' });
   const settings = useSettingsContext();
-
-  const router = useRouter();
-
-  const confirm = useBoolean();
-
-  const [tableData, setTableData] = useState(_userList);
-
+  const { enqueueSnackbar } = useSnackbar();
+  const [tableData, setTableData] = useState([]);
+  const [totalCount, setTotalCount] = useState(0);
+  const [counts, setCounts] = useState({ all: 0, active: 0, blocked: 0 });
+  const [loading, setLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState('');
   const [filters, setFilters] = useState(defaultFilters);
-
-  const dataFiltered = applyFilter({
-    inputData: tableData,
-    comparator: getComparator(table.order, table.orderBy),
-    filters,
-  });
-
-  const dataInPage = dataFiltered.slice(
-    table.page * table.rowsPerPage,
-    table.page * table.rowsPerPage + table.rowsPerPage
-  );
-
-  const denseHeight = table.dense ? 52 : 72;
+  const roleOptions = useMemo(() => ['user'], []);
 
   const canReset = !isEqual(defaultFilters, filters);
-
-  const notFound = (!dataFiltered.length && canReset) || !dataFiltered.length;
+  const notFound = !loading && !tableData.length;
 
   const handleFilters = useCallback(
     (name, value) => {
@@ -102,34 +78,6 @@ export default function UserListView() {
       }));
     },
     [table]
-  );
-
-  const handleDeleteRow = useCallback(
-    (id) => {
-      const deleteRow = tableData.filter((row) => row.id !== id);
-      setTableData(deleteRow);
-
-      table.onUpdatePageDeleteRow(dataInPage.length);
-    },
-    [dataInPage.length, table, tableData]
-  );
-
-  const handleDeleteRows = useCallback(() => {
-    const deleteRows = tableData.filter((row) => !table.selected.includes(row.id));
-    setTableData(deleteRows);
-
-    table.onUpdatePageDeleteRows({
-      totalRows: tableData.length,
-      totalRowsInPage: dataInPage.length,
-      totalRowsFiltered: dataFiltered.length,
-    });
-  }, [dataFiltered.length, dataInPage.length, table, tableData]);
-
-  const handleEditRow = useCallback(
-    (id) => {
-      router.push(paths.dashboard.user.edit(id));
-    },
-    [router]
   );
 
   const handleFilterStatus = useCallback(
@@ -143,225 +91,169 @@ export default function UserListView() {
     setFilters(defaultFilters);
   }, []);
 
+  const fetchUsers = useCallback(async (options = {}) => {
+    const { silent = false } = options;
+    try {
+      if (!silent) {
+        setLoading(true);
+      }
+      setErrorMessage('');
+
+      const response = await getUsers({
+        page: table.page + 1,
+        limit: table.rowsPerPage,
+        search: filters.name || undefined,
+        status: filters.status !== 'all' ? filters.status : undefined,
+        sortBy: table.orderBy,
+        sortOrder: table.order.toUpperCase(),
+      });
+
+      setTableData(response?.users || []);
+      setTotalCount(response?.pagination?.total || 0);
+      setCounts(response?.counts || { all: 0, active: 0, blocked: 0 });
+    } catch (error) {
+      setTableData([]);
+      setTotalCount(0);
+      setCounts({ all: 0, active: 0, blocked: 0 });
+      setErrorMessage(error?.message || 'Unable to load users right now.');
+    } finally {
+      if (!silent) {
+        setLoading(false);
+      }
+    }
+  }, [filters.name, filters.status, table.order, table.orderBy, table.page, table.rowsPerPage]);
+
+  useEffect(() => {
+    fetchUsers();
+  }, [fetchUsers]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchUsers({ silent: true });
+    }, 15000);
+
+    return () => clearInterval(interval);
+  }, [fetchUsers]);
+
+  const handleToggleBlock = useCallback(
+    async (user) => {
+      try {
+        await updateUserStatus(user.id, user.status !== 'active');
+        enqueueSnackbar(
+          user.status === 'active' ? 'User blocked successfully.' : 'User unblocked successfully.',
+          { variant: 'success' }
+        );
+        fetchUsers();
+      } catch (error) {
+        enqueueSnackbar(error?.message || 'Unable to update user status right now.', {
+          variant: 'error',
+        });
+      }
+    },
+    [enqueueSnackbar, fetchUsers]
+  );
+
   return (
-    <>
-      <Container maxWidth={settings.themeStretch ? false : 'lg'}>
-        <CustomBreadcrumbs
-          heading="List"
-          links={[
-            { name: 'Dashboard', href: paths.dashboard.root },
-            { name: 'User', href: paths.dashboard.user.root },
-            { name: 'List' },
-          ]}
-          action={
-            <Button
-              component={RouterLink}
-              href={paths.dashboard.user.new}
-              variant="contained"
-              startIcon={<Iconify icon="mingcute:add-line" />}
-            >
-              New User
-            </Button>
-          }
+    <Container maxWidth={settings.themeStretch ? false : 'xl'}>
+      <CustomBreadcrumbs
+        heading="Users"
+        links={[
+          { name: 'Dashboard', href: paths.dashboard.root },
+          { name: 'Users', href: paths.dashboard.user.list },
+          { name: 'List' },
+        ]}
+        sx={{
+          mb: { xs: 3, md: 5 },
+        }}
+      />
+
+      {!!errorMessage && (
+        <Alert severity="warning" sx={{ mb: 3 }}>
+          {errorMessage}
+        </Alert>
+      )}
+
+      <Card>
+        <Tabs
+          value={filters.status}
+          onChange={handleFilterStatus}
           sx={{
-            mb: { xs: 3, md: 5 },
+            px: 2.5,
+            boxShadow: (theme) => `inset 0 -2px 0 0 ${alpha(theme.palette.grey[500], 0.08)}`,
           }}
-        />
+        >
+          {STATUS_OPTIONS.map((tab) => (
+            <Tab
+              key={tab.value}
+              iconPosition="end"
+              value={tab.value}
+              label={tab.label}
+              icon={
+                <Label
+                  variant={((tab.value === 'all' || tab.value === filters.status) && 'filled') || 'soft'}
+                  color={
+                    (tab.value === 'active' && 'success') ||
+                    (tab.value === 'blocked' && 'error') ||
+                    'default'
+                  }
+                >
+                  {tab.value === 'all' && counts.all}
+                  {tab.value === 'active' && counts.active}
+                  {tab.value === 'blocked' && counts.blocked}
+                </Label>
+              }
+            />
+          ))}
+        </Tabs>
 
-        <Card>
-          <Tabs
-            value={filters.status}
-            onChange={handleFilterStatus}
-            sx={{
-              px: 2.5,
-              boxShadow: (theme) => `inset 0 -2px 0 0 ${alpha(theme.palette.grey[500], 0.08)}`,
-            }}
-          >
-            {STATUS_OPTIONS.map((tab) => (
-              <Tab
-                key={tab.value}
-                iconPosition="end"
-                value={tab.value}
-                label={tab.label}
-                icon={
-                  <Label
-                    variant={
-                      ((tab.value === 'all' || tab.value === filters.status) && 'filled') || 'soft'
-                    }
-                    color={
-                      (tab.value === 'active' && 'success') ||
-                      (tab.value === 'pending' && 'warning') ||
-                      (tab.value === 'banned' && 'error') ||
-                      'default'
-                    }
-                  >
-                    {tab.value === 'all' && _userList.length}
-                    {tab.value === 'active' &&
-                      _userList.filter((user) => user.status === 'active').length}
+        <UserTableToolbar filters={filters} onFilters={handleFilters} roleOptions={roleOptions} />
 
-                    {tab.value === 'pending' &&
-                      _userList.filter((user) => user.status === 'pending').length}
-                    {tab.value === 'banned' &&
-                      _userList.filter((user) => user.status === 'banned').length}
-                    {tab.value === 'rejected' &&
-                      _userList.filter((user) => user.status === 'rejected').length}
-                  </Label>
-                }
-              />
-            ))}
-          </Tabs>
-
-          <UserTableToolbar
+        {canReset && (
+          <UserTableFiltersResult
             filters={filters}
             onFilters={handleFilters}
-            //
-            roleOptions={_roles}
+            onResetFilters={handleResetFilters}
+            results={totalCount}
+            sx={{ p: 2.5, pt: 0 }}
           />
+        )}
 
-          {canReset && (
-            <UserTableFiltersResult
-              filters={filters}
-              onFilters={handleFilters}
-              //
-              onResetFilters={handleResetFilters}
-              //
-              results={dataFiltered.length}
-              sx={{ p: 2.5, pt: 0 }}
-            />
-          )}
+        <TableContainer sx={{ position: 'relative', overflow: 'unset' }}>
+          <Scrollbar>
+            <Table size={table.dense ? 'small' : 'medium'} sx={{ minWidth: 1080 }}>
+              <TableHeadCustom
+                order={table.order}
+                orderBy={table.orderBy}
+                headLabel={TABLE_HEAD}
+                rowCount={tableData.length}
+                onSort={table.onSort}
+              />
 
-          <TableContainer sx={{ position: 'relative', overflow: 'unset' }}>
-            <TableSelectedAction
-              dense={table.dense}
-              numSelected={table.selected.length}
-              rowCount={tableData.length}
-              onSelectAllRows={(checked) =>
-                table.onSelectAllRows(
-                  checked,
-                  tableData.map((row) => row.id)
-                )
-              }
-              action={
-                <Tooltip title="Delete">
-                  <IconButton color="primary" onClick={confirm.onTrue}>
-                    <Iconify icon="solar:trash-bin-trash-bold" />
-                  </IconButton>
-                </Tooltip>
-              }
-            />
+              <TableBody>
+                {tableData.map((row) => (
+                  <UserTableRow key={row.id} row={row} onToggleBlock={handleToggleBlock} />
+                ))}
 
-            <Scrollbar>
-              <Table size={table.dense ? 'small' : 'medium'} sx={{ minWidth: 960 }}>
-                <TableHeadCustom
-                  order={table.order}
-                  orderBy={table.orderBy}
-                  headLabel={TABLE_HEAD}
-                  rowCount={tableData.length}
-                  numSelected={table.selected.length}
-                  onSort={table.onSort}
-                  onSelectAllRows={(checked) =>
-                    table.onSelectAllRows(
-                      checked,
-                      tableData.map((row) => row.id)
-                    )
-                  }
-                />
+                <TableEmptyRows height={table.dense ? 52 : 72} emptyRows={loading ? table.rowsPerPage : 0} />
 
-                <TableBody>
-                  {dataFiltered
-                    .slice(
-                      table.page * table.rowsPerPage,
-                      table.page * table.rowsPerPage + table.rowsPerPage
-                    )
-                    .map((row) => (
-                      <UserTableRow
-                        key={row.id}
-                        row={row}
-                        selected={table.selected.includes(row.id)}
-                        onSelectRow={() => table.onSelectRow(row.id)}
-                        onDeleteRow={() => handleDeleteRow(row.id)}
-                        onEditRow={() => handleEditRow(row.id)}
-                      />
-                    ))}
+                <TableNoData notFound={notFound} />
+              </TableBody>
+            </Table>
+          </Scrollbar>
+        </TableContainer>
 
-                  <TableEmptyRows
-                    height={denseHeight}
-                    emptyRows={emptyRows(table.page, table.rowsPerPage, tableData.length)}
-                  />
-
-                  <TableNoData notFound={notFound} />
-                </TableBody>
-              </Table>
-            </Scrollbar>
-          </TableContainer>
-
+        <Stack sx={{ px: 2.5, pb: 2 }}>
           <TablePaginationCustom
-            count={dataFiltered.length}
+            count={totalCount}
             page={table.page}
             rowsPerPage={table.rowsPerPage}
             onPageChange={table.onChangePage}
             onRowsPerPageChange={table.onChangeRowsPerPage}
-            //
             dense={table.dense}
             onChangeDense={table.onChangeDense}
           />
-        </Card>
-      </Container>
-
-      <ConfirmDialog
-        open={confirm.value}
-        onClose={confirm.onFalse}
-        title="Delete"
-        content={
-          <>
-            Are you sure want to delete <strong> {table.selected.length} </strong> items?
-          </>
-        }
-        action={
-          <Button
-            variant="contained"
-            color="error"
-            onClick={() => {
-              handleDeleteRows();
-              confirm.onFalse();
-            }}
-          >
-            Delete
-          </Button>
-        }
-      />
-    </>
+        </Stack>
+      </Card>
+    </Container>
   );
-}
-
-// ----------------------------------------------------------------------
-
-function applyFilter({ inputData, comparator, filters }) {
-  const { name, status, role } = filters;
-
-  const stabilizedThis = inputData.map((el, index) => [el, index]);
-
-  stabilizedThis.sort((a, b) => {
-    const order = comparator(a[0], b[0]);
-    if (order !== 0) return order;
-    return a[1] - b[1];
-  });
-
-  inputData = stabilizedThis.map((el) => el[0]);
-
-  if (name) {
-    inputData = inputData.filter(
-      (user) => user.name.toLowerCase().indexOf(name.toLowerCase()) !== -1
-    );
-  }
-
-  if (status !== 'all') {
-    inputData = inputData.filter((user) => user.status === status);
-  }
-
-  if (role.length) {
-    inputData = inputData.filter((user) => role.includes(user.role));
-  }
-
-  return inputData;
 }

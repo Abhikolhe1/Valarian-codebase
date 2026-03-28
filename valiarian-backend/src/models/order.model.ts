@@ -23,6 +23,7 @@ export interface OrderItem {
   colorName?: string;
   size?: string;
   quantity: number;
+  originalPrice?: number;
   price: number;
   basePrice?: number;
   gstRate?: number;
@@ -46,6 +47,13 @@ export interface OrderAddress {
   state: string;
   zipCode: string;
   country: string;
+}
+
+export interface ReturnRequestImages {
+  frontImage: string;
+  backImage: string;
+  sealImage: string;
+  additionalImages?: string[];
 }
 
 @model({
@@ -113,6 +121,7 @@ export class Order extends Entity {
         'packed',
         'shipped',
         'delivered',
+        'return_requested',
         'cancelled',
         'returned',
         'refunded',
@@ -129,6 +138,7 @@ export class Order extends Entity {
     | 'packed'
     | 'shipped'
     | 'delivered'
+    | 'return_requested'
     | 'cancelled'
     | 'returned'
     | 'refunded'
@@ -351,9 +361,24 @@ export class Order extends Entity {
   returnInitiatedAt?: Date;
 
   @property({
+    type: 'date',
+  })
+  returnApprovedAt?: Date;
+
+  @property({
+    type: 'date',
+  })
+  returnPickedAt?: Date;
+
+  @property({
     type: 'string',
   })
   returnReason?: string;
+
+  @property({
+    type: 'string',
+  })
+  returnComment?: string;
 
   @property({
     type: 'string',
@@ -362,6 +387,14 @@ export class Order extends Entity {
     },
   })
   returnStatus?: 'requested' | 'approved' | 'rejected' | 'picked' | 'completed';
+
+  @property({
+    type: 'object',
+    postgresql: {
+      dataType: 'jsonb',
+    },
+  })
+  returnImages?: ReturnRequestImages;
 
   // Refund Information
   @property({
@@ -383,9 +416,31 @@ export class Order extends Entity {
   refundCompletedAt?: Date;
 
   @property({
+    type: 'boolean',
+    default: false,
+  })
+  deliveryChargeDeducted?: boolean;
+
+  @property({
+    type: 'number',
+    jsonSchema: {
+      minimum: 0,
+    },
+  })
+  deliveryChargeDeductionAmount?: number;
+
+  @property({
     type: 'date',
   })
   parcelReceivedAt?: Date;
+
+  @property({
+    type: 'string',
+    jsonSchema: {
+      enum: ['original_payment', 'cash'],
+    },
+  })
+  refundMethod?: 'original_payment' | 'cash';
 
   @property({
     type: 'string',

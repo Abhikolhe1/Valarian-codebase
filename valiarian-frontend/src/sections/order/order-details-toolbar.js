@@ -11,11 +11,13 @@ import { fDateTime } from 'src/utils/format-time';
 // components
 import Iconify from 'src/components/iconify';
 import Label from 'src/components/label';
+import { getOrderDisplayColor, getOrderDisplayLabel } from 'src/utils/order-status';
 
 // ----------------------------------------------------------------------
 
 export default function OrderDetailsToolbar({
   status,
+  returnStatus,
   backLink,
   createdAt,
   orderNumber,
@@ -42,17 +44,8 @@ export default function OrderDetailsToolbar({
         <Stack spacing={0.5}>
           <Stack spacing={1} direction="row" alignItems="center" flexWrap="wrap">
             <Typography variant="h4"> Order {orderNumber} </Typography>
-            <Label
-              variant="soft"
-              color={
-                (status === 'completed' && 'success') ||
-                (status === 'delivered' && 'success') ||
-                (status === 'pending' && 'warning') ||
-                (status === 'cancelled' && 'error') ||
-                'default'
-              }
-            >
-              {status}
+            <Label variant="soft" color={getOrderDisplayColor(status, returnStatus)}>
+              {getOrderDisplayLabel(status, returnStatus)}
             </Label>
           </Stack>
 
@@ -114,5 +107,6 @@ OrderDetailsToolbar.propTypes = {
   onReturn: PropTypes.func,
   onTrack: PropTypes.func,
   orderNumber: PropTypes.string,
+  returnStatus: PropTypes.string,
   status: PropTypes.string,
 };
