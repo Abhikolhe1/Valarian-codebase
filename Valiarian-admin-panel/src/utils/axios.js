@@ -63,6 +63,8 @@ export const endpoints = {
     adminList: '/api/auth/admins',
     adminDetails: (id) => `/api/auth/admins/${id}`,
     adminUpdate: (id) => `/api/auth/admins/${id}`,
+    userList: '/api/auth/users',
+    userStatus: (id) => `/api/auth/users/${id}/status`,
     register: '/api/auth/register',
   },
   mail: {
