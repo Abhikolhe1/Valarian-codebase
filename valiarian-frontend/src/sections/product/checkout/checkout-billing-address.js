@@ -164,6 +164,12 @@ export default function CheckoutBillingAddress({ checkout, onBackStep, onCreateB
               total={checkout.total}
               subTotal={checkout.subTotal}
               discount={checkout.discount}
+              shipping={checkout.shipping}
+              tax={checkout.tax}
+              actual_price={checkout.actualSubTotal}
+              sale_price={checkout.subTotal}
+              product_discount={checkout.productDiscount}
+              coupon_discount={checkout.discount}
             />
           )}
         </Grid>

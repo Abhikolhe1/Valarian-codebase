@@ -5,12 +5,14 @@ import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
+import Checkbox from '@mui/material/Checkbox';
 import Container from '@mui/material/Container';
 import Dialog from '@mui/material/Dialog';
 import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 import DialogTitle from '@mui/material/DialogTitle';
 import Divider from '@mui/material/Divider';
+import FormControlLabel from '@mui/material/FormControlLabel';
 import MenuItem from '@mui/material/MenuItem';
 import Stack from '@mui/material/Stack';
 import TextField from '@mui/material/TextField';
@@ -24,9 +26,12 @@ import { fCurrency } from 'src/utils/format-number';
 import { fDateTime } from 'src/utils/format-time';
 // components
 import CustomBreadcrumbs from 'src/components/custom-breadcrumbs';
+import Image from 'src/components/image';
 import Iconify from 'src/components/iconify';
 import Label from 'src/components/label';
+import Lightbox from 'src/components/lightbox';
 import { useSettingsContext } from 'src/components/settings';
+import { useSnackbar } from 'src/components/snackbar';
 import {
   formatOrderStatusLabel,
   getOrderStatusColor,
@@ -36,24 +41,49 @@ import {
 
 // ----------------------------------------------------------------------
 
-const STATUS_OPTIONS = [
-  'pending',
-  'confirmed',
-  'processing',
-  'packed',
-  'shipped',
-  'delivered',
-  'return_requested',
-  'cancelled',
-  'returned',
-  'refunded',
-  'parcel_received',
-];
+const isPrepaidOrder = (order) =>
+  order?.paymentMethod === 'razorpay' || order?.paymentMethod === 'wallet';
+
+const getAvailableStatusOptions = (order) => {
+  if (!order) {
+    return [];
+  }
+
+  const prepaid = isPrepaidOrder(order);
+
+  switch (order.status) {
+    case 'pending':
+      return ['confirmed', 'cancelled'];
+    case 'confirmed':
+      return ['processing', 'cancelled'];
+    case 'processing':
+      return ['packed', 'cancelled'];
+    case 'packed':
+      return ['shipped', 'cancelled'];
+    case 'shipped':
+      return ['delivered'];
+    case 'delivered':
+      return ['return_requested'];
+    case 'return_requested':
+      return order.returnStatus === 'approved' ? ['returned'] : [];
+    case 'returned':
+      return ['parcel_received'];
+    case 'refunded':
+      return order.returnStatus === 'picked' ? ['parcel_received'] : [];
+    case 'parcel_received':
+      return [];
+    case 'cancelled':
+      return [];
+    default:
+      return [];
+  }
+};
 
 export default function OrderDetailsView() {
   const settings = useSettingsContext();
   const params = useParams();
   const navigate = useNavigate();
+  const { enqueueSnackbar } = useSnackbar();
   const { id } = params;
 
   const [order, setOrder] = useState(null);
@@ -79,14 +109,36 @@ export default function OrderDetailsView() {
   const [refundDialogOpen, setRefundDialogOpen] = useState(false);
   const [refundAmount, setRefundAmount] = useState('');
   const [refundReason, setRefundReason] = useState('');
+  const [deductDeliveryCharge, setDeductDeliveryCharge] = useState(false);
+  const [deliveryChargeDeductionAmount, setDeliveryChargeDeductionAmount] = useState('');
 
   // Notes Dialog
   const [notesDialogOpen, setNotesDialogOpen] = useState(false);
   const [newNote, setNewNote] = useState('');
+  const [proofPreviewIndex, setProofPreviewIndex] = useState(-1);
+  const returnProofSlides = [
+    order?.returnImages?.frontImage
+      ? { src: order.returnImages.frontImage, alt: 'Front proof', title: 'Front proof' }
+      : null,
+    order?.returnImages?.backImage
+      ? { src: order.returnImages.backImage, alt: 'Back proof', title: 'Back proof' }
+      : null,
+    order?.returnImages?.sealImage
+      ? { src: order.returnImages.sealImage, alt: 'Seal proof', title: 'Seal proof' }
+      : null,
+    ...(order?.returnImages?.additionalImages || []).map((src, index) => ({
+      src,
+      alt: `Additional proof ${index + 1}`,
+      title: `Additional proof ${index + 1}`,
+    })),
+  ].filter(Boolean);
 
-  const fetchOrderDetails = useCallback(async () => {
+  const fetchOrderDetails = useCallback(async (options = {}) => {
+    const { silent = false } = options;
     try {
-      setLoading(true);
+      if (!silent) {
+        setLoading(true);
+      }
       const response = await axios.get(`/api/admin/orders/${id}`);
       setOrder(response.data.order);
       setStatusHistory(response.data.statusHistory || []);
@@ -95,7 +147,9 @@ export default function OrderDetailsView() {
       console.error('Error fetching order details:', err);
       setError(err.response?.data?.message || 'Failed to load order details');
     } finally {
-      setLoading(false);
+      if (!silent) {
+        setLoading(false);
+      }
     }
   }, [id]);
 
@@ -104,6 +158,18 @@ export default function OrderDetailsView() {
       fetchOrderDetails();
     }
   }, [id, fetchOrderDetails]);
+
+  useEffect(() => {
+    if (!id) {
+      return undefined;
+    }
+
+    const interval = setInterval(() => {
+      fetchOrderDetails({ silent: true });
+    }, 10000);
+
+    return () => clearInterval(interval);
+  }, [fetchOrderDetails, id]);
 
   const handleUpdateStatus = async () => {
     try {
@@ -129,6 +195,7 @@ export default function OrderDetailsView() {
       setTrackingNumber('');
       setCarrier('');
       setEstimatedDelivery('');
+      enqueueSnackbar('Order status updated successfully.', { variant: 'success' });
       await fetchOrderDetails();
     } catch (err) {
       console.error('❌ Error updating status:', err);
@@ -142,7 +209,7 @@ export default function OrderDetailsView() {
         || 'Failed to update status';
 
       console.error('❌ Showing alert:', errorMessage);
-      alert(errorMessage);
+      enqueueSnackbar(errorMessage, { variant: 'error' });
     } finally {
       setUpdating(false);
     }
@@ -158,10 +225,18 @@ export default function OrderDetailsView() {
       setReturnDialogOpen(false);
       setReturnAction('');
       setReturnComment('');
+      enqueueSnackbar(
+        returnAction === 'approve'
+          ? 'Return approved successfully.'
+          : 'Return rejected successfully.',
+        { variant: 'success' }
+      );
       await fetchOrderDetails();
     } catch (err) {
       console.error('Error processing return:', err);
-      alert(err.response?.data?.message || 'Failed to process return');
+      enqueueSnackbar(err.response?.data?.message || 'Failed to process return', {
+        variant: 'error',
+      });
     } finally {
       setUpdating(false);
     }
@@ -170,17 +245,37 @@ export default function OrderDetailsView() {
   const handleInitiateRefund = async () => {
     try {
       setUpdating(true);
-      await axios.post(`/api/admin/orders/${id}/refund`, {
-        amount: parseFloat(refundAmount),
-        reason: refundReason,
-      });
+      if (isPrepaidOrder(order)) {
+        await axios.post(`/api/admin/orders/${id}/refund`, {
+          amount: parseFloat(refundAmount),
+          reason: refundReason,
+          deductDeliveryCharge,
+          deliveryChargeDeductionAmount: deductDeliveryCharge
+            ? parseFloat(deliveryChargeDeductionAmount || 0)
+            : 0,
+        });
+      } else {
+        await axios.patch(`/api/admin/orders/${id}/status`, {
+          status: 'refunded',
+          comment:
+            `${refundReason || 'Cash refund completed by admin'}${deductDeliveryCharge ? `. Delivery charges deducted: Rs.${deliveryChargeDeductionAmount || 0}` : ''}`,
+        });
+      }
       setRefundDialogOpen(false);
       setRefundAmount('');
       setRefundReason('');
+      setDeductDeliveryCharge(false);
+      setDeliveryChargeDeductionAmount('');
+      enqueueSnackbar(
+        isPrepaidOrder(order) ? 'Refund initiated successfully.' : 'Cash refund marked successfully.',
+        { variant: 'success' }
+      );
       await fetchOrderDetails();
     } catch (err) {
       console.error('Error initiating refund:', err);
-      alert(err.response?.data?.message || 'Failed to initiate refund');
+      enqueueSnackbar(err.response?.data?.message || 'Failed to initiate refund', {
+        variant: 'error',
+      });
     } finally {
       setUpdating(false);
     }
@@ -194,10 +289,13 @@ export default function OrderDetailsView() {
       });
       setNotesDialogOpen(false);
       setNewNote('');
+      enqueueSnackbar('Note added successfully.', { variant: 'success' });
       await fetchOrderDetails();
     } catch (err) {
       console.error('Error adding note:', err);
-      alert(err.response?.data?.message || 'Failed to add note');
+      enqueueSnackbar(err.response?.data?.message || 'Failed to add note', {
+        variant: 'error',
+      });
     } finally {
       setUpdating(false);
     }
@@ -223,6 +321,30 @@ export default function OrderDetailsView() {
       </Container>
     );
   }
+
+  const availableStatusOptions = getAvailableStatusOptions(order);
+  const canInitiateRefund = isPrepaidOrder(order)
+    ? (((order.status === 'returned' || order.status === 'parcel_received') &&
+        order.returnStatus !== 'requested' &&
+        order.returnStatus !== 'approved') ||
+        order.status === 'cancelled')
+    : order.status === 'parcel_received' && order.returnStatus !== 'requested';
+  const refundAlreadyInitiated = Boolean(
+    order.refundInitiatedAt ||
+      order.refundCompletedAt ||
+      ['partially_refunded', 'refunded'].includes(order.paymentStatus)
+  );
+  const showRefundButton = canInitiateRefund || refundAlreadyInitiated;
+  const refundActionLabel = isPrepaidOrder(order)
+    ? 'Initiate Refund'
+    : 'Mark Cash Refund Done';
+  const shippingCharge = Number(order.shipping || 0);
+  const deliveryDeductionValue = Number(deliveryChargeDeductionAmount || 0);
+  const suggestedRefundAmount = Math.max(
+    Number(order.total || 0) - (deductDeliveryCharge ? deliveryDeductionValue : 0),
+    0
+  );
+
   return (
     <Container maxWidth={settings.themeStretch ? false : 'lg'}>
       <CustomBreadcrumbs
@@ -403,6 +525,27 @@ export default function OrderDetailsView() {
                 </Stack>
 
                 <Stack spacing={2}>
+                  {order.returnApprovedAt && (
+                    <Box>
+                      <Typography variant="caption" color="text.secondary">Approved On</Typography>
+                      <Typography variant="body2">{fDateTime(order.returnApprovedAt)}</Typography>
+                    </Box>
+                  )}
+
+                  {order.returnPickedAt && (
+                    <Box>
+                      <Typography variant="caption" color="text.secondary">Pickup Completed On</Typography>
+                      <Typography variant="body2">{fDateTime(order.returnPickedAt)}</Typography>
+                    </Box>
+                  )}
+
+                  {order.parcelReceivedAt && (
+                    <Box>
+                      <Typography variant="caption" color="text.secondary">Parcel Received On</Typography>
+                      <Typography variant="body2">{fDateTime(order.parcelReceivedAt)}</Typography>
+                    </Box>
+                  )}
+
                   <Box>
                     <Typography variant="caption" color="text.secondary">Reason</Typography>
                     <Typography variant="body2">{order.returnReason || '-'}</Typography>
@@ -415,52 +558,55 @@ export default function OrderDetailsView() {
                     </Typography>
                   </Box>
 
+                  {order.refundMethod && (
+                    <Box>
+                      <Typography variant="caption" color="text.secondary">Refund Method</Typography>
+                      <Typography variant="body2">
+                  {order.refundMethod === 'cash' ? 'Cash refund' : 'Original payment'}
+                      </Typography>
+                    </Box>
+                  )}
+
+                  {order.deliveryChargeDeducted && (
+                    <Box>
+                      <Typography variant="caption" color="text.secondary">Delivery Charge Deduction</Typography>
+                      <Typography variant="body2">
+                        {fCurrency(order.deliveryChargeDeductionAmount || 0)}
+                      </Typography>
+                    </Box>
+                  )}
+
                   {!!order.returnImages && (
                     <Stack spacing={1.5}>
                       <Typography variant="caption" color="text.secondary">
                         Customer proof images
                       </Typography>
 
-                      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-                        {order.returnImages.frontImage && (
+                      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} flexWrap="wrap">
+                        {returnProofSlides.map((slide, index) => (
                           <Box
-                            component="img"
-                            src={order.returnImages.frontImage}
-                            alt="Front proof"
-                            sx={{ width: { xs: 1, sm: 160 }, height: 160, objectFit: 'cover', borderRadius: 1.5 }}
-                          />
-                        )}
-                        {order.returnImages.backImage && (
-                          <Box
-                            component="img"
-                            src={order.returnImages.backImage}
-                            alt="Back proof"
-                            sx={{ width: { xs: 1, sm: 160 }, height: 160, objectFit: 'cover', borderRadius: 1.5 }}
-                          />
-                        )}
-                        {order.returnImages.sealImage && (
-                          <Box
-                            component="img"
-                            src={order.returnImages.sealImage}
-                            alt="Seal proof"
-                            sx={{ width: { xs: 1, sm: 160 }, height: 160, objectFit: 'cover', borderRadius: 1.5 }}
-                          />
-                        )}
-                      </Stack>
-
-                      {!!order.returnImages.additionalImages?.length && (
-                        <Stack direction="row" spacing={1.5} flexWrap="wrap">
-                          {order.returnImages.additionalImages.map((image, index) => (
-                            <Box
-                              key={`${image}-${index}`}
-                              component="img"
-                              src={image}
-                              alt={`Additional proof ${index + 1}`}
-                              sx={{ width: 96, height: 96, objectFit: 'cover', borderRadius: 1.5 }}
+                            key={`${slide.src}-${index}`}
+                            onClick={() => setProofPreviewIndex(index)}
+                            sx={{
+                              width: index < 3 ? { xs: 1, sm: 160 } : 96,
+                              height: index < 3 ? 160 : 96,
+                              borderRadius: 1.5,
+                              overflow: 'hidden',
+                              cursor: 'pointer',
+                              flexShrink: 0,
+                            }}
+                          >
+                            <Image
+                              src={slide.src}
+                              alt={slide.alt}
+                              sx={{
+                                width: 1,
+                                height: 1,
+                              }}
                             />
-                          ))}
-                        </Stack>
-                      )}
+                          </Box>
+                        ))}
+                      </Stack>
                     </Stack>
                   )}
                 </Stack>
@@ -480,8 +626,9 @@ export default function OrderDetailsView() {
                   fullWidth
                   variant="contained"
                   startIcon={<Iconify icon="eva:edit-fill" />}
+                  disabled={!availableStatusOptions.length}
                   onClick={() => {
-                    setNewStatus(order.status);
+                    setNewStatus(availableStatusOptions[0] || '');
                     setStatusDialogOpen(true);
                   }}
                 >
@@ -499,20 +646,22 @@ export default function OrderDetailsView() {
                   </Button>
                 )}
 
-                {/* Only show refund button if order is cancelled/returned AND payment was actually paid */}
-                {['cancelled', 'returned'].includes(order.status) && order.paymentStatus === 'paid' && (
+                {showRefundButton && (
                   <Button
                     fullWidth
                     variant="outlined"
                     color="warning"
                     startIcon={<Iconify icon="eva:credit-card-fill" />}
+                    disabled={refundAlreadyInitiated}
                     onClick={() => {
                       console.log('Refund button clicked. Order status:', order.status, 'Payment status:', order.paymentStatus);
+                      setDeductDeliveryCharge(false);
+                      setDeliveryChargeDeductionAmount(shippingCharge.toString());
                       setRefundAmount(order.total.toString());
                       setRefundDialogOpen(true);
                     }}
                   >
-                    Initiate Refund
+                    {refundActionLabel}
                   </Button>
                 )}
 
@@ -563,7 +712,7 @@ export default function OrderDetailsView() {
               value={newStatus}
               onChange={(e) => setNewStatus(e.target.value)}
             >
-              {STATUS_OPTIONS.map((option) => (
+              {availableStatusOptions.map((option) => (
                 <MenuItem key={option} value={option}>
                   {option
                     .split('_')
@@ -652,9 +801,55 @@ export default function OrderDetailsView() {
 
       {/* Refund Dialog */}
       <Dialog open={refundDialogOpen} onClose={() => setRefundDialogOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>Initiate Refund</DialogTitle>
+        <DialogTitle>{refundActionLabel}</DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ mt: 1 }}>
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={deductDeliveryCharge}
+                  onChange={(event) => {
+                    const checked = event.target.checked;
+                    setDeductDeliveryCharge(checked);
+                    const nextAmount = checked
+                      ? Math.max(Number(order.total || 0) - Number(deliveryChargeDeductionAmount || shippingCharge), 0)
+                      : Number(order.total || 0);
+                    setRefundAmount(nextAmount.toString());
+                    if (!checked) {
+                      setDeliveryChargeDeductionAmount(shippingCharge.toString());
+                    }
+                  }}
+                />
+              }
+              label={`Deduct delivery charges (${fCurrency(shippingCharge)})`}
+            />
+
+            {shippingCharge <= 0 && (
+              <Typography variant="caption" color="text.secondary">
+                This order has no shipping charge, so deduction amount should stay `0`.
+              </Typography>
+            )}
+
+            {deductDeliveryCharge && (
+              <TextField
+                fullWidth
+                type="number"
+                label="Delivery Charge Deduction"
+                value={deliveryChargeDeductionAmount}
+                onChange={(e) => {
+                  const nextDeduction = e.target.value;
+                  setDeliveryChargeDeductionAmount(nextDeduction);
+                  const nextRefundAmount = Math.max(
+                    Number(order.total || 0) - Number(nextDeduction || 0),
+                    0
+                  );
+                  setRefundAmount(nextRefundAmount.toString());
+                }}
+                inputProps={{ min: 0, max: shippingCharge, step: 0.01 }}
+                helperText={`Maximum deduction allowed: ${fCurrency(shippingCharge)}`}
+              />
+            )}
+
             <TextField
               fullWidth
               type="number"
@@ -662,13 +857,18 @@ export default function OrderDetailsView() {
               value={refundAmount}
               onChange={(e) => setRefundAmount(e.target.value)}
               inputProps={{ min: 0, max: order.total, step: 0.01 }}
+              disabled={!isPrepaidOrder(order)}
             />
+
+            <Typography variant="caption" color="text.secondary">
+              Net refund after deduction: {fCurrency(suggestedRefundAmount)}
+            </Typography>
 
             <TextField
               fullWidth
               multiline
               rows={3}
-              label="Reason"
+              label={isPrepaidOrder(order) ? 'Reason' : 'Cash Refund Note'}
               value={refundReason}
               onChange={(e) => setRefundReason(e.target.value)}
             />
@@ -682,7 +882,7 @@ export default function OrderDetailsView() {
             onClick={handleInitiateRefund}
             disabled={updating || !refundAmount || !refundReason}
           >
-            {updating ? 'Processing...' : 'Initiate Refund'}
+            {updating ? 'Processing...' : refundActionLabel}
           </Button>
         </DialogActions>
       </Dialog>
@@ -708,6 +908,14 @@ export default function OrderDetailsView() {
           </Button>
         </DialogActions>
       </Dialog>
+
+      <Lightbox
+        index={proofPreviewIndex}
+        slides={returnProofSlides}
+        open={proofPreviewIndex >= 0}
+        close={() => setProofPreviewIndex(-1)}
+        onGetCurrentIndex={setProofPreviewIndex}
+      />
     </Container>
   );
 }

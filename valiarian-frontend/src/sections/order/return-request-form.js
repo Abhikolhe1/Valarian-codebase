@@ -1,6 +1,5 @@
 import PropTypes from 'prop-types';
 import { useCallback, useState } from 'react';
-import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Dialog from '@mui/material/Dialog';
@@ -15,6 +14,7 @@ import Stack from '@mui/material/Stack';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import { LoadingButton } from '@mui/lab';
+import { useSnackbar } from 'src/components/snackbar';
 import { Upload } from 'src/components/upload';
 import { requestReturnOrder, uploadOrderReturnImages } from 'src/api/orders';
 
@@ -36,13 +36,13 @@ const withPreview = (file) =>
   });
 
 export default function ReturnRequestForm({ orderId, open, onClose, onSuccess }) {
+  const { enqueueSnackbar } = useSnackbar();
   const [reason, setReason] = useState('');
   const [comment, setComment] = useState('');
   const [frontImage, setFrontImage] = useState(null);
   const [backImage, setBackImage] = useState(null);
   const [sealImage, setSealImage] = useState(null);
   const [additionalImages, setAdditionalImages] = useState([]);
-  const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
   const resetForm = useCallback(() => {
@@ -52,7 +52,6 @@ export default function ReturnRequestForm({ orderId, open, onClose, onSuccess })
     setBackImage(null);
     setSealImage(null);
     setAdditionalImages([]);
-    setError('');
   }, []);
 
   const handleClose = useCallback(() => {
@@ -72,7 +71,6 @@ export default function ReturnRequestForm({ orderId, open, onClose, onSuccess })
       }
 
       setter(withPreview(file));
-      setError('');
     },
     []
   );
@@ -83,14 +81,13 @@ export default function ReturnRequestForm({ orderId, open, onClose, onSuccess })
       const nextFiles = [...additionalImages, ...preparedFiles].slice(0, MAX_ADDITIONAL_IMAGES);
 
       if (additionalImages.length + preparedFiles.length > MAX_ADDITIONAL_IMAGES) {
-        setError(`You can upload up to ${MAX_ADDITIONAL_IMAGES} additional images only.`);
-      } else {
-        setError('');
+        const message = `You can upload up to ${MAX_ADDITIONAL_IMAGES} additional images only.`;
+        enqueueSnackbar(message, { variant: 'warning' });
       }
 
       setAdditionalImages(nextFiles);
     },
-    [additionalImages]
+    [additionalImages, enqueueSnackbar]
   );
 
   const handleRemoveAdditional = useCallback((inputFile) => {
@@ -103,23 +100,25 @@ export default function ReturnRequestForm({ orderId, open, onClose, onSuccess })
 
   const handleSubmit = useCallback(async () => {
     if (!reason) {
-      setError('Return reason is required.');
+      const message = 'Return reason is required.';
+      enqueueSnackbar(message, { variant: 'error' });
       return;
     }
 
     if (!comment.trim()) {
-      setError('Comment is required.');
+      const message = 'Comment is required.';
+      enqueueSnackbar(message, { variant: 'error' });
       return;
     }
 
     if (!frontImage || !backImage || !sealImage) {
-      setError('Front image, back image, and seal image are all required.');
+      const message = 'Front image, back image, and seal image are all required.';
+      enqueueSnackbar(message, { variant: 'error' });
       return;
     }
 
     try {
       setLoading(true);
-      setError('');
 
       const [[frontImageUrl], [backImageUrl], [sealImageUrl], extraImageUrls] = await Promise.all([
         uploadOrderReturnImages([frontImage]),
@@ -140,14 +139,29 @@ export default function ReturnRequestForm({ orderId, open, onClose, onSuccess })
       });
 
       resetForm();
+      enqueueSnackbar('Return request submitted successfully.', { variant: 'success' });
       onSuccess?.();
       onClose();
     } catch (err) {
-      setError(err?.response?.data?.message || err?.message || 'Failed to submit return request');
+      const message =
+        err?.response?.data?.message || err?.message || 'Failed to submit return request';
+      enqueueSnackbar(message, { variant: 'error' });
     } finally {
       setLoading(false);
     }
-  }, [additionalImages, backImage, comment, frontImage, onClose, onSuccess, orderId, reason, resetForm, sealImage]);
+  }, [
+    additionalImages,
+    backImage,
+    comment,
+    enqueueSnackbar,
+    frontImage,
+    onClose,
+    onSuccess,
+    orderId,
+    reason,
+    resetForm,
+    sealImage,
+  ]);
 
   return (
     <Dialog open={open} onClose={handleClose} maxWidth="md" fullWidth>
@@ -155,8 +169,6 @@ export default function ReturnRequestForm({ orderId, open, onClose, onSuccess })
 
       <DialogContent>
         <Stack spacing={3} sx={{ pt: 1 }}>
-          {!!error && <Alert severity="error">{error}</Alert>}
-
           <Typography variant="body2" color="text.secondary">
             Add your return reason, a short comment, and clear proof photos. Front image, back
             image, and seal image are mandatory.

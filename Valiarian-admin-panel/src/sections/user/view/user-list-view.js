@@ -91,9 +91,12 @@ export default function UserListView() {
     setFilters(defaultFilters);
   }, []);
 
-  const fetchUsers = useCallback(async () => {
+  const fetchUsers = useCallback(async (options = {}) => {
+    const { silent = false } = options;
     try {
-      setLoading(true);
+      if (!silent) {
+        setLoading(true);
+      }
       setErrorMessage('');
 
       const response = await getUsers({
@@ -114,12 +117,22 @@ export default function UserListView() {
       setCounts({ all: 0, active: 0, blocked: 0 });
       setErrorMessage(error?.message || 'Unable to load users right now.');
     } finally {
-      setLoading(false);
+      if (!silent) {
+        setLoading(false);
+      }
     }
   }, [filters.name, filters.status, table.order, table.orderBy, table.page, table.rowsPerPage]);
 
   useEffect(() => {
     fetchUsers();
+  }, [fetchUsers]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchUsers({ silent: true });
+    }, 15000);
+
+    return () => clearInterval(interval);
   }, [fetchUsers]);
 
   const handleToggleBlock = useCallback(

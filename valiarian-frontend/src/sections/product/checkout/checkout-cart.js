@@ -32,7 +32,7 @@ export default function CheckoutCart({
   onDecreaseQuantity,
 }) {
   const { authenticated } = useAuthContext();
-  const { cart, total, discount, subTotal } = checkout;
+  const { cart, total, discount, subTotal, shipping, tax, actualSubTotal, productDiscount } = checkout;
 
   const totalItems = sum(cart.map((item) => item.quantity));
 
@@ -97,6 +97,16 @@ export default function CheckoutCart({
           total={total}
           discount={discount}
           subTotal={subTotal}
+          shipping={shipping}
+          tax={tax}
+          actual_price={actualSubTotal}
+          sale_price={subTotal}
+          product_discount={productDiscount}
+          coupon_discount={discount}
+          selling_price_incl_tax={subTotal}
+          shipping_charge={shipping}
+          gst_amount={tax}
+          final_payable={total}
           onApplyDiscount={onApplyDiscount}
         />
 

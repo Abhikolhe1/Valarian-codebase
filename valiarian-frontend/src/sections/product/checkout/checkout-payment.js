@@ -34,9 +34,9 @@ import CheckoutSummary from './checkout-summary';
 
 const DELIVERY_OPTIONS = [
   {
-    value: 0,
-    label: 'Free',
-    description: '5-7 Days delivery',
+    value: 199,
+    label: 'Standard',
+    description: 'Delivery charge included in the selling price',
   },
 ];
 
@@ -83,7 +83,7 @@ EmailPromptAction.propTypes = {
 };
 
 export default function CheckoutPayment({ checkout, onBackStep, onGotoStep, onApplyShipping }) {
-  const { total, discount, subTotal, shipping, billing, cart } = checkout;
+  const { total, discount, subTotal, shipping, tax, billing, cart, actualSubTotal, productDiscount } = checkout;
   const { user } = useAuthContext();
   const { enqueueSnackbar } = useSnackbar();
   const dispatch = useDispatch();
@@ -109,6 +109,7 @@ export default function CheckoutPayment({ checkout, onBackStep, onGotoStep, onAp
 
   const {
     handleSubmit,
+    setValue,
     watch,
     formState: { isSubmitting },
   } = methods;
@@ -120,6 +121,15 @@ export default function CheckoutPayment({ checkout, onBackStep, onGotoStep, onAp
       loadScript().catch(() => undefined);
     }
   }, [loadScript, selectedPayment]);
+
+  useEffect(() => {
+    const defaultShipping = DELIVERY_OPTIONS[0]?.value || 0;
+
+    if (Number(shipping || 0) !== defaultShipping) {
+      onApplyShipping(defaultShipping);
+      setValue('delivery', defaultShipping);
+    }
+  }, [onApplyShipping, setValue, shipping]);
 
   useEffect(() => {
     const hasProfileEmail = Boolean((user?.email || '').trim());
@@ -485,6 +495,15 @@ export default function CheckoutPayment({ checkout, onBackStep, onGotoStep, onAp
               subTotal={subTotal}
               discount={discount}
               shipping={shipping}
+              tax={tax}
+              actual_price={actualSubTotal}
+              sale_price={subTotal}
+              product_discount={productDiscount}
+              coupon_discount={discount}
+              selling_price_incl_tax={subTotal}
+              shipping_charge={shipping}
+              gst_amount={tax}
+              final_payable={total}
               onEdit={() => onGotoStep(0)}
             />
 

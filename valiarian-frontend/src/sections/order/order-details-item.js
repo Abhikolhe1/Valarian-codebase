@@ -21,6 +21,13 @@ export default function OrderDetailsItems({
   subTotal,
   totalAmount,
 }) {
+  const actualPrice = items.reduce(
+    (sum, item) => sum + Math.max(Number(item.originalPrice || item.price || 0), Number(item.price || 0)) * Number(item.quantity || 0),
+    0
+  );
+  const salePrice = Number(subTotal || 0);
+  const productDiscount = Math.max(actualPrice - salePrice, 0);
+
   const renderTotal = (
     <Stack
       spacing={2}
@@ -28,27 +35,41 @@ export default function OrderDetailsItems({
       sx={{ my: 3, textAlign: 'right', typography: 'body2' }}
     >
       <Stack direction="row">
-        <Box sx={{ color: 'text.secondary' }}>Subtotal</Box>
-        <Box sx={{ width: 100, typography: 'subtitle2' }}>{fCurrency(subTotal) || '-'}</Box>
-      </Stack>
-
-      <Stack direction="row">
-        <Box sx={{ color: 'text.secondary' }}>Shipping</Box>
-        <Box
-          sx={{
-            width: 100,
-            ...(shipping && { color: 'error.main' }),
-          }}
-        >
-          {shipping ? `- ${fCurrency(shipping)}` : '-'}
+        <Box sx={{ color: 'text.secondary' }}>Actual Price</Box>
+        <Box sx={{ width: 140, typography: 'subtitle2' }}>
+          {fCurrency(actualPrice || salePrice) || '-'}
         </Box>
       </Stack>
 
       <Stack direction="row">
-        <Box sx={{ color: 'text.secondary' }}>Discount</Box>
+        <Box sx={{ color: 'text.secondary' }}>Sale Price</Box>
+        <Box sx={{ width: 140, typography: 'subtitle2' }}>{fCurrency(salePrice) || '-'}</Box>
+      </Stack>
+
+      <Stack direction="row">
+        <Box sx={{ color: 'text.secondary' }}>Product Discount</Box>
         <Box
           sx={{
-            width: 100,
+            width: 140,
+            ...(productDiscount && { color: 'error.main' }),
+          }}
+        >
+          {productDiscount ? `- ${fCurrency(productDiscount)}` : '-'}
+        </Box>
+      </Stack>
+
+      <Stack direction="row">
+        <Box sx={{ color: 'text.secondary' }}>Delivery Charge</Box>
+        <Box sx={{ width: 140, textAlign: 'right' }}>
+          {shipping ? `${fCurrency(shipping)} included` : 'Included'}
+        </Box>
+      </Stack>
+
+      <Stack direction="row">
+        <Box sx={{ color: 'text.secondary' }}>Coupon Discount</Box>
+        <Box
+          sx={{
+            width: 140,
             ...(discount && { color: 'error.main' }),
           }}
         >
@@ -58,12 +79,12 @@ export default function OrderDetailsItems({
 
       <Stack direction="row">
         <Box sx={{ color: 'text.secondary' }}>Taxes</Box>
-        <Box sx={{ width: 100 }}>{taxes ? fCurrency(taxes) : '-'}</Box>
+        <Box sx={{ width: 140 }}>{taxes ? fCurrency(taxes) : '-'}</Box>
       </Stack>
 
       <Stack direction="row" sx={{ typography: 'subtitle1' }}>
         <Box>Total</Box>
-        <Box sx={{ width: 100 }}>{fCurrency(totalAmount) || '-'}</Box>
+        <Box sx={{ width: 140 }}>{fCurrency(totalAmount) || '-'}</Box>
       </Stack>
     </Stack>
   );

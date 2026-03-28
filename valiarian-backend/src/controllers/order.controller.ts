@@ -151,6 +151,7 @@ export class OrderController {
 
       let availableStock = product.stockQuantity;
       let itemPrice = product.salePrice || product.price;
+      let itemOriginalPrice = product.price || itemPrice;
       let variantDetails = null;
 
       if (item.variantId) {
@@ -172,6 +173,7 @@ export class OrderController {
 
         availableStock = variant.stockQuantity;
         itemPrice = product.salePrice || variant.price || product.price;
+        itemOriginalPrice = variant.price || product.price || itemPrice;
 
         variantDetails = {
           variantId: variant.id,
@@ -205,6 +207,7 @@ export class OrderController {
         sku: product.sku || '',
         ...variantDetails,
         quantity: item.quantity,
+        originalPrice: itemOriginalPrice,
         price: itemPrice,
         basePrice: taxBreakup.basePrice,
         gstRate: taxBreakup.gstRate,
@@ -222,7 +225,7 @@ export class OrderController {
     const discount = request.discount || 0;
     const shipping = request.shipping || 0;
     tax = Number(roundCurrency(tax));
-    const total = subtotal - discount + shipping;
+    const total = subtotal - discount;
 
     if (subtotal <= 0 || total <= 0) {
       throw new HttpErrors.BadRequest('Invalid order total');
@@ -234,7 +237,7 @@ export class OrderController {
       discount,
       shipping,
       tax,
-      total: subtotal - discount + shipping,
+      total: subtotal - discount,
     };
   }
 
@@ -2163,12 +2166,12 @@ export class OrderController {
         processing: ['packed', 'cancelled'],
         packed: ['shipped', 'cancelled'],
         shipped: ['delivered'],
-        delivered: ['return_requested', 'returned'],
-        return_requested: ['returned', 'parcel_received', 'refunded'],
-        cancelled: ['refunded', 'parcel_received'],
-        returned: ['refunded', 'parcel_received'],
+        delivered: ['return_requested'],
+        return_requested: ['returned'],
+        cancelled: ['refunded'],
+        returned: ['parcel_received'],
         refunded: ['parcel_received'],
-        parcel_received: [],
+        parcel_received: ['refunded'],
       };
 
       const statusChanged = order.status !== request.status;
@@ -2191,13 +2194,39 @@ export class OrderController {
 
       if (
         statusChanged &&
-        request.status === 'parcel_received' &&
-        this.isPrepaidOrder(order) &&
-        order.paymentStatus !== 'refunded'
+        request.status === 'returned' &&
+        order.returnStatus !== 'approved'
       ) {
         throw new HttpErrors.BadRequest(
-          'Prepaid orders can be marked as parcel received only after the payment is refunded.',
+          'Return pickup can only be marked after the return request is approved.',
         );
+      }
+
+      if (
+        statusChanged &&
+        request.status === 'parcel_received' &&
+        order.returnStatus !== 'picked'
+      ) {
+        throw new HttpErrors.BadRequest(
+          'Parcel can only be marked as received after the return pickup is completed.',
+        );
+      }
+
+      if (statusChanged && request.status === 'refunded') {
+        if (order.status === 'cancelled' && !this.isPrepaidOrder(order)) {
+          throw new HttpErrors.BadRequest(
+            'Cancelled COD orders cannot be marked as refunded because no online payment was collected.',
+          );
+        }
+
+        if (
+          order.status === 'return_requested' ||
+          ['requested', 'approved'].includes(order.returnStatus || '')
+        ) {
+          throw new HttpErrors.BadRequest(
+            'Refund can only be completed after the return is marked returned or parcel received.',
+          );
+        }
       }
 
       console.log(`[Admin] Status transition valid`);
@@ -2233,10 +2262,19 @@ export class OrderController {
         updateData.refundInitiatedAt = order.refundInitiatedAt || new Date();
         updateData.refundAmount =
           normalizeNumericValue(order.refundAmount) || order.total;
+        updateData.refundMethod =
+          order.refundMethod ||
+          (this.isPrepaidOrder(order) ? 'original_payment' : 'cash');
       }
 
       if (request.status === 'parcel_received') {
         updateData.parcelReceivedAt = order.parcelReceivedAt || new Date();
+        updateData.returnStatus = 'completed';
+      }
+
+      if (request.status === 'returned') {
+        updateData.returnStatus = 'picked';
+        updateData.returnPickedAt = order.returnPickedAt || new Date();
       }
 
       console.log(`[Admin] Updating order with data:`, updateData);
@@ -2334,6 +2372,14 @@ export class OrderController {
       await this.orderRepository.updateById(order.id, {
         status: request.action === 'reject' ? 'delivered' : order.status,
         returnStatus: newReturnStatus,
+        returnApprovedAt:
+          request.action === 'approve' ? order.returnApprovedAt || new Date() : undefined,
+        refundMethod:
+          request.action === 'approve'
+            ? this.isPrepaidOrder(order)
+              ? 'original_payment'
+              : 'cash'
+            : order.refundMethod,
         updatedAt: new Date(),
       });
 
@@ -2424,7 +2470,13 @@ export class OrderController {
   @authorize({roles: ['super_admin', 'admin']})
   async adminInitiateRefund(
     @param.path.string('orderId') orderId: string,
-    @requestBody() request: {amount: number; reason: string},
+    @requestBody()
+    request: {
+      amount: number;
+      reason: string;
+      deductDeliveryCharge?: boolean;
+      deliveryChargeDeductionAmount?: number;
+    },
     @inject(SecurityBindings.USER) currentUser: UserProfile,
   ): Promise<{success: boolean; order: Order; refund: any}> {
     try {
@@ -2434,9 +2486,9 @@ export class OrderController {
         throw new HttpErrors.NotFound('Order not found');
       }
 
-      if (!['cancelled', 'returned'].includes(order.status)) {
+      if (!['cancelled', 'returned', 'parcel_received'].includes(order.status)) {
         throw new HttpErrors.BadRequest(
-          'Refund can only be initiated for cancelled or returned orders',
+          'Refund can only be initiated for cancelled prepaid orders or after the return is marked returned',
         );
       }
 
@@ -2444,16 +2496,45 @@ export class OrderController {
         throw new HttpErrors.BadRequest('No payment found for this order');
       }
 
-      if (request.amount <= 0 || request.amount > order.total) {
+      const deliveryChargeDeductionAmount = normalizeNumericValue(
+        request.deliveryChargeDeductionAmount,
+      );
+      const deductDeliveryCharge =
+        !!request.deductDeliveryCharge && deliveryChargeDeductionAmount > 0;
+      const maxDeduction = normalizeNumericValue(order.shipping);
+      const effectiveDeliveryChargeDeductionAmount = deductDeliveryCharge
+        ? deliveryChargeDeductionAmount
+        : 0;
+      const refundableTotal = order.total - effectiveDeliveryChargeDeductionAmount;
+
+      if (deliveryChargeDeductionAmount < 0) {
         throw new HttpErrors.BadRequest(
-          `Invalid refund amount. Must be between 0 and ${order.total}`,
+          'Delivery charge deduction amount cannot be negative',
+        );
+      }
+
+      if (deductDeliveryCharge && maxDeduction <= 0) {
+        throw new HttpErrors.BadRequest(
+          'This order has no delivery charge available for deduction',
+        );
+      }
+
+      if (deliveryChargeDeductionAmount > maxDeduction) {
+        throw new HttpErrors.BadRequest(
+          `Delivery charge deduction cannot exceed ${maxDeduction}`,
+        );
+      }
+
+      if (request.amount <= 0 || request.amount > refundableTotal) {
+        throw new HttpErrors.BadRequest(
+          `Invalid refund amount. Must be between 0 and ${refundableTotal}`,
         );
       }
 
       const alreadyRefunded = order.refundAmount || 0;
-      if (alreadyRefunded + request.amount > order.total) {
+      if (alreadyRefunded + request.amount > refundableTotal) {
         throw new HttpErrors.BadRequest(
-          `Total refund amount (${alreadyRefunded + request.amount}) exceeds order total (${order.total})`,
+          `Total refund amount (${alreadyRefunded + request.amount}) exceeds refundable amount (${refundableTotal})`,
         );
       }
 
@@ -2465,7 +2546,14 @@ export class OrderController {
         refund = await this.razorpayService.createRefund(
           order.razorpayPaymentId,
           Math.round(request.amount * 100),
-          {reason: request.reason, orderId: order.id},
+          {
+            reason: request.reason,
+            orderId: order.id,
+            deductDeliveryCharge: String(deductDeliveryCharge),
+            deliveryChargeDeductionAmount: effectiveDeliveryChargeDeductionAmount.toFixed(
+              2,
+            ),
+          },
         );
         refundId = refund.id;
         console.log('[Admin] Razorpay refund created:', refundId);
@@ -2487,14 +2575,19 @@ export class OrderController {
       }
 
       const totalRefunded = alreadyRefunded + request.amount;
-      const isFullRefund = totalRefunded >= order.total;
+      const isFullRefund = totalRefunded >= refundableTotal;
       const paymentStatus = isFullRefund ? 'refunded' : 'partially_refunded';
 
       await this.orderRepository.updateById(order.id, {
         refundAmount: totalRefunded,
         refundInitiatedAt: order.refundInitiatedAt || new Date(),
+        refundCompletedAt: isFullRefund ? new Date() : order.refundCompletedAt,
         refundTransactionId: refundId,
+        refundMethod: 'original_payment',
+        deliveryChargeDeducted: deductDeliveryCharge,
+        deliveryChargeDeductionAmount: effectiveDeliveryChargeDeductionAmount,
         paymentStatus,
+        status: isFullRefund ? 'refunded' : order.status,
         updatedAt: new Date(),
       });
 
@@ -2517,6 +2610,9 @@ export class OrderController {
             refundTransactionId: refundId,
             processingDays: '5-7',
             originalAmount: formatCurrencyValue(order.total),
+            deliveryChargeDeductionAmount: deductDeliveryCharge
+              ? effectiveDeliveryChargeDeductionAmount.toFixed(2)
+              : null,
             year: new Date().getFullYear(),
             companyName: 'Valiarian',
           },
@@ -2848,6 +2944,7 @@ export class OrderController {
         paymentStatus,
         refundCompletedAt: new Date(),
         status: isFullRefund ? 'refunded' : order.status,
+        refundMethod: 'original_payment',
         updatedAt: new Date(),
       });
 

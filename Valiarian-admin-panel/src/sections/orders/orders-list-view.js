@@ -85,9 +85,12 @@ export default function OrdersListView() {
     return () => clearTimeout(timer);
   }, [filterSearch]);
 
-  const fetchOrders = useCallback(async () => {
+  const fetchOrders = useCallback(async (options = {}) => {
+    const { silent = false } = options;
     try {
-      setLoading(true);
+      if (!silent) {
+        setLoading(true);
+      }
 
       const params = {
         page: table.page + 1,
@@ -118,12 +121,22 @@ export default function OrdersListView() {
       setTotalCount(0);
       setStatusCounts({ all: 0 });
     } finally {
-      setLoading(false);
+      if (!silent) {
+        setLoading(false);
+      }
     }
   }, [debouncedSearch, filterPaymentStatus, filterStatus, table.order, table.orderBy, table.page, table.rowsPerPage]);
 
   useEffect(() => {
     fetchOrders();
+  }, [fetchOrders]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchOrders({ silent: true });
+    }, 10000);
+
+    return () => clearInterval(interval);
   }, [fetchOrders]);
 
   const handleFilterStatus = useCallback((event, value) => {

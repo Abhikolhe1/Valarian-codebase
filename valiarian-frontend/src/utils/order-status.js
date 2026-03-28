@@ -7,6 +7,18 @@ export function formatOrderStatusLabel(value = '') {
 }
 
 export function getOrderDisplayStatus(status, returnStatus) {
+  if (status === 'refunded') {
+    return 'refunded';
+  }
+
+  if (status === 'parcel_received') {
+    return 'parcel_received';
+  }
+
+  if (status === 'returned' || returnStatus === 'picked') {
+    return 'return_picked';
+  }
+
   switch (returnStatus) {
     case 'requested':
       return 'return_requested';
@@ -91,6 +103,24 @@ export function getReturnStatusColor(status) {
   }
 }
 
+export function isFinalOrderState(status, returnStatus) {
+  if (returnStatus === 'rejected') {
+    return true;
+  }
+
+  return [
+    'delivered',
+    'cancelled',
+    'refunded',
+    'failed',
+    'parcel_received',
+  ].includes(status);
+}
+
+export function shouldPollOrderStatus(status, returnStatus) {
+  return !isFinalOrderState(status, returnStatus);
+}
+
 export const returnPackagingInstructions = [
   'Keep the product in its original box and outer packaging.',
   'Include all accessories, manuals, tags, invoices, and free gifts.',
@@ -98,3 +128,11 @@ export const returnPackagingInstructions = [
   'Hand over the parcel only after the pickup agent confirms the return.',
   'Your refund will be processed after our inspection is completed.',
 ];
+
+export const returnStatusDescriptions = {
+  requested: 'Return request submitted',
+  approved: 'Return approved',
+  picked: 'Return picked up',
+  completed: 'Parcel received at warehouse',
+  rejected: 'Return request rejected',
+};

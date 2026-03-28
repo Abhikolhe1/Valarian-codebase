@@ -89,6 +89,13 @@ export default function OrderConfirmationView() {
 
   const paymentLabel =
     order.paymentMethod === 'razorpay' ? 'Online Payment' : 'Cash on Delivery';
+  const actualPrice = (order.items || []).reduce(
+    (sum, item) =>
+      sum + Math.max(Number(item.originalPrice || item.price || 0), Number(item.price || 0)) * Number(item.quantity || 0),
+    0
+  );
+  const salePrice = Number(order.subtotal || 0);
+  const productDiscount = Math.max(actualPrice - salePrice, 0);
 
   return (
     <Container maxWidth={themeStretch ? false : 'lg'} sx={{ py: { xs: 5, md: 8 } }}>
@@ -188,20 +195,34 @@ export default function OrderConfirmationView() {
 
               <Stack spacing={1.5}>
                 <Stack direction="row" justifyContent="space-between">
-                  <Typography color="text.secondary">Subtotal</Typography>
-                  <Typography>{fCurrency(order.subtotal)}</Typography>
+                  <Typography color="text.secondary">Actual Price</Typography>
+                  <Typography>{fCurrency(actualPrice || salePrice)}</Typography>
                 </Stack>
 
                 <Stack direction="row" justifyContent="space-between">
-                  <Typography color="text.secondary">Discount</Typography>
+                  <Typography color="text.secondary">Sale Price</Typography>
+                  <Typography>{fCurrency(salePrice)}</Typography>
+                </Stack>
+
+                <Stack direction="row" justifyContent="space-between">
+                  <Typography color="text.secondary">Product Discount</Typography>
+                  <Typography color={productDiscount ? 'error.main' : 'text.primary'}>
+                    {productDiscount ? `- ${fCurrency(productDiscount)}` : '-'}
+                  </Typography>
+                </Stack>
+
+                <Stack direction="row" justifyContent="space-between">
+                  <Typography color="text.secondary">Coupon Discount</Typography>
                   <Typography color={order.discount ? 'error.main' : 'text.primary'}>
                     {order.discount ? `- ${fCurrency(order.discount)}` : '-'}
                   </Typography>
                 </Stack>
 
                 <Stack direction="row" justifyContent="space-between">
-                  <Typography color="text.secondary">Shipping</Typography>
-                  <Typography>{order.shipping ? fCurrency(order.shipping) : 'Free'}</Typography>
+                  <Typography color="text.secondary">Delivery Charge</Typography>
+                  <Typography sx={{ minWidth: 140, textAlign: 'right' }}>
+                    {order.shipping ? `${fCurrency(order.shipping)} included` : 'Included'}
+                  </Typography>
                 </Stack>
 
                 {order.tax > 0 && (

@@ -1,4 +1,5 @@
 const DEFAULT_CART_IMAGE = '/assets/placeholder.svg';
+const roundCurrency = (value) => Number(Number(value || 0).toFixed(2));
 
 export const getCartItemProductId = (item) => item?.productId || item?.id || item?.product?.id || null;
 
@@ -10,6 +11,20 @@ const resolveEffectiveCartPrice = (input = {}, variant = {}, product = {}) => {
     input.price,
     variant.price,
     product.price,
+  ];
+
+  const resolvedPrice = prioritizedPrices.find((value) => Number.isFinite(Number(value)) && Number(value) > 0);
+
+  return resolvedPrice ? Number(resolvedPrice) : 0;
+};
+
+const resolveActualCartPrice = (input = {}, variant = {}, product = {}) => {
+  const prioritizedPrices = [
+    input.originalPrice,
+    input.regularPrice,
+    variant.price,
+    product.price,
+    input.price,
   ];
 
   const resolvedPrice = prioritizedPrices.find((value) => Number.isFinite(Number(value)) && Number(value) > 0);
@@ -82,6 +97,7 @@ export const normalizeCartItem = (input) => {
     coverUrl: image,
     image,
     price: resolveEffectiveCartPrice(input, variant, product),
+    originalPrice: resolveActualCartPrice(input, variant, product),
     available: Number.isFinite(Number(rawAvailable)) ? Number(rawAvailable) : 0,
     quantity: clampCartQuantity(input.quantity || 1, rawAvailable),
     colors,
@@ -89,6 +105,7 @@ export const normalizeCartItem = (input) => {
     size: input.size || variant.size || null,
     sku: input.sku || variant.sku || product.sku || null,
     slug: input.slug || product.slug || null,
+    gstRate: Number(input.gstRate || input.taxes || variant.taxes || product.taxes || 0),
   };
 
   return {
@@ -105,13 +122,32 @@ export const calculateCheckoutTotals = (cart = [], discount = 0, shipping = 0) =
 
   const totalItems = normalizedCart.reduce((sum, item) => sum + item.quantity, 0);
   const subTotal = normalizedCart.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  const total = subTotal - Number(discount || 0) + Number(shipping || 0);
+  const actualSubTotal = normalizedCart.reduce(
+    (sum, item) => sum + Math.max(Number(item.originalPrice || item.price || 0), Number(item.price || 0)) * item.quantity,
+    0
+  );
+  const productDiscount = Math.max(actualSubTotal - subTotal, 0);
+  const taxAmount = normalizedCart.reduce((sum, item) => {
+    const gstRate = Number(item.gstRate || 0);
+    const lineTotal = Number(item.price || 0) * Number(item.quantity || 0);
+
+    if (gstRate <= 0 || lineTotal <= 0) {
+      return sum;
+    }
+
+    const baseAmount = lineTotal / (1 + gstRate / 100);
+    return sum + (lineTotal - baseAmount);
+  }, 0);
+  const total = subTotal - Number(discount || 0);
 
   return {
     cart: normalizedCart,
     totalItems,
-    subTotal,
-    total,
+    actualSubTotal: roundCurrency(actualSubTotal),
+    productDiscount: roundCurrency(productDiscount),
+    subTotal: roundCurrency(subTotal),
+    taxAmount: roundCurrency(taxAmount),
+    total: roundCurrency(total),
   };
 };
 
