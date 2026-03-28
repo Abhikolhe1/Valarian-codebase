@@ -94,6 +94,11 @@ export const endpoints = {
       availability: (productId, variantId) => `/api/products/${productId}/variants/${variantId}/availability`,
     },
   },
+  reviews: {
+    details: (id) => `/api/reviews/${id}`,
+    adminByProduct: (productId) => `/api/admin/products/${productId}/reviews`,
+    adminHide: (id) => `/api/admin/reviews/${id}/hide`,
+  },
   cms: {
     aboutPage: {
       get: '/api/cms/about-page',

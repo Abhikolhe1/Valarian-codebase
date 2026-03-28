@@ -38,6 +38,7 @@ export async function migrate(args: string[]) {
       'OrderItemEntity',
       'Payment',
       'Invoice',
+      'Review',
       'ContactSubmission',
     ],
   });

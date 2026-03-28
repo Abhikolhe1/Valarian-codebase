@@ -88,6 +88,11 @@ export const endpoints = {
     bestSellers: '/api/public/products/best-sellers',
     featured: '/api/public/products/featured',
   },
+  reviews: {
+    create: '/api/reviews',
+    details: (id) => `/api/reviews/${id}`,
+    byProduct: (productId) => `/api/reviews/product/${productId}`,
+  },
   cart: {
     get: (userId) => `/api/cart/${userId}`,
   },
@@ -107,6 +112,9 @@ export const endpoints = {
   },
   contact: {
     create: '/api/public/contact-submissions',
+  },
+  upload: {
+    root: '/files',
   },
   cms: {
     pages: {

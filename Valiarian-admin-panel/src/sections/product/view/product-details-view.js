@@ -29,6 +29,7 @@ import Image from 'src/components/image';
 import Lightbox, { useLightBox } from 'src/components/lightbox';
 import { useSettingsContext } from 'src/components/settings';
 import { ProductDetailsSkeleton } from '../product-skeleton';
+import ProductDetailsReview from '../product-details-review';
 
 // ----------------------------------------------------------------------
 
@@ -307,6 +308,7 @@ export default function ProductDetailsView() {
         >
           <Tab value="details" label="Details" />
           <Tab value="description" label="Description" />
+          <Tab value="reviews" label="Reviews" />
           {product.seoTitle && <Tab value="seo" label="SEO" />}
         </Tabs>
 
@@ -377,6 +379,8 @@ export default function ProductDetailsView() {
             )}
           </Box>
         )}
+
+        {currentTab === 'reviews' && <ProductDetailsReview productId={product?.id} />}
 
         {currentTab === 'seo' && (
           <Stack spacing={3} sx={{ p: 3 }}>
