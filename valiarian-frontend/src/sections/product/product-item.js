@@ -1,11 +1,11 @@
-import { memo, useCallback, useMemo, useState } from 'react';
 import PropTypes from 'prop-types';
+import { memo, useCallback, useMemo, useState } from 'react';
 // @mui
+import { LoadingButton } from '@mui/lab';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import Link from '@mui/material/Link';
 import Stack from '@mui/material/Stack';
-import { LoadingButton } from '@mui/lab';
 import { useTheme } from '@mui/material/styles';
 import useMediaQuery from '@mui/material/useMediaQuery';
 // routes
@@ -107,21 +107,52 @@ function ProductItem({ product }) {
       <Stack
         direction="row"
         alignItems="center"
-        spacing={1}
-        sx={{ position: 'absolute', zIndex: 9, top: 16, right: 16 }}
+        spacing={{ xs: 0.5, sm: 1 }}
+        sx={{
+          position: 'absolute',
+          zIndex: 9,
+          top: { xs: 8, sm: 16 },
+          right: { xs: 8, sm: 16 },
+        }}
       >
         {productView.hasNewLabel && (
-          <Label variant="filled" color="info">
+          <Label
+            variant="filled"
+            color="info"
+            sx={{
+              fontSize: { xs: '10px', sm: '12px' },
+              px: { xs: 0.6, sm: 1.2 },
+              py: { xs: 0.2, sm: 0.4 },
+            }}
+          >
             New
           </Label>
         )}
+
         {productView.hasSaleLabel && (
-          <Label variant="filled" color="error">
+          <Label
+            variant="filled"
+            color="error"
+            sx={{
+              fontSize: { xs: '10px', sm: '12px' },
+              px: { xs: 0.6, sm: 1.2 },
+              py: { xs: 0.2, sm: 0.4 },
+            }}
+          >
             Sale
           </Label>
         )}
+
         {productView.isBestSeller && (
-          <Label variant="filled" color="success">
+          <Label
+            variant="filled"
+            color="success"
+            sx={{
+              fontSize: { xs: '10px', sm: '12px' },
+              px: { xs: 0.6, sm: 1.2 },
+              py: { xs: 0.2, sm: 0.4 },
+            }}
+          >
             Best Seller
           </Label>
         )}
@@ -157,8 +188,10 @@ function ProductItem({ product }) {
           activeColor="error.main"
           sx={{
             position: 'absolute',
-            top: 12,
-            left: 12,
+            top: { xs: 6, sm: 12 },
+            left: { xs: 4, sm: 12 },
+            px: { xs: 0.3, sm: 1.2 },
+            py: { xs: 0.3, sm: 1.2 },
             zIndex: 10,
             bgcolor: 'rgba(255, 255, 255, 0.92)',
             boxShadow: 2,
@@ -172,8 +205,8 @@ function ProductItem({ product }) {
           <Box
             sx={{
               position: 'absolute',
-              right: 20,
-              bottom: 20,
+              right: { xs: 8, sm: 16 },
+              bottom: { xs: 8, sm: 16 },
               zIndex: 8,
               backgroundColor: 'rgba(255, 255, 255, 0.9)',
               borderRadius: 1,
@@ -196,8 +229,10 @@ function ProductItem({ product }) {
           <Box
             sx={{
               position: 'absolute',
-              left: 16,
-              bottom: 16,
+              left: { xs: 8, sm: 16 },
+              px: { xs: 0.6, sm: 0.9 },
+              py: { xs: 0, sm: 0.5 },
+              bottom: { xs: 8, sm: 16 },
               zIndex: 8,
               backgroundColor: 'rgba(0, 0, 0, 0.7)',
               color: 'white',
@@ -206,7 +241,7 @@ function ProductItem({ product }) {
               pointerEvents: 'none',
             }}
           >
-            <Box component="span" sx={{ typography: 'caption', fontWeight: 600 }}>
+            <Box component="span" sx={{ typography: 'caption', fontWeight: 600, fontSize: { xs: 11, sm: 13 } }}>
               {productView.availableSizes.length}{' '}
               {productView.availableSizes.length === 1 ? 'Size' : 'Sizes'}
             </Box>
@@ -254,14 +289,16 @@ function ProductItem({ product }) {
         />
       </Box>
 
-      <Stack spacing={2.5} sx={{ p: 3, pt: 2, flexGrow: 1 }}>
+      <Stack spacing={{ xs: 0.5, md: 1.5 }} sx={{ p: { xs: 2, md: 2 }, pt: 2, flexGrow: 1 }}>
         <Link
           component={RouterLink}
           href={productView.linkTo}
           color="inherit"
-          variant="subtitle2"
           noWrap
-          sx={{ cursor: 'pointer' }}
+          sx={{
+            cursor: 'pointer',
+            typography: { xs: 'subtitle2', md: 'subtitle1' },
+          }}
         >
           {product.name}
         </Link>
@@ -273,6 +310,7 @@ function ProductItem({ product }) {
               href={isMobile ? undefined : productView.linkTo}
               sx={{
                 fontWeight: 600,
+                fontSize: { xs: 11, sm: 14 },
                 cursor: isMobile ? 'default' : 'pointer',
                 textDecoration: 'none',
                 color: 'inherit',
@@ -285,30 +323,31 @@ function ProductItem({ product }) {
             {product.salePrice && (
               <Box
                 component="span"
-                sx={{ color: 'text.disabled', typography: 'caption', textDecoration: 'line-through' }}
+                sx={{ color: 'text.disabled', typography: 'caption', textDecoration: 'line-through', fontSize: { xs: 11, sm: 14 }, }}
               >
                 {fCurrency(productView.displayPrice)}
               </Box>
             )}
-          </Stack>
 
-          {product.salePrice && productView.discountPercent > 0 && (
-            <Box
-              component="span"
-              sx={{
-                typography: 'caption',
-                color: 'text.secondary',
-              }}
-            >
-              ({productView.discountPercent}% off)
-            </Box>
-          )}
+
+            {product.salePrice && productView.discountPercent > 0 && (
+              <Box
+                component="span"
+                sx={{
+                  typography: 'caption',
+                  color: 'text.secondary',
+                  fontSize: { xs: 11, sm: 14 },
+                }}
+              >
+                ({productView.discountPercent}% off)
+              </Box>
+            )}
+          </Stack>
         </Stack>
 
         <Box
           sx={{
             display: 'flex',
-            justifyContent: 'flex-end',
             mt: 'auto',
             position: 'relative',
             zIndex: 10,
@@ -316,13 +355,13 @@ function ProductItem({ product }) {
           onClick={(event) => event.stopPropagation()}
         >
           <LoadingButton
+            fullWidth
             variant="contained"
             color="primary"
             size="small"
             onClick={handleAddCart}
             loading={loadingCart}
             startIcon={<Iconify icon="solar:cart-plus-bold" width={20} />}
-            sx={{ minWidth: 'auto' }}
           >
             Add to Cart
           </LoadingButton>

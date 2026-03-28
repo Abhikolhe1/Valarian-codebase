@@ -1,16 +1,15 @@
 import PropTypes from 'prop-types';
 // @mui
+import Avatar from '@mui/material/Avatar';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
-import Stack from '@mui/material/Stack';
-import Avatar from '@mui/material/Avatar';
 import CardHeader from '@mui/material/CardHeader';
 import ListItemText from '@mui/material/ListItemText';
+import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 // utils
 import { fCurrency } from 'src/utils/format-number';
 // components
-import Scrollbar from 'src/components/scrollbar';
 
 // ----------------------------------------------------------------------
 
@@ -30,14 +29,14 @@ export default function OrderDetailsItems({
     >
       <Stack direction="row">
         <Box sx={{ color: 'text.secondary' }}>Subtotal</Box>
-        <Box sx={{ width: 160, typography: 'subtitle2' }}>{fCurrency(subTotal) || '-'}</Box>
+        <Box sx={{ width: 100, typography: 'subtitle2' }}>{fCurrency(subTotal) || '-'}</Box>
       </Stack>
 
       <Stack direction="row">
         <Box sx={{ color: 'text.secondary' }}>Shipping</Box>
         <Box
           sx={{
-            width: 160,
+            width: 100,
             ...(shipping && { color: 'error.main' }),
           }}
         >
@@ -49,7 +48,7 @@ export default function OrderDetailsItems({
         <Box sx={{ color: 'text.secondary' }}>Discount</Box>
         <Box
           sx={{
-            width: 160,
+            width: 100,
             ...(discount && { color: 'error.main' }),
           }}
         >
@@ -59,12 +58,12 @@ export default function OrderDetailsItems({
 
       <Stack direction="row">
         <Box sx={{ color: 'text.secondary' }}>Taxes</Box>
-        <Box sx={{ width: 160 }}>{taxes ? fCurrency(taxes) : '-'}</Box>
+        <Box sx={{ width: 100 }}>{taxes ? fCurrency(taxes) : '-'}</Box>
       </Stack>
 
       <Stack direction="row" sx={{ typography: 'subtitle1' }}>
         <Box>Total</Box>
-        <Box sx={{ width: 160 }}>{fCurrency(totalAmount) || '-'}</Box>
+        <Box sx={{ width: 100 }}>{fCurrency(totalAmount) || '-'}</Box>
       </Stack>
     </Stack>
   );
@@ -78,18 +77,20 @@ export default function OrderDetailsItems({
           px: 3,
         }}
       >
-        <Scrollbar>
-          {items.map((item) => (
-            <Stack
-              key={item.id}
-              direction="row"
-              alignItems="center"
-              sx={{
-                py: 3,
-                minWidth: 640,
-                borderBottom: (theme) => `dashed 2px ${theme.palette.background.neutral}`,
-              }}
-            >
+        {items.map((item) => (
+          <Stack
+            key={item.id}
+            display="flex"
+            justifyContent="space-between"
+            flexDirection="row"
+            alignItems="center"
+            sx={{
+              py: 3,
+              borderBottom: (theme) => `dashed 2px ${theme.palette.background.neutral}`,
+            }}
+          >
+
+            <Box display="flex" justifyContent="center" alignItems="center">
               <Avatar
                 src={item.image || item.coverUrl || '/assets/placeholder.svg'}
                 variant="rounded"
@@ -116,15 +117,17 @@ export default function OrderDetailsItems({
                   </Typography>
                 )}
               </Box>
-
+            </Box>
+            <Box display="flex" justifyContent="space-between">
               <Box sx={{ typography: 'body2' }}>x{item.quantity}</Box>
 
               <Box sx={{ width: 110, textAlign: 'right', typography: 'subtitle2' }}>
                 {fCurrency(item.price)}
               </Box>
-            </Stack>
-          ))}
-        </Scrollbar>
+            </Box>
+          </Stack>
+        ))}
+
 
         {renderTotal}
       </Stack>

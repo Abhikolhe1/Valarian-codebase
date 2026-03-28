@@ -1,16 +1,16 @@
 import PropTypes from 'prop-types';
 // @mui
-import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
 import IconButton from '@mui/material/IconButton';
+import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 // routes
 import { RouterLink } from 'src/routes/components';
 // utils
 import { fDateTime } from 'src/utils/format-time';
 // components
-import Label from 'src/components/label';
 import Iconify from 'src/components/iconify';
+import Label from 'src/components/label';
 
 // ----------------------------------------------------------------------
 
@@ -26,9 +26,12 @@ export default function OrderDetailsToolbar({
   return (
     <Stack
       spacing={3}
-      direction={{ xs: 'column', md: 'row' }}
+      direction={{ xs: 'column', sm: 'row', md: 'row' }}
       sx={{
         mb: { xs: 3, md: 5 },
+      }}
+      sx={{
+        mt: { xs: 7, md: 5 },
       }}
     >
       <Stack spacing={1} direction="row" alignItems="flex-start">

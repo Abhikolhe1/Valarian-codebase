@@ -147,7 +147,7 @@ export default function OrderDetailsView() {
         onTrack={order.trackingNumber ? handleTrackOrder : null}
       />
 
-      <Grid container spacing={3}>
+      <Grid container spacing={3} mt={2}>
         <Grid xs={12} md={8}>
           <Stack spacing={3} direction={{ xs: 'column-reverse', md: 'column' }}>
             <OrderDetailsItems
@@ -185,7 +185,7 @@ export default function OrderDetailsView() {
       </Grid>
 
       {/* Cancel Order Dialog */}
-      <Dialog open={cancelDialogOpen} onClose={() => setCancelDialogOpen(false)} maxWidth="sm" fullWidth>
+      <Dialog open={cancelDialogOpen} onClose={() => setCancelDialogOpen(false)} maxWidth="sm" fullWidth >
         <DialogTitle>Cancel Order</DialogTitle>
         <DialogContent>
           {actionError && (
@@ -215,6 +215,7 @@ export default function OrderDetailsView() {
             color="error"
             onClick={handleCancelOrder}
             disabled={actionLoading || !cancelReason.trim()}
+
           >
             {actionLoading ? 'Cancelling...' : 'Cancel Order'}
           </Button>
