@@ -479,25 +479,25 @@ export class OrderController {
 
     return {
       confirmed:
-        ['confirmed', 'processing', 'packed', 'shipped', 'delivered', 'returned', 'refunded'].includes(
+        ['confirmed', 'processing', 'packed', 'shipped', 'delivered', 'return_requested', 'returned', 'refunded'].includes(
           status,
         )
           ? order.createdAt?.toLocaleDateString() || updatedDate
           : null,
-      processing: ['processing', 'packed', 'shipped', 'delivered', 'returned', 'refunded'].includes(
+      processing: ['processing', 'packed', 'shipped', 'delivered', 'return_requested', 'returned', 'refunded'].includes(
         status,
       )
         ? updatedDate
         : null,
-      packed: ['packed', 'shipped', 'delivered', 'returned', 'refunded'].includes(
+      packed: ['packed', 'shipped', 'delivered', 'return_requested', 'returned', 'refunded'].includes(
         status,
       )
         ? updatedDate
         : null,
-      shipped: ['shipped', 'delivered', 'returned', 'refunded'].includes(status)
+      shipped: ['shipped', 'delivered', 'return_requested', 'returned', 'refunded'].includes(status)
         ? updatedDate
         : null,
-      delivered: ['delivered', 'returned', 'refunded'].includes(status)
+      delivered: ['delivered', 'return_requested', 'returned', 'refunded'].includes(status)
         ? order.deliveredAt?.toLocaleDateString() || updatedDate
         : null,
     };
@@ -1794,7 +1794,17 @@ export class OrderController {
   @authorize({roles: ['user']})
   async returnOrder(
     @param.path.string('orderId') orderId: string,
-    @requestBody() request: {reason: string; images?: string[]},
+    @requestBody()
+    request: {
+      reason: string;
+      comment: string;
+      images: {
+        frontImage: string;
+        backImage: string;
+        sealImage: string;
+        additionalImages?: string[];
+      };
+    },
     @inject(SecurityBindings.USER) currentUser: UserProfile,
   ): Promise<{success: boolean; order: Order}> {
     try {
@@ -1812,6 +1822,37 @@ export class OrderController {
         throw new HttpErrors.BadRequest(
           'Only delivered orders can be returned',
         );
+      }
+
+      if (order.returnStatus) {
+        throw new HttpErrors.BadRequest('A return request already exists for this order');
+      }
+
+      const reason = request.reason?.trim();
+      const comment = request.comment?.trim();
+      const frontImage = request.images?.frontImage?.trim();
+      const backImage = request.images?.backImage?.trim();
+      const sealImage = request.images?.sealImage?.trim();
+      const additionalImages = (request.images?.additionalImages || [])
+        .map(image => String(image).trim())
+        .filter(Boolean);
+
+      if (!reason) {
+        throw new HttpErrors.BadRequest('Return reason is required');
+      }
+
+      if (!comment) {
+        throw new HttpErrors.BadRequest('Return comment is required');
+      }
+
+      if (!frontImage || !backImage || !sealImage) {
+        throw new HttpErrors.BadRequest(
+          'Front image, back image, and seal image are required for a return request',
+        );
+      }
+
+      if (additionalImages.length > 5) {
+        throw new HttpErrors.BadRequest('You can upload up to 5 additional images only');
       }
 
       if (!order.deliveredAt) {
@@ -1835,9 +1876,17 @@ export class OrderController {
       }
 
       await this.orderRepository.updateById(order.id, {
+        status: 'return_requested',
         returnStatus: 'requested',
         returnInitiatedAt: new Date(),
-        returnReason: request.reason,
+        returnReason: reason,
+        returnComment: comment,
+        returnImages: {
+          frontImage,
+          backImage,
+          sealImage,
+          additionalImages,
+        },
         updatedAt: new Date(),
       });
 
@@ -1845,7 +1894,7 @@ export class OrderController {
         order.id,
         'return_requested',
         currentUser.id,
-        `Return requested. Reason: ${request.reason}`,
+        `Return requested. Reason: ${reason}. Comment: ${comment}`,
       );
 
       try {
@@ -1854,7 +1903,7 @@ export class OrderController {
           {
             customerName: order.billingAddress.fullName,
             orderNumber: order.orderNumber,
-            returnReason: request.reason,
+            returnReason: reason,
             orderDate: order.createdAt
               ? order.createdAt.toLocaleDateString()
               : new Date().toLocaleDateString(),
@@ -1909,6 +1958,7 @@ export class OrderController {
   ): Promise<{
     success: boolean;
     orders: any[];
+    counts: Record<string, number>;
     pagination: {
       total: number;
       page: number;
@@ -1944,12 +1994,44 @@ export class OrderController {
         }),
         this.orderRepository.count(where),
       ]);
+      const statuses: Order['status'][] = [
+        'pending',
+        'confirmed',
+        'processing',
+        'packed',
+        'shipped',
+        'delivered',
+        'return_requested',
+        'cancelled',
+        'returned',
+        'refunded',
+        'parcel_received',
+      ];
+      const countResults = await Promise.all(
+        statuses.map((orderStatus) =>
+          this.orderRepository.count({
+            isDeleted: false,
+            ...(paymentStatus ? {paymentStatus: paymentStatus as Order['paymentStatus']} : {}),
+            ...(search
+              ? {or: [{orderNumber: {like: `%${search}%`, options: 'i'}}]}
+              : {}),
+            status: orderStatus,
+          }),
+        ),
+      );
 
       const totalPages = Math.ceil(total.count / limit);
 
       return {
         success: true,
         orders,
+        counts: {
+          all: total.count,
+          ...statuses.reduce<Record<string, number>>((acc, orderStatus, index) => {
+            acc[orderStatus] = countResults[index].count;
+            return acc;
+          }, {}),
+        },
         pagination: {
           total: total.count,
           page,
@@ -2063,6 +2145,7 @@ export class OrderController {
         'packed',
         'shipped',
         'delivered',
+        'return_requested',
         'cancelled',
         'returned',
         'refunded',
@@ -2080,7 +2163,8 @@ export class OrderController {
         processing: ['packed', 'cancelled'],
         packed: ['shipped', 'cancelled'],
         shipped: ['delivered'],
-        delivered: ['returned'],
+        delivered: ['return_requested', 'returned'],
+        return_requested: ['returned', 'parcel_received', 'refunded'],
         cancelled: ['refunded', 'parcel_received'],
         returned: ['refunded', 'parcel_received'],
         refunded: ['parcel_received'],
@@ -2248,40 +2332,46 @@ export class OrderController {
         request.action === 'approve' ? 'approved' : 'rejected';
 
       await this.orderRepository.updateById(order.id, {
+        status: request.action === 'reject' ? 'delivered' : order.status,
         returnStatus: newReturnStatus,
         updatedAt: new Date(),
       });
 
       await this.orderStatusHistoryRepository.createStatusEntry(
         order.id,
-        `return_${request.action}d`,
+        request.action === 'approve' ? 'return_approved' : 'return_rejected',
         currentUser.id,
         request.comment || `Return ${request.action}d by admin`,
       );
 
       try {
         if (request.action === 'approve') {
+          const frontendUrl = (
+            process.env.FRONTEND_URL || 'http://localhost:3000'
+          ).replace(/\/$/, '');
           const emailHtml = await this.emailTemplateService.renderTemplate(
             'return-approved',
             {
               customerName: order.billingAddress.fullName,
               orderNumber: order.orderNumber,
-              approvalDate: new Date().toLocaleDateString(),
-              returnReason: order.returnReason || 'Not specified',
-              adminComment: request.comment || '',
+              returnRequestId: order.id,
+              approvedDate: new Date().toLocaleDateString(),
               items: order.items.map(item => ({
                 name: item.name,
                 quantity: item.quantity,
               })),
-              nextSteps:
-                'Our team will contact you shortly to schedule a pickup.',
+              refundAmount: formatCurrencyValue(order.total),
+              comment:
+                request.comment ||
+                'Please keep the product packed safely with all original accessories for the pickup.',
+              returnStatusUrl: `${frontendUrl}/orders/${order.id}`,
               year: new Date().getFullYear(),
               companyName: 'Valiarian',
             },
           );
 
           await this.emailService.sendMail({
-            to: order.billingAddress.email,
+            to: order.billingAddress.email || currentUser.email,
             subject: `Return Approved - ${order.orderNumber}`,
             html: emailHtml,
           });

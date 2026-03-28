@@ -48,6 +48,13 @@ export interface OrderAddress {
   country: string;
 }
 
+export interface ReturnRequestImages {
+  frontImage: string;
+  backImage: string;
+  sealImage: string;
+  additionalImages?: string[];
+}
+
 @model({
   settings: {
     postgresql: {
@@ -113,6 +120,7 @@ export class Order extends Entity {
         'packed',
         'shipped',
         'delivered',
+        'return_requested',
         'cancelled',
         'returned',
         'refunded',
@@ -129,6 +137,7 @@ export class Order extends Entity {
     | 'packed'
     | 'shipped'
     | 'delivered'
+    | 'return_requested'
     | 'cancelled'
     | 'returned'
     | 'refunded'
@@ -357,11 +366,24 @@ export class Order extends Entity {
 
   @property({
     type: 'string',
+  })
+  returnComment?: string;
+
+  @property({
+    type: 'string',
     jsonSchema: {
       enum: ['requested', 'approved', 'rejected', 'picked', 'completed'],
     },
   })
   returnStatus?: 'requested' | 'approved' | 'rejected' | 'picked' | 'completed';
+
+  @property({
+    type: 'object',
+    postgresql: {
+      dataType: 'jsonb',
+    },
+  })
+  returnImages?: ReturnRequestImages;
 
   // Refund Information
   @property({

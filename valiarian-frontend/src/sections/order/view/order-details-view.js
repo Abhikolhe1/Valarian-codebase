@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 // @mui
 import Alert from '@mui/material/Alert';
+import AlertTitle from '@mui/material/AlertTitle';
 import Button from '@mui/material/Button';
 import Container from '@mui/material/Container';
 import Dialog from '@mui/material/Dialog';
@@ -20,10 +21,12 @@ import axios from 'src/utils/axios';
 import { useSettingsContext } from 'src/components/settings';
 import { useParams } from 'src/routes/hook';
 //
+import { returnPackagingInstructions } from 'src/utils/order-status';
 import OrderDetailsHistory from '../order-details-history';
 import OrderDetailsInfo from '../order-details-info';
 import OrderDetailsItems from '../order-details-item';
 import OrderDetailsToolbar from '../order-details-toolbar';
+import ReturnRequestForm from '../return-request-form';
 
 // ----------------------------------------------------------------------
 
@@ -40,7 +43,6 @@ export default function OrderDetailsView() {
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [returnDialogOpen, setReturnDialogOpen] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
-  const [returnReason, setReturnReason] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
   const [actionError, setActionError] = useState(null);
 
@@ -86,27 +88,6 @@ export default function OrderDetailsView() {
     }
   };
 
-  const handleReturnOrder = async () => {
-    if (!returnReason.trim()) {
-      setActionError('Please provide a return reason');
-      return;
-    }
-
-    try {
-      setActionLoading(true);
-      setActionError(null);
-      await axios.post(`/api/orders/${id}/return`, { reason: returnReason });
-      setReturnDialogOpen(false);
-      setReturnReason('');
-      await fetchOrderDetails();
-    } catch (err) {
-      console.error('Error requesting return:', err);
-      setActionError(err.response?.data?.message || 'Failed to request return');
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
   const handleTrackOrder = () => {
     navigate(`/orders/${id}/tracking`);
   };
@@ -142,10 +123,28 @@ export default function OrderDetailsView() {
         orderNumber={order.orderNumber}
         createdAt={order.createdAt}
         status={order.status}
+        returnStatus={order.returnStatus}
         onCancel={canCancel ? () => setCancelDialogOpen(true) : null}
         onReturn={canReturn ? () => setReturnDialogOpen(true) : null}
         onTrack={order.trackingNumber ? handleTrackOrder : null}
       />
+
+      {order.returnStatus === 'approved' && (
+        <Alert severity="info" sx={{ mb: 3 }}>
+          <AlertTitle>Return Approved</AlertTitle>
+          <Typography variant="body2" sx={{ mb: 1 }}>
+            Your return request has been approved. Please pack the item using the instructions
+            below so the pickup can happen smoothly.
+          </Typography>
+          <Stack component="ul" spacing={0.5} sx={{ pl: 2.5, mb: 0 }}>
+            {returnPackagingInstructions.map((instruction) => (
+              <Typography key={instruction} component="li" variant="body2">
+                {instruction}
+              </Typography>
+            ))}
+          </Stack>
+        </Alert>
+      )}
 
       <Grid container spacing={3} mt={2}>
         <Grid xs={12} md={8}>
@@ -222,41 +221,12 @@ export default function OrderDetailsView() {
         </DialogActions>
       </Dialog>
 
-      {/* Return Order Dialog */}
-      <Dialog open={returnDialogOpen} onClose={() => setReturnDialogOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>Return Order</DialogTitle>
-        <DialogContent>
-          {actionError && (
-            <Alert severity="error" sx={{ mb: 2 }}>
-              {actionError}
-            </Alert>
-          )}
-          <Typography variant="body2" sx={{ mb: 2 }}>
-            Please provide a reason for returning this order.
-          </Typography>
-          <TextField
-            fullWidth
-            multiline
-            rows={3}
-            label="Return Reason"
-            value={returnReason}
-            onChange={(e) => setReturnReason(e.target.value)}
-            placeholder="e.g., Product damaged, Wrong item received, etc."
-          />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setReturnDialogOpen(false)} disabled={actionLoading}>
-            Close
-          </Button>
-          <Button
-            variant="contained"
-            onClick={handleReturnOrder}
-            disabled={actionLoading || !returnReason.trim()}
-          >
-            {actionLoading ? 'Submitting...' : 'Submit Return Request'}
-          </Button>
-        </DialogActions>
-      </Dialog>
+      <ReturnRequestForm
+        orderId={id}
+        open={returnDialogOpen}
+        onClose={() => setReturnDialogOpen(false)}
+        onSuccess={fetchOrderDetails}
+      />
     </Container>
   );
 }

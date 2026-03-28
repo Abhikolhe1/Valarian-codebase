@@ -27,6 +27,12 @@ import CustomBreadcrumbs from 'src/components/custom-breadcrumbs';
 import Iconify from 'src/components/iconify';
 import Label from 'src/components/label';
 import { useSettingsContext } from 'src/components/settings';
+import {
+  formatOrderStatusLabel,
+  getOrderStatusColor,
+  getPaymentStatusColor,
+  getReturnStatusColor,
+} from 'src/utils/order-status';
 
 // ----------------------------------------------------------------------
 
@@ -37,6 +43,7 @@ const STATUS_OPTIONS = [
   'packed',
   'shipped',
   'delivered',
+  'return_requested',
   'cancelled',
   'returned',
   'refunded',
@@ -196,13 +203,6 @@ export default function OrderDetailsView() {
     }
   };
 
-  const getPaymentStatusColor = (paymentStatus) => {
-    if (paymentStatus === 'paid') return 'success';
-    if (paymentStatus === 'pending') return 'warning';
-    if (paymentStatus === 'failed') return 'error';
-    return 'default';
-  };
-
   if (loading) {
     return (
       <Container maxWidth={settings.themeStretch ? false : 'lg'}>
@@ -223,28 +223,6 @@ export default function OrderDetailsView() {
       </Container>
     );
   }
-
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'delivered':
-      case 'parcel_received':
-        return 'success';
-      case 'pending':
-        return 'warning';
-      case 'confirmed':
-      case 'processing':
-      case 'packed':
-        return 'info';
-      case 'shipped':
-        return 'primary';
-      case 'cancelled':
-      case 'refunded':
-        return 'error';
-      default:
-        return 'default';
-    }
-  };
-
   return (
     <Container maxWidth={settings.themeStretch ? false : 'lg'}>
       <CustomBreadcrumbs
@@ -265,8 +243,8 @@ export default function OrderDetailsView() {
             <Card sx={{ p: 3 }}>
               <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 3 }}>
                 <Typography variant="h6">Order Information</Typography>
-                <Label variant="soft" color={getStatusColor(order.status)} sx={{ textTransform: 'capitalize' }}>
-                  {order.status}
+                <Label variant="soft" color={getOrderStatusColor(order.status)} sx={{ textTransform: 'capitalize' }}>
+                  {formatOrderStatusLabel(order.status)}
                 </Label>
               </Stack>
 
@@ -288,9 +266,21 @@ export default function OrderDetailsView() {
                     color={getPaymentStatusColor(order.paymentStatus)}
                     sx={{ textTransform: 'capitalize' }}
                   >
-                    {order.paymentStatus.replace('_', ' ')}
+                    {formatOrderStatusLabel(order.paymentStatus)}
                   </Label>
                 </Stack>
+                {order.returnStatus && (
+                  <Stack direction="row" justifyContent="space-between">
+                    <Typography variant="body2" color="text.secondary">Return Status</Typography>
+                    <Label
+                      variant="soft"
+                      color={getReturnStatusColor(order.returnStatus)}
+                      sx={{ textTransform: 'capitalize' }}
+                    >
+                      {formatOrderStatusLabel(order.returnStatus)}
+                    </Label>
+                  </Stack>
+                )}
                 {order.trackingNumber && (
                   <>
                     <Stack direction="row" justifyContent="space-between">
@@ -377,7 +367,7 @@ export default function OrderDetailsView() {
                   <Stack key={index} spacing={0.5}>
                     <Stack direction="row" justifyContent="space-between">
                       <Typography variant="subtitle2" sx={{ textTransform: 'capitalize' }}>
-                        {history.status}
+                        {formatOrderStatusLabel(history.status)}
                       </Typography>
                       <Typography variant="caption" color="text.secondary">
                         {fDateTime(history.createdAt)}
@@ -400,6 +390,80 @@ export default function OrderDetailsView() {
                 <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
                   {order.notes}
                 </Typography>
+              </Card>
+            )}
+
+            {order.returnStatus && (
+              <Card sx={{ p: 3 }}>
+                <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
+                  <Typography variant="h6">Return Request</Typography>
+                  <Label variant="soft" color={getReturnStatusColor(order.returnStatus)}>
+                    {formatOrderStatusLabel(order.returnStatus)}
+                  </Label>
+                </Stack>
+
+                <Stack spacing={2}>
+                  <Box>
+                    <Typography variant="caption" color="text.secondary">Reason</Typography>
+                    <Typography variant="body2">{order.returnReason || '-'}</Typography>
+                  </Box>
+
+                  <Box>
+                    <Typography variant="caption" color="text.secondary">Comment</Typography>
+                    <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
+                      {order.returnComment || '-'}
+                    </Typography>
+                  </Box>
+
+                  {!!order.returnImages && (
+                    <Stack spacing={1.5}>
+                      <Typography variant="caption" color="text.secondary">
+                        Customer proof images
+                      </Typography>
+
+                      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+                        {order.returnImages.frontImage && (
+                          <Box
+                            component="img"
+                            src={order.returnImages.frontImage}
+                            alt="Front proof"
+                            sx={{ width: { xs: 1, sm: 160 }, height: 160, objectFit: 'cover', borderRadius: 1.5 }}
+                          />
+                        )}
+                        {order.returnImages.backImage && (
+                          <Box
+                            component="img"
+                            src={order.returnImages.backImage}
+                            alt="Back proof"
+                            sx={{ width: { xs: 1, sm: 160 }, height: 160, objectFit: 'cover', borderRadius: 1.5 }}
+                          />
+                        )}
+                        {order.returnImages.sealImage && (
+                          <Box
+                            component="img"
+                            src={order.returnImages.sealImage}
+                            alt="Seal proof"
+                            sx={{ width: { xs: 1, sm: 160 }, height: 160, objectFit: 'cover', borderRadius: 1.5 }}
+                          />
+                        )}
+                      </Stack>
+
+                      {!!order.returnImages.additionalImages?.length && (
+                        <Stack direction="row" spacing={1.5} flexWrap="wrap">
+                          {order.returnImages.additionalImages.map((image, index) => (
+                            <Box
+                              key={`${image}-${index}`}
+                              component="img"
+                              src={image}
+                              alt={`Additional proof ${index + 1}`}
+                              sx={{ width: 96, height: 96, objectFit: 'cover', borderRadius: 1.5 }}
+                            />
+                          ))}
+                        </Stack>
+                      )}
+                    </Stack>
+                  )}
+                </Stack>
               </Card>
             )}
           </Stack>

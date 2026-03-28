@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import useSWR from 'swr';
 // utils
-import { endpoints, fetcher } from 'src/utils/axios';
+import axiosInstance, { endpoints, fetcher } from 'src/utils/axios';
 
 // ----------------------------------------------------------------------
 
@@ -82,4 +82,28 @@ export function useGetOrderTracking(orderId) {
   );
 
   return memoizedValue;
+}
+
+export async function uploadOrderReturnImages(files = []) {
+  if (!files.length) {
+    return [];
+  }
+
+  const formData = new FormData();
+  files.forEach((file) => {
+    formData.append('file', file);
+  });
+
+  const response = await axiosInstance.post(endpoints.upload.root, formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  });
+
+  return response.data?.files?.map((file) => file.fileUrl).filter(Boolean) || [];
+}
+
+export async function requestReturnOrder(orderId, payload) {
+  const response = await axiosInstance.post(endpoints.orders.return(orderId), payload);
+  return response.data;
 }

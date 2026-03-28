@@ -230,6 +230,7 @@ export class OrderRepository extends TimeStampRepositoryMixin<
     processing: number;
     shipped: number;
     delivered: number;
+    returnRequested: number;
     cancelled: number;
     returned: number;
     refunded: number;
@@ -241,6 +242,7 @@ export class OrderRepository extends TimeStampRepositoryMixin<
       processing,
       shipped,
       delivered,
+      returnRequested,
       cancelled,
       returned,
       refunded,
@@ -251,6 +253,7 @@ export class OrderRepository extends TimeStampRepositoryMixin<
       this.count({status: 'processing', isDeleted: false}),
       this.count({status: 'shipped', isDeleted: false}),
       this.count({status: 'delivered', isDeleted: false}),
+      this.count({status: 'return_requested', isDeleted: false}),
       this.count({status: 'cancelled', isDeleted: false}),
       this.count({status: 'returned', isDeleted: false}),
       this.count({status: 'refunded', isDeleted: false}),
@@ -263,6 +266,7 @@ export class OrderRepository extends TimeStampRepositoryMixin<
       processing: processing.count,
       shipped: shipped.count,
       delivered: delivered.count,
+      returnRequested: returnRequested.count,
       cancelled: cancelled.count,
       returned: returned.count,
       refunded: refunded.count,

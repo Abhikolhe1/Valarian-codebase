@@ -106,6 +106,7 @@ export const endpoints = {
     user: (userId) => `/api/orders/user/${userId}`,
     details: (orderId) => `/api/orders/${orderId}`,
     tracking: (orderId) => `/api/orders/${orderId}/tracking`,
+    return: (orderId) => `/api/orders/${orderId}/return`,
   },
   payments: {
     verify: '/api/payments/verify',

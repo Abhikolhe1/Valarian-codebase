@@ -24,6 +24,7 @@ import EmptyContent from 'src/components/empty-content';
 import Iconify from 'src/components/iconify';
 import Label from 'src/components/label';
 import { useSettingsContext } from 'src/components/settings';
+import { getOrderDisplayColor, getOrderDisplayLabel } from 'src/utils/order-status';
 
 // ----------------------------------------------------------------------
 
@@ -161,25 +162,7 @@ export default function OrderHistoryView() {
 // ----------------------------------------------------------------------
 
 function OrderCard({ order, onViewOrder, onTrackOrder }) {
-  const { orderNumber, createdAt, status, total, items = [], subtotal, shipping, discount } = order;
-
-  const getStatusColor = (orderStatus) => {
-    switch (orderStatus) {
-      case 'completed':
-      case 'delivered':
-        return 'success';
-      case 'pending':
-      case 'processing':
-        return 'warning';
-      case 'cancelled':
-      case 'refunded':
-        return 'error';
-      case 'shipped':
-        return 'info';
-      default:
-        return 'default';
-    }
-  };
+  const { orderNumber, createdAt, status, returnStatus, total, items = [], subtotal, shipping, discount } = order;
 
   return (
     <Card>
@@ -203,8 +186,8 @@ function OrderCard({ order, onViewOrder, onTrackOrder }) {
                 </Typography>
               </Box>
 
-              <Label variant="soft" color={getStatusColor(status)}>
-                {status}
+              <Label variant="soft" color={getOrderDisplayColor(status, returnStatus)}>
+                {getOrderDisplayLabel(status, returnStatus)}
               </Label>
             </Stack>
           </Grid>
