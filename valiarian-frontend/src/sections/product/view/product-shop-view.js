@@ -213,22 +213,38 @@ export default function ProductShopView() {
     router.replace(buildShopUrl(filters.category, ''));
   }, [filters.category, router]);
 
+  const renderResults = (
+    <ProductFiltersResult
+      filters={filters}
+      searchQuery={activeSearchQuery}
+      onFilters={handleFilters}
+      onClearSearch={handleClearSearch}
+      //
+      canReset={canReset}
+      onResetFilters={handleResetFilters}
+      //
+      results={dataFiltered.length}
+      categories={categories}
+    />
+  );
   const renderFilters = (
     <Stack
       spacing={3}
       justifyContent="space-between"
       alignItems={{ xs: 'flex-end', sm: 'center' }}
-      direction={{ xs: 'column', sm: 'row' }}
+      direction="row"
     >
-      <ProductSearch
+      {/* <ProductSearch
         query={debouncedQuery}
         results={searchResults}
         onSearch={handleSearch}
         loading={searchLoading}
         hrefItem={(id) => paths.product.details(id)}
-      />
-
-      <Stack direction="row" spacing={1} flexShrink={0}>
+      /> */}
+      <Stack>
+        {canReset && renderResults}
+      </Stack>
+      <Stack direction="row" spacing={1} flexShrink={0} justifyContent="end">
         {/* <ProductFilters
           open={openFilters.value}
           onOpen={openFilters.onTrue}
@@ -251,26 +267,14 @@ export default function ProductShopView() {
     </Stack>
   );
 
-  const renderResults = (
-    <ProductFiltersResult
-      filters={filters}
-      searchQuery={activeSearchQuery}
-      onFilters={handleFilters}
-      onClearSearch={handleClearSearch}
-      //
-      canReset={canReset}
-      onResetFilters={handleResetFilters}
-      //
-      results={dataFiltered.length}
-      categories={categories}
-    />
-  );
+
 
   const renderTabs = (
     <Tabs
       value={filters.category}
       onChange={handleFilterCategory}
       sx={{
+        mt: 4,
         mb: { xs: 3, md: 5 },
       }}
     >
@@ -292,14 +296,14 @@ export default function ProductShopView() {
     >
       <CartIcon totalItems={checkout.totalItems} />
 
-      <Typography
+      {/* <Typography
         variant="h4"
         sx={{
           my: { xs: 3, md: 5 },
         }}
       >
         Shop
-      </Typography>
+      </Typography> */}
 
       {renderTabs}
 
@@ -311,7 +315,7 @@ export default function ProductShopView() {
       >
         {renderFilters}
 
-        {canReset && renderResults}
+        {/* {canReset && renderResults} */}
       </Stack>
 
       {(notFound || productsEmpty) && renderNotFound}
