@@ -52,7 +52,7 @@ export function useFooterNavigation() {
         headline: 'Valiarian',
         children: [
           { name: 'Products', href: paths.product.root },
-          { name: 'Our Story', href: paths.contact },
+          { name: 'Our Story', href: paths.about },
           { name: 'FAQs', href: paths.faqs },
         ],
       },

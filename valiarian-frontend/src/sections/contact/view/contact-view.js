@@ -81,7 +81,8 @@ export default function ContactView() {
 
       reset?.();
     } catch (error) {
-      enqueueSnackbar(error?.message || 'Unable to send your request right now.', {
+      const message = error?.response?.data?.error?.details?.[0]?.message;
+      enqueueSnackbar(message, {
         variant: 'error',
       });
     } finally {

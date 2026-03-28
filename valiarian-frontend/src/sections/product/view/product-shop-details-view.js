@@ -342,7 +342,7 @@ export default function ProductShopDetailsView() {
           },
           { name: product?.name },
         ]}
-        sx={{ mb: 5, mt: 0, pt: 0 }}
+        sx={{ mb: 5, mt: 5, pt: 0 }}
       />
 
       <Grid container spacing={{ xs: 3, md: 5, lg: 8 }}>

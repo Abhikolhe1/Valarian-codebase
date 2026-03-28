@@ -274,14 +274,14 @@ export default function ContactUsDetails({ currentUser, renderLabel = () => null
             </Typography>
           </Stack>
 
-          <Stack direction="row" spacing={0.5} alignItems="center" sx={{ mt: 1 }}>
+          {/* <Stack direction="row" spacing={0.5} alignItems="center" sx={{ mt: 1 }}>
             <Typography variant="h6">
               Issue Type:
             </Typography>
             <Typography variant="subtitle2">
               {submission.customIssueType || formatIssueTypeLabel(submission.issueType)}
             </Typography>
-          </Stack>
+          </Stack> */}
 
           <Typography variant="h6" >
             Description:

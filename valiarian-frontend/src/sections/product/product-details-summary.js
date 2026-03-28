@@ -89,16 +89,8 @@ export default function ProductDetailsSummary({
     if (variants && variants.length > 0) {
       const defaultVariant = variants.find((v) => v.isDefault) || variants[0];
       setSelectedVariant(defaultVariant);
-      if (onVariantChange) {
-        onVariantChange(defaultVariant);
-      }
-    } else {
-      setSelectedVariant(null);
-      if (onVariantChange) {
-        onVariantChange(null);
-      }
     }
-  }, [variants, onVariantChange]);
+  }, [variants]);
 
   // Get variant-specific values or fallback to product values
   const currentPrice = resolveEffectivePrice(selectedVariant);
