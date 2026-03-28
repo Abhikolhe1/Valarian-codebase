@@ -108,12 +108,12 @@ function ProductItem({ product }) {
         direction="row"
         alignItems="center"
         spacing={{ xs: 0.5, sm: 1 }}
-        sx={{
-          position: 'absolute',
-          zIndex: 9,
-          top: { xs: 8, sm: 16 },
-          right: { xs: 8, sm: 16 },
-        }}
+        // sx={{
+        //   position: 'absolute',
+        //   zIndex: 9,
+        //   top: { xs: 8, sm: 16 },
+        //   right: { xs: 8, sm: 16 },
+        // }}
       >
         {productView.hasNewLabel && (
           <Label
@@ -169,7 +169,7 @@ function ProductItem({ product }) {
         cursor: isMobile ? 'pointer' : 'default',
       }}
     >
-      {renderLabels}
+      {/* {renderLabels} */}
 
       <Box
         component={isMobile ? 'div' : RouterLink}
@@ -303,6 +303,9 @@ function ProductItem({ product }) {
           {product.name}
         </Link>
 
+        <Stack>
+        {renderLabels}
+        </Stack>
         <Stack spacing={0.5}>
           <Stack direction="row" alignItems="center" spacing={0.5} sx={{ typography: 'subtitle1' }}>
             <Box

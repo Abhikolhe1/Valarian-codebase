@@ -18,6 +18,7 @@ export interface ProductSearchOptions {
   isNewArrival?: boolean;
   isBestSeller?: boolean;
   isFeatured?: boolean;
+  saleOnly?: boolean;
   inStock?: boolean;
   categoryId?: string;
   tags?: string[];
@@ -186,6 +187,7 @@ export class ProductRepository extends TimeStampRepositoryMixin<
       isNewArrival,
       isBestSeller,
       isFeatured,
+      saleOnly,
       inStock,
       categoryId,
       tags,
@@ -213,6 +215,27 @@ export class ProductRepository extends TimeStampRepositoryMixin<
     if (isNewArrival !== undefined) andConditions.push({isNewArrival});
     if (isBestSeller !== undefined) andConditions.push({isBestSeller});
     if (isFeatured !== undefined) andConditions.push({isFeatured});
+    if (saleOnly) {
+      const now = new Date();
+
+      andConditions.push({
+        and: [
+          {salePrice: {gt: 0}},
+          {
+            or: [
+              {saleStartDate: null},
+              {saleStartDate: {lte: now}},
+            ],
+          },
+          {
+            or: [
+              {saleEndDate: null},
+              {saleEndDate: {gte: now}},
+            ],
+          },
+        ],
+      } as any);
+    }
     if (inStock !== undefined) andConditions.push({inStock});
     if (categoryId) {
       // Use the model's property name, LoopBack should map it to column name
