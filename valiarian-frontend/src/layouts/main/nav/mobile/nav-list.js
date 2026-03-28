@@ -2,8 +2,8 @@ import PropTypes from 'prop-types';
 // @mui
 import Collapse from '@mui/material/Collapse';
 import { listClasses } from '@mui/material/List';
-import { listItemTextClasses } from '@mui/material/ListItemText';
 import { listItemButtonClasses } from '@mui/material/ListItemButton';
+import { listItemTextClasses } from '@mui/material/ListItemText';
 // hooks
 import { useBoolean } from 'src/hooks/use-boolean';
 // components
@@ -17,7 +17,7 @@ import NavItem from './nav-item';
 export default function NavList({ item, onOpenCategories }) {
   const pathname = usePathname();
 
-  const { path, children, title } = item;
+  const { path, children, title, onClick } = item;
 
   const externalLink = path.includes('http');
 
@@ -26,6 +26,8 @@ export default function NavList({ item, onOpenCategories }) {
   const handleToggle = () => {
     if (title === 'Categories' && onOpenCategories) {
       onOpenCategories();
+    } else if (onClick && !children) {
+      onClick();
     } else {
       nav.onToggle();
     }
