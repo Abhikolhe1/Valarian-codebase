@@ -8,6 +8,11 @@ import Button from '@mui/material/Button';
 import Stack from '@mui/material/Stack';
 // components
 import Iconify from 'src/components/iconify';
+import Router from 'src/routes/sections';
+import { useRouter } from 'src/routes/hook';
+import { paths } from 'src/routes/paths';
+import { useTheme } from '@emotion/react';
+import { useMediaQuery } from '@mui/system';
 
 // ----------------------------------------------------------------------
 
@@ -24,15 +29,18 @@ export default function ProductFiltersResult({
   categories = [],
   ...other
 }) {
+  // const theme = useTheme();
+const isMobile = useMediaQuery((theme)=>theme.breakpoints.down('md'));
   const handleRemoveGender = (inputValue) => {
     const newValue = filters.gender.filter((item) => item !== inputValue);
     onFilters('gender', newValue);
   };
+  const router = useRouter();
 
   const handleRemoveCategory = () => {
     onFilters('category', 'products');
+    router.push(paths.product.root)
   };
-
   const handleRemoveColor = (inputValue) => {
     const newValue = filters.colors.filter((item) => item !== inputValue);
     onFilters('colors', newValue);
@@ -53,12 +61,12 @@ export default function ProductFiltersResult({
 
   return (
     <Stack spacing={1.5} {...other}>
-      <Box sx={{ typography: 'body2' }}>
+      { isMobile  && <Box sx={{ typography: 'body2' }}>
         <strong>{results}</strong>
         <Box component="span" sx={{ color: 'text.secondary', ml: 0.25 }}>
           results found
         </Box>
-      </Box>
+      </Box> }
 
       <Stack flexGrow={1} spacing={1} direction="row" flexWrap="wrap" alignItems="center">
         {!!searchQuery && (
@@ -125,7 +133,14 @@ export default function ProductFiltersResult({
             <Chip size="small" label={filters.rating} onDelete={handleRemoveRating} />
           </Block>
         )}
-
+        {(!isMobile) &&
+        <Box sx={{ typography: 'body2' }}>
+          <strong>{results}</strong>
+          <Box component="span" sx={{ color: 'text.secondary', ml: 0.25 }}>
+            results found
+          </Box>
+        </Box>
+        }
         {/* {canReset && (
           <Button
             color="error"

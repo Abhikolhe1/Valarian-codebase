@@ -337,7 +337,7 @@ export default function ProductShopDetailsView() {
         links={[
           { name: 'Home', href: '/' },
           {
-            name: 'Shop',
+            name: 'Products',
             href: paths.product.root,
           },
           { name: product?.name },

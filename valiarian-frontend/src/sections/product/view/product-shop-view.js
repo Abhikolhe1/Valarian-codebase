@@ -10,6 +10,8 @@ import Typography from '@mui/material/Typography';
 import { useBoolean } from 'src/hooks/use-boolean';
 import { useDebounce } from 'src/hooks/use-debounce';
 import { useRouter, useSearchParams } from 'src/routes/hook';
+import CustomBreadcrumbs from 'src/components/custom-breadcrumbs';
+
 // routes
 import { paths } from 'src/routes/paths';
 // utils
@@ -270,19 +272,31 @@ export default function ProductShopView() {
 
 
   const renderTabs = (
-    <Tabs
-      value={filters.category}
-      onChange={handleFilterCategory}
-      sx={{
-        mt: 4,
-        mb: { xs: 3, md: 5 },
-      }}
-    >
-      <Tab key="products" label="Products" value="products" />
-      {/* {categories.map((category) => (
-        <Tab key={category.id} label={category.name} value={category.id} />
-      ))} */}
-    </Tabs>
+
+       <CustomBreadcrumbs
+            links={[
+              { name: 'Home', href: '/' },
+              {
+                name: 'Products',
+                href: paths.product.root,
+              },
+              <Tabs
+              value={filters.category}
+              onChange={handleFilterCategory}
+              sx={{
+                mt: 4,
+                mb: { xs: 3, md: 5 },
+              }}
+            >
+              <Tab key="products" label="Products" value="products" />
+              {/* {categories.map((category) => (
+                <Tab key={category.id} label={category.name} value={category.id} />
+              ))} */}
+
+            </Tabs>
+            ]}
+            sx={{ mb: 1, mt: 5, pt: 0 }}
+          />
   );
 
   const renderNotFound = <EmptyContent filled title="No Data" sx={{ py: 10 }} />;

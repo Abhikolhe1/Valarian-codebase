@@ -306,6 +306,7 @@ export class PublicProductController {
     @param.query.number('offset') offset = 0,
   ): Promise<{products: Product[]; total: number}> {
     let resolvedCategoryId = categoryId;
+    const sortFilters = this.getProductSortFilters(sortBy);
 
     // Backward compatibility: if frontend sends a slug in categoryId, resolve it here.
     if (resolvedCategoryId && !isValidUuid(resolvedCategoryId)) {
@@ -335,6 +336,10 @@ export class PublicProductController {
     const result = await this.productRepository.searchProducts({
       search,
       status: 'published',
+      isNewArrival: sortFilters.isNewArrival,
+      isBestSeller: sortFilters.isBestSeller,
+      isFeatured: sortFilters.isFeatured,
+      saleOnly: sortFilters.saleOnly,
       inStock,
       minPrice,
       maxPrice,
@@ -350,8 +355,32 @@ export class PublicProductController {
     };
   }
 
+  private getProductSortFilters(sortBy?: string): {
+    isNewArrival?: boolean;
+    isBestSeller?: boolean;
+    isFeatured?: boolean;
+    saleOnly?: boolean;
+  } {
+    switch (sortBy) {
+      case 'featured':
+        return {isFeatured: true};
+      case 'newest':
+        return {isNewArrival: true};
+      case 'seller':
+        return {isBestSeller: true};
+      case 'sale':
+        return {saleOnly: true};
+      default:
+        return {};
+    }
+  }
+
   private getProductSortOrder(sortBy?: string): string[] {
     switch (sortBy) {
+      case 'seller':
+        return ['soldCount DESC', 'createdAt DESC'];
+      case 'sale':
+        return ['salePrice ASC', 'createdAt DESC'];
       case 'newest':
         return ['createdAt DESC'];
       case 'priceDesc':
@@ -360,7 +389,7 @@ export class PublicProductController {
         return ['price ASC', 'createdAt DESC'];
       case 'featured':
       default:
-        return ['soldCount DESC', 'createdAt DESC'];
+        return ['createdAt DESC'];
     }
   }
 
