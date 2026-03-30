@@ -146,11 +146,11 @@ export default function AddressFormDialog({
         </DialogContent>
 
         <DialogActions>
-          <Button color="inherit" variant="outlined" onClick={onClose}>
+          <Button  variant="outlined" color="secondary" onClick={onClose}>
             Cancel
           </Button>
 
-          <LoadingButton type="submit" variant="contained" loading={isSubmitting}>
+          <LoadingButton type="submit" variant="contained" color='secondary' loading={isSubmitting}>
             {submitLabel}
           </LoadingButton>
         </DialogActions>

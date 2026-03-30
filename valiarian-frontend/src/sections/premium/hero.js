@@ -1,5 +1,6 @@
 import { Box, Button, Chip, Container, Typography } from '@mui/material';
 import { keyframes, styled } from '@mui/material/styles';
+import { color } from '@mui/system';
 import Iconify from 'src/components/iconify';
 
 // Keyframe animations
@@ -111,8 +112,27 @@ const LiveChip = styled(Chip)(({ theme }) => ({
   boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
   animation: `${float} 3s ease-in-out infinite`,
   marginBottom: '20px',
+
+  '& .MuiChip-icon': {
+    color: '#000',
+  },
+
   '& .MuiChip-label': {
     padding: '0 12px',
+    color: '#d32f2f',
+  },
+
+  '&:hover': {
+    backgroundColor: theme.palette.secondary.main,
+    color: '#fff',
+  },
+
+  '&:hover .MuiChip-label': {
+    color: '#fff',
+  },
+
+  '&:hover .MuiChip-icon': {
+    color: '#fff',
   },
 }));
 
@@ -166,14 +186,14 @@ const SubtitleText = styled(Typography)({
   letterSpacing: '0.3px',
 });
 
-const ExploreButton = styled(Button)({
+const ExploreButton = styled(Button)(({theme}) => ({
   fontFamily: '"Lato", "Helvetica", sans-serif',
   fontSize: '0.95rem',
   fontWeight: 600,
   letterSpacing: '1px',
   textTransform: 'uppercase',
   padding: '16px 48px',
-  backgroundColor: '#2c3e50',
+  backgroundColor: theme.palette.secondary.main,
   color: '#ffffff',
   borderRadius: '4px',
   boxShadow: '0 8px 24px rgba(44, 62, 80, 0.3)',
@@ -192,7 +212,7 @@ const ExploreButton = styled(Button)({
     transition: 'left 0.5s',
   },
   '&:hover': {
-    backgroundColor: '#34495e',
+    backgroundColor: theme.palette.secondary.main,
     transform: 'translateY(-2px)',
     boxShadow: '0 12px 32px rgba(44, 62, 80, 0.4)',
     '&::before': {
@@ -202,7 +222,7 @@ const ExploreButton = styled(Button)({
   '&:active': {
     transform: 'translateY(0)',
   },
-});
+}));
 
 const DecorativeLine = styled(Box)({
   position: 'absolute',
@@ -260,7 +280,7 @@ const SignatureHero = () => (
         150 pieces available.
       </SubtitleText>
 
-      <ExploreButton variant="contained" disableElevation>
+      <ExploreButton variant="contained"  disableElevation>
         Explore Details
       </ExploreButton>
     </ContentWrapper>

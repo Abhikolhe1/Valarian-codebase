@@ -79,6 +79,7 @@ export default function UserAddressListView({ onAdd, onEdit }) {
       <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 3 }}>
         <Typography variant="h4">Manage Addresses</Typography>
         <Button
+        color='secondary'
           variant="contained"
           startIcon={<Iconify icon="mingcute:add-line" />}
           onClick={onAdd}
@@ -147,6 +148,7 @@ export default function UserAddressListView({ onAdd, onEdit }) {
                       )}
                       <Button
                         size="small"
+                        color='secondary'
                         variant="outlined"
                         startIcon={<Iconify icon="solar:pen-bold" />}
                         onClick={() => onEdit(address)}

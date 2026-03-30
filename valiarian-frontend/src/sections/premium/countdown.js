@@ -116,20 +116,20 @@ const SizeButton = styled(ToggleButton)({
   },
 });
 
-const PreorderButton = styled(Button)({
+const PreorderButton = styled(Button)(({theme})=>({
   fontFamily: '"Lato", "Helvetica", sans-serif',
   fontSize: '0.95rem',
   fontWeight: 600,
   letterSpacing: '0.5px',
   textTransform: 'capitalize',
   padding: '12px 40px',
-  backgroundColor: '#1a1a1a',
+  backgroundColor: theme.palette.secondary.main,
   color: '#ffffff',
   borderRadius: '30px',
   boxShadow: 'none',
   transition: 'all 0.3s ease',
   '&:hover': {
-    backgroundColor: '#2c2c2c',
+    backgroundColor: theme.palette.secondary.main,
     boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
     transform: 'translateY(-1px)',
   },
@@ -139,7 +139,7 @@ const PreorderButton = styled(Button)({
   '@media (max-width: 768px)': {
     width: '100%',
   },
-});
+}));
 
 const MainContent = styled(Box)(({ theme }) => ({
   display: 'flex',

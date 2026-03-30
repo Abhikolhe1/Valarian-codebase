@@ -560,6 +560,7 @@ export default function ProfileEditForm({
                   </LoadingButton>
                   <Button
                     fullWidth
+                    color='secondary'
                     variant="outlined"
                     onClick={() => setMobileVerificationStep(null)}
                   >
@@ -572,6 +573,7 @@ export default function ProfileEditForm({
             <Stack direction="row" spacing={2}>
               <LoadingButton
                 type="submit"
+                color='secondary'
                 variant="contained"
                 loading={isSubmitting}
                 sx={{ flex: 1 }}

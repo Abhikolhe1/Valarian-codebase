@@ -173,7 +173,7 @@ export default function ContactForm({
         </Stack>
 
         <m.div variants={varFade().inUp}>
-          <Button size="large" type="submit" variant="contained" disabled={isSubmitting}>
+          <Button size="large" type="submit" variant="contained" color='secondary' disabled={isSubmitting}>
             {isSubmitting ? 'Submitting...' : submitLabel}
           </Button>
         </m.div>

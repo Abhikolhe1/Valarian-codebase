@@ -314,6 +314,7 @@ function OrderCard({ order, onViewOrder, onTrackOrder }) {
             <Stack direction="row" spacing={2} justifyContent="flex-end">
               <Button
                 variant="outlined"
+                color='secondary'
                 startIcon={<Iconify icon="eva:eye-outline" />}
                 onClick={onViewOrder}
               >
@@ -321,6 +322,7 @@ function OrderCard({ order, onViewOrder, onTrackOrder }) {
               </Button>
               <Button
                 variant="contained"
+                color='secondary'
                 startIcon={<Iconify icon="eva:navigation-2-outline" />}
                 onClick={onTrackOrder}
               >

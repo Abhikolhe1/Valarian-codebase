@@ -16,7 +16,7 @@ export default function CheckoutBillingInfo({ billing, onBackStep }) {
       <CardHeader
         title="Address"
         action={
-          <Button size="small" startIcon={<Iconify icon="solar:pen-bold" />} onClick={onBackStep}>
+          <Button variant='outlined' color='secondary' size="small" startIcon={<Iconify icon="solar:pen-bold" />} onClick={onBackStep}>
             Edit
           </Button>
         }

@@ -172,6 +172,8 @@ export default function OrderTrackingView() {
     <Container maxWidth={settings.themeStretch ? false : 'lg'} sx={{ py: { xs: 5, md: 10 } }}>
       <Stack direction="row" alignItems="center" spacing={2} sx={{ mb: 5 }}>
         <Button
+        variant="outlined"
+        color='secondary'
           startIcon={<Iconify icon="eva:arrow-ios-back-fill" />}
           onClick={handleBackToOrders}
         >

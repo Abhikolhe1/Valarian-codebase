@@ -106,6 +106,7 @@ export default function FavoritesProductCard({ product, onRemove, onAddToCart })
 
           <Button
             variant="contained"
+            color='secondary'
             size="small"
             startIcon={<Iconify icon="eva:shopping-cart-fill" />}
             onClick={onAddToCart}

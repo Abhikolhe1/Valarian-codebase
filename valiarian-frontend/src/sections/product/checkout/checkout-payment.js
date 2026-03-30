@@ -477,7 +477,8 @@ export default function CheckoutPayment({ checkout, onBackStep, onGotoStep, onAp
 
             <Button
               size="small"
-              color="inherit"
+              variant='outlined'
+              color="secondary"
               onClick={onBackStep}
               startIcon={<Iconify icon="eva:arrow-ios-back-fill" />}
               sx={{ display: { xs: 'none', md: 'inline-flex' } }}
@@ -512,6 +513,7 @@ export default function CheckoutPayment({ checkout, onBackStep, onGotoStep, onAp
               size="large"
               type="submit"
               variant="contained"
+              color='secondary'
               loading={isSubmitting || isProcessingPayment || isLoadingScript}
               disabled={isSubmitting || isProcessingPayment}
             >

@@ -112,6 +112,7 @@ export default function UserProfileView() {
                 <Stack spacing={2}>
                   <Button
                     fullWidth
+                    color='secondary'
                     variant={viewMode === 'edit-profile' ? 'contained' : 'outlined'}
                     startIcon={<Iconify icon="solar:pen-bold" />}
                     onClick={handleEditToggle}
@@ -120,6 +121,7 @@ export default function UserProfileView() {
                   </Button>
                   <Button
                     fullWidth
+                    color='secondary'
                     variant={viewMode === 'address' ? 'contained' : 'outlined'}
                     startIcon={<Iconify icon="solar:map-point-wave-bold" />}
                     onClick={handleAddressToggle}
