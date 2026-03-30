@@ -15,8 +15,16 @@ import Typography from '@mui/material/Typography';
 
 // ----------------------------------------------------------------------
 
-export default function OtpVerificationModal({ open, onClose, mobile, sessionId, onVerified }) {
-  const [otp, setOtp] = useState(['', '', '', '', '', '']);
+export default function OtpVerificationModal({
+  open,
+  onClose,
+  mobile,
+  sessionId,
+  onVerified,
+  onResend,
+}) {
+  const OTP_LENGTH = 4;
+  const [otp, setOtp] = useState(Array(OTP_LENGTH).fill(''));
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [resendLoading, setResendLoading] = useState(false);
@@ -42,7 +50,7 @@ export default function OtpVerificationModal({ open, onClose, mobile, sessionId,
   // Reset state when modal opens
   useEffect(() => {
     if (open) {
-      setOtp(['', '', '', '', '', '']);
+      setOtp(Array(OTP_LENGTH).fill(''));
       setError('');
       setCountdown(60);
       setCanResend(false);
@@ -51,7 +59,7 @@ export default function OtpVerificationModal({ open, onClose, mobile, sessionId,
         inputRefs.current[0]?.focus();
       }, 100);
     }
-  }, [open]);
+  }, [open, OTP_LENGTH]);
 
   const handleChange = (index, value) => {
     // Only allow numbers
@@ -63,7 +71,7 @@ export default function OtpVerificationModal({ open, onClose, mobile, sessionId,
     setError('');
 
     // Auto-focus next input
-    if (value && index < 5) {
+    if (value && index < OTP_LENGTH - 1) {
       inputRefs.current[index + 1]?.focus();
     }
   };
@@ -77,12 +85,12 @@ export default function OtpVerificationModal({ open, onClose, mobile, sessionId,
 
   const handlePaste = (e) => {
     e.preventDefault();
-    const pastedData = e.clipboardData.getData('text').slice(0, 6);
+    const pastedData = e.clipboardData.getData('text').slice(0, OTP_LENGTH);
     if (/^\d+$/.test(pastedData)) {
-      const newOtp = pastedData.split('').concat(Array(6 - pastedData.length).fill(''));
+      const newOtp = pastedData.split('').concat(Array(OTP_LENGTH - pastedData.length).fill(''));
       setOtp(newOtp);
       // Focus last filled input or last input
-      const focusIndex = Math.min(pastedData.length, 5);
+      const focusIndex = Math.min(pastedData.length, OTP_LENGTH - 1);
       inputRefs.current[focusIndex]?.focus();
     }
   };
@@ -90,8 +98,8 @@ export default function OtpVerificationModal({ open, onClose, mobile, sessionId,
   const handleVerify = async () => {
     const otpString = otp.join('');
 
-    if (otpString.length !== 6) {
-      setError('Please enter all 6 digits');
+    if (otpString.length !== OTP_LENGTH) {
+      setError(`Please enter all ${OTP_LENGTH} digits`);
       return;
     }
 
@@ -103,7 +111,7 @@ export default function OtpVerificationModal({ open, onClose, mobile, sessionId,
       // Success - modal will be closed by parent
     } catch (err) {
       setError(err.message || 'Invalid OTP. Please try again.');
-      setOtp(['', '', '', '', '', '']);
+      setOtp(Array(OTP_LENGTH).fill(''));
       inputRefs.current[0]?.focus();
     } finally {
       setLoading(false);
@@ -115,26 +123,30 @@ export default function OtpVerificationModal({ open, onClose, mobile, sessionId,
     setError('');
 
     try {
-      const response = await fetch(`${process.env.REACT_APP_HOST_API}/api/auth/send-phone-otp`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          phone: mobile,
-        }),
-      });
+      if (onResend) {
+        await onResend();
+      } else {
+        const response = await fetch(`${process.env.REACT_APP_HOST_API}/api/auth/send-phone-otp`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            phone: mobile,
+          }),
+        });
 
-      const result = await response.json();
+        const result = await response.json();
 
-      if (!response.ok) {
-        throw new Error(result.message || 'Failed to resend OTP');
+        if (!response.ok) {
+          throw new Error(result.message || 'Failed to resend OTP');
+        }
       }
 
       // Reset countdown
       setCountdown(60);
       setCanResend(false);
-      setOtp(['', '', '', '', '', '']);
+      setOtp(Array(OTP_LENGTH).fill(''));
       inputRefs.current[0]?.focus();
     } catch (err) {
       setError(err.message || 'Failed to resend OTP');
@@ -153,7 +165,7 @@ export default function OtpVerificationModal({ open, onClose, mobile, sessionId,
       <DialogTitle>
         <Typography variant="h5">Verify Mobile Number</Typography>
         <Typography variant="body2" sx={{ color: 'text.secondary', mt: 1 }}>
-          Enter the 6-digit code sent to {mobile}
+          Enter the 4-digit code sent to {mobile}
         </Typography>
       </DialogTitle>
 
@@ -212,7 +224,7 @@ export default function OtpVerificationModal({ open, onClose, mobile, sessionId,
           variant="contained"
           onClick={handleVerify}
           loading={loading}
-          disabled={otp.join('').length !== 6}
+          disabled={otp.join('').length !== OTP_LENGTH}
         >
           Verify
         </LoadingButton>
@@ -225,6 +237,7 @@ OtpVerificationModal.propTypes = {
   open: PropTypes.bool.isRequired,
   onClose: PropTypes.func.isRequired,
   mobile: PropTypes.string,
+  onResend: PropTypes.func,
   sessionId: PropTypes.string,
   onVerified: PropTypes.func.isRequired,
 };
