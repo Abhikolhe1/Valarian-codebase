@@ -7,9 +7,10 @@ import { useSettingsContext } from 'src/components/settings';
 import { paths } from 'src/routes/paths';
 import ComingSoonEditForm from '../../cms-coming-soon-edit-form';
 
+
 export default function ComingSoonPageEditView() {
   const settings = useSettingsContext();
-  const { aboutPage, aboutPageLoading } = useGetAboutPage();
+  const { comingSoon, comingSoonLoading } = useGetAboutPage();
 
   return (
     <Container maxWidth={settings.themeStretch ? false : 'lg'}>
@@ -23,12 +24,12 @@ export default function ComingSoonPageEditView() {
         sx={{ mb: { xs: 3, md: 5 } }}
       />
 
-      {aboutPageLoading ? (
+      {comingSoonLoading ? (
         <Stack alignItems="center" justifyContent="center" sx={{ minHeight: 320 }}>
           <CircularProgress />
         </Stack>
       ) : (
-        <ComingSoonEditForm currentAboutPage={aboutPage} />
+        <ComingSoonEditForm currentData={comingSoon} />
       )}
     </Container>
   );

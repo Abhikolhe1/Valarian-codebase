@@ -401,7 +401,7 @@ function ProductItem({ product }) {
             <LoadingButton
               fullWidth
               variant="contained"
-              color="primary"
+              color="secondary"
               size="small"
               onClick={handleGoToCart}
               startIcon={<Iconify icon="solar:cart-check-bold" width={20} />}
@@ -412,7 +412,7 @@ function ProductItem({ product }) {
             <LoadingButton
               fullWidth
               variant="contained"
-              color="primary"
+              color="secondary"
               size="small"
               onClick={handleAddCart}
               disabled={isAddToCartDisabled}

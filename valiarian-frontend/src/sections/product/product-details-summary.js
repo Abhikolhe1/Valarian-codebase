@@ -607,8 +607,8 @@ export default function ProductDetailsSummary({
         <Button
           fullWidth
           size="large"
-          color="warning"
-          variant="contained"
+          color="secondary"
+          variant="outlined"
           startIcon={<Iconify icon="solar:cart-check-bold" width={24} />}
           onClick={handleGoToCart}
           sx={{ whiteSpace: 'nowrap' }}
@@ -620,8 +620,8 @@ export default function ProductDetailsSummary({
           fullWidth
           disabled={isMaxQuantity || disabledActions || !variantInStock || available < 1}
           size="large"
-          color="warning"
-          variant="contained"
+          color="secondary"
+          variant="outlined"
           startIcon={<Iconify icon="solar:cart-plus-bold" width={24} />}
           onClick={handleAddCart}
           sx={{ whiteSpace: 'nowrap' }}
