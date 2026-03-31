@@ -49,6 +49,7 @@ export default function ProfileEditForm({
   const [isVerifyingMobileOtp, setIsVerifyingMobileOtp] = useState(false);
   const [mobileOtpError, setMobileOtpError] = useState('');
   const [mobileOtp, setMobileOtp] = useState(['', '', '', '']);
+  const [isMobileChangeVerified, setIsMobileChangeVerified] = useState(true);
   const mobileOtpRefs = [useRef(null), useRef(null), useRef(null), useRef(null)];
 
   const displayUser = user;
@@ -85,6 +86,7 @@ export default function ProfileEditForm({
     const { value } = event.target;
     const sanitizedValue = value.replace(/[^0-9]/g, '').slice(0, 10);
     setValue('phone', sanitizedValue, { shouldValidate: true });
+    setIsMobileChangeVerified(sanitizedValue === (user.phone || ''));
   };
 
   // Email Verification Handlers
@@ -216,6 +218,7 @@ export default function ProfileEditForm({
       }
 
       setNewMobile(phoneValue);
+      setIsMobileChangeVerified(false);
       const response = await axiosInstance.post('/api/users/profile/mobile/send-otp', {
         newMobile: phoneValue,
       });
@@ -253,6 +256,7 @@ export default function ProfileEditForm({
     setMobileOtpError('');
     setMobileOtp(['', '', '', '']);
     setNewMobile('');
+    setIsMobileChangeVerified(phoneValue === (user.phone || ''));
   };
 
   const handleMobileOtpChange = (index, value) => {
@@ -309,6 +313,7 @@ export default function ProfileEditForm({
       const message = response.data.message || 'Mobile number verified successfully!';
 
       setMobileVerificationStep(null);
+      setIsMobileChangeVerified(true);
 
       // ✅ update form instantly
       setValue('phone', newMobile, { shouldValidate: true });
@@ -340,6 +345,17 @@ export default function ProfileEditForm({
     try {
       setErrorMsg('');
       setSuccessMsg('');
+
+      const currentPhone = user.phone || '';
+      const submittedPhone = data.phone || '';
+      const isPhoneChanged = submittedPhone !== currentPhone;
+
+      if (isPhoneChanged && !isMobileChangeVerified) {
+        const message = "You haven't verified the OTP yet for the new mobile number.";
+        setErrorMsg(message);
+        enqueueSnackbar(message, { variant: 'error' });
+        return;
+      }
 
       // Update profile data first
       await axiosInstance.patch('/api/users/profile', {
