@@ -18,7 +18,6 @@ import {
   getCart,
   gotoStep,
   increaseQuantity,
-  nextStep,
   resetCart,
   resetCheckoutFlow,
   startBuyNow,
@@ -61,6 +60,10 @@ export default function useCheckout() {
   const normalizeStep = useCallback(
     (step) => {
       const safeStep = Math.max(0, Math.min(step, PRODUCT_CHECKOUT_STEPS.length));
+
+      if (!authenticated) {
+        return Math.min(safeStep, 1);
+      }
 
       if (safeStep <= 1) {
         return safeStep;
@@ -210,9 +213,9 @@ export default function useCheckout() {
   const onCreateBilling = useCallback(
     (address) => {
       dispatch(createBilling(address));
-      dispatch(nextStep());
+      dispatch(gotoStep(normalizeStep(checkoutSession.activeStep + 1)));
     },
-    [dispatch]
+    [checkoutSession.activeStep, dispatch, normalizeStep]
   );
 
   const onResetBilling = useCallback(() => {

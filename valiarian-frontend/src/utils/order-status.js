@@ -47,6 +47,7 @@ export function getOrderStatusColor(status) {
     case 'return_completed':
     case 'delivered':
     case 'parcel_received':
+    case 'refunded':
       return 'success';
     case 'pending':
     case 'return_requested':
@@ -58,7 +59,6 @@ export function getOrderStatusColor(status) {
       return 'info';
     case 'return_rejected':
     case 'cancelled':
-    case 'refunded':
       return 'error';
     case 'returned':
       return 'default';

@@ -241,72 +241,48 @@ export class OrderController {
     };
   }
 
-  private async decrementOrderStock(orderItems: Array<any>) {
+  private async decrementOrderStock(
+    orderItems: Array<any>,
+    options?: {transaction?: any},
+  ) {
     for (const item of orderItems) {
-      const product = await this.productRepository.findById(item.productId);
-
       if (item.variantId) {
-        const variant = await this.productVariantRepository
-          .findById(item.variantId)
-          .catch(() => null);
-
-        if (variant) {
-          await this.productRepository.updateVariantStock(
-            item.productId,
-            item.variantId,
-            variant.stockQuantity - item.quantity,
-          );
-          continue;
-        }
-
-        if (Array.isArray(product.variants) && product.variants.length > 0) {
-          const updatedVariants = product.variants.map(productVariant => {
-            if (productVariant.id !== item.variantId) {
-              return productVariant;
-            }
-
-            const nextStock = Math.max(
-              0,
-              (productVariant.stockQuantity || 0) - item.quantity,
-            );
-
-            return {
-              ...productVariant,
-              stockQuantity: nextStock,
-              inStock: nextStock > 0,
-            };
-          });
-
-          const totalStock = updatedVariants.reduce(
-            (sum, productVariant) => sum + (productVariant.stockQuantity || 0),
-            0,
-          );
-
-          await this.productRepository.updateById(item.productId, {
-            variants: updatedVariants,
-            stockQuantity: totalStock,
-            inStock: totalStock > 0,
-            updatedAt: new Date(),
-          });
-          continue;
-        }
-
-        throw new HttpErrors.NotFound(
-          `Variant ${item.variantId} not found for product ${product.name}`,
-        );
-      } else {
-        await this.productRepository.updateStock(
+        const reserved = await this.productRepository.reserveVariantStockAtomic(
           item.productId,
-          product.stockQuantity - item.quantity,
+          item.variantId,
+          item.quantity,
+          options,
+        );
+
+        if (!reserved) {
+          throw new HttpErrors.BadRequest(
+            `Insufficient stock for ${item.name}. Another order may have just reserved it.`,
+          );
+        }
+        continue;
+      }
+
+      const reserved = await this.productRepository.reserveProductStockAtomic(
+        item.productId,
+        item.quantity,
+        options,
+      );
+
+      if (!reserved) {
+        throw new HttpErrors.BadRequest(
+          `Insufficient stock for ${item.name}. Another order may have just reserved it.`,
         );
       }
     }
   }
 
-  private async incrementOrderStock(orderItems: Array<any>) {
+  private async incrementOrderStock(
+    orderItems: Array<any>,
+    options?: {transaction?: any},
+  ) {
     for (const item of orderItems) {
       const product = await this.productRepository
-        .findById(item.productId)
+        .findById(item.productId, undefined, options)
         .catch(() => null);
 
       if (!product) {
@@ -317,16 +293,14 @@ export class OrderController {
       }
 
       if (item.variantId) {
-        const variant = await this.productVariantRepository
-          .findById(item.variantId)
-          .catch(() => null);
+        const restored = await this.productRepository.releaseVariantStockAtomic(
+          item.productId,
+          item.variantId,
+          item.quantity,
+          options,
+        );
 
-        if (variant) {
-          await this.productRepository.updateVariantStock(
-            item.productId,
-            item.variantId,
-            (variant.stockQuantity || 0) + item.quantity,
-          );
+        if (restored) {
           continue;
         }
 
@@ -357,12 +331,16 @@ export class OrderController {
               0,
             );
 
-            await this.productRepository.updateById(item.productId, {
-              variants: updatedVariants,
-              stockQuantity: totalStock,
-              inStock: totalStock > 0,
-              updatedAt: new Date(),
-            });
+            await this.productRepository.updateById(
+              item.productId,
+              {
+                variants: updatedVariants,
+                stockQuantity: totalStock,
+                inStock: totalStock > 0,
+                updatedAt: new Date(),
+              },
+              options,
+            );
             continue;
           }
         }
@@ -372,9 +350,10 @@ export class OrderController {
         );
       }
 
-      await this.productRepository.updateStock(
+      await this.productRepository.releaseProductStockAtomic(
         item.productId,
-        (product.stockQuantity || 0) + item.quantity,
+        item.quantity,
+        options,
       );
     }
   }
@@ -481,33 +460,63 @@ export class OrderController {
     const updatedDate = new Date().toLocaleDateString();
 
     return {
-      confirmed:
-        ['confirmed', 'processing', 'packed', 'shipped', 'delivered', 'return_requested', 'returned', 'refunded'].includes(
-          status,
-        )
-          ? order.createdAt?.toLocaleDateString() || updatedDate
-          : null,
-      processing: ['processing', 'packed', 'shipped', 'delivered', 'return_requested', 'returned', 'refunded'].includes(
-        status,
-      )
+      confirmed: [
+        'confirmed',
+        'processing',
+        'packed',
+        'shipped',
+        'delivered',
+        'return_requested',
+        'returned',
+        'refunded',
+      ].includes(status)
+        ? order.createdAt?.toLocaleDateString() || updatedDate
+        : null,
+      processing: [
+        'processing',
+        'packed',
+        'shipped',
+        'delivered',
+        'return_requested',
+        'returned',
+        'refunded',
+      ].includes(status)
         ? updatedDate
         : null,
-      packed: ['packed', 'shipped', 'delivered', 'return_requested', 'returned', 'refunded'].includes(
-        status,
-      )
+      packed: [
+        'packed',
+        'shipped',
+        'delivered',
+        'return_requested',
+        'returned',
+        'refunded',
+      ].includes(status)
         ? updatedDate
         : null,
-      shipped: ['shipped', 'delivered', 'return_requested', 'returned', 'refunded'].includes(status)
+      shipped: [
+        'shipped',
+        'delivered',
+        'return_requested',
+        'returned',
+        'refunded',
+      ].includes(status)
         ? updatedDate
         : null,
-      delivered: ['delivered', 'return_requested', 'returned', 'refunded'].includes(status)
+      delivered: [
+        'delivered',
+        'return_requested',
+        'returned',
+        'refunded',
+      ].includes(status)
         ? order.deliveredAt?.toLocaleDateString() || updatedDate
         : null,
     };
   }
 
   private isPrepaidOrder(order: Order): boolean {
-    return order.paymentMethod === 'razorpay' || order.paymentMethod === 'wallet';
+    return (
+      order.paymentMethod === 'razorpay' || order.paymentMethod === 'wallet'
+    );
   }
 
   private async sendAdminStatusUpdateEmail(
@@ -549,7 +558,10 @@ export class OrderController {
         {
           customerName,
           orderNumber: order.orderNumber,
-          trackingNumber: order.trackingNumber || request.trackingNumber || 'Will be shared soon',
+          trackingNumber:
+            order.trackingNumber ||
+            request.trackingNumber ||
+            'Will be shared soon',
           carrier: order.carrier || request.carrier || 'Our delivery partner',
           shippedDate: new Date().toLocaleDateString(),
           estimatedDelivery:
@@ -571,7 +583,9 @@ export class OrderController {
         {
           customerName,
           orderNumber: order.orderNumber,
-          deliveredDate: order.deliveredAt?.toLocaleDateString() || new Date().toLocaleDateString(),
+          deliveredDate:
+            order.deliveredAt?.toLocaleDateString() ||
+            new Date().toLocaleDateString(),
           deliveredTo: order.shippingAddress?.fullName || customerName,
           trackingNumber: order.trackingNumber,
           items,
@@ -618,7 +632,8 @@ export class OrderController {
           statusText: 'Returned',
           orderNumber: order.orderNumber,
           orderDate:
-            order.createdAt?.toLocaleDateString() || new Date().toLocaleDateString(),
+            order.createdAt?.toLocaleDateString() ||
+            new Date().toLocaleDateString(),
           total: formatCurrencyValue(order.total),
           comment:
             request.comment ||
@@ -838,31 +853,48 @@ export class OrderController {
     );
     let transactionCompleted = false;
 
+    const razorpayPayment = await this.razorpayService.fetchPayment(
+      normalizedRequest.razorpayPaymentId,
+    );
+    const isMatchingPayment =
+      razorpayPayment?.order_id === normalizedRequest.razorpayOrderId &&
+      razorpayPayment?.id === normalizedRequest.razorpayPaymentId;
+    const paymentGatewayStatus = String(
+      razorpayPayment?.status || '',
+    ).toLowerCase();
+    const isCapturedPayment =
+      isMatchingPayment && paymentGatewayStatus === 'captured';
+    const isPendingPayment =
+      isMatchingPayment &&
+      ['created', 'authorized', 'pending'].includes(paymentGatewayStatus);
+
+    const isValid = this.razorpayService.verifyPaymentSignature(
+      normalizedRequest.razorpayOrderId,
+      normalizedRequest.razorpayPaymentId,
+      normalizedRequest.razorpaySignature,
+    );
+    const order = await this.orderRepository.findById(
+      normalizedRequest.orderId,
+      undefined,
+      {transaction},
+    );
+    const payment = await this.paymentRepository.findOne(
+      {where: {orderId: normalizedRequest.orderId}},
+      {transaction},
+    );
+    if (!order) {
+      throw new HttpErrors.NotFound('Order not found');
+    }
+
+    if (order.userId !== userId) {
+      throw new HttpErrors.Forbidden('Access denied');
+    }
+
+    if (!payment) {
+      throw new HttpErrors.NotFound('Payment record not found for this order');
+    }
+
     try {
-      const order = await this.orderRepository.findById(
-        normalizedRequest.orderId,
-        undefined,
-        {transaction},
-      );
-      const payment = await this.paymentRepository.findOne(
-        {where: {orderId: normalizedRequest.orderId}},
-        {transaction},
-      );
-
-      if (!order) {
-        throw new HttpErrors.NotFound('Order not found');
-      }
-
-      if (order.userId !== userId) {
-        throw new HttpErrors.Forbidden('Access denied');
-      }
-
-      if (!payment) {
-        throw new HttpErrors.NotFound(
-          'Payment record not found for this order',
-        );
-      }
-
       if (
         payment.status === 'success' ||
         order.paymentStatus === 'success' ||
@@ -885,28 +917,6 @@ export class OrderController {
           invoice,
         };
       }
-
-      const isValid = this.razorpayService.verifyPaymentSignature(
-        normalizedRequest.razorpayOrderId,
-        normalizedRequest.razorpayPaymentId,
-        normalizedRequest.razorpaySignature,
-      );
-
-      const razorpayPayment = await this.razorpayService.fetchPayment(
-        normalizedRequest.razorpayPaymentId,
-      );
-
-      const isMatchingPayment =
-        razorpayPayment?.order_id === normalizedRequest.razorpayOrderId &&
-        razorpayPayment?.id === normalizedRequest.razorpayPaymentId;
-      const paymentGatewayStatus = String(
-        razorpayPayment?.status || '',
-      ).toLowerCase();
-      const isCapturedPayment =
-        isMatchingPayment && paymentGatewayStatus === 'captured';
-      const isPendingPayment =
-        isMatchingPayment &&
-        ['created', 'authorized', 'pending'].includes(paymentGatewayStatus);
 
       if (!isValid) {
         await this.paymentRepository.updateById(
@@ -935,6 +945,7 @@ export class OrderController {
           'failed',
           userId,
           'Payment signature verification failed',
+          {transaction},
         );
 
         await transaction.commit();
@@ -971,6 +982,7 @@ export class OrderController {
           'pending',
           userId,
           `Payment is ${paymentGatewayStatus} in Razorpay and awaiting capture confirmation`,
+          {transaction},
         );
 
         await transaction.commit();
@@ -1012,6 +1024,7 @@ export class OrderController {
           'failed',
           userId,
           `Unexpected Razorpay payment status: ${paymentGatewayStatus || 'unknown'}`,
+          {transaction},
         );
 
         await transaction.commit();
@@ -1030,6 +1043,8 @@ export class OrderController {
         {transaction},
       );
 
+      await this.decrementOrderStock(order.items, {transaction});
+
       await this.orderRepository.updateById(
         order.id,
         {
@@ -1047,14 +1062,13 @@ export class OrderController {
         'confirmed',
         userId,
         'Payment verified and order confirmed',
+        {transaction},
       );
 
       await transaction.commit();
       transactionCompleted = true;
 
       const updatedOrder = await this.orderRepository.findById(order.id);
-
-      await this.decrementOrderStock(order.items);
 
       const invoice = await this.createInvoiceRecordSafely(updatedOrder);
       await this.sendOrderConfirmationEmail(updatedOrder, currentUser);
@@ -1071,6 +1085,77 @@ export class OrderController {
       if (!transactionCompleted) {
         await transaction.rollback();
       }
+
+      console.error('error during order id', order?.id);
+      console.error('in catch block Error during payment isValid:', isValid);
+      console.error(
+        'in catch block Error during payment isPendingPayment:',
+        isPendingPayment,
+      );
+      console.error(
+        'in catch block Error during payment isCapturedPayment:',
+        isCapturedPayment,
+      );
+
+      if (!isValid) {
+        await this.paymentRepository.updateById(payment.id, {
+          status: 'failed',
+          razorpayPaymentId: normalizedRequest.razorpayPaymentId,
+          razorpaySignature: normalizedRequest.razorpaySignature,
+        });
+        throw new HttpErrors.BadRequest('Invalid payment signature');
+      }
+
+      if (isPendingPayment) {
+        await this.paymentRepository.updateById(payment.id, {
+          status: 'pending',
+          razorpayOrderId: normalizedRequest.razorpayOrderId,
+          razorpayPaymentId: normalizedRequest.razorpayPaymentId,
+          razorpaySignature: normalizedRequest.razorpaySignature,
+        });
+
+        return {
+          success: true,
+          verified: false,
+          status: 'pending',
+          order: await this.getOrderWithRelations(order.id),
+          invoice: null,
+        };
+      }
+
+      if (!isCapturedPayment) {
+        await this.paymentRepository.updateById(payment.id, {
+          status: 'failed',
+          razorpayPaymentId: normalizedRequest.razorpayPaymentId,
+          razorpaySignature: normalizedRequest.razorpaySignature,
+        });
+
+        throw new HttpErrors.BadRequest('Payment is not captured by Razorpay');
+      }
+
+      await this.paymentRepository.updateById(payment.id, {
+        status: 'success',
+        razorpayOrderId: normalizedRequest.razorpayOrderId,
+        razorpayPaymentId: normalizedRequest.razorpayPaymentId,
+        razorpaySignature: normalizedRequest.razorpaySignature,
+      });
+
+      await this.orderRepository.updateById(order.id, {
+        status: 'pending',
+        paymentStatus: 'success',
+        razorpayOrderId: normalizedRequest.razorpayOrderId,
+        razorpayPaymentId: normalizedRequest.razorpayPaymentId,
+        razorpaySignature: normalizedRequest.razorpaySignature,
+        updatedAt: new Date(),
+      });
+
+      await this.orderStatusHistoryRepository.createStatusEntry(
+        order.id,
+        'pending',
+        userId,
+        'Payment captured successfully, but stock reservation failed. Refund review required.',
+      );
+
       throw error;
     }
   }
@@ -1258,6 +1343,8 @@ export class OrderController {
     keyId?: string;
     invoice: any;
   }> {
+    let transaction: any;
+    let transactionCompleted = false;
     try {
       const userId = currentUser.id;
       const {orderItems, subtotal, discount, shipping, tax, total} =
@@ -1303,47 +1390,58 @@ export class OrderController {
         razorpayOrderId = razorpayOrder.id;
       }
 
-      const order = await this.orderRepository.create({
-        id: uuidv4(),
-        orderNumber,
-        userId,
-        status,
-        paymentStatus,
-        paymentMethod: request.paymentMethod,
-        razorpayOrderId,
-        razorpayPaymentId,
-        razorpaySignature,
-        subtotal,
-        discount,
-        shipping,
-        tax,
-        total,
-        totalAmount: total,
-        currency: 'INR',
-        billingAddress: request.billingAddress,
-        shippingAddress: request.shippingAddress,
-        items: orderItems,
-        isDeleted: false,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      });
+      transaction = await this.dataSource.beginTransaction(
+        IsolationLevel.READ_COMMITTED,
+      );
+
+      const order = await this.orderRepository.create(
+        {
+          id: uuidv4(),
+          orderNumber,
+          userId,
+          status,
+          paymentStatus,
+          paymentMethod: request.paymentMethod,
+          razorpayOrderId,
+          razorpayPaymentId,
+          razorpaySignature,
+          subtotal,
+          discount,
+          shipping,
+          tax,
+          total,
+          totalAmount: total,
+          currency: 'INR',
+          billingAddress: request.billingAddress,
+          shippingAddress: request.shippingAddress,
+          items: orderItems,
+          isDeleted: false,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+        {transaction},
+      );
 
       await this.orderItemRepository.createAll(
         this.buildOrderItemEntities(order.id, orderItems),
+        {transaction},
       );
 
       let paymentRecord: Payment | null = null;
 
       if (request.paymentMethod === 'razorpay') {
-        paymentRecord = await this.paymentRepository.create({
-          orderId: order.id,
-          razorpayOrderId,
-          razorpayPaymentId,
-          razorpaySignature,
-          amount: total,
-          status: request.paymentDetails ? 'success' : 'created',
-          method: 'razorpay',
-        });
+        paymentRecord = await this.paymentRepository.create(
+          {
+            orderId: order.id,
+            razorpayOrderId,
+            razorpayPaymentId,
+            razorpaySignature,
+            amount: total,
+            status: request.paymentDetails ? 'success' : 'created',
+            method: 'razorpay',
+          },
+          {transaction},
+        );
       }
 
       await this.orderStatusHistoryRepository.createStatusEntry(
@@ -1355,6 +1453,7 @@ export class OrderController {
           : request.paymentMethod === 'cod'
             ? 'COD order created and confirmed'
             : 'Order created and payment initialized',
+        {transaction},
       );
 
       let invoice: Invoice | ReturnType<typeof buildInvoiceFromOrder> =
@@ -1371,7 +1470,13 @@ export class OrderController {
             status: order.status,
           },
         );
-        await this.decrementOrderStock(order.items);
+        await this.decrementOrderStock(order.items, {transaction});
+      }
+
+      await transaction.commit();
+      transactionCompleted = true;
+
+      if (order.status === 'confirmed') {
         if (request.paymentMethod === 'razorpay') {
           invoice = await this.createInvoiceRecord(order);
         }
@@ -1415,6 +1520,9 @@ export class OrderController {
         invoice,
       };
     } catch (error) {
+      if (transaction && !transactionCompleted) {
+        await transaction.rollback();
+      }
       console.error('Error creating order:', error);
       if (error instanceof HttpErrors.HttpError) {
         throw error;
@@ -1741,7 +1849,9 @@ export class OrderController {
         }
       }
 
-      await this.incrementOrderStock(order.items);
+      if (order.status === 'confirmed') {
+        await this.incrementOrderStock(order.items);
+      }
 
       try {
         const emailHtml = await this.emailTemplateService.renderTemplate(
@@ -1828,7 +1938,9 @@ export class OrderController {
       }
 
       if (order.returnStatus) {
-        throw new HttpErrors.BadRequest('A return request already exists for this order');
+        throw new HttpErrors.BadRequest(
+          'A return request already exists for this order',
+        );
       }
 
       const reason = request.reason?.trim();
@@ -1855,7 +1967,9 @@ export class OrderController {
       }
 
       if (additionalImages.length > 5) {
-        throw new HttpErrors.BadRequest('You can upload up to 5 additional images only');
+        throw new HttpErrors.BadRequest(
+          'You can upload up to 5 additional images only',
+        );
       }
 
       if (!order.deliveredAt) {
@@ -2011,10 +2125,12 @@ export class OrderController {
         'parcel_received',
       ];
       const countResults = await Promise.all(
-        statuses.map((orderStatus) =>
+        statuses.map(orderStatus =>
           this.orderRepository.count({
             isDeleted: false,
-            ...(paymentStatus ? {paymentStatus: paymentStatus as Order['paymentStatus']} : {}),
+            ...(paymentStatus
+              ? {paymentStatus: paymentStatus as Order['paymentStatus']}
+              : {}),
             ...(search
               ? {or: [{orderNumber: {like: `%${search}%`, options: 'i'}}]}
               : {}),
@@ -2030,10 +2146,13 @@ export class OrderController {
         orders,
         counts: {
           all: total.count,
-          ...statuses.reduce<Record<string, number>>((acc, orderStatus, index) => {
-            acc[orderStatus] = countResults[index].count;
-            return acc;
-          }, {}),
+          ...statuses.reduce<Record<string, number>>(
+            (acc, orderStatus, index) => {
+              acc[orderStatus] = countResults[index].count;
+              return acc;
+            },
+            {},
+          ),
         },
         pagination: {
           total: total.count,
@@ -2280,6 +2399,14 @@ export class OrderController {
       console.log(`[Admin] Updating order with data:`, updateData);
 
       await this.orderRepository.updateById(order.id, updateData);
+      if (
+        statusChanged &&
+        request.status === 'cancelled' &&
+        order.status !== 'pending'
+      ) {
+        await this.incrementOrderStock(order.items);
+        console.log(`[Admin] Stock restored for cancelled order`);
+      }
       if (statusChanged && request.status === 'parcel_received') {
         await this.incrementOrderStock(order.items);
         console.log(`[Admin] Stock restored for received parcel`);
@@ -2373,7 +2500,9 @@ export class OrderController {
         status: request.action === 'reject' ? 'delivered' : order.status,
         returnStatus: newReturnStatus,
         returnApprovedAt:
-          request.action === 'approve' ? order.returnApprovedAt || new Date() : undefined,
+          request.action === 'approve'
+            ? order.returnApprovedAt || new Date()
+            : undefined,
         refundMethod:
           request.action === 'approve'
             ? this.isPrepaidOrder(order)
@@ -2486,7 +2615,9 @@ export class OrderController {
         throw new HttpErrors.NotFound('Order not found');
       }
 
-      if (!['cancelled', 'returned', 'parcel_received'].includes(order.status)) {
+      if (
+        !['cancelled', 'returned', 'parcel_received'].includes(order.status)
+      ) {
         throw new HttpErrors.BadRequest(
           'Refund can only be initiated for cancelled prepaid orders or after the return is marked returned',
         );
@@ -2505,7 +2636,8 @@ export class OrderController {
       const effectiveDeliveryChargeDeductionAmount = deductDeliveryCharge
         ? deliveryChargeDeductionAmount
         : 0;
-      const refundableTotal = order.total - effectiveDeliveryChargeDeductionAmount;
+      const refundableTotal =
+        order.total - effectiveDeliveryChargeDeductionAmount;
 
       if (deliveryChargeDeductionAmount < 0) {
         throw new HttpErrors.BadRequest(
@@ -2550,9 +2682,8 @@ export class OrderController {
             reason: request.reason,
             orderId: order.id,
             deductDeliveryCharge: String(deductDeliveryCharge),
-            deliveryChargeDeductionAmount: effectiveDeliveryChargeDeductionAmount.toFixed(
-              2,
-            ),
+            deliveryChargeDeductionAmount:
+              effectiveDeliveryChargeDeductionAmount.toFixed(2),
           },
         );
         refundId = refund.id;
@@ -2750,17 +2881,30 @@ export class OrderController {
   }
 
   private async handlePaymentCaptured(payload: any): Promise<void> {
+    let transaction: any;
+    let transactionCompleted = false;
     try {
       const payment = payload.payment.entity;
       const razorpayOrderId = payment.order_id;
 
-      const order =
-        await this.orderRepository.findByRazorpayOrderId(razorpayOrderId);
+      transaction = await this.dataSource.beginTransaction(
+        IsolationLevel.READ_COMMITTED,
+      );
+
+      const orders = await this.orderRepository.find(
+        {
+          where: {razorpayOrderId, isDeleted: false},
+          limit: 1,
+        },
+        {transaction},
+      );
+      const order = orders[0];
 
       if (!order) {
         console.error(
           `Order not found for Razorpay order ID: ${razorpayOrderId}`,
         );
+        await transaction.rollback();
         return;
       }
 
@@ -2774,19 +2918,46 @@ export class OrderController {
             paymentId: payment.id,
           },
         );
-        await this.orderRepository.updateById(order.id, {
-          status: 'confirmed',
-          paymentStatus: 'paid',
-          razorpayPaymentId: payment.id,
-          updatedAt: new Date(),
-        });
+        const paymentRecord = await this.paymentRepository.findOne(
+          {where: {orderId: order.id}},
+          {transaction},
+        );
+
+        if (paymentRecord) {
+          await this.paymentRepository.updateById(
+            paymentRecord.id,
+            {
+              status: 'success',
+              razorpayOrderId,
+              razorpayPaymentId: payment.id,
+            },
+            {transaction},
+          );
+        }
+
+        await this.decrementOrderStock(order.items, {transaction});
+
+        await this.orderRepository.updateById(
+          order.id,
+          {
+            status: 'confirmed',
+            paymentStatus: 'paid',
+            razorpayPaymentId: payment.id,
+            updatedAt: new Date(),
+          },
+          {transaction},
+        );
 
         await this.orderStatusHistoryRepository.createStatusEntry(
           order.id,
           'confirmed',
           order.userId,
           'Payment captured via webhook',
+          {transaction},
         );
+
+        await transaction.commit();
+        transactionCompleted = true;
 
         const updatedOrder = await this.orderRepository.findById(order.id);
 
@@ -2831,8 +3002,15 @@ export class OrderController {
         }
 
         await this.sendAdminOrderNotificationEmail(updatedOrder);
+        return;
       }
+
+      await transaction.commit();
+      transactionCompleted = true;
     } catch (error) {
+      if (transaction && !transactionCompleted) {
+        await transaction.rollback();
+      }
       console.error('Error handling payment.captured:', error);
     }
   }

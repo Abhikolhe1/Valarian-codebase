@@ -24,6 +24,7 @@ import {InvoiceGeneratorService} from './services/invoice-generator.service';
 import {JWTService} from './services/jwt-service';
 import {MediaService} from './services/media.service';
 import {OtpNotificationService} from './services/otp-notification.service';
+import {PendingOrderCleanupService} from './services/pending-order-cleanup.service';
 import {RateLimiterService} from './services/rate-limiter.service';
 import {RazorpayService} from './services/razorpay.service';
 import {RbacService} from './services/rbac.service';
@@ -61,6 +62,7 @@ export class ValiarianBackendApplication extends BootMixin(
     this.component(RestExplorerComponent);
     this.configureFileUpload(options.fileStorageDirectory);
     registerAuthenticationStrategy(this, JWTStrategy);
+    this.lifeCycleObserver(PendingOrderCleanupService);
 
     this.projectRoot = __dirname;
     // Customize @loopback/boot Booter Conventions here
@@ -97,6 +99,18 @@ export class ValiarianBackendApplication extends BootMixin(
     this.bind('services.email.template').toClass(EmailTemplateService);
     this.bind('services.invoice.generator').toClass(InvoiceGeneratorService);
     this.bind('services.otp.notification').toClass(OtpNotificationService);
+
+    if (process.env.PENDING_ORDER_CLEANUP_HOURS !== undefined) {
+      this.bind('services.pending.order.cleanup.hours').to(
+        Number(process.env.PENDING_ORDER_CLEANUP_HOURS),
+      );
+    }
+
+    if (process.env.PENDING_ORDER_CLEANUP_INTERVAL_MS !== undefined) {
+      this.bind('services.pending.order.cleanup.interval.ms').to(
+        Number(process.env.PENDING_ORDER_CLEANUP_INTERVAL_MS),
+      );
+    }
   }
 
   protected configureFileUpload(destination?: string) {

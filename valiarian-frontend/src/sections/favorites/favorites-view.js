@@ -48,7 +48,7 @@ export default function FavoritesView() {
   // Load favorites from backend
   useEffect(() => {
     const loadFavoritesData = async () => {
-      if (!authenticated || !user) return;
+      if (!authenticated || !user?.id) return;
 
       try {
         setLoading(true);
@@ -69,7 +69,7 @@ export default function FavoritesView() {
     };
 
     loadFavoritesData();
-  }, [authenticated, user, dispatch]);
+  }, [authenticated, user?.id, dispatch]);
 
   const handleRemoveFavorite = async (productId) => {
     const previousFavorites = favorites;
