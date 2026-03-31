@@ -17,6 +17,8 @@ interface UpdateCartItemRequest {
   quantity: number;
 }
 
+const MAX_CART_ITEM_QUANTITY = 10;
+
 export class CartController {
   constructor(
     @repository(CartsRepository)
@@ -137,6 +139,16 @@ export class CartController {
 
       const {productId, variantId, quantity} = request;
 
+      if (quantity < 1) {
+        throw new HttpErrors.BadRequest('Quantity must be at least 1');
+      }
+
+      if (quantity > MAX_CART_ITEM_QUANTITY) {
+        throw new HttpErrors.BadRequest(
+          `You can add a maximum of ${MAX_CART_ITEM_QUANTITY} quantity for a single variant.`,
+        );
+      }
+
       const product = await this.productsRepository.findById(productId);
       if (!product) {
         throw new HttpErrors.NotFound('Product not found');
@@ -164,8 +176,16 @@ export class CartController {
 
       let cartItem;
       if (existingItem) {
+        const nextQuantity = existingItem.quantity + quantity;
+
+        if (nextQuantity > MAX_CART_ITEM_QUANTITY) {
+          throw new HttpErrors.BadRequest(
+            `You can add a maximum of ${MAX_CART_ITEM_QUANTITY} quantity for a single variant.`,
+          );
+        }
+
         await this.cartItemsRepository.updateById(existingItem.id, {
-          quantity: existingItem.quantity + quantity,
+          quantity: nextQuantity,
         });
         cartItem = await this.cartItemsRepository.findById(existingItem.id);
       } else {
@@ -219,6 +239,12 @@ export class CartController {
 
       if (quantity < 1) {
         throw new HttpErrors.BadRequest('Quantity must be at least 1');
+      }
+
+      if (quantity > MAX_CART_ITEM_QUANTITY) {
+        throw new HttpErrors.BadRequest(
+          `You can add a maximum of ${MAX_CART_ITEM_QUANTITY} quantity for a single variant.`,
+        );
       }
 
       const cartItem = await this.cartItemsRepository.findById(itemId);

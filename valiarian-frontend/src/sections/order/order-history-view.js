@@ -238,7 +238,9 @@ function OrderCard({ order, onViewOrder, onTrackOrder }) {
             </Typography>
             <Stack spacing={2} sx={{ mt: 2 }}>
               {items.slice(0, 3).map((item, index) => {
-                const productHref = paths.product.details(item.slug || item.productId || item.id);
+                const productHref = `${paths.product.details(item.slug || item.productId || item.id)}${
+                  item.variantId ? `?variantId=${encodeURIComponent(item.variantId)}` : ''
+                }`;
 
                 return (
                   <Stack key={index} direction="row" spacing={2} alignItems="center">

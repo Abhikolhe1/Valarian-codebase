@@ -14,6 +14,7 @@ import { RouterLink } from 'src/routes/components';
 import { paths } from 'src/routes/paths';
 // utils
 import { fCurrency } from 'src/utils/format-number';
+import { MAX_CART_ITEM_QUANTITY } from 'src/utils/cart-utils';
 // components
 import Label from 'src/components/label';
 import Iconify from 'src/components/iconify';
@@ -25,8 +26,11 @@ import IncrementerButton from '../common/incrementer-button';
 
 export default function CheckoutCartProduct({ row, onDelete, onDecrease, onIncrease }) {
   const { name, size, price, colors, coverUrl, quantity, available, slug, productId, id } = row;
-  const productHref = slug ? paths.product.details(slug) : paths.product.details(productId || id);
+  const productHref = `${
+    slug ? paths.product.details(slug) : paths.product.details(productId || id)
+  }${row.variantId ? `?variantId=${encodeURIComponent(row.variantId)}` : ''}`;
   const isOutOfStock = Number(available || 0) <= 0;
+  const maxAllowedQuantity = Math.min(Number(available || 0), MAX_CART_ITEM_QUANTITY);
 
   return (
     <TableRow>
@@ -67,7 +71,7 @@ export default function CheckoutCartProduct({ row, onDelete, onDecrease, onIncre
             onDecrease={onDecrease}
             onIncrease={onIncrease}
             disabledDecrease={isOutOfStock || quantity <= 1}
-            disabledIncrease={isOutOfStock || quantity >= available}
+            disabledIncrease={isOutOfStock || quantity >= maxAllowedQuantity}
           />
 
           <Typography variant="caption" component="div" sx={{ color: 'text.secondary', mt: 1 }}>

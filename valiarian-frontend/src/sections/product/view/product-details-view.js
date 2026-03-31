@@ -13,7 +13,7 @@ import Grid from '@mui/material/Unstable_Grid2';
 import { PRODUCT_PUBLISH_OPTIONS } from 'src/_mock';
 // routes
 import { RouterLink } from 'src/routes/components';
-import { useParams } from 'src/routes/hook';
+import { useParams, useSearchParams } from 'src/routes/hook';
 import { paths } from 'src/routes/paths';
 // api
 import { useGetProduct } from 'src/api/product';
@@ -54,8 +54,10 @@ const SUMMARY = [
 
 export default function ProductDetailsView() {
   const params = useParams();
+  const searchParams = useSearchParams();
 
   const { id } = params;
+  const initialVariantId = searchParams.get('variantId') || '';
 
   const { product, productLoading, productError } = useGetProduct(`${id}`);
   console.log("product",product);
@@ -129,6 +131,7 @@ export default function ProductDetailsView() {
             disabledActions
             product={product}
             cart={checkout.cart}
+            initialVariantId={initialVariantId}
             onAddCart={onAddCart}
             onBuyNow={onBuyNow}
             onGotoStep={onGotoStep}

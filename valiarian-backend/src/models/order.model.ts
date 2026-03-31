@@ -18,6 +18,7 @@ export interface OrderItem {
   name: string;
   image: string;
   sku: string;
+  slug?: string;
   variantId?: string;
   color?: string;
   colorName?: string;

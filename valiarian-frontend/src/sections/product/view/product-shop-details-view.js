@@ -10,7 +10,7 @@ import Typography from '@mui/material/Typography';
 import Grid from '@mui/material/Unstable_Grid2';
 // routes
 import { useGetProduct } from 'src/api/product';
-import { useParams } from 'src/routes/hook';
+import { useParams, useSearchParams } from 'src/routes/hook';
 import { paths } from 'src/routes/paths';
 // components
 import CustomBreadcrumbs from 'src/components/custom-breadcrumbs';
@@ -298,8 +298,10 @@ const getDummyProductById = (productId) => {
 
 export default function ProductShopDetailsView() {
   const params = useParams();
+  const searchParams = useSearchParams();
 
   const { id } = params;
+  const initialVariantId = searchParams.get('variantId') || '';
 
   const settings = useSettingsContext();
 
@@ -328,7 +330,6 @@ export default function ProductShopDetailsView() {
     setSelectedVariant(variant);
   }, []);
 
-
   const renderSkeleton = <ProductDetailsSkeleton />;
 
   const renderProduct = product && (
@@ -342,7 +343,7 @@ export default function ProductShopDetailsView() {
           },
           { name: product?.name },
         ]}
-        sx={{ mb: 5, mt: 0, pt: 0 }}
+        sx={{ my: 5, pt: 0 }}
       />
 
       <Grid container spacing={{ xs: 3, md: 5, lg: 8 }}>
@@ -354,6 +355,7 @@ export default function ProductShopDetailsView() {
           <ProductDetailsSummary
             product={product}
             cart={checkout.cart}
+            initialVariantId={initialVariantId}
             onAddCart={onAddCart}
             onBuyNow={onBuyNow}
             onGotoStep={onGotoStep}
@@ -409,11 +411,9 @@ export default function ProductShopDetailsView() {
             <Tab key={tab.value} value={tab.value} label={tab.label} />
           ))}
         </Tabs>
-
         {currentTab === 'description' && (
           <ProductDetailsDescription description={product?.description} />
         )}
-
         {currentTab === 'reviews' && <ProductDetailsReview productId={apiProduct?.id} />}
       </Card>
     </>

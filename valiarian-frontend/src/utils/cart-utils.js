@@ -1,4 +1,5 @@
 const DEFAULT_CART_IMAGE = '/assets/placeholder.svg';
+export const MAX_CART_ITEM_QUANTITY = 10;
 const roundCurrency = (value) => Number(Number(value || 0).toFixed(2));
 
 export const getCartItemProductId = (item) => item?.productId || item?.id || item?.product?.id || null;
@@ -48,12 +49,13 @@ export const isCartItemMatch = (item, identifier) =>
 export const clampCartQuantity = (quantity, available) => {
   const parsedQuantity = Math.max(1, Number(quantity || 1));
   const parsedAvailable = Number(available);
+  const cappedQuantity = Math.min(parsedQuantity, MAX_CART_ITEM_QUANTITY);
 
   if (!Number.isFinite(parsedAvailable) || parsedAvailable <= 0) {
-    return parsedQuantity;
+    return cappedQuantity;
   }
 
-  return Math.min(parsedQuantity, parsedAvailable);
+  return Math.min(cappedQuantity, parsedAvailable);
 };
 
 export const isCartItemPurchasable = (item) =>
@@ -87,8 +89,9 @@ export const normalizeCartItem = (input) => {
     input.coverUrl ||
     input.image ||
     input.coverImage ||
-    product.coverImage ||
+    variant.images?.[0] ||
     product.images?.[0] ||
+    product.coverImage ||
     DEFAULT_CART_IMAGE;
 
   const normalizedItem = {

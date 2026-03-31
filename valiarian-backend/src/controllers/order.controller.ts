@@ -46,6 +46,7 @@ const normalizeNumericValue = (value: unknown): number => {
 
 const formatCurrencyValue = (value: unknown): string =>
   normalizeNumericValue(value).toFixed(2);
+const MAX_ORDER_ITEM_QUANTITY = 10;
 
 interface CreateOrderRequest {
   cartItems: Array<{
@@ -124,6 +125,42 @@ export class OrderController {
     public invoiceGeneratorService: InvoiceGeneratorService,
   ) {}
 
+  private async enrichOrderItems(items: Order['items'] = []): Promise<Order['items']> {
+    const sourceItems = Array.isArray(items) ? items : [];
+
+    return Promise.all(
+      sourceItems.map(async item => {
+        const product = await this.productRepository.findById(item.productId).catch(() => null);
+
+        if (!product) {
+          return item;
+        }
+
+        const matchedVariant = item.variantId
+          ? (product.variants || []).find(variant => variant.id === item.variantId)
+          : null;
+        const variantImage = matchedVariant?.images?.[0];
+
+        return {
+          ...item,
+          slug: product.slug || item.slug,
+          image: variantImage || item.image || product.coverImage || product.images?.[0] || '',
+          sku: matchedVariant?.sku || item.sku || product.sku || '',
+          color: matchedVariant?.color || item.color,
+          colorName: matchedVariant?.colorName || item.colorName,
+          size: matchedVariant?.size || item.size,
+        };
+      })
+    );
+  }
+
+  private async enrichOrder(order: Order): Promise<Order> {
+    return {
+      ...order,
+      items: await this.enrichOrderItems(order.items),
+    } as Order;
+  }
+
   private async buildOrderDraft(request: CreateOrderRequest) {
     if (!request.cartItems || request.cartItems.length === 0) {
       throw new HttpErrors.BadRequest('Cart is empty');
@@ -137,6 +174,12 @@ export class OrderController {
     const sellerState = process.env.COMPANY_STATE || 'Maharashtra';
 
     for (const item of request.cartItems) {
+      if (Number(item.quantity || 0) > MAX_ORDER_ITEM_QUANTITY) {
+        throw new HttpErrors.BadRequest(
+          `Maximum ${MAX_ORDER_ITEM_QUANTITY} quantity is allowed for a single variant in one order.`,
+        );
+      }
+
       const product = await this.productRepository.findById(item.productId);
 
       if (!product) {
@@ -153,6 +196,7 @@ export class OrderController {
       let itemPrice = product.salePrice || product.price;
       let itemOriginalPrice = product.price || itemPrice;
       let variantDetails = null;
+      let selectedVariant: any = null;
 
       if (item.variantId) {
         let variant = await this.productVariantRepository
@@ -170,6 +214,8 @@ export class OrderController {
             `Variant ${item.variantId} not found for product ${product.name}`,
           );
         }
+
+        selectedVariant = variant;
 
         availableStock = variant.stockQuantity;
         itemPrice = product.salePrice || variant.price || product.price;
@@ -203,8 +249,13 @@ export class OrderController {
         id: uuidv4(),
         productId: product.id,
         name: product.name,
-        image: product.coverImage || '',
-        sku: product.sku || '',
+        image:
+          selectedVariant?.images?.[0] ||
+          product.coverImage ||
+          product.images?.[0] ||
+          '',
+        sku: selectedVariant?.sku || product.sku || '',
+        slug: product.slug || '',
         ...variantDetails,
         quantity: item.quantity,
         originalPrice: itemOriginalPrice,
@@ -1628,10 +1679,11 @@ export class OrderController {
       ]);
 
       const totalPages = Math.ceil(total.count / limit);
+      const enrichedOrders = await Promise.all(orders.map(order => this.enrichOrder(order)));
 
       return {
         success: true,
-        orders,
+        orders: enrichedOrders,
         pagination: {
           total: total.count,
           page,
@@ -1679,11 +1731,13 @@ export class OrderController {
         include: [{relation: 'changedByUser'}],
       });
 
+      const enrichedOrder = await this.enrichOrder(order);
+
       return {
         success: true,
-        order,
+        order: enrichedOrder,
         statusHistory,
-        invoice: buildInvoiceFromOrder(order),
+        invoice: buildInvoiceFromOrder(enrichedOrder),
       };
     } catch (error) {
       console.error('Error fetching order details:', error);

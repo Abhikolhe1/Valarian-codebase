@@ -30,7 +30,7 @@ import FormProvider, { RHFSelect } from 'src/components/hook-form';
 import Iconify from 'src/components/iconify';
 import Label from 'src/components/label';
 import { useSnackbar } from 'src/components/snackbar';
-import { getCartItemKey } from 'src/utils/cart-utils';
+import { getCartItemKey, MAX_CART_ITEM_QUANTITY } from 'src/utils/cart-utils';
 //
 import IncrementerButton from './common/incrementer-button';
 
@@ -39,6 +39,7 @@ import IncrementerButton from './common/incrementer-button';
 export default function ProductDetailsSummary({
   cart,
   product,
+  initialVariantId,
   onAddCart,
   onBuyNow,
   onGotoStep,
@@ -87,14 +88,21 @@ export default function ProductDetailsSummary({
   // Set default variant on component mount
   useEffect(() => {
     if (variants && variants.length > 0) {
-      const defaultVariant = variants.find((v) => v.isDefault) || variants[0];
+      const defaultVariant =
+        variants.find((v) => v.id === initialVariantId) ||
+        variants.find((v) => v.isDefault) ||
+        variants[0];
       setSelectedVariant(defaultVariant);
+      if (defaultVariant && onVariantChange) {
+        onVariantChange(defaultVariant);
+      }
     }
-  }, [variants]);
+  }, [initialVariantId, onVariantChange, variants]);
 
   // Get variant-specific values or fallback to product values
   const currentPrice = resolveEffectivePrice(selectedVariant);
   const available = selectedVariant?.stockQuantity ?? stockQuantity ?? 0;
+  const maxAllowedQuantity = Math.min(Number(available || 0), MAX_CART_ITEM_QUANTITY);
   const variantInStock = selectedVariant?.inStock ?? inStock;
   const variantSKU = selectedVariant?.sku;
   const shareUrl = useMemo(() => {
@@ -572,8 +580,8 @@ export default function ProductDetailsSummary({
           name="quantity"
           quantity={values.quantity}
           disabledDecrease={values.quantity <= 1}
-          disabledIncrease={values.quantity >= available}
-          onIncrease={() => setValue('quantity', values.quantity + 1)}
+          disabledIncrease={values.quantity >= maxAllowedQuantity}
+          onIncrease={() => setValue('quantity', Math.min(values.quantity + 1, maxAllowedQuantity))}
           onDecrease={() => setValue('quantity', values.quantity - 1)}
         />
 
@@ -586,7 +594,9 @@ export default function ProductDetailsSummary({
 
   const selectedCartKey = getCartItemKey({ id, variantId: selectedVariant?.id });
   const existingCartItem = cart.find((item) => item.key === selectedCartKey);
-  const isMaxQuantity = existingCartItem ? existingCartItem.quantity >= available : false;
+  const isMaxQuantity = existingCartItem
+    ? existingCartItem.quantity >= maxAllowedQuantity
+    : false;
 
   const renderActions = (
     <Stack direction="row" spacing={2}>
@@ -704,6 +714,7 @@ ProductDetailsSummary.propTypes = {
   onAddCart: PropTypes.func,
   onBuyNow: PropTypes.func,
   onGotoStep: PropTypes.func,
+  initialVariantId: PropTypes.string,
   onVariantChange: PropTypes.func,
   product: PropTypes.object,
 };
