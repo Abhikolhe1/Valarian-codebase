@@ -18,7 +18,7 @@ export default function AboutPageEditView() {
         links={[
           { name: 'Dashboard', href: paths.dashboard.root },
           { name: 'CMS', href: paths.dashboard.cms.root },
-          { name: 'Coming Soon' },
+          { name: 'About Us' },
         ]}
         sx={{ mb: { xs: 3, md: 5 } }}
       />

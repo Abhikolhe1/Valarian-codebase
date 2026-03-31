@@ -14,11 +14,11 @@ export default function ComingSoonPageEditView() {
   return (
     <Container maxWidth={settings.themeStretch ? false : 'lg'}>
       <CustomBreadcrumbs
-        heading="About Us CMS"
+        heading="Coming Soon CMS"
         links={[
           { name: 'Dashboard', href: paths.dashboard.root },
           { name: 'CMS', href: paths.dashboard.cms.root },
-          { name: 'About Us' },
+          { name: 'Coming Soon' },
         ]}
         sx={{ mb: { xs: 3, md: 5 } }}
       />

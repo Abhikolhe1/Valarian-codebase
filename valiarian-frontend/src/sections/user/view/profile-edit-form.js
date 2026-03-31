@@ -118,7 +118,7 @@ export default function ProfileEditForm({
       const message =
         error?.response?.data?.error?.message ||
         error?.response?.data?.message ||
-        error.message ||
+        error?.error?.message ||
         'Something went wrong';
       setEmailOtpError(message);
       enqueueSnackbar(message, { variant: 'error' });
@@ -192,9 +192,9 @@ export default function ProfileEditForm({
       await refreshUser();
     } catch (error) {
       const message =
-        error?.response?.data?.error?.message ||
-        error?.response?.data?.message ||
-        error.message ||
+        error?.response?.data?.error?.message ??
+        error?.response?.data?.message ??
+        error?.error?.message ??
         'Something went wrong';
       setEmailOtpError(message);
       enqueueSnackbar(message, { variant: 'error' });
@@ -239,7 +239,7 @@ export default function ProfileEditForm({
       const message =
         error?.response?.data?.error?.message ||
         error?.response?.data?.message ||
-        error.message ||
+        error?.error?.message ||
         'Something went wrong';
       setMobileOtpError(message);
       enqueueSnackbar(message, { variant: 'error' });
@@ -327,7 +327,7 @@ export default function ProfileEditForm({
       const message =
         error?.response?.data?.error?.message ||
         error?.response?.data?.message ||
-        error.message ||
+        error?.error?.message ||
         'Something went wrong';
       setMobileOtpError(message);
       enqueueSnackbar(message, { variant: 'error' });
@@ -360,7 +360,7 @@ export default function ProfileEditForm({
       const message =
         error?.response?.data?.error?.message ||
         error?.response?.data?.message ||
-        error.message ||
+        error?.error?.message ||
         'Something went wrong';
       console.error(error);
       setErrorMsg(message);

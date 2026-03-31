@@ -50,7 +50,7 @@ export default function CheckoutPaymentMethods({ options, cardOptions, ...other 
 
               {!!error && (
                 <FormHelperText error sx={{ pt: 1, px: 2 }}>
-                  {error.message}
+                  {error?.error?.message}
                 </FormHelperText>
               )}
             </Stack>

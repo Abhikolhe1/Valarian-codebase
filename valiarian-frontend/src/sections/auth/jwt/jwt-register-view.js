@@ -97,7 +97,7 @@ export default function JwtRegisterView() {
       setOtpModalOpen(true);
     } catch (error) {
       console.error(error);
-      setErrorMsg(typeof error === 'string' ? error : error.message);
+      setErrorMsg(typeof error === 'string' ? error : error?.error?.message);
     }
   });
 

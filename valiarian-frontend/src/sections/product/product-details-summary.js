@@ -288,6 +288,10 @@ export default function ProductDetailsSummary({
     }
   }, [onAddCart, values, selectedVariant]);
 
+  const handleGoToCart = useCallback(() => {
+    router.push(paths.product.checkout);
+  }, [router]);
+
   const handleOpenShare = useCallback(
     (event) => {
       event.preventDefault();
@@ -594,24 +598,37 @@ export default function ProductDetailsSummary({
 
   const selectedCartKey = getCartItemKey({ id, variantId: selectedVariant?.id });
   const existingCartItem = cart.find((item) => item.key === selectedCartKey);
-  const isMaxQuantity = existingCartItem
-    ? existingCartItem.quantity >= maxAllowedQuantity
-    : false;
+  const isAlreadyInCart = Boolean(existingCartItem);
+  const isMaxQuantity = existingCartItem ? existingCartItem.quantity >= available : false;
 
   const renderActions = (
     <Stack direction="row" spacing={2}>
-      <Button
-        fullWidth
-        disabled={isMaxQuantity || disabledActions || !variantInStock || available < 1}
-        size="large"
-        color="secondary"
-        variant="outlined"
-        startIcon={<Iconify icon="solar:cart-plus-bold" width={24} />}
-        onClick={handleAddCart}
-        sx={{ whiteSpace: 'nowrap' }}
-      >
-        {!variantInStock || available < 1 ? 'Out of Stock' : 'Add to Cart'}
-      </Button>
+      {isAlreadyInCart ? (
+        <Button
+          fullWidth
+          size="large"
+          color="warning"
+          variant="contained"
+          startIcon={<Iconify icon="solar:cart-check-bold" width={24} />}
+          onClick={handleGoToCart}
+          sx={{ whiteSpace: 'nowrap' }}
+        >
+          Go to Cart
+        </Button>
+      ) : (
+        <Button
+          fullWidth
+          disabled={isMaxQuantity || disabledActions || !variantInStock || available < 1}
+          size="large"
+          color="warning"
+          variant="contained"
+          startIcon={<Iconify icon="solar:cart-plus-bold" width={24} />}
+          onClick={handleAddCart}
+          sx={{ whiteSpace: 'nowrap' }}
+        >
+          {!variantInStock || available < 1 ? 'Out of Stock' : 'Add to Cart'}
+        </Button>
+      )}
 
       <Button
         fullWidth

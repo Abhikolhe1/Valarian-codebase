@@ -60,10 +60,11 @@ export default function useCheckout() {
   const completed = checkoutSession.activeStep === PRODUCT_CHECKOUT_STEPS.length;
 
   const normalizeStep = useCallback(
-    (step) => {
+    (step, options = {}) => {
+      const { hasBilling = Boolean(checkoutSession.billing), isAuthenticated = authenticated } = options;
       const safeStep = Math.max(0, Math.min(step, PRODUCT_CHECKOUT_STEPS.length));
 
-      if (!authenticated) {
+      if (!isAuthenticated) {
         return Math.min(safeStep, 1);
       }
 
@@ -71,15 +72,15 @@ export default function useCheckout() {
         return safeStep;
       }
 
-      if (!checkoutSession.billing) {
+      if (!hasBilling) {
         return 1;
       }
 
-      if (authenticated && safeStep === 2) {
+      if (isAuthenticated && safeStep === 2) {
         return 3;
       }
 
-      if (!authenticated && safeStep > 2) {
+      if (!isAuthenticated && safeStep > 2) {
         return 2;
       }
 
@@ -215,7 +216,13 @@ export default function useCheckout() {
   const onCreateBilling = useCallback(
     (address) => {
       dispatch(createBilling(address));
-      dispatch(gotoStep(normalizeStep(checkoutSession.activeStep + 1)));
+      dispatch(
+        gotoStep(
+          normalizeStep(checkoutSession.activeStep + 1, {
+            hasBilling: true,
+          })
+        )
+      );
     },
     [checkoutSession.activeStep, dispatch, normalizeStep]
   );

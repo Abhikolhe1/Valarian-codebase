@@ -70,7 +70,7 @@ export default function AmplifyRegisterView() {
     } catch (error) {
       console.error(error);
       reset();
-      setErrorMsg(typeof error === 'string' ? error : error.message);
+      setErrorMsg(typeof error === 'string' ? error : error?.error?.message);
     }
   });
 

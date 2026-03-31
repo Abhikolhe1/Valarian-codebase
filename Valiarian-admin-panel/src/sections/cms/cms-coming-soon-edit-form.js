@@ -1,22 +1,23 @@
-import PropTypes from 'prop-types';
-import { useEffect } from 'react';
-import { useForm } from 'react-hook-form';
 import { LoadingButton } from '@mui/lab';
 import {
   Accordion,
-  AccordionSummary,
   AccordionDetails,
+  AccordionSummary,
   Box,
-  Button,
-  Stack,
-  Typography,
   Card,
+  Stack,
+  Typography
 } from '@mui/material';
+import PropTypes from 'prop-types';
+import { useEffect } from 'react';
+import { useForm } from 'react-hook-form';
+import { useSnackbar } from 'src/components/snackbar';
 
 import FormProvider, { RHFTextField } from 'src/components/hook-form';
 import Iconify from 'src/components/iconify';
-import { useSnackbar } from 'src/components/snackbar';
 import CMSMediaField from './cms-media-field';
+
+
 // import { updateComingSoon } from 'src/api/coming-soon'; // create this API
 
 // ----------------------------
@@ -62,11 +63,19 @@ export default function ComingSoonEditForm({ currentData }) {
     try {
       console.log('Coming Soon Data:', data);
 
-      // await updateComingSoon(data);
-
-      enqueueSnackbar('Coming Soon page updated successfully', {
+      // if(currentData?.id){
+      //   // await axios.patch(`  /${currentData.id}`,data);
+      //    enqueueSnackbar('Coming Soon page updated successfully', {
+      //   variant: 'success',
+      // });
+      // return;
+      // }
+      // await axios.post('  ',data);
+      enqueueSnackbar('Coming Soon page created successfully', {
         variant: 'success',
       });
+
+
     } catch (error) {
       enqueueSnackbar(error?.message || 'Update failed', {
         variant: 'error',
@@ -77,7 +86,6 @@ export default function ComingSoonEditForm({ currentData }) {
   return (
     <FormProvider methods={methods} onSubmit={onSubmit}>
       <Stack spacing={3}>
-        {/* CONTENT */}
         <Accordion defaultExpanded>
           <AccordionSummary expandIcon={<Iconify icon="eva:arrow-ios-downward-fill" />}>
             <Typography variant="h6">Content</Typography>

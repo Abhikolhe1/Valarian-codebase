@@ -12,7 +12,10 @@ import useMediaQuery from '@mui/material/useMediaQuery';
 import { RouterLink } from 'src/routes/components';
 import { useRouter } from 'src/routes/hook';
 import { paths } from 'src/routes/paths';
+// redux
+import { useSelector } from 'src/redux/store';
 // utils
+import { getCartItemKey } from 'src/utils/cart-utils';
 import { fCurrency } from 'src/utils/format-number';
 // components
 import { ColorPreview } from 'src/components/color-utils';
@@ -29,6 +32,7 @@ function ProductItem({ product }) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const router = useRouter();
+  const cart = useSelector((state) => state.checkout.cart);
   const [loadingCart, setLoadingCart] = useState(false);
   const { onAddCart } = useCheckout();
 
@@ -69,11 +73,33 @@ function ProductItem({ product }) {
     };
   }, [product]);
 
+  const selectedCartKey = getCartItemKey({
+    id: product.id,
+    variantId: productView.defaultVariant?.id,
+  });
+  const existingCartItem = cart.find((item) => item.key === selectedCartKey);
+  const isAlreadyInCart = Boolean(existingCartItem);
+  const isMaxQuantity = existingCartItem
+    ? existingCartItem.quantity >= productView.displayStock
+    : false;
+  const hasResolvedVariantConstraints =
+    !product.variants?.length ||
+    Boolean(
+      productView.defaultVariant &&
+      (!productView.availableColors.length || productView.availableColors[0]) &&
+      (!productView.availableSizes.length || productView.availableSizes[0])
+    );
+  const isAddToCartDisabled =
+    isAlreadyInCart ||
+    isMaxQuantity ||
+    !productView.displayInStock ||
+    productView.displayStock < 1 ||
+    !hasResolvedVariantConstraints;
+
   const handleAddCart = useCallback(
     async (event) => {
       event.stopPropagation();
-
-      if ((productView.displayStock || 0) <= 0) {
+      if (isAddToCartDisabled) {
         return;
       }
 
@@ -99,7 +125,7 @@ function ProductItem({ product }) {
         setLoadingCart(false);
       }
     },
-    [onAddCart, product.id, product.name, product.salePrice, productView]
+    [isAddToCartDisabled, onAddCart, product.id, product.name, product.salePrice, productView]
   );
 
   const handleCardClick = useCallback(() => {
@@ -108,18 +134,26 @@ function ProductItem({ product }) {
     }
   }, [isMobile, productView.linkTo, router]);
 
+  const handleGoToCart = useCallback(
+    (event) => {
+      event.stopPropagation();
+      router.push(paths.product.checkout);
+    },
+    [router]
+  );
+
   const renderLabels =
     (productView.hasNewLabel || productView.hasSaleLabel || productView.isBestSeller) && (
       <Stack
         direction="row"
         alignItems="center"
         spacing={{ xs: 0.5, sm: 1 }}
-        // sx={{
-        //   position: 'absolute',
-        //   zIndex: 9,
-        //   top: { xs: 8, sm: 16 },
-        //   right: { xs: 8, sm: 16 },
-        // }}
+      // sx={{
+      //   position: 'absolute',
+      //   zIndex: 9,
+      //   top: { xs: 8, sm: 16 },
+      //   right: { xs: 8, sm: 16 },
+      // }}
       >
         {productView.hasNewLabel && (
           <Label
@@ -310,7 +344,7 @@ function ProductItem({ product }) {
         </Link>
 
         <Stack>
-        {renderLabels}
+          {renderLabels}
         </Stack>
         <Stack spacing={0.5}>
           <Stack direction="row" alignItems="center" spacing={0.5} sx={{ typography: 'subtitle1' }}>
@@ -363,18 +397,33 @@ function ProductItem({ product }) {
           }}
           onClick={(event) => event.stopPropagation()}
         >
-          <LoadingButton
-            fullWidth
-            variant="contained"
-            color="secondary"
-            size="small"
-            onClick={handleAddCart}
-            loading={loadingCart}
-            disabled={(productView.displayStock || 0) <= 0}
-            startIcon={<Iconify icon="solar:cart-plus-bold" width={20} />}
-          >
-            {(productView.displayStock || 0) <= 0 ? 'Out of Stock' : 'Add to Cart'}
-          </LoadingButton>
+          {isAlreadyInCart ? (
+            <LoadingButton
+              fullWidth
+              variant="contained"
+              color="primary"
+              size="small"
+              onClick={handleGoToCart}
+              startIcon={<Iconify icon="solar:cart-check-bold" width={20} />}
+            >
+              Go to Cart
+            </LoadingButton>
+          ) : (
+            <LoadingButton
+              fullWidth
+              variant="contained"
+              color="primary"
+              size="small"
+              onClick={handleAddCart}
+              disabled={isAddToCartDisabled}
+              loading={loadingCart}
+              startIcon={<Iconify icon="solar:cart-plus-bold" width={20} />}
+            >
+              {!productView.displayInStock || productView.displayStock < 1
+                ? 'Out of Stock'
+                : 'Add to Cart'}
+            </LoadingButton>
+          )}
         </Box>
       </Stack>
     </Card>

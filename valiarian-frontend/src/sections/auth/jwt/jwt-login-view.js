@@ -80,7 +80,7 @@ export default function JwtLoginView() {
       }, 100);
     } catch (error) {
       console.error(error);
-      setErrorMsg(typeof error === 'string' ? error : error.message || 'Failed to send OTP');
+      setErrorMsg(typeof error === 'string' ? error : error?.error?.message || 'Failed to send OTP');
     }
   });
 
@@ -152,7 +152,7 @@ export default function JwtLoginView() {
       router.replace(resolveAuthRedirect(searchParams));
     } catch (error) {
       console.error('OTP verification error:', error);
-      setOtpError(typeof error === 'string' ? error : error.message || 'Invalid OTP');
+      setOtpError(typeof error === 'string' ? error : error?.error?.message || 'Invalid OTP');
       setIsVerifying(false);
     }
   };
@@ -169,7 +169,7 @@ export default function JwtLoginView() {
       otpRefs[0].current?.focus();
     } catch (error) {
       console.error(error);
-      setOtpError(typeof error === 'string' ? error : error.message || 'Failed to resend OTP');
+      setOtpError(typeof error === 'string' ? error : error?.error?.message || 'Failed to resend OTP');
     }
   };
 

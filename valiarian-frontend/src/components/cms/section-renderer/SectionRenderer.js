@@ -57,7 +57,7 @@ class SectionErrorBoundary extends Component {
               <>
                 Failed to render section: <strong>{section?.name || 'Unknown'}</strong>
                 <br />
-                Error: {error.message}
+                Error: {error?.error?.message}
               </>
             ) : (
               <>

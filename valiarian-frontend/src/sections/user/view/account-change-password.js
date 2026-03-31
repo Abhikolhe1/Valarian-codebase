@@ -72,7 +72,7 @@ export default function AccountChangePassword({ onCancel, setErrorMsg, setSucces
       }
     } catch (error) {
       console.error(error);
-      setErrorMsg(error.message || 'Failed to update password');
+      setErrorMsg(error?.error?.message ?? 'Failed to update password');
     }
   });
 

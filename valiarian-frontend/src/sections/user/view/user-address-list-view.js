@@ -38,7 +38,7 @@ export default function UserAddressListView({ onAdd, onEdit }) {
       setSuccessMsg('Primary address updated!');
       await mutate();
     } catch (error) {
-      setErrorMsg(error.response?.data?.message || error.message || 'Failed to set primary address');
+      setErrorMsg(error.response?.data?.message || error?.error?.message || 'Failed to set primary address');
     }
   };
 
@@ -62,7 +62,7 @@ export default function UserAddressListView({ onAdd, onEdit }) {
         setDeleteDialogOpen(false);
         setAddressToDelete(null);
       } catch (error) {
-        setErrorMsg(error.response?.data?.message || error.message || 'Failed to delete address');
+        setErrorMsg(error.response?.data?.message || error?.error?.message || 'Failed to delete address');
         setDeleteDialogOpen(false);
         setAddressToDelete(null);
       }

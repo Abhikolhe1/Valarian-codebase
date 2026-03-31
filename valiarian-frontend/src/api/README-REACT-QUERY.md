@@ -111,7 +111,7 @@ function PagesList() {
   const { data, isLoading, error } = usePages({ status: 'published' });
 
   if (isLoading) return <div>Loading...</div>;
-  if (error) return <div>Error: {error.message}</div>;
+  if (error) return <div>Error: {error?.error?.message}</div>;
 
   return (
     <div>
