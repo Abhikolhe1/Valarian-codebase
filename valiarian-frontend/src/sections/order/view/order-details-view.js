@@ -140,6 +140,11 @@ export default function OrderDetailsView() {
 
   const canCancel = ['pending', 'confirmed'].includes(order.status);
   const canReturn = order.status === 'delivered' && !order.returnStatus;
+  const showReturnReviewMessage =
+    order.status === 'return_requested' ||
+    order.returnStatus === 'requested' ||
+    order.returnStatus === 'approved' ||
+    order.status === 'returned';
   const returnStatusTitle =
     (order.status === 'refunded' && 'Refund completed') ||
     (order.status === 'parcel_received' && 'Parcel received at warehouse') ||
@@ -175,6 +180,12 @@ export default function OrderDetailsView() {
             <Typography variant="body2">
               Current order status: {order.status.split('_').join(' ')}
             </Typography>
+            {showReturnReviewMessage && (
+              <Typography variant="body2">
+                Admin is reviewing this order. As soon as possible, you will receive the next
+                update about your return request and what happens next.
+              </Typography>
+            )}
             {order.returnApprovedAt && (
               <Typography variant="body2">
                 Return approved on: {fDateTime(order.returnApprovedAt)}
@@ -219,6 +230,16 @@ export default function OrderDetailsView() {
         </Alert>
       )}
 
+      {showReturnReviewMessage && !order.returnStatus && (
+        <Alert severity="info" sx={{ my: 3 }}>
+          <AlertTitle>Return request under review</AlertTitle>
+          <Typography variant="body2">
+            Admin is reviewing this order. As soon as possible, you will receive the next update
+            about your return request and what happens next.
+          </Typography>
+        </Alert>
+      )}
+
       <Grid container spacing={3} mt={2}>
         <Grid xs={12} md={8}>
           <Stack spacing={3} direction={{ xs: 'column-reverse', md: 'column' }}>
@@ -231,7 +252,7 @@ export default function OrderDetailsView() {
               totalAmount={order.total}
             />
 
-            <OrderDetailsHistory history={statusHistory} />
+            <OrderDetailsHistory history={statusHistory} order={order} />
           </Stack>
         </Grid>
 

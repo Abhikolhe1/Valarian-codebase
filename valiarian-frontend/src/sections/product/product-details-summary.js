@@ -406,13 +406,13 @@ export default function ProductDetailsSummary({
 
   const renderShare = (
     <Stack direction="row" spacing={3} justifyContent="center">
-      <Link
+      {/* <Link
         variant="subtitle2"
         sx={{ color: 'text.secondary', display: 'inline-flex', alignItems: 'center' }}
       >
         <Iconify icon="mingcute:add-line" width={16} sx={{ mr: 1 }} />
         Compare
-      </Link>
+      </Link> */}
 
       <Box
         component="button"
@@ -608,7 +608,7 @@ export default function ProductDetailsSummary({
         size="large"
         type="submit"
         variant="contained"
-        color='secondary'
+        color="secondary"
         disabled={disabledActions || !variantInStock || available < 1}
       >
         Buy Now

@@ -10,6 +10,7 @@ import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import Paper from '@mui/material/Paper';
 import Stack from '@mui/material/Stack';
+import Alert from '@mui/material/Alert';
 import CardHeader from '@mui/material/CardHeader';
 import Typography from '@mui/material/Typography';
 // utils
@@ -17,10 +18,50 @@ import { fDateTime } from 'src/utils/format-time';
 
 // ----------------------------------------------------------------------
 
-export default function OrderDetailsHistory({ history }) {
-  const timelineItems = Array.isArray(history) ? history : history?.timeline || [];
+export default function OrderDetailsHistory({ history, order }) {
+  const historyItems = Array.isArray(history) ? history : history?.timeline || [];
+  const hasDeliveredHistory = historyItems.some((item) => item?.status === 'delivered');
+  const deliveredTimelineItem =
+    order?.deliveredAt && !hasDeliveredHistory
+      ? [
+          {
+            status: 'delivered',
+            title: 'Delivered',
+            comment: 'Your order was delivered successfully.',
+            createdAt: order.deliveredAt,
+          },
+        ]
+      : [];
+  const timelineItems = [...historyItems, ...deliveredTimelineItem].sort(
+    (left, right) =>
+      new Date(right?.createdAt || right?.time || 0).getTime() -
+      new Date(left?.createdAt || left?.time || 0).getTime()
+  );
   const latestEvent = timelineItems[0];
   const oldestEvent = timelineItems[timelineItems.length - 1];
+  const showReturnReviewMessage =
+    order?.status === 'return_requested' ||
+    order?.returnStatus === 'requested' ||
+    order?.returnStatus === 'approved' ||
+    order?.status === 'returned';
+  const getChangedByLabel = (item) =>
+    item?.changedByUser?.fullName ||
+    item?.changedByUser?.email ||
+    item?.changedBy ||
+    '';
+  const getDisplayComment = (item) => {
+    if (!item?.comment) {
+      return '';
+    }
+
+    const changedByLabel = getChangedByLabel(item);
+
+    if (!changedByLabel) {
+      return item.comment;
+    }
+
+    return item.comment.replace(/\bby admin\b/gi, `by ${changedByLabel}`);
+  };
 
   const renderSummary = (
     <Stack
@@ -99,9 +140,9 @@ export default function OrderDetailsHistory({ history }) {
                 {item.title || item.status || 'Status Updated'}
               </Typography>
 
-              {item.comment && (
+              {getDisplayComment(item) && (
                 <Box sx={{ color: 'text.secondary', typography: 'body2', mt: 0.5 }}>
-                  {item.comment}
+                  {getDisplayComment(item)}
                 </Box>
               )}
 
@@ -128,10 +169,18 @@ export default function OrderDetailsHistory({ history }) {
 
         {renderSummary}
       </Stack>
+
+      {showReturnReviewMessage && (
+        <Alert severity="info" sx={{ mx: 3, mb: 3 }}>
+          Admin is reviewing your return request. As soon as possible, you will receive the next
+          update about the return process and what happens next.
+        </Alert>
+      )}
     </Card>
   );
 }
 
 OrderDetailsHistory.propTypes = {
   history: PropTypes.object,
+  order: PropTypes.object,
 };

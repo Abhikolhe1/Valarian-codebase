@@ -33,7 +33,8 @@ function ProductItem({ product }) {
   const { onAddCart } = useCheckout();
 
   const productView = useMemo(() => {
-    const defaultVariant = product.variants?.find((variant) => variant.isDefault) || product.variants?.[0];
+    const defaultVariant =
+      product.variants?.find((variant) => variant.isDefault) || product.variants?.[0];
     const displayImage = defaultVariant?.images?.[0] || product.coverImage;
     const displayPrice = defaultVariant?.price || product.price;
     const displayStock = defaultVariant?.stockQuantity ?? product.stockQuantity;

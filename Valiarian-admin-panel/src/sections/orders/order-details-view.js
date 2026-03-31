@@ -344,6 +344,24 @@ export default function OrderDetailsView() {
     Number(order.total || 0) - (deductDeliveryCharge ? deliveryDeductionValue : 0),
     0
   );
+  const getChangedByLabel = (history) =>
+    history?.changedByUser?.fullName ||
+    history?.changedByUser?.email ||
+    history?.changedBy ||
+    '';
+  const getDisplayComment = (history) => {
+    if (!history?.comment) {
+      return '';
+    }
+
+    const changedByLabel = getChangedByLabel(history);
+
+    if (!changedByLabel) {
+      return history.comment;
+    }
+
+    return history.comment.replace(/\bby admin\b/gi, `by ${changedByLabel}`);
+  };
 
   return (
     <Container maxWidth={settings.themeStretch ? false : 'lg'}>
@@ -495,9 +513,9 @@ export default function OrderDetailsView() {
                         {fDateTime(history.createdAt)}
                       </Typography>
                     </Stack>
-                    {history.comment && (
+                    {getDisplayComment(history) && (
                       <Typography variant="body2" color="text.secondary">
-                        {history.comment}
+                        {getDisplayComment(history)}
                       </Typography>
                     )}
                   </Stack>

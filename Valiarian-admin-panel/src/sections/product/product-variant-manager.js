@@ -80,6 +80,30 @@ const TABLE_HEAD = [
 
 // ----------------------------------------------------------------------
 
+function normalizeVariants(variants = []) {
+  if (!Array.isArray(variants) || variants.length === 0) {
+    return [];
+  }
+
+  const normalizedVariants = variants.map((variant, index) => {
+    const stockQuantity = Math.max(0, Number(variant.stockQuantity || 0));
+
+    return {
+      ...variant,
+      stockQuantity,
+      inStock: stockQuantity > 0,
+      isDefault: variants.length === 1 ? true : Boolean(variant.isDefault && index >= 0),
+    };
+  });
+
+  const defaultVariants = normalizedVariants.filter((variant) => variant.isDefault);
+
+  return normalizedVariants.map((variant, index) => ({
+    ...variant,
+    isDefault: defaultVariants.length > 0 ? variant.id === defaultVariants[0].id : index === 0,
+  }));
+}
+
 export default function ProductVariantManager({ variants = [], onChange, productName = '' }) {
   const { enqueueSnackbar } = useSnackbar();
   const mediaPicker = useBoolean();
@@ -363,15 +387,7 @@ export default function ProductVariantManager({ variants = [], onChange, product
         enqueueSnackbar('Variant added successfully', { variant: 'success' });
       }
 
-      // If this variant is set as default, unset others
-      if (formData.isDefault) {
-        updatedVariants = updatedVariants.map(v => ({
-          ...v,
-          isDefault: v.id === variantData.id,
-        }));
-      }
-
-      onChange(updatedVariants);
+      onChange(normalizeVariants(updatedVariants));
       handleCloseDialog();
     } catch (error) {
       console.error('❌ Failed to save variant:', error);
@@ -382,7 +398,7 @@ export default function ProductVariantManager({ variants = [], onChange, product
   // Handle delete variant
   const handleDeleteVariant = useCallback((variantId) => {
     const updatedVariants = variants.filter(v => v.id !== variantId);
-    onChange(updatedVariants);
+    onChange(normalizeVariants(updatedVariants));
     setConfirmDialog({ open: false, variantId: null });
     enqueueSnackbar('Variant deleted successfully', { variant: 'success' });
   }, [variants, onChange, enqueueSnackbar]);
@@ -390,7 +406,7 @@ export default function ProductVariantManager({ variants = [], onChange, product
   // Handle bulk delete
   const handleBulkDelete = useCallback(() => {
     const updatedVariants = variants.filter(v => !table.selected.includes(v.id));
-    onChange(updatedVariants);
+    onChange(normalizeVariants(updatedVariants));
     table.setSelected([]);
     setBulkDeleteDialog(false);
     enqueueSnackbar(`${table.selected.length} variants deleted successfully`, { variant: 'success' });
@@ -410,7 +426,7 @@ export default function ProductVariantManager({ variants = [], onChange, product
         : v
     );
 
-    onChange(updatedVariants);
+    onChange(normalizeVariants(updatedVariants));
     table.setSelected([]);
     setBulkStockDialog(false);
     setBulkStockValue('');

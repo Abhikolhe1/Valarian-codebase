@@ -15,9 +15,11 @@ import {
 import {UserProfile} from '@loopback/security';
 import {v4 as uuidv4} from 'uuid';
 import {authorize} from '../authorization';
-import {Product} from '../models';
+import {Product, ProductVariant} from '../models';
 import {CategoryRepository, ProductRepository} from '../repositories';
+import {EmailService} from '../services/email.service';
 import {SlugService} from '../services/slug.service';
+import SITE_SETTINGS from '../utils/config';
 
 export class ProductController {
   constructor(
@@ -27,6 +29,8 @@ export class ProductController {
     public categoryRepository: CategoryRepository,
     @inject('services.SlugService')
     public slugService: SlugService,
+    @inject('services.email')
+    public emailService: EmailService,
   ) { }
 
   private async ensureCategoryExists(categoryId?: string): Promise<void> {
@@ -38,6 +42,174 @@ export class ProductController {
       throw new HttpErrors.UnprocessableEntity(
         `Category with id "${categoryId}" was not found`,
       );
+    }
+  }
+
+  private normalizeVariants(
+    variants: ProductVariant[] = [],
+  ): {
+    variants: ProductVariant[];
+    stockQuantity: number;
+    inStock: boolean;
+  } {
+    if (!Array.isArray(variants) || variants.length === 0) {
+      return {
+        variants: [],
+        stockQuantity: 0,
+        inStock: false,
+      };
+    }
+
+    const normalizedVariants = variants.map((variant, index) => {
+      const stockQuantity = Math.max(0, Number(variant.stockQuantity || 0));
+
+      return {
+        ...variant,
+        stockQuantity,
+        inStock: stockQuantity > 0,
+        isDefault:
+          variants.length === 1 ? true : Boolean(variant.isDefault && index >= 0),
+      } as ProductVariant;
+    });
+
+    const defaultVariants = normalizedVariants.filter(variant => variant.isDefault);
+    const variantsWithDefault = normalizedVariants.map((variant, index) => ({
+      ...variant,
+      isDefault:
+        defaultVariants.length > 0
+          ? variant.id === defaultVariants[0].id
+          : index === 0,
+    })) as ProductVariant[];
+
+    const stockQuantity = variantsWithDefault.reduce(
+      (sum, variant) => sum + Number(variant.stockQuantity || 0),
+      0,
+    );
+
+    return {
+      variants: variantsWithDefault,
+      stockQuantity,
+      inStock: stockQuantity > 0,
+    };
+  }
+
+  private applyVariantInventoryToProductData(
+    productData: Partial<Product>,
+  ): Partial<Product> {
+    if (!Array.isArray(productData.variants) || productData.variants.length === 0) {
+      return productData;
+    }
+
+    const normalized = this.normalizeVariants(productData.variants as ProductVariant[]);
+
+    return {
+      ...productData,
+      variants: normalized.variants,
+      stockQuantity: normalized.stockQuantity,
+      inStock: normalized.inStock,
+    };
+  }
+
+  private getDefaultVariantLowStockContext(product: Product): {
+    defaultVariant: {
+      id?: string;
+      sku?: string;
+      color?: string;
+      colorName?: string;
+      size?: string;
+      stockQuantity: number;
+    };
+    threshold: number;
+    isOutOfStock: boolean;
+  } | null {
+    const variants = Array.isArray(product.variants) ? product.variants : [];
+    const defaultVariant =
+      variants.find(variant => variant.isDefault) ||
+      (variants.length === 1 ? variants[0] : null);
+
+    if (!defaultVariant) {
+      return null;
+    }
+
+    const stockQuantity = Math.max(0, Number(defaultVariant.stockQuantity || 0));
+    const threshold = Math.max(0, Number(product.lowStockThreshold ?? 5));
+    const isOutOfStock = stockQuantity <= 0;
+    const isLowStock = stockQuantity <= threshold;
+
+    if (!isLowStock) {
+      return null;
+    }
+
+    return {
+      defaultVariant: {
+        id: defaultVariant.id,
+        sku: defaultVariant.sku,
+        color: defaultVariant.color,
+        colorName: defaultVariant.colorName,
+        size: defaultVariant.size,
+        stockQuantity,
+      },
+      threshold,
+      isOutOfStock,
+    };
+  }
+
+  private async sendDefaultVariantLowStockAlert(product: Product): Promise<void> {
+    const alertEmail = process.env.LOW_STOCK_ALERT_EMAIL;
+
+    if (!alertEmail) {
+      console.log('[ProductController] LOW_STOCK_ALERT_EMAIL not configured, skipping alert');
+      return;
+    }
+
+    const lowStockContext = this.getDefaultVariantLowStockContext(product);
+
+    if (!lowStockContext) {
+      return;
+    }
+
+    const {defaultVariant, threshold, isOutOfStock} = lowStockContext;
+    const stockMessage = isOutOfStock
+      ? 'is out of stock'
+      : `is low on stock (${defaultVariant.stockQuantity} left)`;
+    const productIdentifier = product.slug || product.id;
+
+    try {
+      await this.emailService.sendMail({
+        from: process.env.EMAIL_FROM || process.env.EMAIL_USER || SITE_SETTINGS.fromMail,
+        to: alertEmail,
+        subject: `Default variant stock alert for ${product.name}`,
+        html: `
+          <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #111827;">
+            <h2 style="margin-bottom: 12px;">Default Variant Stock Alert</h2>
+            <p>The current default variant for <strong>${product.name}</strong> ${stockMessage}.</p>
+            <p>Please review the product and change the default variant manually if needed.</p>
+            <table style="border-collapse: collapse; margin-top: 16px;">
+              <tr><td style="padding: 6px 12px 6px 0;"><strong>Product</strong></td><td>${product.name}</td></tr>
+              <tr><td style="padding: 6px 12px 6px 0;"><strong>Product ID</strong></td><td>${product.id}</td></tr>
+              <tr><td style="padding: 6px 12px 6px 0;"><strong>Slug</strong></td><td>${productIdentifier}</td></tr>
+              <tr><td style="padding: 6px 12px 6px 0;"><strong>Variant SKU</strong></td><td>${defaultVariant.sku || '-'}</td></tr>
+              <tr><td style="padding: 6px 12px 6px 0;"><strong>Color</strong></td><td>${defaultVariant.colorName || defaultVariant.color || '-'}</td></tr>
+              <tr><td style="padding: 6px 12px 6px 0;"><strong>Size</strong></td><td>${defaultVariant.size || '-'}</td></tr>
+              <tr><td style="padding: 6px 12px 6px 0;"><strong>Stock Left</strong></td><td>${defaultVariant.stockQuantity}</td></tr>
+              <tr><td style="padding: 6px 12px 6px 0;"><strong>Low Stock Threshold</strong></td><td>${threshold}</td></tr>
+            </table>
+          </div>
+        `,
+      });
+
+      console.log('[ProductController] Default variant low stock alert sent', {
+        productId: product.id,
+        variantId: defaultVariant.id,
+        stockQuantity: defaultVariant.stockQuantity,
+        to: alertEmail,
+      });
+    } catch (error: any) {
+      console.error('[ProductController] Failed to send default variant low stock alert', {
+        productId: product.id,
+        variantId: defaultVariant.id,
+        message: error?.message,
+      });
     }
   }
 
@@ -99,19 +271,23 @@ export class ProductController {
   ): Promise<Product> {
     console.log('REQUEST BODY:', productData);
     await this.ensureCategoryExists(productData.categoryId);
+    const normalizedProductData = this.applyVariantInventoryToProductData(productData) as Omit<
+      Product,
+      'id' | 'createdAt' | 'updatedAt'
+    >;
 
     // Generate unique slug if not provided
-    if (!productData.slug) {
-      productData.slug = await this.slugService.generateUniqueSlug(
-        productData.name,
+    if (!normalizedProductData.slug) {
+      normalizedProductData.slug = await this.slugService.generateUniqueSlug(
+        normalizedProductData.name,
         this.productRepository,
       );
     } else {
       // If slug is provided, ensure it's unique
-      const slugExists = await this.productRepository.slugExists(productData.slug);
+      const slugExists = await this.productRepository.slugExists(normalizedProductData.slug);
       if (slugExists) {
         throw new HttpErrors.BadRequest(
-          `Product with slug "${productData.slug}" already exists`,
+          `Product with slug "${normalizedProductData.slug}" already exists`,
         );
       }
     }
@@ -119,10 +295,12 @@ export class ProductController {
     const now = new Date();
     const product = await this.productRepository.create({
       id: uuidv4(),
-      ...productData,
+      ...normalizedProductData,
       createdAt: now,
       updatedAt: now,
     });
+
+    await this.sendDefaultVariantLowStockAlert(product);
 
     return product;
   }
@@ -258,6 +436,7 @@ export class ProductController {
     }
 
     await this.ensureCategoryExists(productData.categoryId);
+    productData = this.applyVariantInventoryToProductData(productData);
 
     // If name is being updated and slug is not provided, regenerate slug
     if (productData.name && !productData.slug) {
@@ -287,7 +466,10 @@ export class ProductController {
       updatedAt: now,
     });
 
-    return this.productRepository.findById(id);
+    const updatedProduct = await this.productRepository.findById(id);
+    await this.sendDefaultVariantLowStockAlert(updatedProduct);
+
+    return updatedProduct;
   }
 
   @authenticate('jwt')
@@ -514,29 +696,23 @@ export class ProductController {
       isDefault: variantData.isDefault || false,
     };
 
-    // If this is set as default, unset other defaults
-    const variants = product.variants || [];
-    if (newVariant.isDefault) {
-      variants.forEach(v => {
-        v.isDefault = false;
-      });
-    }
-
-    // Add new variant
+    const variants = [...(product.variants || [])];
     variants.push(newVariant);
 
-    // Update product with new variants and recalculate total stock
-    const totalStock = variants.reduce((sum, v) => sum + v.stockQuantity, 0);
+    const normalized = this.normalizeVariants(variants as ProductVariant[]);
     const now = new Date();
 
     await this.productRepository.updateById(id, {
-      variants,
-      stockQuantity: totalStock,
-      inStock: totalStock > 0,
+      variants: normalized.variants,
+      stockQuantity: normalized.stockQuantity,
+      inStock: normalized.inStock,
       updatedAt: now,
     });
 
-    return this.productRepository.findById(id);
+    const updatedProduct = await this.productRepository.findById(id);
+    await this.sendDefaultVariantLowStockAlert(updatedProduct);
+
+    return updatedProduct;
   }
 
   @authenticate('jwt')
@@ -607,7 +783,6 @@ export class ProductController {
       }
     }
 
-    // Update variant
     product.variants[variantIndex] = {
       ...product.variants[variantIndex],
       ...variantData,
@@ -616,27 +791,20 @@ export class ProductController {
         : product.variants[variantIndex].inStock,
     };
 
-    // If this is set as default, unset other defaults
-    if (variantData.isDefault) {
-      product.variants.forEach((v, idx) => {
-        if (idx !== variantIndex) {
-          v.isDefault = false;
-        }
-      });
-    }
-
-    // Recalculate total stock
-    const totalStock = product.variants.reduce((sum, v) => sum + v.stockQuantity, 0);
+    const normalized = this.normalizeVariants(product.variants as ProductVariant[]);
     const now = new Date();
 
     await this.productRepository.updateById(id, {
-      variants: product.variants,
-      stockQuantity: totalStock,
-      inStock: totalStock > 0,
+      variants: normalized.variants,
+      stockQuantity: normalized.stockQuantity,
+      inStock: normalized.inStock,
       updatedAt: now,
     });
 
-    return this.productRepository.findById(id);
+    const updatedProduct = await this.productRepository.findById(id);
+    await this.sendDefaultVariantLowStockAlert(updatedProduct);
+
+    return updatedProduct;
   }
 
   @authenticate('jwt')
@@ -672,18 +840,20 @@ export class ProductController {
     // Remove variant
     product.variants.splice(variantIndex, 1);
 
-    // Recalculate total stock
-    const totalStock = product.variants.reduce((sum, v) => sum + v.stockQuantity, 0);
+    const normalized = this.normalizeVariants(product.variants as ProductVariant[]);
     const now = new Date();
 
     await this.productRepository.updateById(id, {
-      variants: product.variants,
-      stockQuantity: totalStock,
-      inStock: totalStock > 0,
+      variants: normalized.variants,
+      stockQuantity: normalized.stockQuantity,
+      inStock: normalized.inStock,
       updatedAt: now,
     });
 
-    return this.productRepository.findById(id);
+    const updatedProduct = await this.productRepository.findById(id);
+    await this.sendDefaultVariantLowStockAlert(updatedProduct);
+
+    return updatedProduct;
   }
 
   @authenticate('jwt')
@@ -716,7 +886,40 @@ export class ProductController {
     })
     body: {stockQuantity: number},
   ): Promise<Product> {
-    return this.productRepository.updateVariantStock(id, variantId, body.stockQuantity);
+    const product = await this.productRepository.findById(id);
+    if (!product) {
+      throw new HttpErrors.NotFound(`Product with id "${id}" not found`);
+    }
+
+    if (!product.variants || product.variants.length === 0) {
+      throw new HttpErrors.NotFound('Product has no variants');
+    }
+
+    const variantIndex = product.variants.findIndex(v => v.id === variantId);
+    if (variantIndex === -1) {
+      throw new HttpErrors.NotFound(`Variant with id "${variantId}" not found`);
+    }
+
+    const quantity = Math.max(0, Number(body.stockQuantity || 0));
+    Object.assign(product.variants[variantIndex], {
+      stockQuantity: quantity,
+      inStock: quantity > 0,
+    });
+
+    const normalized = this.normalizeVariants(product.variants as ProductVariant[]);
+    const now = new Date();
+
+    await this.productRepository.updateById(id, {
+      variants: normalized.variants,
+      stockQuantity: normalized.stockQuantity,
+      inStock: normalized.inStock,
+      updatedAt: now,
+    });
+
+    const updatedProduct = await this.productRepository.findById(id);
+    await this.sendDefaultVariantLowStockAlert(updatedProduct);
+
+    return updatedProduct;
   }
 
   @authenticate('jwt')

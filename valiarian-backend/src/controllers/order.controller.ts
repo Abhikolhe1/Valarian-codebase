@@ -1676,6 +1676,7 @@ export class OrderController {
       const statusHistory = await this.orderStatusHistoryRepository.find({
         where: {orderId},
         order: ['createdAt DESC'],
+        include: [{relation: 'changedByUser'}],
       });
 
       return {
@@ -1761,6 +1762,7 @@ export class OrderController {
       const statusHistory = await this.orderStatusHistoryRepository.find({
         where: {orderId},
         order: ['createdAt ASC'],
+        include: [{relation: 'changedByUser'}],
       });
 
       const events = statusHistory.map(history => ({
@@ -2196,6 +2198,7 @@ export class OrderController {
       const statusHistory = await this.orderStatusHistoryRepository.find({
         where: {orderId},
         order: ['createdAt DESC'],
+        include: [{relation: 'changedByUser'}],
       });
 
       console.log(`[Admin] Status history entries: ${statusHistory.length}`);

@@ -213,6 +213,20 @@ export default function ProductNewEditForm({ currentProduct }) {
     }
   }, [currentProduct, defaultValues, reset]);
 
+  useEffect(() => {
+    if (!Array.isArray(variants) || variants.length === 0) {
+      return;
+    }
+
+    const totalStock = variants.reduce(
+      (sum, variant) => sum + Math.max(0, Number(variant.stockQuantity || 0)),
+      0
+    );
+
+    setValue('stockQuantity', totalStock, { shouldValidate: false, shouldDirty: true });
+    setValue('inStock', totalStock > 0, { shouldValidate: false, shouldDirty: true });
+  }, [setValue, variants]);
+
   // Auto-generate slug from name
   useEffect(() => {
     if (!currentProduct && values.name && !values.slug) {

@@ -2,6 +2,8 @@ import { format } from 'date-fns';
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 // @mui
+import Alert from '@mui/material/Alert';
+import AlertTitle from '@mui/material/AlertTitle';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
@@ -22,6 +24,7 @@ import { paths } from 'src/routes/paths';
 import { useAuthContext } from 'src/auth/hooks';
 // utils
 import axios from 'src/utils/axios';
+import { formatOrderStatusLabel } from 'src/utils/order-status';
 // components
 import PropTypes from 'prop-types';
 import Iconify from 'src/components/iconify';
@@ -161,6 +164,10 @@ export default function OrderTrackingView() {
         return 2;
       case 'delivered':
       case 'completed':
+      case 'return_requested':
+      case 'returned':
+      case 'parcel_received':
+      case 'refunded':
         return 3;
       default:
         return 0;
@@ -171,16 +178,34 @@ export default function OrderTrackingView() {
   const shouldShowTimeline = Boolean(
     tracking?.trackingNumber ||
       tracking?.events?.length ||
-      ['pending', 'confirmed', 'processing', 'packed', 'shipped', 'delivered', 'completed'].includes(
-        tracking?.status
-      )
+      [
+        'pending',
+        'confirmed',
+        'processing',
+        'packed',
+        'shipped',
+        'delivered',
+        'completed',
+        'return_requested',
+        'returned',
+        'parcel_received',
+        'refunded',
+      ].includes(tracking?.status)
   );
+  const showReturnReviewMessage = ['return_requested', 'returned'].includes(tracking?.status);
 
   const getTrackingMessage = () => {
     switch (tracking?.status) {
       case 'delivered':
       case 'completed':
         return 'Your order has been delivered successfully.';
+      case 'return_requested':
+      case 'returned':
+        return 'Your order was delivered and your return request is now under review.';
+      case 'parcel_received':
+        return 'Your returned parcel has been received and is being checked by our team.';
+      case 'refunded':
+        return 'Your refund has been processed successfully.';
       case 'shipped':
         return 'Your order has been shipped. Tracking number will be updated soon.';
       case 'confirmed':
@@ -250,13 +275,13 @@ export default function OrderTrackingView() {
                   <Label
                     variant="soft"
                     color={
-                      (tracking.status === 'delivered' && 'success') ||
+                      (['delivered', 'completed', 'return_requested', 'returned', 'parcel_received', 'refunded'].includes(tracking.status) && 'success') ||
                       (tracking.status === 'shipped' && 'info') ||
                       (tracking.status === 'confirmed' && 'warning') ||
                       'default'
                     }
                   >
-                    {tracking.status}
+                    {formatOrderStatusLabel(tracking.status)}
                   </Label>
                 </Stack>
 
@@ -300,6 +325,14 @@ export default function OrderTrackingView() {
               <Typography variant="h6" sx={{ mb: 4 }}>
                 Tracking Timeline
               </Typography>
+
+              {showReturnReviewMessage && (
+                <Alert severity="info" sx={{ mb: 3 }}>
+                  <AlertTitle>Return request under review</AlertTitle>
+                  Admin is reviewing this order. As soon as possible, you will receive the next
+                  update about your return request and what happens next.
+                </Alert>
+              )}
 
               {shouldShowTimeline ? (
                 <Stack spacing={3}>

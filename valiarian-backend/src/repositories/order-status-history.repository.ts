@@ -1,8 +1,9 @@
-import {Constructor, inject} from '@loopback/core';
-import {DefaultCrudRepository, Filter} from '@loopback/repository';
+import {Constructor, Getter, inject} from '@loopback/core';
+import {BelongsToAccessor, DefaultCrudRepository, Filter, repository} from '@loopback/repository';
 import {ValiarianDataSource} from '../datasources';
 import {TimeStampRepositoryMixin} from '../mixins/timestamp-repository-mixin';
-import {OrderStatusHistory, OrderStatusHistoryRelations} from '../models';
+import {OrderStatusHistory, OrderStatusHistoryRelations, Users} from '../models';
+import {UsersRepository} from './users.repository';
 
 export class OrderStatusHistoryRepository extends TimeStampRepositoryMixin<
   OrderStatusHistory,
@@ -15,10 +16,25 @@ export class OrderStatusHistoryRepository extends TimeStampRepositoryMixin<
     >
   >
 >(DefaultCrudRepository) {
+  public readonly changedByUser: BelongsToAccessor<
+    Users,
+    typeof OrderStatusHistory.prototype.id
+  >;
+
   constructor(
     @inject('datasources.valiarian') dataSource: ValiarianDataSource,
+    @repository.getter('UsersRepository')
+    protected usersRepositoryGetter: Getter<UsersRepository>,
   ) {
     super(OrderStatusHistory, dataSource);
+    this.changedByUser = this.createBelongsToAccessorFor(
+      'changedByUser',
+      usersRepositoryGetter,
+    );
+    this.registerInclusionResolver(
+      'changedByUser',
+      this.changedByUser.inclusionResolver,
+    );
   }
 
   /**
@@ -33,6 +49,7 @@ export class OrderStatusHistoryRepository extends TimeStampRepositoryMixin<
   ): Promise<OrderStatusHistory[]> {
     return this.find({
       ...filter,
+      include: filter?.include || [{relation: 'changedByUser'}],
       where: {
         ...filter?.where,
         orderId,
