@@ -98,6 +98,17 @@ const parseAmount = (value) => {
   return numericValue;
 };
 
+const getPendingDescription = (session) => {
+  if (
+    session?.pendingReason === 'stock_unavailable_after_payment' ||
+    (session?.orderStatus === 'pending' && ['paid', 'success'].includes(session?.paymentStatus))
+  ) {
+    return 'If stock is available, then within 2 hours your order may proceed. If not, we can refund your transaction and it will be credited to your account within 24-48 hours.';
+  }
+
+  return STATUS_CONFIG.pending.description;
+};
+
 export default function PaymentStatusView({ status }) {
   const settings = useSettingsContext();
   const router = useRouter();
@@ -122,9 +133,17 @@ export default function PaymentStatusView({ status }) {
       orderId: searchParams.get('orderId') || mergedSession.orderId || '',
       orderNumber: searchParams.get('orderNumber') || mergedSession.orderNumber || '',
       amount: parseAmount(searchParams.get('amount') || mergedSession.amount),
+      paymentStatus: searchParams.get('paymentStatus') || mergedSession.paymentStatus || '',
+      orderStatus: searchParams.get('orderStatus') || mergedSession.orderStatus || '',
+      pendingReason: searchParams.get('pendingReason') || mergedSession.pendingReason || '',
       createdAt: searchParams.get('date') || mergedSession.createdAt || mergedSession.updatedAt,
     };
   }, [paymentSession, searchParams]);
+
+  const {
+    orderId: sessionOrderId,
+    pendingReason: sessionPendingReason,
+  } = session;
 
   useEffect(() => {
     if (!authenticated) {
@@ -145,7 +164,7 @@ export default function PaymentStatusView({ status }) {
   }, [authenticated, dispatch, enqueueSnackbar, status, user?.id]);
 
   useEffect(() => {
-    if (status !== 'pending' || !session.orderId) {
+    if (status !== 'pending' || !sessionOrderId) {
       return undefined;
     }
 
@@ -156,18 +175,36 @@ export default function PaymentStatusView({ status }) {
         setCheckingStatus(true);
         setPollingError('');
 
-        const response = await axios.get(`/api/orders/${session.orderId}`);
+        const response = await axios.get(`/api/orders/${sessionOrderId}`);
         const order = response.data?.order;
 
         if (!active || !order) {
           return;
         }
 
-        if (order.paymentStatus === 'paid') {
+        const nextSession = {
+          ...session,
+          paymentStatus: order.paymentStatus || '',
+          orderStatus: order.status || '',
+          pendingReason:
+            order.status === 'pending' && ['paid', 'success'].includes(order.paymentStatus)
+              ? 'stock_unavailable_after_payment'
+              : sessionPendingReason,
+        };
+
+        if (order.status === 'pending') {
+          return;
+        }
+
+        if (['paid', 'success'].includes(order.paymentStatus)) {
           router.replace(
             `${paths.payment.success}?orderId=${order.id}&orderNumber=${order.orderNumber}&amount=${
               order.total
-            }&date=${encodeURIComponent(order.createdAt)}`
+            }&paymentStatus=${encodeURIComponent(
+              nextSession.paymentStatus
+            )}&orderStatus=${encodeURIComponent(nextSession.orderStatus)}&date=${encodeURIComponent(
+              order.createdAt
+            )}`
           );
           return;
         }
@@ -199,9 +236,19 @@ export default function PaymentStatusView({ status }) {
       active = false;
       window.clearInterval(intervalId);
     };
-  }, [router, session.orderId, status]);
+  }, [
+    router,
+    session,
+    sessionOrderId,
+    sessionPendingReason,
+    status,
+  ]);
 
-  const config = STATUS_CONFIG[status];
+  const config = {
+    ...STATUS_CONFIG[status],
+    description:
+      status === 'pending' ? getPendingDescription(session) : STATUS_CONFIG[status].description,
+  };
 
   const primaryAction = () => {
     if (status === 'success') {

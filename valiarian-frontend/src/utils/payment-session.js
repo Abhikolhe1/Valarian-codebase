@@ -44,7 +44,7 @@ export const clearPaymentSessionStorage = () => {
 export const buildPaymentQuery = (session = {}) => {
   const searchParams = new URLSearchParams();
 
-  ['orderId', 'orderNumber', 'amount', 'status'].forEach((key) => {
+  ['orderId', 'orderNumber', 'amount', 'status', 'paymentStatus', 'orderStatus', 'pendingReason'].forEach((key) => {
     if (session[key] !== undefined && session[key] !== null && session[key] !== '') {
       searchParams.set(key, String(session[key]));
     }

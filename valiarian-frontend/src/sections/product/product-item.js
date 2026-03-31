@@ -71,6 +71,11 @@ function ProductItem({ product }) {
   const handleAddCart = useCallback(
     async (event) => {
       event.stopPropagation();
+
+      if ((productView.displayStock || 0) <= 0) {
+        return;
+      }
+
       setLoadingCart(true);
 
       const newProduct = {
@@ -364,9 +369,10 @@ function ProductItem({ product }) {
             size="small"
             onClick={handleAddCart}
             loading={loadingCart}
+            disabled={(productView.displayStock || 0) <= 0}
             startIcon={<Iconify icon="solar:cart-plus-bold" width={20} />}
           >
-            Add to Cart
+            {(productView.displayStock || 0) <= 0 ? 'Out of Stock' : 'Add to Cart'}
           </LoadingButton>
         </Box>
       </Stack>

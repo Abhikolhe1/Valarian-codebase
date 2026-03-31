@@ -49,6 +49,8 @@ export default function useCheckout() {
   const checkoutSession = {
     ...checkout,
     cart: sessionTotals.cart,
+    eligibleCart: sessionTotals.eligibleCart,
+    unavailableCart: sessionTotals.unavailableCart,
     subTotal: sessionTotals.subTotal,
     total: sessionTotals.total,
     totalItems: sessionTotals.totalItems,

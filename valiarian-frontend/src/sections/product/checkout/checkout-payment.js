@@ -95,7 +95,8 @@ export default function CheckoutPayment({ checkout, onBackStep, onGotoStep, onAp
     shipping,
     tax,
     billing,
-    cart,
+    eligibleCart,
+    unavailableCart,
     actualSubTotal,
     productDiscount,
   } = checkout;
@@ -190,6 +191,15 @@ export default function CheckoutPayment({ checkout, onBackStep, onGotoStep, onAp
 
   const resolvePaymentStatusRoute = (paymentState) => {
     const normalizedStatus = String(paymentState?.status || '').toLowerCase();
+    const normalizedPaymentStatus = String(paymentState?.paymentStatus || '').toLowerCase();
+    const normalizedOrderStatus = String(paymentState?.orderStatus || '').toLowerCase();
+
+    if (
+      paymentState?.pendingReason === 'stock_unavailable_after_payment' ||
+      (normalizedOrderStatus === 'pending' && ['paid', 'success'].includes(normalizedPaymentStatus))
+    ) {
+      return paths.payment.pending;
+    }
 
     if (normalizedStatus === 'success' || normalizedStatus === 'paid') {
       return paths.payment.success;
@@ -213,9 +223,24 @@ export default function CheckoutPayment({ checkout, onBackStep, onGotoStep, onAp
 
     try {
       const response = await axios.get(`/api/orders/${paymentState.orderId}/status`);
+      const backendOrderStatus = response.data?.orderStatus || response.data?.status || '';
+      const backendPaymentStatus = response.data?.paymentStatus || '';
+      const normalizedOrderStatus = String(backendOrderStatus).toLowerCase();
+      const normalizedPaymentStatus = String(backendPaymentStatus).toLowerCase();
+
       const nextState = {
         ...paymentState,
-        status: response.data?.paymentStatus || response.data?.status || paymentState.status,
+        status:
+          normalizedOrderStatus === 'pending'
+            ? 'pending'
+            : backendPaymentStatus || backendOrderStatus || paymentState.status,
+        paymentStatus: backendPaymentStatus || paymentState.paymentStatus || '',
+        orderStatus: backendOrderStatus || paymentState.orderStatus || '',
+        pendingReason:
+          normalizedOrderStatus === 'pending' &&
+          ['paid', 'success'].includes(normalizedPaymentStatus)
+            ? 'stock_unavailable_after_payment'
+            : paymentState.pendingReason,
       };
 
       persistPaymentState(nextState);
@@ -278,14 +303,14 @@ export default function CheckoutPayment({ checkout, onBackStep, onGotoStep, onAp
       throw new Error('Please sign in to continue');
     }
 
-    if (!cart || cart.length === 0) {
+    if (!eligibleCart || eligibleCart.length === 0) {
       throw new Error('Your cart is empty');
     }
 
     const billingAddress = createBillingPayload();
 
     return {
-      cartItems: cart.map((item) => ({
+      cartItems: eligibleCart.map((item) => ({
         productId: getCartItemProductId(item),
         variantId: item.variantId || undefined,
         quantity: item.quantity,
@@ -312,6 +337,8 @@ export default function CheckoutPayment({ checkout, onBackStep, onGotoStep, onAp
 
     return {
       status: statusOverride || responseData?.status || order?.paymentStatus || 'pending',
+      paymentStatus: responseData?.paymentStatus || order?.paymentStatus || '',
+      orderStatus: responseData?.orderStatus || order?.status || '',
       orderId: responseData?.orderId || order?.id || '',
       orderNumber: order?.orderNumber || '',
       amount: normalizeAmount(order?.total ?? responseData?.amount),
@@ -370,10 +397,31 @@ export default function CheckoutPayment({ checkout, onBackStep, onGotoStep, onAp
         orderId: paymentState.orderId,
       });
 
+      const verifyOrderStatus = String(
+        verifyResponse.data?.order?.status || verifyResponse.data?.orderStatus || ''
+      ).toLowerCase();
+      const verifyPaymentStatus = String(
+        verifyResponse.data?.order?.paymentStatus ||
+          verifyResponse.data?.paymentStatus ||
+          verifyResponse.data?.status ||
+          ''
+      ).toLowerCase();
+      const shouldShowPending =
+        verifyOrderStatus === 'pending' ||
+        verifyResponse.data?.status === 'pending' ||
+        (verifyOrderStatus === 'pending' && ['paid', 'success'].includes(verifyPaymentStatus));
+
       const verifiedState = buildPaymentStateFromOrder(
         verifyResponse.data,
-        verifyResponse.data?.status === 'pending' ? 'pending' : 'success'
+        shouldShowPending ? 'pending' : 'success'
       );
+
+      if (
+        verifyOrderStatus === 'pending' &&
+        ['paid', 'success'].includes(verifyPaymentStatus)
+      ) {
+        verifiedState.pendingReason = 'stock_unavailable_after_payment';
+      }
 
       persistPaymentState(verifiedState);
 
@@ -390,20 +438,7 @@ export default function CheckoutPayment({ checkout, onBackStep, onGotoStep, onAp
       await clearCheckoutCart();
       navigate(buildPaymentRoute(paths.payment.success, verifiedState), { replace: true });
     } catch (error) {
-      if (error) {
-        const failedState = {
-          ...(createdPaymentState || {}),
-          orderId: createdPaymentState?.orderId || '',
-          orderNumber: createdPaymentState?.orderNumber || '',
-          amount: createdPaymentState?.amount || normalizeAmount(total),
-          createdAt: createdPaymentState?.createdAt || new Date().toISOString(),
-          status: 'failed',
-        };
-
-        persistPaymentState(failedState);
-        navigate(buildPaymentRoute(paths.payment.failed, failedState), { replace: true });
-        return;
-      }
+      const errorMessage = getErrorMessage(error, 'We could not complete your payment.');
 
       if (createdPaymentState?.orderId) {
         const synced = await syncStatusFromBackend(createdPaymentState);
@@ -411,9 +446,29 @@ export default function CheckoutPayment({ checkout, onBackStep, onGotoStep, onAp
         if (synced) {
           return;
         }
+      }
 
-        const failedState = {
+      if (error && isStockError(errorMessage) && createdPaymentState?.orderId) {
+        const pendingState = {
           ...createdPaymentState,
+          status: 'pending',
+          paymentStatus: createdPaymentState?.paymentStatus || 'paid',
+          orderStatus: createdPaymentState?.orderStatus || 'pending',
+          pendingReason: 'stock_unavailable_after_payment',
+        };
+
+        persistPaymentState(pendingState);
+        navigate(buildPaymentRoute(paths.payment.pending, pendingState), { replace: true });
+        return;
+      }
+
+      if (error) {
+        const failedState = {
+          ...(createdPaymentState || {}),
+          orderId: createdPaymentState?.orderId || '',
+          orderNumber: createdPaymentState?.orderNumber || '',
+          amount: createdPaymentState?.amount || normalizeAmount(total),
+          createdAt: createdPaymentState?.createdAt || new Date().toISOString(),
           status: 'failed',
         };
 
@@ -458,6 +513,12 @@ export default function CheckoutPayment({ checkout, onBackStep, onGotoStep, onAp
             {!!checkoutError && (
               <Alert severity="error" sx={{ mb: 3 }}>
                 {checkoutError}
+              </Alert>
+            )}
+
+            {!!unavailableCart?.length && (
+              <Alert severity="warning" sx={{ mb: 3 }}>
+                Some items in your cart are out of stock. They have been excluded from checkout total and order placement.
               </Alert>
             )}
 
@@ -541,7 +602,7 @@ export default function CheckoutPayment({ checkout, onBackStep, onGotoStep, onAp
               type="submit"
               variant="contained"
               loading={isSubmitting || isProcessingPayment || isLoadingScript}
-              disabled={isSubmitting || isProcessingPayment}
+              disabled={isSubmitting || isProcessingPayment || !eligibleCart?.length}
             >
               Place Order
             </LoadingButton>

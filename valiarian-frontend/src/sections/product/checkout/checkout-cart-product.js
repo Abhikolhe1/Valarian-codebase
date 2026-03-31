@@ -26,6 +26,7 @@ import IncrementerButton from '../common/incrementer-button';
 export default function CheckoutCartProduct({ row, onDelete, onDecrease, onIncrease }) {
   const { name, size, price, colors, coverUrl, quantity, available, slug, productId, id } = row;
   const productHref = slug ? paths.product.details(slug) : paths.product.details(productId || id);
+  const isOutOfStock = Number(available || 0) <= 0;
 
   return (
     <TableRow>
@@ -65,12 +66,12 @@ export default function CheckoutCartProduct({ row, onDelete, onDecrease, onIncre
             quantity={quantity}
             onDecrease={onDecrease}
             onIncrease={onIncrease}
-            disabledDecrease={quantity <= 1}
-            disabledIncrease={quantity >= available}
+            disabledDecrease={isOutOfStock || quantity <= 1}
+            disabledIncrease={isOutOfStock || quantity >= available}
           />
 
           <Typography variant="caption" component="div" sx={{ color: 'text.secondary', mt: 1 }}>
-            available: {available}
+            {isOutOfStock ? 'Out of stock' : `available: ${available}`}
           </Typography>
         </Box>
       </TableCell>

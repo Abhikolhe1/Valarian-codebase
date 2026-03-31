@@ -56,6 +56,9 @@ export const clampCartQuantity = (quantity, available) => {
   return Math.min(parsedQuantity, parsedAvailable);
 };
 
+export const isCartItemPurchasable = (item) =>
+  Number(item?.available || 0) > 0 && Number(item?.quantity || 0) > 0;
+
 export const normalizeCartItem = (input) => {
   if (!input) {
     return null;
@@ -119,15 +122,17 @@ export const normalizeCart = (cart = []) =>
 
 export const calculateCheckoutTotals = (cart = [], discount = 0, shipping = 0) => {
   const normalizedCart = normalizeCart(cart);
+  const eligibleCart = normalizedCart.filter(isCartItemPurchasable);
+  const unavailableCart = normalizedCart.filter((item) => !isCartItemPurchasable(item));
 
-  const totalItems = normalizedCart.reduce((sum, item) => sum + item.quantity, 0);
-  const subTotal = normalizedCart.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  const actualSubTotal = normalizedCart.reduce(
+  const totalItems = eligibleCart.reduce((sum, item) => sum + item.quantity, 0);
+  const subTotal = eligibleCart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const actualSubTotal = eligibleCart.reduce(
     (sum, item) => sum + Math.max(Number(item.originalPrice || item.price || 0), Number(item.price || 0)) * item.quantity,
     0
   );
   const productDiscount = Math.max(actualSubTotal - subTotal, 0);
-  const taxAmount = normalizedCart.reduce((sum, item) => {
+  const taxAmount = eligibleCart.reduce((sum, item) => {
     const gstRate = Number(item.gstRate || 0);
     const lineTotal = Number(item.price || 0) * Number(item.quantity || 0);
 
@@ -142,6 +147,8 @@ export const calculateCheckoutTotals = (cart = [], discount = 0, shipping = 0) =
 
   return {
     cart: normalizedCart,
+    eligibleCart,
+    unavailableCart,
     totalItems,
     actualSubTotal: roundCurrency(actualSubTotal),
     productDiscount: roundCurrency(productDiscount),

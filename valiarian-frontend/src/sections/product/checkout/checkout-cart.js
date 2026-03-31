@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import sum from 'lodash/sum';
 import PropTypes from 'prop-types';
 // @mui
+import Alert from '@mui/material/Alert';
 import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
 import CardHeader from '@mui/material/CardHeader';
@@ -32,9 +33,20 @@ export default function CheckoutCart({
   onDecreaseQuantity,
 }) {
   const { authenticated, user } = useAuthContext();
-  const { cart, total, discount, subTotal, shipping, tax, actualSubTotal, productDiscount } = checkout;
+  const {
+    cart,
+    eligibleCart,
+    unavailableCart,
+    total,
+    discount,
+    subTotal,
+    shipping,
+    tax,
+    actualSubTotal,
+    productDiscount,
+  } = checkout;
 
-  const totalItems = sum(cart.map((item) => item.quantity));
+  const totalItems = sum((eligibleCart || []).map((item) => item.quantity));
 
   const empty = !cart.length;
 
@@ -63,6 +75,12 @@ export default function CheckoutCart({
             }
             sx={{ mb: 3 }}
           />
+
+          {!!unavailableCart?.length && (
+            <Alert severity="warning" sx={{ mx: 3, mb: 3 }}>
+              Out-of-stock items are kept in your cart, but they are excluded from checkout and total calculation.
+            </Alert>
+          )}
 
           {!empty ? (
             <CheckoutCartProductList
@@ -115,7 +133,7 @@ export default function CheckoutCart({
           size="large"
           type="submit"
           variant="contained"
-          disabled={!cart.length}
+          disabled={!eligibleCart?.length}
           onClick={onNextStep}
         >
           Check Out
