@@ -1,15 +1,19 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import {injectable, BindingScope, inject} from '@loopback/core';
 import {TokenService} from '@loopback/authentication';
+import {repository} from '@loopback/repository';
 import {HttpErrors} from '@loopback/rest';
 import {securityId, UserProfile} from '@loopback/security';
 import * as jwt from 'jsonwebtoken';
+import {UsersRepository} from '../repositories';
 
 @injectable({scope: BindingScope.SINGLETON})
 export class JWTService implements TokenService {
   constructor(
     @inject('jwt.secret') private jwtSecret: string,
     @inject('jwt.expiresIn') private jwtExpiresIn: string,
+    @repository(UsersRepository)
+    private usersRepository: UsersRepository,
   ) {}
 
 
@@ -68,6 +72,15 @@ export class JWTService implements TokenService {
 
     try {
       const decrypted: any = await this.verifyJwt(token);
+      const user = await this.usersRepository.findById(decrypted.id).catch(() => null);
+
+      if (!user || user.isDeleted) {
+        throw new HttpErrors.Unauthorized('User account no longer exists');
+      }
+
+      if (!user.isActive) {
+        throw new HttpErrors.Unauthorized('Your account has been blocked. Please contact support.');
+      }
 
       const userProfile: UserProfile = {
         [securityId]: decrypted.id,

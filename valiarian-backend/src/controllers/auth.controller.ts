@@ -72,6 +72,19 @@ export class AuthController {
     return this.request.socket.remoteAddress || '127.0.0.1';
   }
 
+  private async revokeUserRefreshTokens(userId: string): Promise<void> {
+    await this.refreshTokenRepository.updateAll(
+      {
+        isRevoked: true,
+        updatedAt: new Date(),
+      },
+      {
+        userId,
+        isRevoked: false,
+      },
+    );
+  }
+
   // ---------------------------------------Super Admin Auth API's------------------------------------
   @post('/api/auth/super-admin')
   async createSuperAdmin(
@@ -629,6 +642,10 @@ export class AuthController {
       updatedAt: new Date(),
     });
 
+    if (!body.isActive) {
+      await this.revokeUserRefreshTokens(id);
+    }
+
     return {
       success: true,
       message: body.isActive ? 'User unblocked successfully' : 'User blocked successfully',
@@ -741,6 +758,10 @@ export class AuthController {
     }
 
     await this.usersRepository.updateById(id, updatePayload);
+
+    if (updatePayload.isActive === false) {
+      await this.revokeUserRefreshTokens(id);
+    }
 
     return {
       success: true,
@@ -1326,6 +1347,10 @@ export class AuthController {
 
     if (!userData) {
       throw new HttpErrors.BadRequest('Invalid credentials');
+    }
+
+    if (!userData.isActive) {
+      throw new HttpErrors.Forbidden('Your account has been blocked. Please contact support.');
     }
 
     // Verify password
@@ -2251,6 +2276,10 @@ export class AuthController {
       // Find or create user
       const user = await this.googleOAuthService.findOrCreateUser(googleUser);
 
+      if (!user.isActive) {
+        throw new HttpErrors.Forbidden('Your account has been blocked. Please contact support.');
+      }
+
       // Generate JWT token
       const token = await this.googleOAuthService.generateToken(
         user,
@@ -2626,6 +2655,10 @@ export class AuthController {
       const whereClause = isEmail ? {email: identifier} : {phone: identifier};
       let user = await this.usersRepository.findOne({where: whereClause});
       let isNewUser = false;
+
+      if (user && !user.isActive) {
+        throw new HttpErrors.Forbidden('Your account has been blocked. Please contact support.');
+      }
 
       if (!user) {
         // Auto-create user for e-commerce flow

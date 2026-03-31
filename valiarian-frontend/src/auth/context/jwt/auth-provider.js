@@ -53,6 +53,7 @@ const reducer = (state, action) => {
 const STORAGE_KEY = 'accessToken';
 const USER_STORAGE_KEY = 'user';
 const AUTH_BOOTSTRAP_TIMEOUT = 2000;
+const AUTH_FAILURE_EVENT = 'valiarian-auth-failure';
 
 function getStoredUser() {
   try {
@@ -99,16 +100,6 @@ export function AuthProvider({ children }) {
         } catch (error) {
           console.error('Frontend auth refresh error:', error);
           console.error('Error response:', error.response?.data || error.message);
-
-          if (storedUser?.id) {
-            dispatch({
-              type: 'INITIAL',
-              payload: {
-                user: storedUser,
-              },
-            });
-            return;
-          }
 
           setSession(null);
           localStorage.removeItem(USER_STORAGE_KEY);
@@ -162,6 +153,22 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     initialize();
   }, [initialize]);
+
+  useEffect(() => {
+    const handleAuthFailure = () => {
+      setSession(null);
+      localStorage.removeItem(USER_STORAGE_KEY);
+      dispatch({
+        type: 'LOGOUT',
+      });
+    };
+
+    window.addEventListener(AUTH_FAILURE_EVENT, handleAuthFailure);
+
+    return () => {
+      window.removeEventListener(AUTH_FAILURE_EVENT, handleAuthFailure);
+    };
+  }, []);
 
   // LOGIN
   const login = useCallback(async (email, password) => {
@@ -422,6 +429,7 @@ export function AuthProvider({ children }) {
   // LOGOUT
   const logout = useCallback(async () => {
     setSession(null);
+    localStorage.removeItem(USER_STORAGE_KEY);
     dispatch({
       type: 'LOGOUT',
     });

@@ -4,6 +4,25 @@ import { HOST_API } from 'src/config-global';
 
 // ----------------------------------------------------------------------
 
+const AUTH_FAILURE_EVENT = 'valiarian-auth-failure';
+
+const triggerAuthFailure = (error) => {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  localStorage.removeItem('accessToken');
+  localStorage.removeItem('user');
+  window.dispatchEvent(
+    new CustomEvent(AUTH_FAILURE_EVENT, {
+      detail: {
+        status: error?.response?.status,
+        message: error?.response?.data?.message || error?.message || 'Authentication failed',
+      },
+    })
+  );
+};
+
 const axiosInstance = axios.create({
   baseURL: HOST_API,
   withCredentials: true,
@@ -33,6 +52,14 @@ axiosInstance.interceptors.response.use(
 
       if (error.response.data?.message) {
         error.message = error.response.data.message;
+      }
+
+      const requestUrl = error.config?.url || '';
+      const isAuthFailure = [401, 403].includes(error.response.status);
+      const isLogoutRequest = requestUrl.includes('/api/auth/user/logout');
+
+      if (isAuthFailure && !isLogoutRequest) {
+        triggerAuthFailure(error);
       }
     }
 
