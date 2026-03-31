@@ -79,6 +79,14 @@ const SECTION_TYPES = [
     preview: '/assets/illustrations/section-social.svg',
   },
   {
+    type: 'premium-countdown',
+    label: 'Premium Countdown',
+    description: 'Luxury ecommerce hero with inventory, sizes, and live countdown',
+    icon: 'solar:clock-circle-bold',
+    color: 'warning',
+    preview: '/assets/illustrations/section-hero.svg',
+  },
+  {
     type: 'features',
     label: 'Features Section',
     description: 'Showcase product features with icons, titles, and descriptions',

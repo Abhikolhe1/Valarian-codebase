@@ -92,11 +92,11 @@ export default function FeaturesSectionEditor({ section, onSave, onCancel }) {
 
   return (
     <FormProvider methods={methods} onSubmit={onSubmit}>
-      <Stack spacing={3}>
+      <Stack spacing={3} pb={2}>
         {/* Basic Info */}
         <Card>
           <CardContent>
-            <Typography variant="h6" gutterBottom>
+            <Typography variant="h6" pb={2} gutterBottom>
               Basic Information
             </Typography>
             <Stack spacing={2}>
@@ -110,7 +110,7 @@ export default function FeaturesSectionEditor({ section, onSave, onCancel }) {
         {/* Layout */}
         <Card>
           <CardContent>
-            <Typography variant="h6" gutterBottom>
+            <Typography variant="h6" pb={2} gutterBottom>
               Layout
             </Typography>
             <Stack spacing={2}>

@@ -26,6 +26,7 @@ export default function SectionSkeleton({ type = 'default', sx, ...other }) {
     pricing: <PricingSkeleton />,
     contact: <ContactSkeleton />,
     custom: <DefaultSkeleton />,
+    'premium-countdown': <CTASkeleton />,
     default: <DefaultSkeleton />,
   };
 
@@ -59,6 +60,7 @@ SectionSkeleton.propTypes = {
     'pricing',
     'contact',
     'custom',
+    'premium-countdown',
     'default',
   ]),
   sx: PropTypes.object,

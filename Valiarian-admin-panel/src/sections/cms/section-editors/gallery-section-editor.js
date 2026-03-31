@@ -53,10 +53,10 @@ export default function GallerySectionEditor({ section, onSave, onCancel }) {
 
   return (
     <FormProvider methods={methods} onSubmit={onSubmit}>
-      <Stack spacing={3}>
+      <Stack spacing={3} pb={2}>
         <Card>
           <CardContent>
-            <Typography variant="h6" gutterBottom>Basic Information</Typography>
+            <Typography variant="h6" pb={2} gutterBottom>Basic Information</Typography>
             <Stack spacing={2}>
               <RHFTextField name="name" label="Section Name" />
               <RHFTextField name="heading" label="Section Heading" />
@@ -66,7 +66,7 @@ export default function GallerySectionEditor({ section, onSave, onCancel }) {
 
         <Card>
           <CardContent>
-            <Typography variant="h6" gutterBottom>Layout</Typography>
+            <Typography variant="h6" pb={2} gutterBottom>Layout</Typography>
             <Stack spacing={2}>
               <RHFSelect name="layout" label="Layout Style">
                 {LAYOUT_OPTIONS.map((opt) => (

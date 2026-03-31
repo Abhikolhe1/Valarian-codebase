@@ -215,7 +215,7 @@ export default function ScrollAnimatedSectionEditor({ section, onSave, onCancel 
 
   return (
     <FormProvider methods={methods} onSubmit={onSubmit}>
-      <Stack spacing={3}>
+      <Stack spacing={3} py={2}>
         {/* Section Name */}
         <RHFTextField name="name" label="Section Name" />
 

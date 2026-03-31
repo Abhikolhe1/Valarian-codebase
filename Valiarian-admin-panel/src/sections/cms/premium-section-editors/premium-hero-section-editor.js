@@ -30,7 +30,7 @@ const HEIGHT_OPTIONS = [
 
 // ----------------------------------------------------------------------
 
-export default function HeroSectionEditor({ section, onSave, onCancel }) {
+export default function PremiumHeroSectionEditor({ section, onSave, onCancel }) {
   const defaultValues = {
     name: section?.name || 'Hero Section',
     backgroundImage: section?.content?.backgroundImage || '',
@@ -276,7 +276,7 @@ export default function HeroSectionEditor({ section, onSave, onCancel }) {
   );
 }
 
-HeroSectionEditor.propTypes = {
+PremiumHeroSectionEditor.propTypes = {
   section: PropTypes.object,
   onSave: PropTypes.func,
   onCancel: PropTypes.func,
