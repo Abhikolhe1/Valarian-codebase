@@ -183,8 +183,8 @@ export default function MailBox({ onCloseCompose, email, subject, contactTokenId
             }}
           />
 
-          <Stack direction="row" alignItems="center">
-            <Stack direction="row" alignItems="center" flexGrow={1}>
+          <Stack direction="row" display="flex" justifyContent='flex-end' >
+            {/* <Stack direction="row" alignItems="center" flexGrow={1}>
               <IconButton>
                 <Iconify icon="solar:gallery-add-bold" />
               </IconButton>
@@ -192,7 +192,7 @@ export default function MailBox({ onCloseCompose, email, subject, contactTokenId
               <IconButton>
                 <Iconify icon="eva:attach-2-fill" />
               </IconButton>
-            </Stack>
+            </Stack> */}
 
             <Button
               variant="contained"
