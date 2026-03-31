@@ -15,7 +15,12 @@ import FormProvider from 'src/components/hook-form';
 import Iconify from 'src/components/iconify';
 import { useSnackbar } from 'src/components/snackbar';
 import useRazorpay from 'src/hooks/use-razorpay';
-import { clearPaymentSession, resetCart, resetCheckoutFlow, setPaymentSession } from 'src/redux/slices/checkout';
+import {
+  clearPaymentSession,
+  resetCart,
+  resetCheckoutFlow,
+  setPaymentSession,
+} from 'src/redux/slices/checkout';
 import { useDispatch } from 'src/redux/store';
 import { paths } from 'src/routes/paths';
 import axios, { endpoints } from 'src/utils/axios';
@@ -83,7 +88,17 @@ EmailPromptAction.propTypes = {
 };
 
 export default function CheckoutPayment({ checkout, onBackStep, onGotoStep, onApplyShipping }) {
-  const { total, discount, subTotal, shipping, tax, billing, cart, actualSubTotal, productDiscount } = checkout;
+  const {
+    total,
+    discount,
+    subTotal,
+    shipping,
+    tax,
+    billing,
+    cart,
+    actualSubTotal,
+    productDiscount,
+  } = checkout;
   const { user } = useAuthContext();
   const { enqueueSnackbar } = useSnackbar();
   const dispatch = useDispatch();
@@ -285,6 +300,14 @@ export default function CheckoutPayment({ checkout, onBackStep, onGotoStep, onAp
   };
 
   const buildPaymentStateFromOrder = (responseData, statusOverride) => {
+    if (!responseData) {
+      return {
+        status: 'failed',
+        orderId: responseData?.orderId || order?.id || '',
+        orderNumber: order?.orderNumber || '',
+        createdAt: order?.createdAt || new Date().toISOString(),
+      };
+    }
     const order = responseData?.order;
 
     return {
@@ -359,10 +382,15 @@ export default function CheckoutPayment({ checkout, onBackStep, onGotoStep, onAp
         return;
       }
 
+      if (verifiedState.status === 'failed') {
+        navigate(buildPaymentRoute(paths.payment.failed, verifiedState), { replace: true });
+        return;
+      }
+
       await clearCheckoutCart();
       navigate(buildPaymentRoute(paths.payment.success, verifiedState), { replace: true });
     } catch (error) {
-      if (error?.status === 'failed') {
+      if (error) {
         const failedState = {
           ...(createdPaymentState || {}),
           orderId: createdPaymentState?.orderId || '',

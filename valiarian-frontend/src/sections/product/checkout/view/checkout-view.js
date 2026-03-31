@@ -30,7 +30,7 @@ import CheckoutSteps from '../checkout-steps';
 
 export default function CheckoutView() {
   const settings = useSettingsContext();
-  const { authenticated } = useAuthContext();
+  const { authenticated, user } = useAuthContext();
   const {
     checkoutSession,
     completed,
@@ -49,12 +49,12 @@ export default function CheckoutView() {
   const { cart, billing, activeStep } = checkoutSession;
 
   useEffect(() => {
-    if (authenticated && cart.length) {
-      prefetchAddresses().catch(() => {
+    if (authenticated && user?.id && cart.length) {
+      prefetchAddresses(user.id).catch(() => {
         // Step-level UI handles address errors and fallbacks.
       });
     }
-  }, [authenticated, cart.length]);
+  }, [authenticated, cart.length, user?.id]);
 
   useEffect(() => {
     if (!cart.length && activeStep !== 0) {

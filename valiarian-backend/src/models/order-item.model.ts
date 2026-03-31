@@ -25,15 +25,34 @@ export class OrderItemEntity extends Entity {
     generated: false,
     defaultFn: 'uuidv4',
     postgresql: {
+      columnName: 'id',
       dataType: 'uuid',
     },
   })
   id: string;
 
-  @belongsTo(() => Order, {name: 'order'})
+  @belongsTo(() => Order, {
+    name: 'order',
+    keyFrom: 'orderId',
+    keyTo: 'id',
+  }, {
+    postgresql: {
+      columnName: 'orderid',
+      dataType: 'text',
+    },
+  })
   orderId: string;
 
-  @belongsTo(() => Product, {name: 'product'})
+  @belongsTo(() => Product, {
+    name: 'product',
+    keyFrom: 'productId',
+    keyTo: 'id',
+  }, {
+    postgresql: {
+      columnName: 'productid',
+      dataType: 'text',
+    },
+  })
   productId: string;
 
   @property({
@@ -41,6 +60,10 @@ export class OrderItemEntity extends Entity {
     required: true,
     jsonSchema: {
       minimum: 1,
+    },
+    postgresql: {
+      columnName: 'quantity',
+      dataType: 'integer',
     },
   })
   quantity: number;
@@ -52,6 +75,7 @@ export class OrderItemEntity extends Entity {
       minimum: 0,
     },
     postgresql: {
+      columnName: 'price',
       dataType: 'decimal',
       precision: 10,
       scale: 2,
@@ -65,6 +89,7 @@ export class OrderItemEntity extends Entity {
       minimum: 0,
     },
     postgresql: {
+      columnName: 'baseprice',
       dataType: 'decimal',
       precision: 10,
       scale: 2,
@@ -78,6 +103,7 @@ export class OrderItemEntity extends Entity {
       minimum: 0,
     },
     postgresql: {
+      columnName: 'gstrate',
       dataType: 'decimal',
       precision: 5,
       scale: 2,
@@ -91,6 +117,7 @@ export class OrderItemEntity extends Entity {
       minimum: 0,
     },
     postgresql: {
+      columnName: 'cgstrate',
       dataType: 'decimal',
       precision: 5,
       scale: 2,
@@ -104,6 +131,7 @@ export class OrderItemEntity extends Entity {
       minimum: 0,
     },
     postgresql: {
+      columnName: 'sgstrate',
       dataType: 'decimal',
       precision: 5,
       scale: 2,
@@ -117,6 +145,7 @@ export class OrderItemEntity extends Entity {
       minimum: 0,
     },
     postgresql: {
+      columnName: 'igstrate',
       dataType: 'decimal',
       precision: 5,
       scale: 2,
@@ -130,6 +159,7 @@ export class OrderItemEntity extends Entity {
       minimum: 0,
     },
     postgresql: {
+      columnName: 'cgstamount',
       dataType: 'decimal',
       precision: 10,
       scale: 2,
@@ -143,6 +173,7 @@ export class OrderItemEntity extends Entity {
       minimum: 0,
     },
     postgresql: {
+      columnName: 'sgstamount',
       dataType: 'decimal',
       precision: 10,
       scale: 2,
@@ -156,6 +187,7 @@ export class OrderItemEntity extends Entity {
       minimum: 0,
     },
     postgresql: {
+      columnName: 'igstamount',
       dataType: 'decimal',
       precision: 10,
       scale: 2,
@@ -169,6 +201,7 @@ export class OrderItemEntity extends Entity {
       minimum: 0,
     },
     postgresql: {
+      columnName: 'totalamount',
       dataType: 'decimal',
       precision: 10,
       scale: 2,
@@ -178,16 +211,25 @@ export class OrderItemEntity extends Entity {
 
   @property({
     type: 'string',
+    postgresql: {
+      columnName: 'name',
+    },
   })
   name?: string;
 
   @property({
     type: 'string',
+    postgresql: {
+      columnName: 'sku',
+    },
   })
   sku?: string;
 
   @property({
     type: 'string',
+    postgresql: {
+      columnName: 'image',
+    },
   })
   image?: string;
 
@@ -197,6 +239,7 @@ export class OrderItemEntity extends Entity {
       minimum: 0,
     },
     postgresql: {
+      columnName: 'subtotal',
       dataType: 'decimal',
       precision: 10,
       scale: 2,
@@ -207,12 +250,18 @@ export class OrderItemEntity extends Entity {
   @property({
     type: 'date',
     defaultFn: 'now',
+    postgresql: {
+      columnName: 'createdat',
+    },
   })
   createdAt?: Date;
 
   @property({
     type: 'date',
     defaultFn: 'now',
+    postgresql: {
+      columnName: 'updatedat',
+    },
   })
   updatedAt?: Date;
 

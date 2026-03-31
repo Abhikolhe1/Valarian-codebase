@@ -54,7 +54,7 @@ export default function OrderHistoryView() {
   // Load orders from backend
   useEffect(() => {
     const loadOrders = async () => {
-      if (!authenticated || !user) return;
+      if (!authenticated || !user?.id) return;
 
       try {
         setLoading(true);
@@ -87,10 +87,10 @@ export default function OrderHistoryView() {
     };
 
     loadOrders();
-  }, [authenticated, user]);
+  }, [authenticated, user?.id]);
 
   useEffect(() => {
-    if (!authenticated || !user) {
+    if (!authenticated || !user?.id) {
       return undefined;
     }
 
@@ -116,7 +116,7 @@ export default function OrderHistoryView() {
     }, 30000);
 
     return () => clearInterval(interval);
-  }, [authenticated, orders, user]);
+  }, [authenticated, orders, user?.id]);
 
   const handleViewOrder = (orderId) => {
     router.push(paths.order.details(orderId));

@@ -11,7 +11,10 @@ import { mapAddressToDisplay } from 'src/utils/address';
 // ----------------------------------------------------------------------
 
 export default function ProfileDisplay({ user }) {
-  const { addresses, isLoading: addressesLoading } = useGetAddresses();
+  const { addresses, isLoading: addressesLoading } = useGetAddresses(
+    user?.id,
+    Boolean(user?.id)
+  );
 
   // Find primary address
   const primaryAddress = addresses?.find((addr) => addr.isPrimary) || addresses?.[0];

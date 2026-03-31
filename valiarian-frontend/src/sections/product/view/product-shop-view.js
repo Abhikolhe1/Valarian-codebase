@@ -1,37 +1,33 @@
 import isEqual from 'lodash/isEqual';
-import { startTransition, useCallback, useState, useEffect, useMemo } from 'react';
+import { startTransition, useCallback, useEffect, useMemo, useState } from 'react';
 // @mui
+import Container from '@mui/material/Container';
+import Stack from '@mui/material/Stack';
 import Tab from '@mui/material/Tab';
 import Tabs from '@mui/material/Tabs';
-import Stack from '@mui/material/Stack';
-import Container from '@mui/material/Container';
-import Typography from '@mui/material/Typography';
 // hooks
+import CustomBreadcrumbs from 'src/components/custom-breadcrumbs';
 import { useBoolean } from 'src/hooks/use-boolean';
 import { useDebounce } from 'src/hooks/use-debounce';
 import { useRouter, useSearchParams } from 'src/routes/hook';
-import CustomBreadcrumbs from 'src/components/custom-breadcrumbs';
 
 // routes
 import { paths } from 'src/routes/paths';
 // utils
 // _mock
-import {
-  PRODUCT_SORT_OPTIONS,
-} from 'src/_mock';
+import { PRODUCT_SORT_OPTIONS } from 'src/_mock';
 // api
-import { useGetProducts, useSearchProducts } from 'src/api/product';
 import { useGetCategories } from 'src/api/category';
+import { useGetProducts, useSearchProducts } from 'src/api/product';
 // components
 import EmptyContent from 'src/components/empty-content';
 import { useSettingsContext } from 'src/components/settings';
 //
-import { useCheckout } from '../hooks';
 import CartIcon from '../common/cart-icon';
+import { useCheckout } from '../hooks';
+import ProductFiltersResult from '../product-filters-result';
 import ProductList from '../product-list';
 import ProductSort from '../product-sort';
-import ProductSearch from '../product-search';
-import ProductFiltersResult from '../product-filters-result';
 
 // ----------------------------------------------------------------------
 
@@ -69,7 +65,7 @@ export default function ProductShopView() {
 
   const openFilters = useBoolean();
 
-  const [sortBy, setSortBy] = useState('featured');
+  const [sortBy, setSortBy] = useState('newest');
   const [page, setPage] = useState(1);
 
   const [searchQuery, setSearchQuery] = useState(normalizedSearchFromQuery);
@@ -119,9 +115,7 @@ export default function ProductShopView() {
     setFilters((prev) => ({
       ...prev,
       category:
-        prev.category === normalizedCategoryFromQuery
-          ? prev.category
-          : normalizedCategoryFromQuery,
+        prev.category === normalizedCategoryFromQuery ? prev.category : normalizedCategoryFromQuery,
     }));
   }, [normalizedCategoryFromQuery]);
 
@@ -243,9 +237,7 @@ export default function ProductShopView() {
         loading={searchLoading}
         hrefItem={(id) => paths.product.details(id)}
       /> */}
-      <Stack>
-        {canReset && renderResults}
-      </Stack>
+      <Stack>{canReset && renderResults}</Stack>
       <Stack direction="row" spacing={1} flexShrink={0} justifyContent="end">
         {/* <ProductFilters
           open={openFilters.value}
@@ -269,34 +261,30 @@ export default function ProductShopView() {
     </Stack>
   );
 
-
-
   const renderTabs = (
-
-       <CustomBreadcrumbs
-            links={[
-              { name: 'Home', href: '/' },
-              {
-                name: 'Products',
-                href: paths.product.root,
-              },
-              <Tabs
-              value={filters.category}
-              onChange={handleFilterCategory}
-              sx={{
-                mt: 4,
-                mb: { xs: 3, md: 5 },
-              }}
-            >
-              <Tab key="products" label="Products" value="products" />
-              {/* {categories.map((category) => (
+    <CustomBreadcrumbs
+      links={[
+        { name: 'Home', href: '/' },
+        {
+          name: 'Products',
+          href: paths.product.root,
+        },
+        <Tabs
+          value={filters.category}
+          onChange={handleFilterCategory}
+          sx={{
+            mt: 4,
+            mb: { xs: 3, md: 5 },
+          }}
+        >
+          <Tab key="products" label="Products" value="products" />
+          {/* {categories.map((category) => (
                 <Tab key={category.id} label={category.name} value={category.id} />
               ))} */}
-
-            </Tabs>
-            ]}
-            sx={{ mb: 1, mt: 5, pt: 0 }}
-          />
+        </Tabs>,
+      ]}
+      sx={{ mb: 1, mt: 5, pt: 0 }}
+    />
   );
 
   const renderNotFound = <EmptyContent filled title="No Data" sx={{ py: 10 }} />;
@@ -482,15 +470,19 @@ function matchesSearch(product, searchQuery) {
     return true;
   }
 
-  const searchableText = normalizeSearchValue([
-    product.name,
-    product.category?.name,
-    product.category?.slug,
-    product.categoryId,
-    product.shortDescription,
-    product.subDescription,
-    product.description,
-  ].filter(Boolean).join(' '));
+  const searchableText = normalizeSearchValue(
+    [
+      product.name,
+      product.category?.name,
+      product.category?.slug,
+      product.categoryId,
+      product.shortDescription,
+      product.subDescription,
+      product.description,
+    ]
+      .filter(Boolean)
+      .join(' ')
+  );
 
   if (searchableText.includes(normalizedQuery)) {
     return true;

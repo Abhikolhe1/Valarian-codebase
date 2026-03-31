@@ -52,6 +52,18 @@ export class ProductRepository extends TimeStampRepositoryMixin<
     typeof Product.prototype.id
   >;
 
+  private hasSuccessfulAtomicUpdate(result: any): boolean {
+    if (Array.isArray(result)) {
+      return result.length === 1;
+    }
+
+    if (Array.isArray(result?.rows)) {
+      return result.rows.length === 1;
+    }
+
+    return (result?.affectedRows || result?.count || 0) === 1;
+  }
+
   constructor(
     @inject('datasources.valiarian') dataSource: ValiarianDataSource,
     @repository.getter('CategoryRepository')
@@ -69,18 +81,21 @@ export class ProductRepository extends TimeStampRepositoryMixin<
   /**
    * Sync total stock quantity from variants
    */
-  async syncStockFromVariants(productId: string): Promise<Product> {
+  async syncStockFromVariants(
+    productId: string,
+    options?: {transaction?: any},
+  ): Promise<Product> {
     const variantRepo = await this.productVariantRepositoryGetter();
-    const variants = await variantRepo.find({where: {productId}});
+    const variants = await variantRepo.find({where: {productId}}, options);
     const totalStock = variants.reduce((sum, v) => sum + (v.stockQuantity || 0), 0);
 
     await this.updateById(productId, {
       stockQuantity: totalStock,
       inStock: totalStock > 0,
       updatedAt: new Date(),
-    });
+    }, options);
 
-    return this.findById(productId);
+    return this.findById(productId, undefined, options);
   }
 
   /**
@@ -157,13 +172,67 @@ export class ProductRepository extends TimeStampRepositoryMixin<
   /**
    * Update stock quantity for a product
    */
-  async updateStock(id: string, quantity: number): Promise<Product> {
-    const product = await this.findById(id);
+  async updateStock(
+    id: string,
+    quantity: number,
+    options?: {transaction?: any},
+  ): Promise<Product> {
+    const product = await this.findById(id, undefined, options);
     product.stockQuantity = quantity;
     product.inStock = quantity > 0;
     product.updatedAt = new Date();
-    await this.update(product);
+    await this.update(product, options);
     return product;
+  }
+
+  /**
+   * Use a single conditional UPDATE so stock reservation is decided by the
+   * database in one step. A separate read-then-write can oversell under load.
+   */
+  async reserveProductStockAtomic(
+    productId: string,
+    quantity: number,
+    options?: {transaction?: any},
+  ): Promise<boolean> {
+    const sql = `
+      UPDATE public.products
+      SET stockquantity = stockquantity - $1,
+          instock = GREATEST(stockquantity - $1, 0) > 0,
+          updatedat = NOW()
+      WHERE id = $2
+        AND (COALESCE(trackinventory, true) = false OR stockquantity >= $1)
+      RETURNING id;
+    `;
+
+    const result = await this.dataSource.execute(sql, [quantity, productId], options);
+    const reserved = this.hasSuccessfulAtomicUpdate(result);
+
+    if (!reserved) {
+      console.warn('[Inventory] Atomic product reservation failed', {
+        productId,
+        requestedQty: quantity,
+      });
+    }
+
+    return reserved;
+  }
+
+  async releaseProductStockAtomic(
+    productId: string,
+    quantity: number,
+    options?: {transaction?: any},
+  ): Promise<boolean> {
+    const sql = `
+      UPDATE public.products
+      SET stockquantity = stockquantity + $1,
+          instock = (stockquantity + $1) > 0,
+          updatedat = NOW()
+      WHERE id = $2
+      RETURNING id;
+    `;
+
+    const result = await this.dataSource.execute(sql, [quantity, productId], options);
+    return this.hasSuccessfulAtomicUpdate(result);
   }
 
   /**
@@ -335,16 +404,164 @@ export class ProductRepository extends TimeStampRepositoryMixin<
   async updateVariantStock(
     productId: string,
     variantId: string,
-    quantity: number
+    quantity: number,
+    options?: {transaction?: any},
   ): Promise<Product> {
     const variantRepo = await this.productVariantRepositoryGetter();
     await variantRepo.updateById(variantId, {
       stockQuantity: quantity,
       inStock: quantity > 0,
       updatedAt: new Date(),
-    });
+    }, options);
 
-    return this.syncStockFromVariants(productId);
+    return this.syncStockFromVariants(productId, options);
+  }
+
+  /**
+   * Variants need the same single-statement reservation guarantee as products.
+   * Transactions alone are not enough if the stock check happens before update.
+   */
+  async reserveVariantStockAtomic(
+    productId: string,
+    variantId: string,
+    quantity: number,
+    options?: {transaction?: any},
+  ): Promise<boolean> {
+    const variantSql = `
+      UPDATE public.product_variants
+      SET stockquantity = stockquantity - $1,
+          instock = GREATEST(stockquantity - $1, 0) > 0,
+          updatedat = NOW()
+      WHERE id = $2
+        AND productid = $3
+        AND stockquantity >= $1
+      RETURNING id;
+    `;
+
+    const variantResult = await this.dataSource.execute(
+      variantSql,
+      [quantity, variantId, productId],
+      options,
+    );
+
+    const reservedVariant = this.hasSuccessfulAtomicUpdate(variantResult);
+
+    if (reservedVariant) {
+      await this.syncStockFromVariants(productId, options);
+      return true;
+    }
+
+    const embeddedSql = `
+      WITH matched AS (
+        SELECT
+          ordinality - 1 AS idx,
+          COALESCE((variant.value ->> 'stockQuantity')::integer, 0) AS stock_qty
+        FROM public.products,
+             jsonb_array_elements(COALESCE(variants, '[]'::jsonb)) WITH ORDINALITY AS variant(value, ordinality)
+        WHERE id = $1
+          AND variant.value ->> 'id' = $2
+        LIMIT 1
+      )
+      UPDATE public.products
+      SET variants = jsonb_set(
+            COALESCE(variants, '[]'::jsonb),
+            ARRAY[(SELECT idx::text FROM matched), 'stockQuantity'],
+            to_jsonb((SELECT stock_qty - $3 FROM matched)),
+            false
+          ),
+          stockquantity = GREATEST(COALESCE(stockquantity, 0) - $3, 0),
+          instock = GREATEST(COALESCE(stockquantity, 0) - $3, 0) > 0,
+          updatedat = NOW()
+      WHERE id = $1
+        AND EXISTS (
+          SELECT 1
+          FROM matched
+          WHERE stock_qty >= $3
+        )
+      RETURNING id;
+    `;
+
+    const embeddedResult = await this.dataSource.execute(
+      embeddedSql,
+      [productId, variantId, quantity],
+      options,
+    );
+
+    const reservedEmbedded = this.hasSuccessfulAtomicUpdate(embeddedResult);
+
+    if (!reservedEmbedded) {
+      console.warn('[Inventory] Atomic variant reservation failed', {
+        productId,
+        variantId,
+        requestedQty: quantity,
+      });
+    }
+
+    return reservedEmbedded;
+  }
+
+  async releaseVariantStockAtomic(
+    productId: string,
+    variantId: string,
+    quantity: number,
+    options?: {transaction?: any},
+  ): Promise<boolean> {
+    const variantSql = `
+      UPDATE public.product_variants
+      SET stockquantity = stockquantity + $1,
+          instock = (stockquantity + $1) > 0,
+          updatedat = NOW()
+      WHERE id = $2
+        AND productid = $3
+      RETURNING id;
+    `;
+
+    const variantResult = await this.dataSource.execute(
+      variantSql,
+      [quantity, variantId, productId],
+      options,
+    );
+
+    const releasedVariant = this.hasSuccessfulAtomicUpdate(variantResult);
+
+    if (releasedVariant) {
+      await this.syncStockFromVariants(productId, options);
+      return true;
+    }
+
+    const embeddedSql = `
+      WITH matched AS (
+        SELECT
+          ordinality - 1 AS idx,
+          COALESCE((variant.value ->> 'stockQuantity')::integer, 0) AS stock_qty
+        FROM public.products,
+             jsonb_array_elements(COALESCE(variants, '[]'::jsonb)) WITH ORDINALITY AS variant(value, ordinality)
+        WHERE id = $1
+          AND variant.value ->> 'id' = $2
+        LIMIT 1
+      )
+      UPDATE public.products
+      SET variants = jsonb_set(
+            COALESCE(variants, '[]'::jsonb),
+            ARRAY[(SELECT idx::text FROM matched), 'stockQuantity'],
+            to_jsonb((SELECT stock_qty + $3 FROM matched)),
+            false
+          ),
+          stockquantity = COALESCE(stockquantity, 0) + $3,
+          instock = (COALESCE(stockquantity, 0) + $3) > 0,
+          updatedat = NOW()
+      WHERE id = $1
+        AND EXISTS (SELECT 1 FROM matched)
+      RETURNING id;
+    `;
+
+    const embeddedResult = await this.dataSource.execute(
+      embeddedSql,
+      [productId, variantId, quantity],
+      options,
+    );
+
+    return this.hasSuccessfulAtomicUpdate(embeddedResult);
   }
 
   async variantCombinationExists(
