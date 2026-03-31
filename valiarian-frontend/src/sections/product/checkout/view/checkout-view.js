@@ -30,7 +30,7 @@ import CheckoutSteps from '../checkout-steps';
 
 export default function CheckoutView() {
   const settings = useSettingsContext();
-  const { authenticated } = useAuthContext();
+  const { authenticated, user } = useAuthContext();
   const {
     checkoutSession,
     completed,
@@ -49,12 +49,12 @@ export default function CheckoutView() {
   const { cart, billing, activeStep } = checkoutSession;
 
   useEffect(() => {
-    if (authenticated && cart.length) {
-      prefetchAddresses().catch(() => {
+    if (authenticated && user?.id && cart.length) {
+      prefetchAddresses(user.id).catch(() => {
         // Step-level UI handles address errors and fallbacks.
       });
     }
-  }, [authenticated, cart.length]);
+  }, [authenticated, cart.length, user?.id]);
 
   useEffect(() => {
     if (!cart.length && activeStep !== 0) {
@@ -62,21 +62,26 @@ export default function CheckoutView() {
       return;
     }
 
-    if (activeStep > 1 && !billing) {
+    if (!authenticated && activeStep > 1) {
       onGotoStep(1);
       return;
     }
 
-    if (activeStep > 2 && !authenticated) {
-      onGotoStep(2);
+    if (authenticated && activeStep > 1 && !billing) {
+      onGotoStep(1);
+      return;
+    }
+
+    if (authenticated && activeStep === 2) {
+      onGotoStep(3);
     }
   }, [activeStep, authenticated, billing, cart.length, onGotoStep]);
 
   const isEmpty = !cart.length && !completed;
   const checkoutSteps = authenticated
     ? PRODUCT_CHECKOUT_STEPS.filter((step) => step !== 'Authentication')
-    : PRODUCT_CHECKOUT_STEPS;
-  const displayActiveStep = authenticated && activeStep > 2 ? activeStep - 1 : activeStep;
+    : ['Cart', 'Authentication', 'Billing & address', 'Payment'];
+  const displayActiveStep = authenticated && activeStep > 1 ? activeStep - 1 : activeStep;
 
   return (
     <Container maxWidth={settings.themeStretch ? false : 'lg'} sx={{ mb: 10 }}>
@@ -138,7 +143,14 @@ export default function CheckoutView() {
                 />
               )}
 
-              {activeStep === 1 && (
+              {activeStep === 1 && !authenticated && (
+                <CheckoutAuthGate
+                  onNextStep={onNextStep}
+                  onBackStep={onBackStep}
+                />
+              )}
+
+              {activeStep === 1 && authenticated && (
                 <CheckoutBillingAddress
                   checkout={checkoutSession}
                   onBackStep={onBackStep}
@@ -146,14 +158,7 @@ export default function CheckoutView() {
                 />
               )}
 
-              {activeStep === 2 && (
-                <CheckoutAuthGate
-                  onNextStep={onNextStep}
-                  onBackStep={onBackStep}
-                />
-              )}
-
-              {activeStep === 3 && billing && (
+              {activeStep === 3 && billing && authenticated && (
                 <CheckoutPayment
                   checkout={checkoutSession}
                   onNextStep={onNextStep}

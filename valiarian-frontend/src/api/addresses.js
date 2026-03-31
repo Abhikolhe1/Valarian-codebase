@@ -9,13 +9,14 @@ const getErrorMessage = (error, fallbackMessage) =>
   error?.message ||
   fallbackMessage;
 
-export function prefetchAddresses() {
-  return preload(ADDRESSES_KEY, fetcher);
+export function prefetchAddresses(userId) {
+  return preload(userId ? [ADDRESSES_KEY, userId] : null, ([url]) => fetcher(url));
 }
 
 // GET all addresses for current user
-export function useGetAddresses(enabled = true) {
-  const { data, error, isLoading, mutate } = useSWR(enabled ? ADDRESSES_KEY : null, fetcher);
+export function useGetAddresses(userId, enabled = true) {
+  const key = enabled && userId ? [ADDRESSES_KEY, userId] : null;
+  const { data, error, isLoading, mutate } = useSWR(key, ([url]) => fetcher(url));
 
   return {
     addresses: data || [],

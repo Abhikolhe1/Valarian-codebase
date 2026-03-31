@@ -136,7 +136,7 @@ export default function CheckoutAuthGate({ onNextStep, onBackStep }) {
                 onClick={onBackStep}
                 sx={{ display: { xs: 'none', md: 'inline-flex' } }}
               >
-                Back to Address
+                Back to Cart
               </Button>
             </Stack>
 

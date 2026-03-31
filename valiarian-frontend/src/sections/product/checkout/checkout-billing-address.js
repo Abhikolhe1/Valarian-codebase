@@ -29,9 +29,9 @@ import { AddressListSkeleton, CheckoutSummarySkeleton } from './checkout-skeleto
 export default function CheckoutBillingAddress({ checkout, onBackStep, onCreateBilling }) {
   const addressForm = useBoolean();
   const editForm = useBoolean();
-  const { addresses, isLoading, error, mutate } = useGetAddresses();
-  const [editingAddress, setEditingAddress] = useState(null);
   const { user } = useAuthContext();
+  const { addresses, isLoading, error, mutate } = useGetAddresses(user?.id, Boolean(user?.id));
+  const [editingAddress, setEditingAddress] = useState(null);
 
   const buildBillingAddress = (address, fallbackName, fallbackPhone) =>
     mapAddressToCheckoutBilling(

@@ -24,8 +24,8 @@ import PropTypes from 'prop-types';
 // ----------------------------------------------------------------------
 
 export default function UserAddressListView({ onAdd, onEdit }) {
-  const { addresses, isLoading, mutate } = useGetAddresses();
   const { user } = useAuthContext();
+  const { addresses, isLoading, mutate } = useGetAddresses(user?.id, Boolean(user?.id));
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [addressToDelete, setAddressToDelete] = useState(null);
   const [errorMsg, setErrorMsg] = useState('');

@@ -68,6 +68,7 @@ export class OrderStatusHistoryRepository extends TimeStampRepositoryMixin<
     status: string,
     changedBy: string,
     comment?: string,
+    options?: object,
   ): Promise<OrderStatusHistory> {
     const {v4: uuidv4} = require('uuid');
 
@@ -78,6 +79,6 @@ export class OrderStatusHistoryRepository extends TimeStampRepositoryMixin<
       changedBy,
       comment,
       createdAt: new Date(),
-    });
+    }, options);
   }
 }

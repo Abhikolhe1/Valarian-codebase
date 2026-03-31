@@ -123,7 +123,7 @@ export default function OrderTrackingView() {
   // Load tracking information from backend
   useEffect(() => {
     const loadTracking = async () => {
-      if (!authenticated || !user || !id) return;
+      if (!authenticated || !user?.id || !id) return;
 
       try {
         setLoading(true);
@@ -139,7 +139,7 @@ export default function OrderTrackingView() {
     };
 
     loadTracking();
-  }, [authenticated, user, id]);
+  }, [authenticated, user?.id, id]);
 
   const handleBackToOrders = () => {
     router.push(paths.order.history);
@@ -152,9 +152,10 @@ export default function OrderTrackingView() {
   const getActiveStep = (status) => {
     switch (status) {
       case 'pending':
-      case 'processing':
         return 0;
       case 'confirmed':
+      case 'processing':
+      case 'packed':
         return 1;
       case 'shipped':
         return 2;
@@ -167,6 +168,30 @@ export default function OrderTrackingView() {
   };
 
   const steps = ['Order Placed', 'Confirmed', 'Shipped', 'Delivered'];
+  const shouldShowTimeline = Boolean(
+    tracking?.trackingNumber ||
+      tracking?.events?.length ||
+      ['pending', 'confirmed', 'processing', 'packed', 'shipped', 'delivered', 'completed'].includes(
+        tracking?.status
+      )
+  );
+
+  const getTrackingMessage = () => {
+    switch (tracking?.status) {
+      case 'delivered':
+      case 'completed':
+        return 'Your order has been delivered successfully.';
+      case 'shipped':
+        return 'Your order has been shipped. Tracking number will be updated soon.';
+      case 'confirmed':
+      case 'processing':
+      case 'packed':
+        return 'Your order is being prepared for shipment.';
+      case 'pending':
+      default:
+        return 'Tracking information is not available yet. Your order is being processed and tracking details will be updated soon.';
+    }
+  };
 
   return (
     <Container maxWidth={settings.themeStretch ? false : 'lg'} sx={{ py: { xs: 5, md: 10 } }}>
@@ -276,7 +301,8 @@ export default function OrderTrackingView() {
                 Tracking Timeline
               </Typography>
 
-              {tracking.trackingNumber ? (
+              {shouldShowTimeline ? (
+                <Stack spacing={3}>
                 <Stepper
                   alternativeLabel
                   activeStep={getActiveStep(tracking.status)}
@@ -284,10 +310,19 @@ export default function OrderTrackingView() {
                 >
                   {steps.map((label) => (
                     <Step key={label}>
-                      <StepLabel StepIconComponent={ColorlibStepIcon}>{label}</StepLabel>
-                    </Step>
-                  ))}
+                    <StepLabel StepIconComponent={ColorlibStepIcon}>{label}</StepLabel>
+                  </Step>
+                ))}
                 </Stepper>
+
+                  {!tracking.trackingNumber && (
+                    <Box sx={{ textAlign: 'center', pt: 1 }}>
+                      <Typography variant="body2" color="text.secondary">
+                        {getTrackingMessage()}
+                      </Typography>
+                    </Box>
+                  )}
+                </Stack>
               ) : (
                 <Box sx={{ textAlign: 'center', py: 5 }}>
                   <Iconify
@@ -296,8 +331,7 @@ export default function OrderTrackingView() {
                     sx={{ color: 'text.disabled', mb: 2 }}
                   />
                   <Typography variant="body2" color="text.secondary">
-                    Tracking information is not available yet. Your order is being processed and
-                    tracking details will be updated soon.
+                    {getTrackingMessage()}
                   </Typography>
                 </Box>
               )}

@@ -31,7 +31,7 @@ export default function CheckoutCart({
   onIncreaseQuantity,
   onDecreaseQuantity,
 }) {
-  const { authenticated } = useAuthContext();
+  const { authenticated, user } = useAuthContext();
   const { cart, total, discount, subTotal, shipping, tax, actualSubTotal, productDiscount } = checkout;
 
   const totalItems = sum(cart.map((item) => item.quantity));
@@ -39,14 +39,14 @@ export default function CheckoutCart({
   const empty = !cart.length;
 
   useEffect(() => {
-    if (!authenticated || empty) {
+    if (!authenticated || !user?.id || empty) {
       return;
     }
 
-    prefetchAddresses().catch(() => {
+    prefetchAddresses(user.id).catch(() => {
       // Address step already handles its own error state.
     });
-  }, [authenticated, empty]);
+  }, [authenticated, empty, user?.id]);
 
   return (
     <Grid container spacing={3}>

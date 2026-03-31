@@ -125,3 +125,83 @@ export interface ProductVariantRelations {
 }
 
 export type ProductVariantWithRelations = ProductVariant & ProductVariantRelations;
+
+Object.assign(ProductVariant.definition.properties.id ?? {}, {
+  type: 'string',
+  postgresql: {
+    columnName: 'id',
+    dataType: 'uuid',
+  },
+});
+
+Object.assign(ProductVariant.definition.properties.productId ?? {}, {
+  type: 'string',
+  postgresql: {
+    columnName: 'productid',
+    dataType: 'text',
+  },
+});
+
+Object.assign(ProductVariant.definition.properties.colorName ?? {}, {
+  type: 'string',
+  postgresql: {
+    columnName: 'colorname',
+  },
+});
+
+Object.assign(ProductVariant.definition.properties.stockQuantity ?? {}, {
+  type: 'number',
+  postgresql: {
+    columnName: 'stockquantity',
+    dataType: 'integer',
+  },
+});
+
+Object.assign(ProductVariant.definition.properties.inStock ?? {}, {
+  type: 'boolean',
+  postgresql: {
+    columnName: 'instock',
+  },
+});
+
+Object.assign(ProductVariant.definition.properties.isDefault ?? {}, {
+  type: 'boolean',
+  postgresql: {
+    columnName: 'isdefault',
+  },
+});
+
+Object.assign(ProductVariant.definition.properties.isActive ?? {}, {
+  type: 'boolean',
+  postgresql: {
+    columnName: 'isactive',
+  },
+});
+
+Object.assign(ProductVariant.definition.properties.isDeleted ?? {}, {
+  type: 'boolean',
+  postgresql: {
+    columnName: 'isdeleted',
+  },
+});
+
+Object.assign(ProductVariant.definition.properties.createdAt ?? {}, {
+  type: 'date',
+  postgresql: {
+    columnName: 'createdat',
+  },
+});
+
+Object.assign(ProductVariant.definition.properties.updatedAt ?? {}, {
+  type: 'date',
+  postgresql: {
+    columnName: 'updatedat',
+  },
+});
+
+Object.assign(ProductVariant.definition.properties.deletedAt ?? {}, {
+  type: 'date',
+  postgresql: {
+    columnName: 'deletedat',
+  },
+});

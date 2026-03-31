@@ -1,9 +1,10 @@
-import {BindingScope, injectable} from '@loopback/core';
+import {BindingScope, inject, injectable} from '@loopback/core';
 import {repository} from '@loopback/repository';
 import {HttpErrors} from '@loopback/rest';
 import {v4 as uuidv4} from 'uuid';
 import {MediaRepository, OtpRepository, UsersRepository} from '../repositories';
 import {BcryptHasher} from './hash.password.bcrypt';
+import {OtpNotificationService} from './otp-notification.service';
 
 @injectable({scope: BindingScope.TRANSIENT})
 export class UserProfileService {
@@ -14,6 +15,8 @@ export class UserProfileService {
     private otpRepository: OtpRepository,
     @repository(MediaRepository)
     private mediaRepository: MediaRepository,
+    @inject('services.otp.notification')
+    private otpNotificationService: OtpNotificationService,
   ) { }
 
   /**
@@ -161,8 +164,8 @@ export class UserProfileService {
       {identifier: newEmail, type: 1},
     );
 
-    // Generate OTP - use hardcoded 1234 for testing in dev mode
-    const otpCode = (process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'dev') ? '1234' : Math.floor(1000 + Math.random() * 9000).toString();
+    // Generate a real random 4-digit OTP for email verification.
+    const otpCode = Math.floor(1000 + Math.random() * 9000).toString();
 
     // Hash OTP before storing
     const hashedOtp = await hasher.hashPassword(otpCode);
@@ -177,9 +180,22 @@ export class UserProfileService {
       expiresAt: new Date(Date.now() + 10 * 60 * 1000), // 10 min
     });
 
-    // Log OTP in development mode
-    if (process.env.NODE_ENV === 'dev') {
-      console.log(`Email update OTP for ${newEmail}: ${otpCode}`);
+    try {
+      await this.otpNotificationService.sendEmailOtp(
+        newEmail,
+        otpCode,
+        'email_update',
+      );
+    } catch (error) {
+      await this.otpRepository.updateById(otp.id, {
+        isUsed: true,
+        expiresAt: new Date(),
+      });
+
+      console.error('Failed to send email update OTP:', error);
+      throw new HttpErrors.InternalServerError(
+        'Failed to send OTP email. Please try again.',
+      );
     }
 
     return {

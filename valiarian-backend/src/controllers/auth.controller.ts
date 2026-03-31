@@ -1001,10 +1001,11 @@ export class AuthController {
       {identifier: sanitizedPhone, type: 0}
     );
 
-    // Generate random 4-digit OTP (fixed to 123456 for testing in dev)
-    const otpCode = process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'dev'
-      ? '123456'
-      : (process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'dev' ? '123456' : Math.floor(1000 + Math.random() * 9000).toString());
+    // Generate a 4-digit OTP for phone verification.
+    const otpCode =
+      process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'dev'
+        ? '1234'
+        : Math.floor(1000 + Math.random() * 9000).toString();
 
     const otp = await this.otpRepository.create({
       otp: otpCode,

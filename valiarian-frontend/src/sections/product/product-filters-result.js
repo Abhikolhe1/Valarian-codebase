@@ -8,7 +8,6 @@ import Button from '@mui/material/Button';
 import Stack from '@mui/material/Stack';
 // components
 import Iconify from 'src/components/iconify';
-import Router from 'src/routes/sections';
 import { useRouter } from 'src/routes/hook';
 import { paths } from 'src/routes/paths';
 import { useTheme } from '@emotion/react';
