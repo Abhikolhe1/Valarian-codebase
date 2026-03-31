@@ -20,10 +20,12 @@ import { useAuthContext } from 'src/auth/hooks';
 import axios from 'src/utils/axios';
 import { fCurrency } from 'src/utils/format-number';
 // components
+import { Link } from '@mui/material';
 import EmptyContent from 'src/components/empty-content';
 import Iconify from 'src/components/iconify';
 import Label from 'src/components/label';
 import { useSettingsContext } from 'src/components/settings';
+import { RouterLink } from 'src/routes/components';
 import {
   getOrderDisplayColor,
   getOrderDisplayLabel,
@@ -235,30 +237,41 @@ function OrderCard({ order, onViewOrder, onTrackOrder }) {
               Items ({items.length})
             </Typography>
             <Stack spacing={2} sx={{ mt: 2 }}>
-              {items.slice(0, 3).map((item, index) => (
-                <Stack key={index} direction="row" spacing={2} alignItems="center">
-                  <Box
-                    component="img"
-                    src={item.image || '/assets/placeholder.svg'}
-                    alt={item.name}
-                    sx={{
-                      width: 64,
-                      height: 64,
-                      borderRadius: 1,
-                      objectFit: 'cover',
-                      flexShrink: 0,
-                    }}
-                  />
-                  <Box sx={{ flexGrow: 1, minWidth: 0 }}>
-                    <Typography variant="body2" noWrap>
-                      {item.name}
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      Qty: {item.quantity} × {fCurrency(item.price)}
-                    </Typography>
-                  </Box>
-                </Stack>
-              ))}
+              {items.slice(0, 3).map((item, index) => {
+                const productHref = paths.product.details(item.slug || item.productId || item.id);
+
+                return (
+                  <Stack key={index} direction="row" spacing={2} alignItems="center">
+                    <Link
+                      component={RouterLink}
+                      href={productHref}
+                      color="inherit"
+                      underline="none"
+                    >
+                      <Box
+                        component="img"
+                        src={item.image || '/assets/placeholder.svg'}
+                        alt={item.name}
+                        sx={{
+                          width: 64,
+                          height: 64,
+                          borderRadius: 1,
+                          objectFit: 'cover',
+                          flexShrink: 0,
+                        }}
+                      />
+                    </Link>
+                    <Box sx={{ flexGrow: 1, minWidth: 0 }}>
+                      <Typography variant="body2" noWrap>
+                        {item.name}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Qty: {item.quantity} × {fCurrency(item.price)}
+                      </Typography>
+                    </Box>
+                  </Stack>
+                );
+              })}
               {items.length > 3 && (
                 <Typography variant="caption" color="text.secondary">
                   +{items.length - 3} more items
