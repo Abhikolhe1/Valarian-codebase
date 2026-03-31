@@ -26,7 +26,7 @@
   "eslint.validate": ["javascript", "typescript"],
   "eslint.workingDirectories": [
     "./valiarian-frontend",
-    "./valiarian-admin-panel"
+    "./Valiarian-admin-panel"
   ],
   "kiroAgent.configureMCP": "Disabled"
 }

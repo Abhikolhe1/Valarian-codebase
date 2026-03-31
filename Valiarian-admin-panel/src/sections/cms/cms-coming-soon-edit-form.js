@@ -15,8 +15,8 @@ import {
 
 import FormProvider, { RHFTextField } from 'src/components/hook-form';
 import Iconify from 'src/components/iconify';
-import CMSMediaField from './cms-media-field';
 import { useSnackbar } from 'src/components/snackbar';
+import CMSMediaField from './cms-media-field';
 // import { updateComingSoon } from 'src/api/coming-soon'; // create this API
 
 // ----------------------------

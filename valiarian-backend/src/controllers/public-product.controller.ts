@@ -301,7 +301,7 @@ export class PublicProductController {
     @param.query.number('maxPrice') maxPrice?: number,
     @param.query.string('categoryId') categoryId?: string,
     @param.query.string('categorySlug') categorySlug?: string,
-    @param.query.string('sortBy') sortBy = 'featured',
+    @param.query.string('sortBy') sortBy = 'newest',
     @param.query.number('limit') limit = 20,
     @param.query.number('offset') offset = 0,
   ): Promise<{products: Product[]; total: number}> {
@@ -364,8 +364,6 @@ export class PublicProductController {
     switch (sortBy) {
       case 'featured':
         return {isFeatured: true};
-      case 'newest':
-        return {isNewArrival: true};
       case 'seller':
         return {isBestSeller: true};
       case 'sale':
