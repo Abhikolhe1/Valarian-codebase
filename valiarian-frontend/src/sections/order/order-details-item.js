@@ -82,7 +82,7 @@ export default function OrderDetailsItems({
 
       <Stack direction="row">
         <Box sx={{ color: 'text.secondary' }}>Taxes</Box>
-        <Box sx={{ width: 140 }}>{taxes ? fCurrency(taxes) : '-'}</Box>
+        <Box sx={{ width: 140 }}>{taxes ? `${fCurrency(taxes)}  included` : '-'}</Box>
       </Stack>
 
       <Stack direction="row" sx={{ typography: 'subtitle1' }}>

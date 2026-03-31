@@ -26,8 +26,8 @@ import { fCurrency } from 'src/utils/format-number';
 import { fDateTime } from 'src/utils/format-time';
 // components
 import CustomBreadcrumbs from 'src/components/custom-breadcrumbs';
-import Image from 'src/components/image';
 import Iconify from 'src/components/iconify';
+import Image from 'src/components/image';
 import Label from 'src/components/label';
 import Lightbox from 'src/components/lightbox';
 import { useSettingsContext } from 'src/components/settings';
@@ -325,14 +325,14 @@ export default function OrderDetailsView() {
   const availableStatusOptions = getAvailableStatusOptions(order);
   const canInitiateRefund = isPrepaidOrder(order)
     ? (((order.status === 'returned' || order.status === 'parcel_received') &&
-        order.returnStatus !== 'requested' &&
-        order.returnStatus !== 'approved') ||
-        order.status === 'cancelled')
+      order.returnStatus !== 'requested' &&
+      order.returnStatus !== 'approved') ||
+      order.status === 'cancelled')
     : order.status === 'parcel_received' && order.returnStatus !== 'requested';
   const refundAlreadyInitiated = Boolean(
     order.refundInitiatedAt ||
-      order.refundCompletedAt ||
-      ['partially_refunded', 'refunded'].includes(order.paymentStatus)
+    order.refundCompletedAt ||
+    ['partially_refunded', 'refunded'].includes(order.paymentStatus)
   );
   const showRefundButton = canInitiateRefund || refundAlreadyInitiated;
   const refundActionLabel = isPrepaidOrder(order)
@@ -465,12 +465,12 @@ export default function OrderDetailsView() {
                 )}
                 <Stack direction="row" justifyContent="space-between">
                   <Typography variant="body2">Shipping</Typography>
-                  <Typography variant="body2">{fCurrency(order.shipping)}</Typography>
+                  <Typography variant="body2">{fCurrency(order.shipping)}  included</Typography>
                 </Stack>
                 {order.tax > 0 && (
                   <Stack direction="row" justifyContent="space-between">
                     <Typography variant="body2">Tax</Typography>
-                    <Typography variant="body2">{fCurrency(order.tax)}</Typography>
+                    <Typography variant="body2">{fCurrency(order.tax)}  included</Typography>
                   </Stack>
                 )}
                 <Divider />
@@ -562,7 +562,7 @@ export default function OrderDetailsView() {
                     <Box>
                       <Typography variant="caption" color="text.secondary">Refund Method</Typography>
                       <Typography variant="body2">
-                  {order.refundMethod === 'cash' ? 'Cash refund' : 'Original payment'}
+                        {order.refundMethod === 'cash' ? 'Cash refund' : 'Original payment'}
                       </Typography>
                     </Box>
                   )}

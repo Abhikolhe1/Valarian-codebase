@@ -9,6 +9,7 @@ import { paths } from 'src/routes/paths';
 import DashboardLayout from 'src/layouts/dashboard';
 // components
 import { LoadingScreen } from 'src/components/loading-screen';
+import CMSComingSoonPage from 'src/pages/dashboard/cms/coming-soon';
 
 // ----------------------------------------------------------------------
 
@@ -173,7 +174,7 @@ export const dashboardRoutes = [
       {
         path: 'user',
         element: (
-          <DashboardRoleGuard roles={SUPER_ADMIN_ROLES}>
+          <DashboardRoleGuard roles={ADMIN_PANEL_ROLES}>
             <Outlet />
           </DashboardRoleGuard>
         ),
@@ -329,6 +330,15 @@ export const dashboardRoutes = [
               </DashboardRoleGuard>
             ),
           },
+          {
+            path: 'coming-soon',
+            element: (
+              <DashboardRoleGuard roles={SUPER_ADMIN_ROLES}>
+                <CMSComingSoonPage />
+              </DashboardRoleGuard>
+            ),
+          },
+
           {
             path: 'pages',
             element: (

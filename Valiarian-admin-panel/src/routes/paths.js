@@ -202,6 +202,9 @@ export const paths = {
       about: {
         root: `${ROOTS.DASHBOARD}/cms/about-us`,
       },
+      comingSoon: {
+        root: `${ROOTS.DASHBOARD}/cms/coming-soon`,
+      },
       pages: {
         root: `${ROOTS.DASHBOARD}/cms/pages`,
         list: `${ROOTS.DASHBOARD}/cms/pages/list`,

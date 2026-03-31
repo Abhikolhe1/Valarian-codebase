@@ -5,9 +5,9 @@ import { useGetAboutPage } from 'src/api/about-page';
 import CustomBreadcrumbs from 'src/components/custom-breadcrumbs';
 import { useSettingsContext } from 'src/components/settings';
 import { paths } from 'src/routes/paths';
-import AboutPageEditForm from '../../about-page-edit-form';
+import ComingSoonEditForm from '../../cms-coming-soon-edit-form';
 
-export default function AboutPageEditView() {
+export default function ComingSoonPageEditView() {
   const settings = useSettingsContext();
   const { aboutPage, aboutPageLoading } = useGetAboutPage();
 
@@ -18,7 +18,7 @@ export default function AboutPageEditView() {
         links={[
           { name: 'Dashboard', href: paths.dashboard.root },
           { name: 'CMS', href: paths.dashboard.cms.root },
-          { name: 'Coming Soon' },
+          { name: 'About Us' },
         ]}
         sx={{ mb: { xs: 3, md: 5 } }}
       />
@@ -28,7 +28,7 @@ export default function AboutPageEditView() {
           <CircularProgress />
         </Stack>
       ) : (
-        <AboutPageEditForm currentAboutPage={aboutPage} />
+        <ComingSoonEditForm currentAboutPage={aboutPage} />
       )}
     </Container>
   );
