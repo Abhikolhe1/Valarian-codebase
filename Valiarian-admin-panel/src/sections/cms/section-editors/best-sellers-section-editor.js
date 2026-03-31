@@ -37,7 +37,7 @@ export default function BestSellersSectionEditor({ section, onSave, onCancel }) 
 
   return (
     <FormProvider methods={methods} onSubmit={onSubmit}>
-      <Stack spacing={3}>
+      <Stack spacing={3} py={2}>
         <RHFTextField name="name" label="Section Name" />
         <RHFTextField name="content.title" label="Title" placeholder="Best Sellers" />
         <RHFTextField name="content.subtitle" label="Subtitle" placeholder="Our most popular products..." multiline rows={2} />

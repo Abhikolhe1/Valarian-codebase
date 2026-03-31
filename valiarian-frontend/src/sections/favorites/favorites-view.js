@@ -129,6 +129,7 @@ export default function FavoritesView() {
         action={
           <Button
             variant="contained"
+            color='secondary'
             startIcon={<Iconify icon="eva:arrow-ios-back-fill" />}
             onClick={() => router.push(paths.product.root)}
             sx={{ mt: 2 }}

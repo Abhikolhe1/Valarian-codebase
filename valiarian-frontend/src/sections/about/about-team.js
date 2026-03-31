@@ -89,7 +89,8 @@ export default function AboutTeam({ content = DEFAULT_CONTENT }) {
 
       <Button
         size="large"
-        color="inherit"
+        color="secondary"
+        backgroundcolur
         variant="outlined"
         endIcon={<Iconify icon="eva:arrow-ios-forward-fill" width={24} />}
         sx={{ mx: 'auto' }}

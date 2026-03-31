@@ -274,7 +274,7 @@ export default function OrderDetailsView() {
           />
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setCancelDialogOpen(false)} disabled={actionLoading}>
+          <Button     variant="outlined" color="secondary" onClick={() => setCancelDialogOpen(false)} disabled={actionLoading}>
             Close
           </Button>
           <Button

@@ -59,14 +59,14 @@ export default function ReserveTodayDetail() {
 
           <LoadingButton
             variant="contained"
-            sx={{
+            sx={(theme)=>({
               mt: 4,
               px: 5,
-              backgroundColor: '#6A3941',
+              backgroundColor: theme.palette.secondary.main,
               '&:hover': {
-                backgroundColor: '#5a3037',
+                backgroundColor: theme.palette.secondary.main,
               },
-            }}
+            })}
           >
             Buy Now
           </LoadingButton>

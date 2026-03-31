@@ -98,6 +98,7 @@ export default function CheckoutView() {
             <Button
               component={RouterLink}
               href={paths.product.root}
+              color='secondary'
               variant="contained"
               startIcon={<Iconify icon="eva:arrow-ios-back-fill" />}
               sx={{ mt: 3 }}

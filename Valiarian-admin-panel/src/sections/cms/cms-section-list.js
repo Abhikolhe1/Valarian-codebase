@@ -60,6 +60,11 @@ const SECTION_TYPE_CONFIG = {
     color: 'info',
     icon: 'solar:share-bold',
   },
+  'premium-countdown': {
+    label: 'Premium Countdown',
+    color: 'warning',
+    icon: 'solar:clock-circle-bold',
+  },
   features: {
     label: 'Features',
     color: 'success',

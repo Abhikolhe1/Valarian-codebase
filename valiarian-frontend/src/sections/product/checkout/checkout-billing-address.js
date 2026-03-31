@@ -77,6 +77,7 @@ export default function CheckoutBillingAddress({ checkout, onBackStep, onCreateB
             <Button
               size="small"
               variant="outlined"
+              color='secondary'
               startIcon={<Iconify icon="solar:pen-bold" />}
               onClick={() => handleEditAddress(address)}
               sx={{ width: { xs: '100%', sm: 'auto' } }}
@@ -85,6 +86,7 @@ export default function CheckoutBillingAddress({ checkout, onBackStep, onCreateB
             </Button>
             <Button
               variant="contained"
+              color='secondary'
               size="small"
               onClick={() => onCreateBilling(buildBillingAddress(address))}
               sx={{ width: { xs: '100%', sm: 'auto' } }}
@@ -136,7 +138,8 @@ export default function CheckoutBillingAddress({ checkout, onBackStep, onCreateB
           >
             <Button
               size="small"
-              color="inherit"
+              variant='outlined'
+              color="secondary"
               onClick={onBackStep}
               startIcon={<Iconify icon="eva:arrow-ios-back-fill" />}
               sx={{ display: { xs: 'none', md: 'inline-flex' } }}
@@ -146,7 +149,8 @@ export default function CheckoutBillingAddress({ checkout, onBackStep, onCreateB
 
             <Button
               size="small"
-              color="primary"
+              variant='outlined'
+              color="secondary"
               onClick={addressForm.onTrue}
               startIcon={<Iconify icon="mingcute:add-line" />}
               sx={{ alignSelf: { xs: 'stretch', sm: 'auto' } }}

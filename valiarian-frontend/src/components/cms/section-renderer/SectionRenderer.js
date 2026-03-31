@@ -10,6 +10,7 @@ import {
   FeaturesSection,
   GallerySection,
   HeroSection,
+  PremiumCountdownSection,
   TestimonialsSection,
   TextSection,
 } from 'src/sections/cms';
@@ -186,6 +187,7 @@ function getSectionComponent(type) {
     pricing: null, // Future implementation
     contact: null, // Future implementation
     custom: null, // Future implementation
+    'premium-countdown': PremiumCountdownSection,
   };
 
   return sectionComponents[type] || null;

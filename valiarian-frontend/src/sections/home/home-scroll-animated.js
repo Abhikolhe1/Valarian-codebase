@@ -582,6 +582,7 @@ export default function HomeScrollAnimated({ products: propProducts, cmsData, ..
               href={product.buttonLink}
               variant="contained"
               size="large"
+              color="secondary"
               sx={{
                 minWidth: { xs: '100%', md: 180 },
                 // py: 1.5,

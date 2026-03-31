@@ -2,6 +2,7 @@ import { Box, Typography } from '@mui/material';
 import PropTypes from 'prop-types';
 import FeaturesSection from './FeaturesSection';
 import HeroSection from './HeroSection';
+import PremiumCountdownSection from 'src/sections/cms/PremiumCountdownSection';
 
 /**
  * Section Renderer Component
@@ -23,6 +24,9 @@ export default function SectionRenderer({ section }) {
 
     case 'features':
       return <FeaturesSection section={section} />;
+
+    case 'premium-countdown':
+      return <PremiumCountdownSection section={section} />;
 
     case 'product-grid':
       // TODO: Implement ProductGridSection

@@ -27,6 +27,7 @@ import FabricInfoSectionEditor from './section-editors/fabric-info-section-edito
 import NewArrivalsSectionEditor from './section-editors/new-arrivals-section-editor';
 import ScrollAnimatedSectionEditor from './section-editors/scroll-animated-section-editor';
 import SocialMediaSectionEditor from './section-editors/social-media-section-editor';
+import PremiumCountdownSectionEditor from './premium-section-editors/premium-countdown-section-editor';
 
 // ----------------------------------------------------------------------
 
@@ -38,6 +39,7 @@ const SECTION_EDITORS = {
   'best-sellers': BestSellersSectionEditor,
   'fabric-info': FabricInfoSectionEditor,
   'social-media': SocialMediaSectionEditor,
+  'premium-countdown': PremiumCountdownSectionEditor,
   features: FeaturesSectionEditor,
   testimonials: TestimonialsSectionEditor,
   gallery: GallerySectionEditor,
@@ -54,6 +56,7 @@ const SECTION_TITLES = {
   'best-sellers': 'Best Sellers Section',
   'fabric-info': 'Fabric Information Section',
   'social-media': 'Social Media Section',
+  'premium-countdown': 'Premium Countdown Section',
   features: 'Features Section',
   testimonials: 'Testimonials Section',
   gallery: 'Gallery Section',

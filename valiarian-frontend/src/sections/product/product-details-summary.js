@@ -594,8 +594,8 @@ export default function ProductDetailsSummary({
         fullWidth
         disabled={isMaxQuantity || disabledActions || !variantInStock || available < 1}
         size="large"
-        color="warning"
-        variant="contained"
+        color="secondary"
+        variant="outlined"
         startIcon={<Iconify icon="solar:cart-plus-bold" width={24} />}
         onClick={handleAddCart}
         sx={{ whiteSpace: 'nowrap' }}
@@ -608,6 +608,7 @@ export default function ProductDetailsSummary({
         size="large"
         type="submit"
         variant="contained"
+        color='secondary'
         disabled={disabledActions || !variantInStock || available < 1}
       >
         Buy Now

@@ -38,7 +38,7 @@ export default function FabricInfoSectionEditor({ section, onSave, onCancel }) {
 
   return (
     <FormProvider methods={methods} onSubmit={onSubmit}>
-      <Stack spacing={3}>
+      <Stack spacing={3} py={2}>
         <RHFTextField name="name" label="Section Name" />
         <RHFTextField name="content.title" label="Title" placeholder="Premium Fabric" />
         <RHFTextField name="content.subtitle" label="Subtitle" placeholder="Quality you can feel" />

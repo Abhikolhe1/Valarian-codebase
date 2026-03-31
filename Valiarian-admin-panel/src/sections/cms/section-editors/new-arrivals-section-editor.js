@@ -43,7 +43,7 @@ export default function NewArrivalsSectionEditor({ section, onSave, onCancel }) 
 
   return (
     <FormProvider methods={methods} onSubmit={onSubmit}>
-      <Stack spacing={3}>
+      <Stack spacing={3} pb={2}>
         {/* Info Alert */}
         <Alert severity="info" icon={<Iconify icon="solar:info-circle-bold" />}>
           <Typography variant="subtitle2" gutterBottom>

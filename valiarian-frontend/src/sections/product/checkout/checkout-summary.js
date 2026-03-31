@@ -59,7 +59,7 @@ export default function CheckoutSummary({
         title="Order Summary"
         action={
           enableEdit && (
-            <Button size="small" onClick={onEdit} startIcon={<Iconify icon="solar:pen-bold" />}>
+            <Button variant='outlined' color='secondary' size="small" onClick={onEdit} startIcon={<Iconify icon="solar:pen-bold" />}>
               Edit
             </Button>
           )

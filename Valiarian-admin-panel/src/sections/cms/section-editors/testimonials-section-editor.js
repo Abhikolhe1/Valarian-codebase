@@ -72,10 +72,10 @@ export default function TestimonialsSectionEditor({ section, onSave, onCancel })
 
   return (
     <FormProvider methods={methods} onSubmit={onSubmit}>
-      <Stack spacing={3}>
+      <Stack spacing={3} pb={2}>
         <Card>
           <CardContent>
-            <Typography variant="h6" gutterBottom>Basic Information</Typography>
+            <Typography variant="h6" pb={2} gutterBottom>Basic Information</Typography>
             <Stack spacing={2}>
               <RHFTextField name="name" label="Section Name" />
               <RHFTextField name="heading" label="Section Heading" />

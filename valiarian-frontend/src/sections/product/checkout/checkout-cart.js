@@ -102,7 +102,8 @@ export default function CheckoutCart({
         <Button
           component={RouterLink}
           href={paths.product.root}
-          color="inherit"
+          variant='outlined'
+          color="secondary"
           startIcon={<Iconify icon="eva:arrow-ios-back-fill" />}
         >
           Continue Shopping
@@ -132,6 +133,7 @@ export default function CheckoutCart({
           fullWidth
           size="large"
           type="submit"
+          color='secondary'
           variant="contained"
           disabled={!eligibleCart?.length}
           onClick={onNextStep}

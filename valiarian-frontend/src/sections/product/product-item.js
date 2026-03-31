@@ -365,7 +365,7 @@ function ProductItem({ product }) {
           <LoadingButton
             fullWidth
             variant="contained"
-            color="primary"
+            color="secondary"
             size="small"
             onClick={handleAddCart}
             loading={loadingCart}
