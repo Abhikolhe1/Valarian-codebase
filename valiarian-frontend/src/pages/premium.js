@@ -1,6 +1,6 @@
 import { Helmet } from 'react-helmet-async';
+import ComingSoonView from 'src/sections/coming-soon/view';
 // components
-import PremiumView from 'src/sections/premium/view';
 
 // ----------------------------------------------------------------------
 
@@ -11,7 +11,7 @@ export default function PremiumPage() {
         <title> Premium - Valiarian</title>
       </Helmet>
 
-      <PremiumView />
+      <ComingSoonView />
     </>
   );
 }

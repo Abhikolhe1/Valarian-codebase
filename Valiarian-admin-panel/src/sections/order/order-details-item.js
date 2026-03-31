@@ -1,11 +1,11 @@
 import PropTypes from 'prop-types';
 // @mui
+import Avatar from '@mui/material/Avatar';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
-import Stack from '@mui/material/Stack';
-import Avatar from '@mui/material/Avatar';
 import CardHeader from '@mui/material/CardHeader';
 import ListItemText from '@mui/material/ListItemText';
+import Stack from '@mui/material/Stack';
 // utils
 import { fCurrency } from 'src/utils/format-number';
 // components
@@ -40,7 +40,7 @@ export default function OrderDetailsItems({
             ...(shipping && { color: 'error.main' }),
           }}
         >
-          {shipping ? `- ${fCurrency(shipping)}` : '-'}
+          {shipping ? `- ${fCurrency(shipping)} included ` : '-'}
         </Box>
       </Stack>
 
@@ -58,7 +58,7 @@ export default function OrderDetailsItems({
 
       <Stack direction="row">
         <Box sx={{ color: 'text.secondary' }}>Taxes</Box>
-        <Box sx={{ width: 160 }}>{taxes ? fCurrency(taxes) : '-'}</Box>
+        <Box sx={{ width: 160 }}>{taxes ? `${fCurrency(taxes)} included` : '-'}</Box>
       </Stack>
 
       <Stack direction="row" sx={{ typography: 'subtitle1' }}>
