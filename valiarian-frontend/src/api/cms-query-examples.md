@@ -35,7 +35,7 @@ function PagesList() {
   });
 
   if (isLoading) return <div>Loading...</div>;
-  if (error) return <div>Error: {error.message}</div>;
+  if (error) return <div>Error: {error?.error?.message}</div>;
 
   return (
     <div>
@@ -56,7 +56,7 @@ function PageEditor({ pageId }) {
   const { data, isLoading, error } = usePage(pageId);
 
   if (isLoading) return <div>Loading...</div>;
-  if (error) return <div>Error: {error.message}</div>;
+  if (error) return <div>Error: {error?.error?.message}</div>;
 
   return (
     <div>
@@ -76,7 +76,7 @@ function DynamicPage({ slug }) {
   const { data, isLoading, error } = usePageBySlug(slug);
 
   if (isLoading) return <div>Loading...</div>;
-  if (error) return <div>Error: {error.message}</div>;
+  if (error) return <div>Error: {error?.error?.message}</div>;
 
   return (
     <div>
@@ -96,7 +96,7 @@ function VersionHistory({ pageId }) {
   const { data, isLoading, error } = usePageVersions(pageId);
 
   if (isLoading) return <div>Loading...</div>;
-  if (error) return <div>Error: {error.message}</div>;
+  if (error) return <div>Error: {error?.error?.message}</div>;
 
   return (
     <div>
@@ -121,7 +121,7 @@ function SectionsList({ pageId }) {
   const { data, isLoading, error } = useSections(pageId);
 
   if (isLoading) return <div>Loading...</div>;
-  if (error) return <div>Error: {error.message}</div>;
+  if (error) return <div>Error: {error?.error?.message}</div>;
 
   return (
     <div>
@@ -144,7 +144,7 @@ function SectionEditor({ sectionId }) {
   const { data, isLoading, error } = useSection(sectionId);
 
   if (isLoading) return <div>Loading...</div>;
-  if (error) return <div>Error: {error.message}</div>;
+  if (error) return <div>Error: {error?.error?.message}</div>;
 
   return (
     <div>
@@ -172,7 +172,7 @@ function MediaLibrary() {
   });
 
   if (isLoading) return <div>Loading...</div>;
-  if (error) return <div>Error: {error.message}</div>;
+  if (error) return <div>Error: {error?.error?.message}</div>;
 
   return (
     <div>
@@ -194,7 +194,7 @@ function MediaDetails({ mediaId }) {
   const { data, isLoading, error } = useMediaItem(mediaId);
 
   if (isLoading) return <div>Loading...</div>;
-  if (error) return <div>Error: {error.message}</div>;
+  if (error) return <div>Error: {error?.error?.message}</div>;
 
   return (
     <div>
@@ -216,7 +216,7 @@ function Header() {
   const { data, isLoading, error } = useNavigation('header');
 
   if (isLoading) return <div>Loading...</div>;
-  if (error) return <div>Error: {error.message}</div>;
+  if (error) return <div>Error: {error?.error?.message}</div>;
 
   return (
     <nav>
@@ -241,7 +241,7 @@ function Footer() {
   const { data, isLoading, error } = useSettings();
 
   if (isLoading) return <div>Loading...</div>;
-  if (error) return <div>Error: {error.message}</div>;
+  if (error) return <div>Error: {error?.error?.message}</div>;
 
   return (
     <footer>

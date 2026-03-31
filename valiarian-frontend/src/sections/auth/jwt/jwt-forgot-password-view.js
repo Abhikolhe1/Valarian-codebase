@@ -1,5 +1,4 @@
 import { yupResolver } from '@hookform/resolvers/yup';
-import * as Yup from 'yup';
 import LoadingButton from '@mui/lab/LoadingButton';
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
@@ -16,6 +15,7 @@ import { useBoolean } from 'src/hooks/use-boolean';
 import { useRouter } from 'src/routes/hook';
 import { paths } from 'src/routes/paths';
 import axiosInstance from 'src/utils/axios';
+import * as Yup from 'yup';
 
 
 export default function JwtForgotPasswordView() {
@@ -63,7 +63,7 @@ function ChangePasswordForm({ onBack }) {
       await axiosInstance.patch('/api/auth/update-password', data);
       router.push(paths.auth.jwt.login);
     } catch (error) {
-      setErrorMsg(error.message || 'Failed to update password');
+      setErrorMsg(error?.error?.message ?? 'Failed to update password');
     }
   });
 
@@ -100,7 +100,7 @@ function ResetPasswordForm({ onBack }) {
       setIdentifier(data.identifier);
       setStep(2);
     } catch (error) {
-      setErrorMsg(error.message || 'Failed to send OTP');
+      setErrorMsg(error?.error?.message ?? 'Failed to send OTP');
     }
   });
 
@@ -114,7 +114,7 @@ function ResetPasswordForm({ onBack }) {
       });
       router.push(paths.auth.jwt.login);
     } catch (error) {
-      setErrorMsg(error.message || 'Failed to reset password');
+      setErrorMsg(error?.error?.message ?? 'Failed to reset password');
     }
   });
 

@@ -72,7 +72,7 @@ export function Example3_ErrorHandling() {
 
   const handleError = (error, errorInfo, sectionInfo) => {
     console.error('Section rendering failed:', {
-      error: error.message,
+      error: error?.error?.message,
       section: sectionInfo.name,
       errorInfo,
     });
@@ -319,7 +319,7 @@ export function Example10_CompletePage() {
     console.error('Section error:', {
       sectionId: section.id,
       sectionName: section.name,
-      error: error.message,
+      error: error?.error?.message,
     });
   };
 

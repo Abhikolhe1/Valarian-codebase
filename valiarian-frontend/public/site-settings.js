@@ -262,7 +262,7 @@
         return window.siteSettings;
       })
       .catch(function (error) {
-        console.warn('⚠️ Failed to load site settings from API, using defaults:', error.message);
+        console.warn('⚠️ Failed to load site settings from API, using defaults:', error?.error?.message);
 
         // Apply default settings to document
         applySettingsToDocument();

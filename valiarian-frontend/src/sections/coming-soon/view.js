@@ -118,24 +118,30 @@
 // ----------------------------------------------------------------------------
 
 import { Box, Container, Typography } from '@mui/material';
+import { useGetComingSoonPage } from 'src/api/coming-soon';
 
-// Detect season
-const getSeason = () => {
-  const month = new Date().getMonth() + 1;
-
-  if (month >= 3 && month <= 6) return 'summer';
-  if (month >= 7 && month <= 9) return 'monsoon';
-  return 'winter';
-};
-
-// Background images
-const bgImages = {
-  summer: '/assets/images/coming-soon/summer.png',
-  monsoon: '/assets/images/coming-soon/rainy.png',
-  winter: '/assets/images/coming-soon/winter.png',
-};
 
 export default function ComingSoon() {
+  const { comingSoonPage, comingSoonPageLoading } = useGetComingSoonPage();
+
+  const bgImages = {
+    summer: comingSoonPage?.background?.summer,
+    monsoon: comingSoonPage?.background?.monsoon,
+    winter: comingSoonPage?.background?.winter,
+
+    default: "/assets/images/coming-soon/summer.png"
+  };
+
+  const overlayOpacity = comingSoonPage?.background?.overlayOpacity || 0.5;
+
+  const getSeason = () => {
+    const month = new Date().getMonth() + 1;
+
+    // if (month >= 3 && month <= 6) return 'summer';
+    // if (month >= 7 && month <= 9) return 'monsoon';
+    return 'default';
+  };
+
   const season = getSeason();
   const bgImage = bgImages[season];
 
@@ -167,7 +173,7 @@ export default function ComingSoon() {
         sx={{
           position: 'absolute',
           inset: 0,
-          bgcolor: 'rgba(0,0,0,0.5)',
+          bgcolor: `rgba(0,0,0,${overlayOpacity})`,
           zIndex: 1,
         }}
       />
@@ -204,14 +210,15 @@ export default function ComingSoon() {
           {/* Image */}
           <Box
             component="img"
-            src="/assets/images/coming-soon/image.png"
+            src={comingSoonPage?.content?.image ? comingSoonPage?.content?.image : "/assets/images/coming-soon/image.png"}
             alt="Coming Soon"
             sx={{
               maxWidth: '100%',
               height: 'auto',
               mx: 'auto',
               display: 'block',
-              mb: -2,
+              mt: -12,
+              mb: -5,
             }}
           />
 
@@ -225,7 +232,7 @@ export default function ComingSoon() {
 
             }}
           >
-            STAY TUNED
+            {comingSoonPage?.content?.subtitle || "STAY TUNED"}
           </Typography>
 
           {/* Title */}
@@ -238,7 +245,7 @@ export default function ComingSoon() {
               mb: 5
             }}
           >
-            COMING SOON
+            {comingSoonPage?.content?.title || "COMING SOON"}
           </Typography>
         </Box>
       </Container>

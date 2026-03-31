@@ -657,7 +657,7 @@ export function isErrorResponse(value: any): value is ErrorResponse {
     value.error &&
     typeof value.error === 'object' &&
     typeof value.error.statusCode === 'number' &&
-    typeof value.error.message === 'string'
+    typeof value.error?.error?.message === 'string'
   );
 }
 

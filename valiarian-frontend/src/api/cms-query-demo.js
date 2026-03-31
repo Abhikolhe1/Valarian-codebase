@@ -33,7 +33,7 @@ export function PagesListDemo() {
   });
 
   if (isLoading) return <div>Loading pages...</div>;
-  if (error) return <div>Error loading pages: {error.message}</div>;
+  if (error) return <div>Error loading pages: {error?.error?.message}</div>;
 
   return (
     <div>
@@ -57,7 +57,7 @@ export function PageDetailDemo({ pageId }) {
   const { data, isLoading, error } = usePage(pageId);
 
   if (isLoading) return <div>Loading page...</div>;
-  if (error) return <div>Error: {error.message}</div>;
+  if (error) return <div>Error: {error?.error?.message}</div>;
 
   return (
     <div>
@@ -75,7 +75,7 @@ export function PublicPageDemo({ slug }) {
   const { data, isLoading, error } = usePageBySlug(slug);
 
   if (isLoading) return <div>Loading...</div>;
-  if (error) return <div>Error: {error.message}</div>;
+  if (error) return <div>Error: {error?.error?.message}</div>;
 
   return (
     <div>
@@ -92,7 +92,7 @@ export function VersionHistoryDemo({ pageId }) {
   const { data, isLoading, error } = usePageVersions(pageId);
 
   if (isLoading) return <div>Loading versions...</div>;
-  if (error) return <div>Error: {error.message}</div>;
+  if (error) return <div>Error: {error?.error?.message}</div>;
 
   return (
     <div>
@@ -119,7 +119,7 @@ export function SectionsListDemo({ pageId }) {
   const { data, isLoading, error } = useSections(pageId);
 
   if (isLoading) return <div>Loading sections...</div>;
-  if (error) return <div>Error: {error.message}</div>;
+  if (error) return <div>Error: {error?.error?.message}</div>;
 
   return (
     <div>
@@ -140,7 +140,7 @@ export function SectionDetailDemo({ sectionId }) {
   const { data, isLoading, error } = useSection(sectionId);
 
   if (isLoading) return <div>Loading section...</div>;
-  if (error) return <div>Error: {error.message}</div>;
+  if (error) return <div>Error: {error?.error?.message}</div>;
 
   return (
     <div>
@@ -165,7 +165,7 @@ export function MediaLibraryDemo() {
   });
 
   if (isLoading) return <div>Loading media...</div>;
-  if (error) return <div>Error: {error.message}</div>;
+  if (error) return <div>Error: {error?.error?.message}</div>;
 
   return (
     <div>
@@ -189,7 +189,7 @@ export function MediaDetailDemo({ mediaId }) {
   const { data, isLoading, error } = useMediaItem(mediaId);
 
   if (isLoading) return <div>Loading...</div>;
-  if (error) return <div>Error: {error.message}</div>;
+  if (error) return <div>Error: {error?.error?.message}</div>;
 
   return (
     <div>
@@ -211,7 +211,7 @@ export function NavigationDemo({ location = 'header' }) {
   const { data, isLoading, error } = useNavigation(location);
 
   if (isLoading) return <div>Loading navigation...</div>;
-  if (error) return <div>Error: {error.message}</div>;
+  if (error) return <div>Error: {error?.error?.message}</div>;
 
   return (
     <nav>
@@ -237,7 +237,7 @@ export function SettingsDemo() {
   const { data, isLoading, error } = useSettings();
 
   if (isLoading) return <div>Loading settings...</div>;
-  if (error) return <div>Error: {error.message}</div>;
+  if (error) return <div>Error: {error?.error?.message}</div>;
 
   return (
     <div>
@@ -355,7 +355,7 @@ export function ComparisonDemo({ pageId }) {
     <div>
       <h3>React Query Result:</h3>
       {rqLoading && <p>Loading...</p>}
-      {rqError && <p>Error: {rqError.message}</p>}
+      {rqError && <p>Error: {rqerror?.error?.message}</p>}
       {rqData && <p>Title: {rqData?.page?.title}</p>}
 
       {/* SWR result would be similar */}

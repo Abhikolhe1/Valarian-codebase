@@ -63,7 +63,7 @@ export default function DynamicPageWithSEO({ slug: slugProp }) {
       <Container maxWidth="lg" sx={{ py: 8 }}>
         <Alert severity="error">
           <AlertTitle>Error Loading Page</AlertTitle>
-          {pageError.message || 'Failed to load page content. Please try again later.'}
+          {pageerror?.error?.message || 'Failed to load page content. Please try again later.'}
         </Alert>
       </Container>
     );
@@ -134,7 +134,7 @@ export default function DynamicPageWithSEO({ slug: slugProp }) {
             console.error('Section rendering error:', {
               page: page.slug,
               section: section?.name,
-              error: error.message,
+              error: error?.error?.message,
               errorInfo,
             });
           }}

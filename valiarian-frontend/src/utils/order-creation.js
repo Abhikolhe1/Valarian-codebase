@@ -163,7 +163,7 @@ export const createOrder = async ({
  * @returns {object} - Error details for UI
  */
 export const handleOrderError = (error) => {
-  if (error.message === 'ORDER_TIMEOUT') {
+  if (error?.error?.message === 'ORDER_TIMEOUT') {
     return {
       type: 'timeout',
       title: 'Order Processing Timeout',
@@ -172,7 +172,7 @@ export const handleOrderError = (error) => {
     };
   }
 
-  if (error.message === 'STOCK_UNAVAILABLE') {
+  if (error?.error?.message === 'STOCK_UNAVAILABLE') {
     return {
       type: 'stock',
       title: 'Items Out of Stock',
@@ -182,7 +182,7 @@ export const handleOrderError = (error) => {
     };
   }
 
-  if (error.message === 'PAYMENT_FAILED') {
+  if (error?.error?.message === 'PAYMENT_FAILED') {
     return {
       type: 'payment',
       title: 'Payment Failed',
@@ -195,7 +195,7 @@ export const handleOrderError = (error) => {
   return {
     type: 'generic',
     title: 'Order Creation Failed',
-    message: error.message || 'An unexpected error occurred while creating your order. Please try again.',
+    message: error?.error?.message || 'An unexpected error occurred while creating your order. Please try again.',
     action: 'retry',
   };
 };

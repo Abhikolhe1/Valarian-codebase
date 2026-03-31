@@ -7,28 +7,29 @@ import { useSettingsContext } from 'src/components/settings';
 import { paths } from 'src/routes/paths';
 import ComingSoonEditForm from '../../cms-coming-soon-edit-form';
 
+
 export default function ComingSoonPageEditView() {
   const settings = useSettingsContext();
-  const { aboutPage, aboutPageLoading } = useGetAboutPage();
+  const { comingSoon, comingSoonLoading } = useGetAboutPage();
 
   return (
     <Container maxWidth={settings.themeStretch ? false : 'lg'}>
       <CustomBreadcrumbs
-        heading="About Us CMS"
+        heading="Coming Soon CMS"
         links={[
           { name: 'Dashboard', href: paths.dashboard.root },
           { name: 'CMS', href: paths.dashboard.cms.root },
-          { name: 'About Us' },
+          { name: 'Coming Soon' },
         ]}
         sx={{ mb: { xs: 3, md: 5 } }}
       />
 
-      {aboutPageLoading ? (
+      {comingSoonLoading ? (
         <Stack alignItems="center" justifyContent="center" sx={{ minHeight: 320 }}>
           <CircularProgress />
         </Stack>
       ) : (
-        <ComingSoonEditForm currentAboutPage={aboutPage} />
+        <ComingSoonEditForm currentData={comingSoon} />
       )}
     </Container>
   );

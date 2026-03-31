@@ -71,7 +71,7 @@ async function fetchPageData(slug: string) {
 
   // Runtime validation
   if (isErrorResponse(data)) {
-    console.error('API Error:', data.error.message);
+    console.error('API Error:', data.error?.error?.message);
     return null;
   }
 

@@ -99,7 +99,7 @@ export function AuthProvider({ children }) {
           });
         } catch (error) {
           console.error('Frontend auth refresh error:', error);
-          console.error('Error response:', error.response?.data || error.message);
+          console.error('Error response:', error.response?.data ?? error?.error?.message);
 
           setSession(null);
           localStorage.removeItem(USER_STORAGE_KEY);
@@ -123,7 +123,7 @@ export function AuthProvider({ children }) {
       }
     } catch (error) {
       console.error('Frontend auth initialization error:', error);
-      console.error('Error response:', error.response?.data || error.message);
+      console.error('Error response:', error.response?.data ?? error?.error?.message);
 
       const fallbackUser = getStoredUser();
 
@@ -364,8 +364,8 @@ export function AuthProvider({ children }) {
         throw new Error('Network error. Please check your connection.');
       } else {
         // Something else happened
-        console.error('Error:', error.message);
-        throw new Error(error.message || 'Failed to send OTP');
+        console.error('Error:', error?.error?.message);
+        throw new Error(error?.error?.message ?? 'Failed to send OTP');
       }
     }
   }, []);
@@ -420,8 +420,8 @@ export function AuthProvider({ children }) {
         throw new Error('Network error. Please check your connection.');
       } else {
         // Something else happened
-        console.error('Error:', error.message);
-        throw new Error(error.message || 'Failed to verify OTP');
+        console.error('Error:', error?.error?.message);
+        throw new Error(error?.error?.message ?? 'Failed to verify OTP');
       }
     }
   }, []);
