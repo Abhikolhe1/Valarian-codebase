@@ -501,6 +501,7 @@ export default function ProfileEditForm({
                 !mobileVerificationStep && (
                   <LoadingButton
                     variant="outlined"
+                    color='secondary'
                     size="small"
                     loading={isSendingMobileOtp}
                     onClick={handleSendMobileOtp}
@@ -548,7 +549,7 @@ export default function ProfileEditForm({
                   </Stack>
                   <LoadingButton
                     fullWidth
-                    color="inherit"
+                    color="secondary"
                     size="large"
                     variant="contained"
                     type="button"
@@ -580,7 +581,7 @@ export default function ProfileEditForm({
               >
                 Save Changes
               </LoadingButton>
-              <Button variant="outlined" onClick={onCancel} sx={{ flex: 1 }}>
+              <Button variant="outlined" color='secondary' onClick={onCancel} sx={{ flex: 1 }}>
                 Cancel
               </Button>
             </Stack>

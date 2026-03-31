@@ -31,7 +31,7 @@ export function getOrderStatusColor(status) {
 
 export function getPaymentStatusColor(status) {
   switch (status) {
-    case 'paid':
+    case 'success':
       return 'success';
     case 'pending':
       return 'warning';
