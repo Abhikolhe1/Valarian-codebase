@@ -10,7 +10,7 @@ const DEFAULT_CONTENT = {
   description: "Only 150 pieces available worldwide. Once they're gone, they're gone forever.",
   availabilityText: 'Only Available Until 15th January 2026',
   buttonText: 'Buy Now',
-  buttonLink: '/products',
+  buttonLink: '/premium/preorder',
   preorderProductSlug: '',
   preorderVariantId: '',
   background: '#f3e5d8',

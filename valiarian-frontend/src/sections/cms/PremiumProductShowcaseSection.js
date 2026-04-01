@@ -8,6 +8,7 @@ import Container from '@mui/material/Container';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import { alpha } from '@mui/material/styles';
+import Lightbox, { useLightBox } from 'src/components/lightbox';
 import { useGetProduct } from 'src/api/product';
 import { useRouter } from 'src/routes/hook';
 import { fCurrency } from 'src/utils/format-number';
@@ -28,30 +29,46 @@ const DEFAULT_CONTENT = {
 };
 
 const dedupeImages = (images = []) => [...new Set(images.filter(Boolean))];
+const MOBILE_VISIBLE_THUMBNAILS = 3;
+const DESKTOP_VISIBLE_THUMBNAILS = 5;
 
 export default function PremiumProductShowcaseSection({ section }) {
   const router = useRouter();
   const content = { ...DEFAULT_CONTENT, ...(section?.content || {}) };
   const { product } = useGetProduct(content.productSlug);
   const images = useMemo(() => {
-    const configuredImages = Array.isArray(content.images) ? content.images : [];
     const productImages = [
       product?.coverImage,
       ...(Array.isArray(product?.images) ? product.images : []),
-      ...((product?.variants || []).flatMap((variant) => variant.images || [])),
     ];
 
-    return dedupeImages(configuredImages.length > 0 ? configuredImages : productImages);
-  }, [content.images, product]);
+    return dedupeImages(productImages);
+  }, [product]);
   const [selectedImage, setSelectedImage] = useState('');
+  const slides = useMemo(
+    () =>
+      images.map((image) => ({
+        src: image,
+        alt: product?.name || content.heading,
+        title: product?.name || content.heading,
+      })),
+    [content.heading, images, product?.name]
+  );
+  const lightbox = useLightBox(slides);
 
   useEffect(() => {
     setSelectedImage(images[0] || '');
   }, [images]);
 
   const activeImage = selectedImage || images[0] || '';
+  const activeImageIndex = Math.max(
+    0,
+    images.findIndex((image) => image === activeImage)
+  );
   const currentPrice = Number(product?.salePrice || product?.price || 0);
   const originalPrice = Number(product?.price || currentPrice || 0);
+  const mobileRemainingCount = Math.max(0, images.length - MOBILE_VISIBLE_THUMBNAILS);
+  const desktopRemainingCount = Math.max(0, images.length - DESKTOP_VISIBLE_THUMBNAILS);
 
   const handlePreorder = () => {
     const nextPath = resolvePremiumActionPath({
@@ -90,12 +107,25 @@ export default function PremiumProductShowcaseSection({ section }) {
               }}
             >
               <Box
+                component="button"
+                type="button"
+                onClick={() => {
+                  if (!activeImage) {
+                    return;
+                  }
+
+                  lightbox.setSelected(activeImageIndex);
+                  lightbox.onOpen(activeImage);
+                }}
                 sx={{
                   width: '100%',
                   height: { xs: 320, md: 520 },
                   borderRadius: 2.5,
                   overflow: 'hidden',
                   bgcolor: 'grey.100',
+                  p: 0,
+                  border: 0,
+                  cursor: activeImage ? 'zoom-in' : 'default',
                 }}
               >
                 {activeImage ? (
@@ -116,21 +146,40 @@ export default function PremiumProductShowcaseSection({ section }) {
                 <Box
                   sx={{
                     mt: 2,
-                    display: 'grid',
-                    gridTemplateColumns: { xs: 'repeat(3, minmax(0, 1fr))', sm: 'repeat(5, minmax(0, 1fr))' },
+                    display: 'flex',
                     gap: 1.25,
+                    overflowX: 'auto',
+                    overflowY: 'hidden',
+                    flexWrap: 'nowrap',
+                    pb: 0.5,
+                    scrollSnapType: 'x proximity',
+                    '&::-webkit-scrollbar': {
+                      height: 6,
+                    },
+                    '&::-webkit-scrollbar-thumb': {
+                      backgroundColor: alpha(content.accentColor, 0.28),
+                      borderRadius: 999,
+                    },
                   }}
                 >
-                  {images.map((image) => {
+                  {images.map((image, index) => {
                     const isActive = image === activeImage;
+                    const showMobileRemaining =
+                      index === MOBILE_VISIBLE_THUMBNAILS - 1 && mobileRemainingCount > 0;
+                    const showDesktopRemaining =
+                      index === DESKTOP_VISIBLE_THUMBNAILS - 1 && desktopRemainingCount > 0;
 
                     return (
                       <Box
                         key={image}
                         component="button"
                         type="button"
-                        onClick={() => setSelectedImage(image)}
+                        onClick={() => {
+                          setSelectedImage(image);
+                          lightbox.setSelected(images.findIndex((item) => item === image));
+                        }}
                         sx={{
+                          position: 'relative',
                           p: 0,
                           borderRadius: 2,
                           overflow: 'hidden',
@@ -138,10 +187,56 @@ export default function PremiumProductShowcaseSection({ section }) {
                           border: isActive ? `2px solid ${content.accentColor}` : '1px solid rgba(145, 158, 171, 0.24)',
                           boxShadow: isActive ? `0 0 0 3px ${alpha(content.accentColor, 0.16)}` : 'none',
                           height: 88,
+                          minWidth: {
+                            xs: 'calc((100% - 20px) / 3)',
+                            md: 'calc((100% - 40px) / 5)',
+                          },
+                          maxWidth: {
+                            xs: 'calc((100% - 20px) / 3)',
+                            md: 'calc((100% - 40px) / 5)',
+                          },
+                          flex: '0 0 auto',
+                          scrollSnapAlign: 'start',
                           bgcolor: 'grey.100',
                         }}
                       >
                         <Box component="img" src={image} alt={product?.name || 'Premium product'} sx={{ width: 1, height: 1, objectFit: 'cover' }} />
+                        {showMobileRemaining && (
+                          <Box
+                            sx={{
+                              position: 'absolute',
+                              inset: 0,
+                              display: { xs: 'flex', md: 'none' },
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              bgcolor: 'rgba(17, 17, 17, 0.45)',
+                              color: '#fff',
+                              fontWeight: 700,
+                              fontSize: '1rem',
+                              backdropFilter: 'blur(1.5px)',
+                            }}
+                          >
+                            +{mobileRemainingCount}
+                          </Box>
+                        )}
+                        {showDesktopRemaining && (
+                          <Box
+                            sx={{
+                              position: 'absolute',
+                              inset: 0,
+                              display: { xs: 'none', md: 'flex' },
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              bgcolor: 'rgba(17, 17, 17, 0.45)',
+                              color: '#fff',
+                              fontWeight: 700,
+                              fontSize: '1rem',
+                              backdropFilter: 'blur(1.5px)',
+                            }}
+                          >
+                            +{desktopRemainingCount}
+                          </Box>
+                        )}
                       </Box>
                     );
                   })}
@@ -207,6 +302,14 @@ export default function PremiumProductShowcaseSection({ section }) {
             </Button>
           </Stack>
         </Stack>
+
+        <Lightbox
+          index={lightbox.selected}
+          slides={slides}
+          open={lightbox.open}
+          close={lightbox.onClose}
+          onGetCurrentIndex={(index) => lightbox.setSelected(index)}
+        />
       </Container>
     </Box>
   );

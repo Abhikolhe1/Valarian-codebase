@@ -12,9 +12,12 @@ const getStatusColor = (status) => {
     case 'paid':
     case 'fulfilled':
       return 'success';
+    case 'payment_review':
+      return 'warning';
     case 'ready_to_fulfill':
     case 'reserved':
       return 'warning';
+    case 'failed':
     case 'payment_failed':
     case 'cancelled':
       return 'error';
@@ -36,7 +39,9 @@ export default function PremiumOrderTableRow({ row, onViewRow }) {
         {row.productSnapshot?.name || row.product?.name || 'Premium Product'}
       </TableCell>
       <TableCell sx={{ whiteSpace: 'nowrap' }}>
-        {row.selectedSize || row.productSnapshot?.variantLabel || '-'}
+        {[row.selectedColor, row.selectedSize].filter(Boolean).join(' / ') ||
+          row.productSnapshot?.variantLabel ||
+          '-'}
       </TableCell>
       <TableCell sx={{ whiteSpace: 'nowrap' }}>{format(new Date(row.createdAt), 'dd MMM yyyy')}</TableCell>
       <TableCell>

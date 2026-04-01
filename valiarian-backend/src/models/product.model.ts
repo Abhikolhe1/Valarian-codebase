@@ -195,6 +195,12 @@ export class Product extends Entity {
   isFeatured: boolean;
 
   @property({
+    type: 'boolean',
+    default: false,
+  })
+  isPremium: boolean;
+
+  @property({
     type: 'date',
   })
   newArrivalStartDate?: Date;

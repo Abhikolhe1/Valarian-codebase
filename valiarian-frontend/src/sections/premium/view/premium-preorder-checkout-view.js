@@ -8,6 +8,7 @@ import CardContent from '@mui/material/CardContent';
 import Container from '@mui/material/Container';
 import Divider from '@mui/material/Divider';
 import Stack from '@mui/material/Stack';
+import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import Grid from '@mui/material/Unstable_Grid2';
 import { useEffect, useMemo, useState } from 'react';
@@ -25,11 +26,24 @@ import { paths } from 'src/routes/paths';
 import axios, { endpoints } from 'src/utils/axios';
 import { buildAuthRouteWithReturnTo, setStoredReturnPath } from 'src/utils/auth-redirect';
 import { fCurrency } from 'src/utils/format-number';
+import {
+  getDefaultPremiumVariant,
+  getPremiumNextAvailableVariant,
+  getPremiumProductVariants,
+  getPremiumVariantColorValue,
+  getPremiumVariantColorOptions,
+  getPremiumVariantPrice,
+  getPremiumVariantSizeOptions,
+  isPremiumColorAvailable,
+  isPremiumSizeAvailable,
+  isPremiumVariantInStock,
+} from 'src/utils/premium-product';
 import * as Yup from 'yup';
 import CheckoutBillingAddress from 'src/sections/product/checkout/checkout-billing-address';
 import CheckoutBillingInfo from 'src/sections/product/checkout/checkout-billing-info';
 import CheckoutPaymentMethods from 'src/sections/product/checkout/checkout-payment-methods';
 import CheckoutSummary from 'src/sections/product/checkout/checkout-summary';
+import CheckoutSteps from 'src/sections/product/checkout/checkout-steps';
 
 const PAYMENT_OPTIONS = [
   {
@@ -39,33 +53,34 @@ const PAYMENT_OPTIONS = [
   },
 ];
 
-const getVariantLabel = (variant) =>
-  [variant?.size, variant?.colorName || variant?.color].filter(Boolean).join(' / ') || 'Default';
+const optionButtonSx = (selected, disabled) => ({
+  position: 'relative',
+  minWidth: 64,
+  px: 1.75,
+  py: 1,
+  borderRadius: 999,
+  border: '1px solid',
+  borderColor: selected ? 'secondary.main' : 'divider',
+  bgcolor: selected ? 'secondary.lighter' : 'background.paper',
+  color: selected ? 'secondary.darker' : 'text.primary',
+  opacity: disabled ? 0.48 : 1,
+  cursor: disabled ? 'not-allowed' : 'pointer',
+  transition: 'all 0.2s ease',
+  '&::after': disabled
+    ? {
+        content: '""',
+        position: 'absolute',
+        left: '14%',
+        right: '14%',
+        top: '50%',
+        borderTop: '2px solid',
+        borderColor: 'error.main',
+        transform: 'rotate(-24deg)',
+      }
+    : undefined,
+});
 
-const getVariantPrice = (product, variant) => {
-  const prioritizedPrices = [
-    variant?.salePrice,
-    product?.salePrice,
-    variant?.price,
-    product?.price,
-  ];
-  const match = prioritizedPrices.find((value) => Number.isFinite(Number(value)) && Number(value) > 0);
-
-  return match ? Number(match) : 0;
-};
-
-const buildVariantOptions = (product) => {
-  const variants = Array.isArray(product?.variants) ? product.variants : [];
-
-  if (!variants.length) {
-    return [];
-  }
-
-  return variants.map((variant) => ({
-    value: variant.id,
-    label: getVariantLabel(variant),
-  }));
-};
+const PREMIUM_PREORDER_STEPS = ['Product', 'Authentication', 'Billing & address', 'Payment'];
 
 export default function PremiumPreorderCheckoutView() {
   const settings = useSettingsContext();
@@ -79,49 +94,80 @@ export default function PremiumPreorderCheckoutView() {
   const initialVariantId = searchParams.get('variant') || '';
   const { product, productLoading, productError } = useGetProduct(productSlug);
 
-  const [activeStep, setActiveStep] = useState(authenticated ? 1 : 0);
+  const [activeStep, setActiveStep] = useState(0);
   const [billing, setBilling] = useState(null);
   const [selectedVariantId, setSelectedVariantId] = useState(initialVariantId);
+  const [selectedColor, setSelectedColor] = useState('');
+  const [selectedSize, setSelectedSize] = useState('');
   const [completedPreorder, setCompletedPreorder] = useState(null);
+  const [completedStatus, setCompletedStatus] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  const variantOptions = useMemo(() => buildVariantOptions(product), [product]);
+  const variants = useMemo(() => getPremiumProductVariants(product), [product]);
+  const colorOptions = useMemo(() => getPremiumVariantColorOptions(product), [product]);
+  const sizeOptions = useMemo(() => getPremiumVariantSizeOptions(product), [product]);
 
   useEffect(() => {
-    if (!authenticated) {
-      setActiveStep(0);
+    if (!authenticated && activeStep > 1) {
+      setActiveStep(1);
       return;
     }
 
-    setActiveStep((currentStep) => (currentStep === 0 ? 1 : currentStep));
-  }, [authenticated]);
+    if (authenticated && activeStep === 1 && billing) {
+      setActiveStep(2);
+    }
+
+    if (authenticated && activeStep > 1 && !billing) {
+      setActiveStep(1);
+    }
+  }, [activeStep, authenticated, billing]);
 
   useEffect(() => {
     if (!product) {
       return;
     }
 
-    const variants = Array.isArray(product.variants) ? product.variants : [];
+    const defaultVariant = getDefaultPremiumVariant(product, initialVariantId);
 
-    if (!variants.length) {
+    if (!defaultVariant) {
       setSelectedVariantId('');
+      setSelectedColor('');
+      setSelectedSize('');
       return;
     }
 
-    const preferredVariant =
-      variants.find((variant) => variant.id === initialVariantId) ||
-      variants.find((variant) => variant.isDefault) ||
-      variants[0];
-
-    setSelectedVariantId(preferredVariant?.id || '');
+    setSelectedVariantId(defaultVariant.id || '');
+    setSelectedColor(getPremiumVariantColorValue(defaultVariant));
+    setSelectedSize(defaultVariant.size || '');
   }, [initialVariantId, product]);
 
   const selectedVariant = useMemo(
-    () => (product?.variants || []).find((variant) => variant.id === selectedVariantId) || null,
-    [product?.variants, selectedVariantId]
+    () => variants.find((variant) => variant.id === selectedVariantId) || null,
+    [selectedVariantId, variants]
   );
 
-  const unitPrice = useMemo(() => getVariantPrice(product, selectedVariant), [product, selectedVariant]);
+  useEffect(() => {
+    if (!selectedVariant) {
+      return;
+    }
+
+    const selectedVariantColor = getPremiumVariantColorValue(selectedVariant);
+
+    if (selectedVariantColor !== selectedColor) {
+      setSelectedColor(selectedVariantColor);
+    }
+
+    if (selectedVariant.size !== selectedSize) {
+      setSelectedSize(selectedVariant.size || '');
+    }
+  }, [selectedColor, selectedSize, selectedVariant]);
+
+  const unitPrice = useMemo(
+    () => getPremiumVariantPrice(product, selectedVariant),
+    [product, selectedVariant]
+  );
+  const selectedVariantInStock = isPremiumVariantInStock(product, selectedVariant);
+  const selectedStock = Number(selectedVariant?.stockQuantity ?? product?.stockQuantity ?? 0);
 
   const checkoutSummary = useMemo(
     () => ({
@@ -154,6 +200,23 @@ export default function PremiumPreorderCheckoutView() {
     handleSubmit,
   } = methods;
 
+  const markPremiumPaymentFailed = async (preorderId, payload = {}) => {
+    if (!preorderId) {
+      return null;
+    }
+
+    try {
+      const response = await axios.post(endpoints.premiumPreorders.paymentFailed(preorderId), {
+        reason: 'checkout_abandoned',
+        ...payload,
+      });
+      return response.data?.preorder || null;
+    } catch (error) {
+      console.error('Failed to mark premium preorder payment failure:', error);
+      return null;
+    }
+  };
+
   useEffect(() => {
     loadScript().catch(() => undefined);
   }, [loadScript]);
@@ -183,7 +246,66 @@ export default function PremiumPreorderCheckoutView() {
     setActiveStep(2);
   };
 
+  const handleContinueFromProduct = () => {
+    if (variants.length > 0 && !selectedVariantId) {
+      enqueueSnackbar('Please select an available size and color.', { variant: 'error' });
+      return;
+    }
+
+    if (!selectedVariantInStock) {
+      enqueueSnackbar('The selected premium variant is out of stock.', { variant: 'error' });
+      return;
+    }
+
+    setActiveStep(1);
+  };
+
+  const handleBackStep = () => {
+    if (activeStep <= 0) {
+      return;
+    }
+
+    setActiveStep((currentStep) => currentStep - 1);
+  };
+
+  const handleColorChange = (color) => {
+    const nextVariant = getPremiumNextAvailableVariant(product, {
+      color,
+      size: selectedSize,
+    });
+
+    setSelectedColor(color);
+
+    if (!nextVariant) {
+      setSelectedVariantId('');
+      return;
+    }
+
+    setSelectedVariantId(nextVariant.id || '');
+    setSelectedSize(nextVariant.size || selectedSize || '');
+  };
+
+  const handleSizeChange = (size) => {
+    const nextVariant = getPremiumNextAvailableVariant(product, {
+      color: selectedColor,
+      size,
+    });
+
+    setSelectedSize(size);
+
+    if (!nextVariant) {
+      setSelectedVariantId('');
+      return;
+    }
+
+    setSelectedVariantId(nextVariant.id || '');
+    setSelectedColor(getPremiumVariantColorValue(nextVariant) || selectedColor || '');
+  };
+
   const onSubmit = handleSubmit(async () => {
+    let createdPreorderId = '';
+    let createdRazorpayOrderId = '';
+
     if (!authenticated || !user?.id) {
       enqueueSnackbar('Please sign in to continue.', { variant: 'error' });
       setActiveStep(0);
@@ -192,6 +314,16 @@ export default function PremiumPreorderCheckoutView() {
 
     if (!productSlug || !product) {
       enqueueSnackbar('Premium preorder product is missing.', { variant: 'error' });
+      return;
+    }
+
+    if (variants.length > 0 && !selectedVariantId) {
+      enqueueSnackbar('Please select an available size and color.', { variant: 'error' });
+      return;
+    }
+
+    if (!selectedVariantInStock) {
+      enqueueSnackbar('The selected premium variant is out of stock.', { variant: 'error' });
       return;
     }
 
@@ -207,6 +339,7 @@ export default function PremiumPreorderCheckoutView() {
       const createResponse = await axios.post(endpoints.premiumPreorders.create, {
         productSlug,
         variantId: selectedVariantId || undefined,
+        selectedColor: selectedColor || undefined,
         billingAddress: {
           fullName: billing?.fullName || billing?.name || '',
           phone: billing?.phone || billing?.phoneNumber || '',
@@ -230,6 +363,8 @@ export default function PremiumPreorderCheckoutView() {
       });
 
       const preorder = createResponse.data?.preorder;
+      createdPreorderId = preorder?.id || '';
+      createdRazorpayOrderId = createResponse.data?.razorpayOrderId || '';
       const checkoutResult = await openCheckout({
         key: createResponse.data?.keyId,
         amount: createResponse.data?.amount,
@@ -248,6 +383,10 @@ export default function PremiumPreorderCheckoutView() {
       });
 
       if (checkoutResult?.status === 'cancelled') {
+        await markPremiumPaymentFailed(preorder?.id, {
+          razorpayOrderId: createdRazorpayOrderId,
+          reason: 'checkout_abandoned',
+        });
         enqueueSnackbar('Premium preorder payment was cancelled.', { variant: 'warning' });
         return;
       }
@@ -260,9 +399,37 @@ export default function PremiumPreorderCheckoutView() {
       });
 
       setCompletedPreorder(verifyResponse.data?.preorder || preorder);
-      enqueueSnackbar('Premium preorder placed successfully.', { variant: 'success' });
+      setCompletedStatus(String(verifyResponse.data?.status || '').toLowerCase());
+
+      if (String(verifyResponse.data?.status || '').toLowerCase() === 'payment_review') {
+        enqueueSnackbar(
+          'Payment successful, but item is currently unavailable. Our team will process refund or assist you shortly.',
+          { variant: 'warning' }
+        );
+      } else if (String(verifyResponse.data?.status || '').toLowerCase() === 'pending') {
+        enqueueSnackbar('Premium preorder payment is pending confirmation.', { variant: 'warning' });
+      } else {
+        enqueueSnackbar('Premium preorder placed successfully.', { variant: 'success' });
+      }
     } catch (error) {
       console.error('Premium preorder checkout failed:', error);
+      const failedPreorderId =
+        createdPreorderId || error?.preorderId || error?.response?.data?.preorderId;
+      const razorpayOrderId =
+        createdRazorpayOrderId ||
+        error?.response?.error?.metadata?.order_id ||
+        error?.response?.data?.razorpayOrderId;
+      const razorpayPaymentId =
+        error?.response?.error?.metadata?.payment_id || error?.response?.data?.razorpayPaymentId;
+
+      if (error?.status === 'failed' && failedPreorderId) {
+        await markPremiumPaymentFailed(failedPreorderId, {
+          razorpayOrderId,
+          razorpayPaymentId,
+          reason: error?.response?.error?.reason || 'checkout_abandoned',
+        });
+      }
+
       enqueueSnackbar(
         error?.response?.data?.message || error?.message || 'Failed to place premium preorder.',
         { variant: 'error' }
@@ -302,19 +469,42 @@ export default function PremiumPreorderCheckoutView() {
   }
 
   if (completedPreorder) {
+    const isPendingCompletion = completedStatus === 'pending';
+    const isReviewCompletion = completedStatus === 'payment_review';
+    let completionIcon = 'solar:verified-check-bold';
+    let completionHeading = 'Premium preorder confirmed';
+    let completionMessage =
+      "We'll keep this separate from regular orders so premium fulfillment stays easier to manage.";
+
+    if (isReviewCompletion) {
+      completionIcon = 'solar:shield-warning-bold';
+      completionHeading = 'Premium preorder under review';
+      completionMessage =
+        'Payment successful, but item is currently unavailable. Our team will process refund or assist you shortly.';
+    } else if (isPendingCompletion) {
+      completionIcon = 'solar:clock-circle-bold';
+      completionHeading = 'Premium preorder payment pending';
+      completionMessage =
+        'Your payment is still awaiting Razorpay capture confirmation. We will keep this premium preorder separate while it remains pending.';
+    }
+
     return (
       <Container maxWidth={settings.themeStretch ? false : 'sm'} sx={{ py: 10 }}>
         <Card>
           <CardContent>
             <Stack spacing={3} alignItems="center" textAlign="center">
-              <Iconify icon="solar:verified-check-bold" width={56} sx={{ color: 'success.main' }} />
-              <Typography variant="h4">Premium preorder confirmed</Typography>
+              <Iconify
+                icon={completionIcon}
+                width={56}
+                sx={{
+                  color: isReviewCompletion || isPendingCompletion ? 'warning.main' : 'success.main',
+                }}
+              />
+              <Typography variant="h4">{completionHeading}</Typography>
               <Typography color="text.secondary">
                 Your premium preorder <strong>#{completedPreorder.preorderNumber}</strong> has been recorded.
               </Typography>
-              <Typography color="text.secondary">
-                We&apos;ll keep this separate from regular orders so premium fulfillment stays easier to manage.
-              </Typography>
+              <Typography color="text.secondary">{completionMessage}</Typography>
               <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
                 <Button component={RouterLink} href={paths.premium} variant="contained" color="secondary">
                   Back to Premium
@@ -327,6 +517,13 @@ export default function PremiumPreorderCheckoutView() {
     );
   }
 
+  const checkoutSteps = authenticated
+    ? PREMIUM_PREORDER_STEPS.filter((step) => step !== 'Authentication')
+    : PREMIUM_PREORDER_STEPS;
+  const displayActiveStep = authenticated && activeStep > 1 ? activeStep - 1 : activeStep;
+  const showEmbeddedBillingLayout = authenticated && activeStep === 1;
+  const showSidebarSummary = !showEmbeddedBillingLayout;
+
   return (
     <Container maxWidth={settings.themeStretch ? false : 'lg'} sx={{ py: { xs: 4, md: 8 } }}>
       <Stack spacing={2} sx={{ mb: 5 }}>
@@ -336,68 +533,165 @@ export default function PremiumPreorderCheckoutView() {
         </Typography>
       </Stack>
 
+      <CheckoutSteps activeStep={displayActiveStep} steps={checkoutSteps} />
+
+      {activeStep > 0 && (
+        <Button
+          size="small"
+          color="inherit"
+          onClick={handleBackStep}
+          startIcon={<Iconify icon="eva:arrow-ios-back-fill" />}
+          sx={{ display: { xs: 'inline-flex', md: 'none' }, mb: 3 }}
+        >
+          Back
+        </Button>
+      )}
+
       <Grid container spacing={{ xs: 3, md: 4 }}>
-        <Grid xs={12} md={8}>
+        <Grid xs={12} md={showSidebarSummary ? 8 : 12}>
           <Stack spacing={3}>
-            <Card>
-              <CardContent>
-                <Stack spacing={3}>
-                  <Stack direction={{ xs: 'column', md: 'row' }} spacing={3}>
-                    <Box
-                      component="img"
-                      src={selectedVariant?.images?.[0] || product.coverImage || product.images?.[0]}
-                      alt={product.name}
-                      sx={{
-                        width: { xs: 1, md: 220 },
-                        height: { xs: 260, md: 220 },
-                        borderRadius: 2,
-                        objectFit: 'cover',
-                      }}
-                    />
+            {activeStep === 0 && (
+              <Card>
+                <CardContent>
+                  <Stack spacing={3}>
+                    <Stack direction={{ xs: 'column', md: 'row' }} spacing={3}>
+                      <Box
+                        component="img"
+                        src={selectedVariant?.images?.[0] || product.coverImage || product.images?.[0]}
+                        alt={product.name}
+                        sx={{
+                          width: { xs: 1, md: 220 },
+                          height: { xs: 260, md: 220 },
+                          borderRadius: 2,
+                          objectFit: 'cover',
+                        }}
+                      />
 
-                    <Stack spacing={1.5} flexGrow={1}>
-                      <Typography variant="h4">{product.name}</Typography>
-                      <Typography color="text.secondary">{product.shortDescription || product.description}</Typography>
-                      <Typography variant="h5" color="secondary.main">
-                        {fCurrency(unitPrice)}
-                      </Typography>
+                      <Stack spacing={1.5} flexGrow={1}>
+                        <Typography variant="h4">{product.name}</Typography>
+                        <Typography color="text.secondary">
+                          {product.shortDescription || product.description}
+                        </Typography>
+                        <Typography variant="h5" color="secondary.main">
+                          {fCurrency(unitPrice)}
+                        </Typography>
 
-                      {!!variantOptions.length && (
-                        <Box sx={{ maxWidth: 280, pt: 1 }}>
-                          <Typography variant="subtitle2" sx={{ mb: 1 }}>
-                            Select Variant
-                          </Typography>
-                          <Box
-                            component="select"
-                            value={selectedVariantId}
-                            onChange={(event) => setSelectedVariantId(event.target.value)}
-                            style={{
-                              width: '100%',
-                              padding: '12px 14px',
-                              borderRadius: 8,
-                              border: '1px solid rgba(145, 158, 171, 0.24)',
-                              background: '#fff',
-                            }}
+                        {!!sizeOptions.length && (
+                          <Stack spacing={1.25} sx={{ pt: 1 }}>
+                            <Typography variant="subtitle2">Select Size</Typography>
+                            <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                              {sizeOptions.map((size) => {
+                                const disabled = !isPremiumSizeAvailable(product, size, selectedColor);
+                                const button = (
+                                  <Box
+                                    component="button"
+                                    type="button"
+                                    key={size}
+                                    disabled={disabled}
+                                    onClick={() => !disabled && handleSizeChange(size)}
+                                    sx={optionButtonSx(selectedSize === size, disabled)}
+                                  >
+                                    {size}
+                                  </Box>
+                                );
+
+                                return disabled ? (
+                                  <Tooltip key={size} title="Out of stock">
+                                    <Box>{button}</Box>
+                                  </Tooltip>
+                                ) : (
+                                  button
+                                );
+                              })}
+                            </Stack>
+                          </Stack>
+                        )}
+
+                        {!!colorOptions.length && (
+                          <Stack spacing={1.25}>
+                            <Typography variant="subtitle2">Select Color</Typography>
+                            <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                              {colorOptions.map((colorOption) => {
+                                const disabled = !isPremiumColorAvailable(
+                                  product,
+                                  colorOption.value,
+                                  selectedSize
+                                );
+                                const button = (
+                                  <Box
+                                    component="button"
+                                    type="button"
+                                    key={colorOption.value}
+                                    disabled={disabled}
+                                    onClick={() => !disabled && handleColorChange(colorOption.value)}
+                                    sx={{
+                                      ...optionButtonSx(selectedColor === colorOption.value, disabled),
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: 1,
+                                      minWidth: 110,
+                                    }}
+                                  >
+                                    <Box
+                                      sx={{
+                                        width: 14,
+                                        height: 14,
+                                        borderRadius: '50%',
+                                        bgcolor: colorOption.swatch || colorOption.value,
+                                        border: '1px solid rgba(0,0,0,0.16)',
+                                        flexShrink: 0,
+                                      }}
+                                    />
+                                    <Box component="span">{colorOption.label}</Box>
+                                  </Box>
+                                );
+
+                                return disabled ? (
+                                  <Tooltip key={colorOption.value} title="Out of stock">
+                                    <Box>{button}</Box>
+                                  </Tooltip>
+                                ) : (
+                                  button
+                                );
+                              })}
+                            </Stack>
+                          </Stack>
+                        )}
+
+                        <Typography
+                          variant="body2"
+                          color={selectedVariantInStock ? 'success.main' : 'error.main'}
+                        >
+                          {selectedVariantInStock
+                            ? `Available stock: ${selectedStock}`
+                            : 'Selected combination is out of stock'}
+                        </Typography>
+
+                        <Alert severity="info" sx={{ mt: 1 }}>
+                          Premium preorders are processed one item per checkout and are stored separately from normal orders.
+                        </Alert>
+
+                        <Stack direction={{ xs: 'column-reverse', sm: 'row' }} spacing={2} justifyContent="space-between" sx={{ pt: 1 }}>
+                          <Button variant="outlined" color="inherit" onClick={() => router.push(paths.premium)}>
+                            Back to Premium
+                          </Button>
+                          <LoadingButton
+                            variant="contained"
+                            color="secondary"
+                            onClick={handleContinueFromProduct}
+                            disabled={!selectedVariantInStock}
                           >
-                            {variantOptions.map((option) => (
-                              <option key={option.value} value={option.value}>
-                                {option.label}
-                              </option>
-                            ))}
-                          </Box>
-                        </Box>
-                      )}
-
-                      <Alert severity="info" sx={{ mt: 1 }}>
-                        Premium preorders are processed one item per checkout and are stored separately from normal orders.
-                      </Alert>
+                            Continue
+                          </LoadingButton>
+                        </Stack>
+                      </Stack>
                     </Stack>
                   </Stack>
-                </Stack>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            )}
 
-            {!authenticated && (
+            {activeStep === 1 && !authenticated && (
               <Card>
                 <CardContent>
                   <Stack spacing={3} alignItems="center" textAlign="center">
@@ -421,7 +715,7 @@ export default function PremiumPreorderCheckoutView() {
             {authenticated && activeStep === 1 && (
               <CheckoutBillingAddress
                 checkout={checkoutSummary}
-                onBackStep={() => router.push(paths.premium)}
+                onBackStep={handleBackStep}
                 onCreateBilling={handleCreateBilling}
               />
             )}
@@ -448,6 +742,7 @@ export default function PremiumPreorderCheckoutView() {
                       variant="contained"
                       color="secondary"
                       loading={submitting || isLoadingScript}
+                      disabled={!selectedVariantInStock}
                     >
                       Pay {fCurrency(unitPrice)}
                     </LoadingButton>
@@ -458,19 +753,21 @@ export default function PremiumPreorderCheckoutView() {
           </Stack>
         </Grid>
 
-        <Grid xs={12} md={4}>
-          <CheckoutSummary
-            total={checkoutSummary.total}
-            subTotal={checkoutSummary.subTotal}
-            discount={checkoutSummary.discount}
-            shipping={checkoutSummary.shipping}
-            tax={checkoutSummary.tax}
-            actual_price={checkoutSummary.actualSubTotal}
-            sale_price={checkoutSummary.subTotal}
-            product_discount={checkoutSummary.productDiscount}
-            coupon_discount={0}
-          />
-        </Grid>
+        {showSidebarSummary && (
+          <Grid xs={12} md={4}>
+            <CheckoutSummary
+              total={checkoutSummary.total}
+              subTotal={checkoutSummary.subTotal}
+              discount={checkoutSummary.discount}
+              shipping={checkoutSummary.shipping}
+              tax={checkoutSummary.tax}
+              actual_price={checkoutSummary.actualSubTotal}
+              sale_price={checkoutSummary.subTotal}
+              product_discount={checkoutSummary.productDiscount}
+              coupon_discount={0}
+            />
+          </Grid>
+        )}
       </Grid>
     </Container>
   );

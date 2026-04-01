@@ -45,7 +45,9 @@ const STATUS_OPTIONS = [
   { value: 'all', label: 'All' },
   { value: 'initiated', label: 'Initiated' },
   { value: 'paid', label: 'Paid' },
+  { value: 'failed', label: 'Failed' },
   { value: 'payment_failed', label: 'Payment Failed' },
+  { value: 'payment_review', label: 'Payment Review' },
   { value: 'reserved', label: 'Reserved' },
   { value: 'ready_to_fulfill', label: 'Ready to Fulfill' },
   { value: 'fulfilled', label: 'Fulfilled' },
@@ -66,9 +68,12 @@ const getChipColor = (value) => {
     case 'paid':
     case 'fulfilled':
       return 'success';
+    case 'payment_review':
+      return 'warning';
     case 'ready_to_fulfill':
     case 'reserved':
       return 'warning';
+    case 'failed':
     case 'payment_failed':
     case 'cancelled':
       return 'error';

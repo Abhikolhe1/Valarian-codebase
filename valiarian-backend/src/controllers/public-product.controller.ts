@@ -48,6 +48,7 @@ export class PublicProductController {
     let products = await this.productRepository.find({
       where: {
         isNewArrival: true,
+        isPremium: false,
         status: 'published',
         inStock: true,
         isActive: true,
@@ -67,6 +68,7 @@ export class PublicProductController {
     if (products.length > 0) {
       const count = await this.productRepository.count({
         isNewArrival: true,
+        isPremium: false,
         status: 'published',
         inStock: true,
         isActive: true,
@@ -83,6 +85,7 @@ export class PublicProductController {
       products = await this.productRepository.find({
         where: {
           status: 'published',
+          isPremium: false,
           inStock: true,
           isActive: true,
           isDeleted: false,
@@ -93,6 +96,7 @@ export class PublicProductController {
       });
       const count = await this.productRepository.count({
         status: 'published',
+        isPremium: false,
         inStock: true,
         isActive: true,
         isDeleted: false,
@@ -136,6 +140,7 @@ export class PublicProductController {
     let products = await this.productRepository.find({
       where: {
         isBestSeller: true,
+        isPremium: false,
         status: 'published',
         inStock: true,
         isActive: true,
@@ -151,6 +156,7 @@ export class PublicProductController {
     if (products.length > 0) {
       const count = await this.productRepository.count({
         isBestSeller: true,
+        isPremium: false,
         status: 'published',
         inStock: true,
         isActive: true,
@@ -163,6 +169,7 @@ export class PublicProductController {
       products = await this.productRepository.find({
         where: {
           status: 'published',
+          isPremium: false,
           inStock: true,
           isActive: true,
           isDeleted: false,
@@ -174,6 +181,7 @@ export class PublicProductController {
       });
       const count = await this.productRepository.count({
         status: 'published',
+        isPremium: false,
         inStock: true,
         isActive: true,
         isDeleted: false,
@@ -218,6 +226,7 @@ export class PublicProductController {
 
     const total = await this.productRepository.count({
       isFeatured: true,
+      isPremium: false,
       status: 'published',
       inStock: true,
       isActive: true,
@@ -339,6 +348,7 @@ export class PublicProductController {
       isNewArrival: sortFilters.isNewArrival,
       isBestSeller: sortFilters.isBestSeller,
       isFeatured: sortFilters.isFeatured,
+      isPremium: false,
       saleOnly: sortFilters.saleOnly,
       inStock,
       minPrice,

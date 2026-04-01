@@ -16,7 +16,7 @@ const DEFAULT_CONTENT = {
   subheading:
     "Handcrafted in Portugal using the world's finest cotton. Only 150 pieces available.",
   primaryButtonText: 'Explore Details',
-  primaryButtonLink: '/products',
+  primaryButtonLink: '/premium/preorder',
   preorderProductSlug: '',
   preorderVariantId: '',
   ctaButtons: [],

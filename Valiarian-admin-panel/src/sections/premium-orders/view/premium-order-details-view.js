@@ -22,7 +22,9 @@ import { fDateTime } from 'src/utils/format-time';
 const STATUS_OPTIONS = [
   'initiated',
   'paid',
+  'failed',
   'payment_failed',
+  'payment_review',
   'reserved',
   'ready_to_fulfill',
   'fulfilled',
@@ -35,9 +37,12 @@ const getStatusColor = (status) => {
     case 'paid':
     case 'fulfilled':
       return 'success';
+    case 'payment_review':
+      return 'warning';
     case 'ready_to_fulfill':
     case 'reserved':
       return 'warning';
+    case 'failed':
     case 'payment_failed':
     case 'cancelled':
       return 'error';
@@ -154,7 +159,9 @@ export default function PremiumOrderDetailsView() {
                   <Typography variant="subtitle1">{productName}</Typography>
                   <Typography color="text.secondary">
                     Variant:{' '}
-                    {preorder.selectedSize || preorder.productSnapshot?.variantLabel || '-'}
+                    {[preorder.selectedColor, preorder.selectedSize]
+                      .filter(Boolean)
+                      .join(' / ') || preorder.productSnapshot?.variantLabel || '-'}
                   </Typography>
                   <Typography color="text.secondary">
                     Ordered on {fDateTime(preorder.createdAt)}
@@ -164,6 +171,12 @@ export default function PremiumOrderDetailsView() {
                   </Typography>
                   <Typography color="text.secondary">
                     Razorpay Payment ID: {preorder.razorpayPaymentId || '-'}
+                  </Typography>
+                  <Typography color="text.secondary">
+                    Failure Reason: {preorder.failureReason || '-'}
+                  </Typography>
+                  <Typography color="text.secondary">
+                    Review Required: {preorder.reviewRequired ? 'Yes' : 'No'}
                   </Typography>
                 </Stack>
               </CardContent>

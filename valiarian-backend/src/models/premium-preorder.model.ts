@@ -86,6 +86,11 @@ export class PremiumPreorder extends Entity {
   selectedSize?: string;
 
   @property({
+    type: 'string',
+  })
+  selectedColor?: string;
+
+  @property({
     type: 'number',
     default: 1,
   })
@@ -99,7 +104,9 @@ export class PremiumPreorder extends Entity {
       enum: [
         'initiated',
         'paid',
+        'failed',
         'payment_failed',
+        'payment_review',
         'reserved',
         'ready_to_fulfill',
         'fulfilled',
@@ -111,7 +118,9 @@ export class PremiumPreorder extends Entity {
   status:
     | 'initiated'
     | 'paid'
+    | 'failed'
     | 'payment_failed'
+    | 'payment_review'
     | 'reserved'
     | 'ready_to_fulfill'
     | 'fulfilled'
@@ -236,6 +245,17 @@ export class PremiumPreorder extends Entity {
     type: 'string',
   })
   notes?: string;
+
+  @property({
+    type: 'string',
+  })
+  failureReason?: string;
+
+  @property({
+    type: 'boolean',
+    default: false,
+  })
+  reviewRequired?: boolean;
 
   @property({
     type: 'date',

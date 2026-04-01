@@ -1,13 +1,21 @@
 import PropTypes from 'prop-types';
 import { useForm } from 'react-hook-form';
+import Alert from '@mui/material/Alert';
 import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
-import FormProvider, { RHFTextField } from 'src/components/hook-form';
+import { useGetProducts } from 'src/api/product';
+import FormProvider, { RHFAutocomplete, RHFTextField } from 'src/components/hook-form';
 
 export default function PremiumReserveCtaSectionEditor({ section, onSave, onCancel }) {
+  const { products: premiumProducts, productsLoading } = useGetProducts({
+    isPremium: true,
+    status: 'published',
+    limit: 100,
+  });
+
   const methods = useForm({
     defaultValues: {
       name: section?.name || 'Premium Reserve CTA',
@@ -19,7 +27,7 @@ export default function PremiumReserveCtaSectionEditor({ section, onSave, onCanc
         availabilityText:
           section?.content?.availabilityText || 'Only available until 15th January 2026',
         buttonText: section?.content?.buttonText || 'Buy Now',
-        buttonLink: section?.content?.buttonLink || '/products',
+        buttonLink: section?.content?.buttonLink || '/premium/preorder',
         preorderProductSlug: section?.content?.preorderProductSlug || '',
         preorderVariantId: section?.content?.preorderVariantId || '',
         background: section?.content?.background || '#f3e5d8',
@@ -59,13 +67,34 @@ export default function PremiumReserveCtaSectionEditor({ section, onSave, onCanc
               <RHFTextField name="content.availabilityText" label="Availability Text" />
               <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
                 <RHFTextField name="content.buttonText" label="Button Text" />
-                <RHFTextField name="content.buttonLink" label="Button Link" />
+                <RHFTextField
+                  name="content.buttonLink"
+                  label="Button Link"
+                  helperText="Recommended fallback: /premium/preorder"
+                />
               </Stack>
               <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-                <RHFTextField
+                <RHFAutocomplete
                   name="content.preorderProductSlug"
-                  label="Preorder Product Slug"
-                  helperText="If filled, the button opens the premium preorder checkout for this product."
+                  label="Premium Product"
+                  loading={productsLoading}
+                  placeholder="Select a premium product"
+                  options={premiumProducts.map((product) => product.slug)}
+                  getOptionLabel={(option) => {
+                    const matchedProduct = premiumProducts.find((product) => product.slug === option);
+                    return matchedProduct?.name || option || '';
+                  }}
+                  isOptionEqualToValue={(option, value) => option === value}
+                  renderOption={(props, option) => {
+                    const product = premiumProducts.find((item) => item.slug === option);
+
+                    return (
+                      <li {...props} key={option}>
+                        {product?.name || option}
+                      </li>
+                    );
+                  }}
+                  helperText="If filled, the CTA button opens the premium preorder checkout for this premium product."
                 />
                 <RHFTextField
                   name="content.preorderVariantId"
@@ -73,6 +102,9 @@ export default function PremiumReserveCtaSectionEditor({ section, onSave, onCanc
                   helperText="Optional: lock the preorder flow to one product variant."
                 />
               </Stack>
+              <Alert severity="info">
+                The selected premium product is the source of truth for this CTA button. The link field is used only as a fallback.
+              </Alert>
               <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
                 <RHFTextField name="content.background" label="Background" type="color" />
                 <RHFTextField name="content.headingColor" label="Heading Color" type="color" />

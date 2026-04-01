@@ -18,6 +18,7 @@ export interface ProductSearchOptions {
   isNewArrival?: boolean;
   isBestSeller?: boolean;
   isFeatured?: boolean;
+  isPremium?: boolean;
   saleOnly?: boolean;
   inStock?: boolean;
   categoryId?: string;
@@ -147,6 +148,7 @@ export class ProductRepository extends TimeStampRepositoryMixin<
     return this.find({
       where: {
         isFeatured: true,
+        isPremium: false,
         status: 'published',
         inStock: true,
         isActive: true,
@@ -256,6 +258,7 @@ export class ProductRepository extends TimeStampRepositoryMixin<
       isNewArrival,
       isBestSeller,
       isFeatured,
+      isPremium,
       saleOnly,
       inStock,
       categoryId,
@@ -284,6 +287,7 @@ export class ProductRepository extends TimeStampRepositoryMixin<
     if (isNewArrival !== undefined) andConditions.push({isNewArrival});
     if (isBestSeller !== undefined) andConditions.push({isBestSeller});
     if (isFeatured !== undefined) andConditions.push({isFeatured});
+    if (isPremium !== undefined) andConditions.push({isPremium});
     if (saleOnly) {
       const now = new Date();
 

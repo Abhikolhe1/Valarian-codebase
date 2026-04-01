@@ -1,14 +1,21 @@
 import PropTypes from 'prop-types';
 import { useForm } from 'react-hook-form';
+import Alert from '@mui/material/Alert';
 import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
-import FormProvider, { RHFTextField } from 'src/components/hook-form';
-import CMSMediaPickerField from '../cms-media-picker-field';
+import { useGetProducts } from 'src/api/product';
+import FormProvider, { RHFAutocomplete, RHFTextField } from 'src/components/hook-form';
 
 export default function PremiumProductShowcaseSectionEditor({ section, onSave, onCancel }) {
+  const { products: premiumProducts, productsLoading } = useGetProducts({
+    isPremium: true,
+    status: 'published',
+    limit: 100,
+  });
+
   const methods = useForm({
     defaultValues: {
       name: section?.name || 'Premium Product Showcase',
@@ -19,9 +26,8 @@ export default function PremiumProductShowcaseSectionEditor({ section, onSave, o
           section?.content?.description ||
           'Explore the premium piece up close before you preorder. Multiple campaign and product images are pulled from the selected product.',
         productSlug: section?.content?.productSlug || '',
-        images: Array.isArray(section?.content?.images) ? section.content.images : [],
         preorderButtonText: section?.content?.preorderButtonText || 'Preorder Now',
-        preorderButtonLink: section?.content?.preorderButtonLink || '/premium',
+        preorderButtonLink: section?.content?.preorderButtonLink || '/premium/preorder',
         backgroundColor: section?.content?.backgroundColor || '#f7f1ea',
         accentColor: section?.content?.accentColor || '#8C6549',
         textColor: section?.content?.textColor || '#1f1f1f',
@@ -33,18 +39,17 @@ export default function PremiumProductShowcaseSectionEditor({ section, onSave, o
 
   const {
     handleSubmit,
-    watch,
-    setValue,
     formState: { isSubmitting },
   } = methods;
-
-  const images = watch('content.images');
 
   const onSubmit = handleSubmit(async (data) => {
     await onSave({
       name: data.name,
       type: 'premium-product-showcase',
-      content: data.content,
+      content: {
+        ...data.content,
+        images: [],
+      },
       settings: data.settings || {},
     });
   });
@@ -62,24 +67,38 @@ export default function PremiumProductShowcaseSectionEditor({ section, onSave, o
               <RHFTextField name="content.eyebrow" label="Eyebrow" />
               <RHFTextField name="content.heading" label="Heading" />
               <RHFTextField name="content.description" label="Description" multiline rows={3} />
-              <RHFTextField
+              <RHFAutocomplete
                 name="content.productSlug"
-                label="Product Slug"
-                helperText="The section pulls images and product data from this product."
-              />
-              <CMSMediaPickerField
-                label="Product / Shirt Images"
-                value={images}
-                onChange={(value) => setValue('content.images', value)}
-                multiple
-                helperText="You can view old images here, select existing media, or upload new images. If empty, product images from the selected slug will be used."
-                accept={{
-                  'image/*': ['.jpg', '.jpeg', '.png', '.webp', '.svg'],
+                label="Premium Product"
+                loading={productsLoading}
+                placeholder="Select a premium product"
+                options={premiumProducts.map((product) => product.slug)}
+                getOptionLabel={(option) => {
+                  const matchedProduct = premiumProducts.find((product) => product.slug === option);
+                  return matchedProduct?.name || option || '';
                 }}
+                isOptionEqualToValue={(option, value) => option === value}
+                renderOption={(props, option) => {
+                  const product = premiumProducts.find((item) => item.slug === option);
+
+                  return (
+                    <li {...props} key={option}>
+                      {product?.name || option}
+                    </li>
+                  );
+                }}
+                helperText="Only products marked as Premium Product appear here. The showcase images and price are pulled directly from that product."
               />
+              <Alert severity="info">
+                The image upload field has been removed here. This section now always uses the selected premium product&apos;s cover, gallery, and variant images.
+              </Alert>
               <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
                 <RHFTextField name="content.preorderButtonText" label="Button Text" />
-                <RHFTextField name="content.preorderButtonLink" label="Fallback Button Link" />
+                <RHFTextField
+                  name="content.preorderButtonLink"
+                  label="Fallback Button Link"
+                  helperText="Recommended fallback: /premium/preorder"
+                />
               </Stack>
               <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
                 <RHFTextField name="content.backgroundColor" label="Background Color" type="color" />
