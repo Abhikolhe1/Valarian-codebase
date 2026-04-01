@@ -23,14 +23,18 @@ export function useGetPages(params) {
   );
 
   const memoizedValue = useMemo(
-    () => ({
-      pages: data?.pages || [],
-      pagesLoading: isLoading,
-      pagesError: error,
-      pagesValidating: isValidating,
-      pagesEmpty: !isLoading && !data?.pages?.length,
-    }),
-    [data?.pages, error, isLoading, isValidating]
+    () => {
+      const normalizedPages = Array.isArray(data) ? data : data?.pages || [];
+
+      return {
+        pages: normalizedPages,
+        pagesLoading: isLoading,
+        pagesError: error,
+        pagesValidating: isValidating,
+        pagesEmpty: !isLoading && !normalizedPages.length,
+      };
+    },
+    [data, error, isLoading, isValidating]
   );
 
   return memoizedValue;

@@ -11,6 +11,13 @@
 export type PageStatus = 'draft' | 'published' | 'scheduled' | 'archived';
 
 export type SectionType =
+  | 'premium-hero'
+  | 'premium-fabric-details'
+  | 'premium-statement'
+  | 'premium-feature-grid'
+  | 'premium-confidence'
+  | 'premium-reserve-cta'
+  | 'premium-countdown'
   | 'hero'
   | 'features'
   | 'testimonials'
@@ -678,6 +685,13 @@ export function isSectionType(value: any): value is SectionType {
   return (
     typeof value === 'string' &&
     [
+      'premium-hero',
+      'premium-fabric-details',
+      'premium-statement',
+      'premium-feature-grid',
+      'premium-confidence',
+      'premium-reserve-cta',
+      'premium-countdown',
       'hero',
       'features',
       'testimonials',

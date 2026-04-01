@@ -16,8 +16,16 @@ const options = {
 // ----------------------------------------------------------------------
 
 export function useGetSections(params) {
+  let swrKey = URL;
+
+  if (params === null) {
+    swrKey = null;
+  } else if (params) {
+    swrKey = [URL, { params }];
+  }
+
   const { data, isLoading, error, isValidating } = useSWR(
-    params ? [URL, { params }] : URL,
+    swrKey,
     fetcher,
     options
   );

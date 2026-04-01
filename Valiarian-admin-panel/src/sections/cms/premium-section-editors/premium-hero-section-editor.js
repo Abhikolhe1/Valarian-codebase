@@ -32,15 +32,21 @@ const HEIGHT_OPTIONS = [
 
 export default function PremiumHeroSectionEditor({ section, onSave, onCancel }) {
   const defaultValues = {
-    name: section?.name || 'Hero Section',
+    name: section?.name || 'Premium Hero Section',
     backgroundImage: section?.content?.backgroundImage || '',
     backgroundVideo: section?.content?.backgroundVideo || '',
     overlayOpacity: section?.content?.overlayOpacity || 0.5,
-    heading: section?.content?.heading || '',
-    subheading: section?.content?.subheading || '',
+    badgeText: section?.content?.badgeText || 'DROP LIVE NOW',
+    eyebrow: section?.content?.eyebrow || 'Signature Edition',
+    heading: section?.content?.heading || 'Once in a Lifetime.',
+    subheading:
+      section?.content?.subheading ||
+      "Handcrafted in Portugal using the world's finest cotton. Only 150 pieces available.",
     description: section?.content?.description || '',
     alignment: section?.content?.alignment || 'center',
     height: section?.content?.height || 'full',
+    primaryButtonText: section?.content?.primaryButtonText || 'Explore Details',
+    primaryButtonLink: section?.content?.primaryButtonLink || '/products',
     ctaButtons: section?.content?.ctaButtons || [],
   };
 
@@ -60,16 +66,20 @@ export default function PremiumHeroSectionEditor({ section, onSave, onCancel }) 
   const onSubmit = handleSubmit(async (data) => {
     const sectionData = {
       name: data.name,
-      type: 'hero',
+      type: 'premium-hero',
       content: {
         backgroundImage: data.backgroundImage,
         backgroundVideo: data.backgroundVideo,
         overlayOpacity: parseFloat(data.overlayOpacity),
+        badgeText: data.badgeText,
+        eyebrow: data.eyebrow,
         heading: data.heading,
         subheading: data.subheading,
         description: data.description,
         alignment: data.alignment,
         height: data.height,
+        primaryButtonText: data.primaryButtonText,
+        primaryButtonLink: data.primaryButtonLink,
         ctaButtons: data.ctaButtons,
       },
       settings: {},
@@ -118,6 +128,8 @@ export default function PremiumHeroSectionEditor({ section, onSave, onCancel }) 
             </Typography>
             <Stack spacing={2}>
               <RHFTextField name="name" label="Section Name" />
+              <RHFTextField name="badgeText" label="Badge Text" />
+              <RHFTextField name="eyebrow" label="Eyebrow" />
               <RHFTextField name="heading" label="Heading" multiline rows={2} />
               <RHFTextField name="subheading" label="Subheading" />
               <RHFEditor
@@ -162,6 +174,10 @@ export default function PremiumHeroSectionEditor({ section, onSave, onCancel }) 
                 inputProps={{ min: 0, max: 1, step: 0.1 }}
                 helperText="0 = transparent, 1 = solid"
               />
+              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+                <RHFTextField name="primaryButtonText" label="Primary Button Text" />
+                <RHFTextField name="primaryButtonLink" label="Primary Button Link" />
+              </Stack>
             </Stack>
           </CardContent>
         </Card>

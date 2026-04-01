@@ -1,5 +1,5 @@
 import PropTypes from 'prop-types';
-import { useCallback, useState } from 'react';
+import { forwardRef, useCallback, useState } from 'react';
 // @mui
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
@@ -25,6 +25,41 @@ import CMSSectionTypeSelector from './cms-section-type-selector';
 // ----------------------------------------------------------------------
 
 const SECTION_TYPE_CONFIG = {
+  'premium-hero': {
+    label: 'Premium Hero',
+    color: 'secondary',
+    icon: 'solar:crown-bold',
+  },
+  'premium-fabric-details': {
+    label: 'Premium Fabric',
+    color: 'primary',
+    icon: 'solar:t-shirt-bold',
+  },
+  'premium-statement': {
+    label: 'Premium Statement',
+    color: 'warning',
+    icon: 'solar:quote-up-bold',
+  },
+  'premium-feature-grid': {
+    label: 'Premium Features',
+    color: 'info',
+    icon: 'solar:widget-bold',
+  },
+  'premium-confidence': {
+    label: 'Premium Confidence',
+    color: 'success',
+    icon: 'solar:shield-check-bold',
+  },
+  'premium-reserve-cta': {
+    label: 'Premium Reserve CTA',
+    color: 'error',
+    icon: 'solar:cart-large-2-bold',
+  },
+  'premium-countdown': {
+    label: 'Premium Countdown',
+    color: 'warning',
+    icon: 'solar:clock-circle-bold',
+  },
   hero: {
     label: 'Hero',
     color: 'primary',
@@ -59,11 +94,6 @@ const SECTION_TYPE_CONFIG = {
     label: 'Social Media',
     color: 'info',
     icon: 'solar:share-bold',
-  },
-  'premium-countdown': {
-    label: 'Premium Countdown',
-    color: 'warning',
-    icon: 'solar:clock-circle-bold',
   },
   features: {
     label: 'Features',
@@ -411,7 +441,7 @@ CMSSectionList.propTypes = {
 
 // ----------------------------------------------------------------------
 
-const SectionItem = ({
+const SectionItem = forwardRef(({
   section,
   isDragging,
   dragHandleProps,
@@ -421,13 +451,12 @@ const SectionItem = ({
   onDelete,
   onSaveAsTemplate,
   getSectionTypeConfig,
-  innerRef,
-}) => {
+}, ref) => {
   const typeConfig = getSectionTypeConfig(section.type);
 
   return (
     <Card
-      ref={innerRef}
+      ref={ref}
       {...draggableProps}
       sx={{
         mb: 2,
@@ -534,7 +563,7 @@ const SectionItem = ({
       </Stack>
     </Card>
   );
-};
+});
 
 SectionItem.propTypes = {
   section: PropTypes.object,
@@ -546,5 +575,4 @@ SectionItem.propTypes = {
   onDelete: PropTypes.func,
   onSaveAsTemplate: PropTypes.func,
   getSectionTypeConfig: PropTypes.func,
-  innerRef: PropTypes.any,
 };

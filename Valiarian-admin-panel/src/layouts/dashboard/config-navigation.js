@@ -105,6 +105,7 @@ export function useNavData() {
               { title: t('Pages'), path: paths.dashboard.cms.pages.list },
               { title: t('About Us'), path: paths.dashboard.cms.about.root },
               { title: t('Coming Soon'), path: paths.dashboard.cms.comingSoon.root },
+              { title: t('Premium'), path: paths.dashboard.cms.premium.root },
               { title: t('Media Library'), path: paths.dashboard.cms.media.list },
               { title: t('Navigation'), path: paths.dashboard.cms.navigation.root },
               { title: t('Settings'), path: paths.dashboard.cms.settings.root },
