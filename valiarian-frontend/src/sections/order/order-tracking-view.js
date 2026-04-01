@@ -1,3 +1,4 @@
+/* eslint-disable no-nested-ternary */
 import { format } from 'date-fns';
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
@@ -66,16 +67,22 @@ const ColorlibStepIconRoot = styled('div')(({ theme, ownerState }) => ({
   justifyContent: 'center',
   alignItems: 'center',
   ...(ownerState.active && {
-    backgroundImage: 'linear-gradient( 136deg, rgb(242,113,33) 0%, rgb(233,64,87) 50%, rgb(138,35,135) 100%)',
+    backgroundImage: ownerState.deliveredTheme
+      ? 'none'
+      : 'linear-gradient( 136deg, rgb(242,113,33) 0%, rgb(233,64,87) 50%, rgb(138,35,135) 100%)',
+    backgroundColor: ownerState.deliveredTheme ? theme.palette.success.main : undefined,
     boxShadow: '0 4px 10px 0 rgba(0,0,0,.25)',
   }),
   ...(ownerState.completed && {
-    backgroundImage: 'linear-gradient( 136deg, rgb(242,113,33) 0%, rgb(233,64,87) 50%, rgb(138,35,135) 100%)',
+    backgroundImage: ownerState.deliveredTheme
+      ? 'none'
+      : 'linear-gradient( 136deg, rgb(242,113,33) 0%, rgb(233,64,87) 50%, rgb(138,35,135) 100%)',
+    backgroundColor: ownerState.deliveredTheme ? theme.palette.success.main : undefined,
   }),
 }));
 
 function ColorlibStepIcon(props) {
-  const { active, completed, className, icon } = props;
+  const { active, completed, className, icon, deliveredTheme = false } = props;
 
   const icons = {
     1: <Iconify icon="eva:shopping-cart-fill" width={24} />,
@@ -85,7 +92,7 @@ function ColorlibStepIcon(props) {
   };
 
   return (
-    <ColorlibStepIconRoot ownerState={{ completed, active }} className={className}>
+    <ColorlibStepIconRoot ownerState={{ completed, active, deliveredTheme }} className={className}>
       {icons[String(icon)]}
     </ColorlibStepIconRoot>
   );
@@ -95,6 +102,7 @@ ColorlibStepIcon.propTypes = {
   active: PropTypes.bool,
   completed: PropTypes.bool,
   className: PropTypes.string,
+  deliveredTheme: PropTypes.bool,
   icon: PropTypes.node,
 };
 
@@ -175,6 +183,101 @@ export default function OrderTrackingView() {
   };
 
   const steps = ['Order Placed', 'Confirmed', 'Shipped', 'Delivered'];
+  const userCancelledSteps = ['Order Placed', 'Cancellation Requested', 'Cancelled'];
+  const adminCancelledSteps = ['Order Placed', 'Cancelled'];
+  const returnRequestedSteps = ['Delivered', 'Return Requested'];
+  const normalizedStatus = String(tracking?.status || '').toLowerCase();
+  const isCancelledOrder = ['cancelled', 'canceled'].includes(normalizedStatus);
+
+  const getCancelledBy = () => {
+    const directCancelledBy = String(tracking?.cancelledBy || '').toLowerCase();
+    if (directCancelledBy === 'admin' || directCancelledBy === 'user') {
+      return directCancelledBy;
+    }
+
+    const cancelledEvent = tracking?.events
+      ?.filter((event) => ['cancelled', 'canceled'].includes(String(event?.status || '').toLowerCase()))
+      ?.slice(-1)?.[0];
+
+    const cancelledComment = String(cancelledEvent?.comment || '').toLowerCase();
+    if (cancelledComment.includes('by admin')) {
+      return 'admin';
+    }
+    if (cancelledComment.includes('by user')) {
+      return 'user';
+    }
+
+    const hasCancellationRequestedEvent = Boolean(
+      tracking?.events?.some((event) => {
+        const eventStatus = String(event?.status || '').toLowerCase();
+        return eventStatus.includes('cancel') && eventStatus.includes('request');
+      })
+    );
+
+    if (hasCancellationRequestedEvent) {
+      return 'user';
+    }
+
+    // Fallback for admin panel status updates when no explicit metadata is present.
+    return 'admin';
+  };
+
+  const cancelledBy = isCancelledOrder ? getCancelledBy() : null;
+  const getReturnDecision = () => {
+    const directReturnStatus = String(tracking?.returnStatus || '').toLowerCase();
+    if (directReturnStatus === 'approved') return 'approved';
+    if (directReturnStatus === 'rejected') return 'rejected';
+
+    const returnDecisionEvent = tracking?.events
+      ?.filter((event) =>
+        ['return_approved', 'return_rejected'].includes(String(event?.status || '').toLowerCase())
+      )
+      ?.slice(-1)?.[0];
+
+    const eventStatus = String(returnDecisionEvent?.status || '').toLowerCase();
+    if (eventStatus === 'return_approved') return 'approved';
+    if (eventStatus === 'return_rejected') return 'rejected';
+
+    return null;
+  };
+
+  const returnDecision = getReturnDecision();
+  const hasReturnRequestedState =
+    normalizedStatus === 'return_requested' ||
+    String(tracking?.returnStatus || '').toLowerCase() === 'requested' ||
+    Boolean(
+      tracking?.events?.some(
+        (event) => String(event?.status || '').toLowerCase() === 'return_requested'
+      )
+    );
+  const isReturnFlow = hasReturnRequestedState || Boolean(returnDecision);
+
+  const getReturnFlowSteps = () => {
+    if (returnDecision === 'approved') {
+      return [...returnRequestedSteps, 'Return Requested Accepted'];
+    }
+    if (returnDecision === 'rejected') {
+      return [...returnRequestedSteps, 'Return Requested Rejected'];
+    }
+    return returnRequestedSteps;
+  };
+
+  const stepperSteps = isCancelledOrder
+    ? cancelledBy === 'admin'
+      ? adminCancelledSteps
+      : userCancelledSteps
+    : isReturnFlow
+      ? getReturnFlowSteps()
+      : steps;
+
+  const activeStepperStep = isCancelledOrder
+    ? Math.max(stepperSteps.length - 1, 0)
+    : isReturnFlow
+      ? returnDecision
+        ? 2
+        : 1
+      : getActiveStep(tracking?.status);
+
   const shouldShowTimeline = Boolean(
     tracking?.trackingNumber ||
       tracking?.events?.length ||
@@ -182,9 +285,11 @@ export default function OrderTrackingView() {
         'pending',
         'confirmed',
         'processing',
+        'cancelled',
         'packed',
         'shipped',
         'delivered',
+        'canceled',
         'completed',
         'return_requested',
         'returned',
@@ -192,7 +297,14 @@ export default function OrderTrackingView() {
         'refunded',
       ].includes(tracking?.status)
   );
-  const showReturnReviewMessage = ['return_requested', 'returned'].includes(tracking?.status);
+  const isDeliveredTheme =
+    returnDecision === 'approved' ||
+    (['delivered', 'completed'].includes(normalizedStatus) && returnDecision !== 'rejected');
+  const showReturnReviewMessage = isReturnFlow && !returnDecision;
+
+  const StepIconComponent = (props) => (
+    <ColorlibStepIcon {...props} deliveredTheme={isDeliveredTheme} />
+  );
 
   const getTrackingMessage = () => {
     switch (tracking?.status) {
@@ -202,6 +314,10 @@ export default function OrderTrackingView() {
       case 'return_requested':
       case 'returned':
         return 'Your order was delivered and your return request is now under review.';
+      case 'return_approved':
+        return 'Your return request has been accepted by admin.';
+      case 'return_rejected':
+        return 'Your return request has been rejected by admin.';
       case 'parcel_received':
         return 'Your returned parcel has been received and is being checked by our team.';
       case 'refunded':
@@ -213,7 +329,16 @@ export default function OrderTrackingView() {
       case 'packed':
         return 'Your order is being prepared for shipment.';
       case 'pending':
+      case 'cancelled':
+      case 'canceled':
+        return 'Your order has been cancelled. Any applicable refund will be processed shortly.';
       default:
+        if (returnDecision === 'approved') {
+          return 'Your return request has been accepted by admin.';
+        }
+        if (returnDecision === 'rejected') {
+          return 'Your return request has been rejected by admin.';
+        }
         return 'Tracking information is not available yet. Your order is being processed and tracking details will be updated soon.';
     }
   };
@@ -268,7 +393,7 @@ export default function OrderTrackingView() {
                 <Stack direction="row" justifyContent="space-between" alignItems="center">
                   <Box>
                     <Typography variant="h6">Order #{tracking.orderNumber}</Typography>
-                    <Typography variant="body2" color="text.secondary">
+                     <Typography variant="body2" color="text.secondary">
                       Placed on {tracking.createdAt ? format(new Date(tracking.createdAt), 'MMM dd, yyyy') : 'N/A'}
                     </Typography>
                   </Box>
@@ -278,6 +403,7 @@ export default function OrderTrackingView() {
                       (['delivered', 'completed', 'return_requested', 'returned', 'parcel_received', 'refunded'].includes(tracking.status) && 'success') ||
                       (tracking.status === 'shipped' && 'info') ||
                       (tracking.status === 'confirmed' && 'warning') ||
+                      (['cancelled', 'canceled'].includes(tracking.status) && 'error') ||
                       'default'
                     }
                   >
@@ -338,12 +464,22 @@ export default function OrderTrackingView() {
                 <Stack spacing={3}>
                 <Stepper
                   alternativeLabel
-                  activeStep={getActiveStep(tracking.status)}
+                  activeStep={activeStepperStep}
                   connector={<ColorlibConnector />}
+                  sx={
+                    isDeliveredTheme
+                      ? {
+                          '& .MuiStepConnector-root.Mui-active .MuiStepConnector-line, & .MuiStepConnector-root.Mui-completed .MuiStepConnector-line': {
+                            backgroundImage: 'none',
+                            backgroundColor: 'success.main',
+                          },
+                        }
+                      : undefined
+                  }
                 >
-                  {steps.map((label) => (
+                  {stepperSteps.map((label) => (
                     <Step key={label}>
-                    <StepLabel StepIconComponent={ColorlibStepIcon}>{label}</StepLabel>
+                    <StepLabel StepIconComponent={StepIconComponent}>{label}</StepLabel>
                   </Step>
                 ))}
                 </Stepper>
