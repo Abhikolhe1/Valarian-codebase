@@ -95,8 +95,8 @@ export default function ContactReqestTableRow({
 
         <TableCell
           sx={{
-            minWidth: 260,
-            maxWidth: 320,
+            minWidth: 180,
+            maxWidth: 200,
             px: 2,
             py: 2,
             verticalAlign: 'top',
@@ -111,7 +111,7 @@ export default function ContactReqestTableRow({
               WebkitLineClamp: 2,
               WebkitBoxOrient: 'vertical',
               wordBreak: 'break-word',
-              maxWidth: 320,
+              maxWidth: 200,
               lineHeight: 1.5,
             }}
           >

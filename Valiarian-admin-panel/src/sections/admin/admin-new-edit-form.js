@@ -17,6 +17,9 @@ import axios, { endpoints } from 'src/utils/axios';
 // components
 import FormProvider, { RHFTextField } from 'src/components/hook-form';
 import { useSnackbar } from 'src/components/snackbar';
+import { IconButton, InputAdornment } from '@mui/material';
+import Iconify from 'src/components/iconify';
+import { useBoolean } from 'src/hooks/use-boolean';
 
 // ----------------------------------------------------------------------
 
@@ -24,6 +27,9 @@ export default function AdminNewEditForm({ currentAdmin, includePasswordFields }
   const router = useRouter();
   const { enqueueSnackbar } = useSnackbar();
   const isEdit = !!currentAdmin;
+  const password = useBoolean();
+  const confirmPassword = useBoolean();
+
 
   const schema = Yup.object().shape({
     fullName: Yup.string().required('Full name is required'),
@@ -117,11 +123,33 @@ export default function AdminNewEditForm({ currentAdmin, includePasswordFields }
               </RHFTextField>
               {includePasswordFields && (
                 <>
-                  <RHFTextField name="password" label="Password" type="password" />
+                  <RHFTextField name="password"
+                   label="Password"
+                    type={password.value ? 'text' : 'password'}
+                    InputProps={{
+                      endAdornment: (
+                        <InputAdornment position="end">
+                          <IconButton onClick={password.onToggle} edge="end">
+                            <Iconify icon={password.value ? 'solar:eye-bold' : 'solar:eye-closed-bold'} />
+                          </IconButton>
+                        </InputAdornment>
+                      ),
+                    }}
+                     />
+
                   <RHFTextField
                     name="confirmPassword"
                     label="Confirm Password"
-                    type="password"
+                    type={confirmPassword.value ? 'text': 'password'}
+                    InputProps={{
+                      endAdornment: (
+                        <InputAdornment position="end">
+                          <IconButton onClick={confirmPassword.onToggle} edge="end">
+                            <Iconify icon={confirmPassword.value ? 'solar:eye-bold' : 'solar:eye-closed-bold'} />
+                          </IconButton>
+                        </InputAdornment>
+                      ),
+                    }}
                   />
                 </>
               )}
