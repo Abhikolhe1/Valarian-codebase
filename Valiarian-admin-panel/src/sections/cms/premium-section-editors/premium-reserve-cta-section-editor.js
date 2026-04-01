@@ -20,6 +20,8 @@ export default function PremiumReserveCtaSectionEditor({ section, onSave, onCanc
           section?.content?.availabilityText || 'Only available until 15th January 2026',
         buttonText: section?.content?.buttonText || 'Buy Now',
         buttonLink: section?.content?.buttonLink || '/products',
+        preorderProductSlug: section?.content?.preorderProductSlug || '',
+        preorderVariantId: section?.content?.preorderVariantId || '',
         background: section?.content?.background || '#f3e5d8',
         headingColor: section?.content?.headingColor || '#8C6549',
         textColor: section?.content?.textColor || '#637381',
@@ -58,6 +60,18 @@ export default function PremiumReserveCtaSectionEditor({ section, onSave, onCanc
               <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
                 <RHFTextField name="content.buttonText" label="Button Text" />
                 <RHFTextField name="content.buttonLink" label="Button Link" />
+              </Stack>
+              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+                <RHFTextField
+                  name="content.preorderProductSlug"
+                  label="Preorder Product Slug"
+                  helperText="If filled, the button opens the premium preorder checkout for this product."
+                />
+                <RHFTextField
+                  name="content.preorderVariantId"
+                  label="Preorder Variant ID"
+                  helperText="Optional: lock the preorder flow to one product variant."
+                />
               </Stack>
               <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
                 <RHFTextField name="content.background" label="Background" type="color" />

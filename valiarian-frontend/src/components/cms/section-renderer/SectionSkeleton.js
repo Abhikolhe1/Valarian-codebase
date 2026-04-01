@@ -15,6 +15,7 @@ import Stack from '@mui/material/Stack';
 export default function SectionSkeleton({ type = 'default', sx, ...other }) {
   const skeletonMap = {
     'premium-hero': <HeroSkeleton />,
+    'premium-product-showcase': <GallerySkeleton />,
     'premium-fabric-details': <DefaultSkeleton />,
     'premium-statement': <TextSkeleton />,
     'premium-feature-grid': <FeaturesSkeleton />,
@@ -56,6 +57,7 @@ SectionSkeleton.propTypes = {
   type: PropTypes.oneOf([
     'hero',
     'premium-hero',
+    'premium-product-showcase',
     'premium-fabric-details',
     'premium-statement',
     'premium-feature-grid',

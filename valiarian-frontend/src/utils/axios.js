@@ -135,6 +135,11 @@ export const endpoints = {
     tracking: (orderId) => `/api/orders/${orderId}/tracking`,
     return: (orderId) => `/api/orders/${orderId}/return`,
   },
+  premiumPreorders: {
+    create: '/api/premium-preorders/create',
+    verify: '/api/premium-preorders/verify',
+    user: (userId) => `/api/premium-preorders/user/${userId}`,
+  },
   payments: {
     verify: '/api/payments/verify',
   },

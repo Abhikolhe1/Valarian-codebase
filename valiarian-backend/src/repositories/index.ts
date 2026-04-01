@@ -12,6 +12,7 @@ export * from './order-status-history.repository';
 export * from './order-item.repository';
 export * from './order.repository';
 export * from './payment.repository';
+export * from './premium-preorder.repository';
 export * from './otp.repository';
 export * from './page.repository';
 export * from './permissions.repository';

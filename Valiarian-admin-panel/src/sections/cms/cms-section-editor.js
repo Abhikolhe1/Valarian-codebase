@@ -32,6 +32,7 @@ import PremiumCountdownSectionEditor from './premium-section-editors/premium-cou
 import PremiumFabricDetailsSectionEditor from './premium-section-editors/premium-fabric-details-section-editor';
 import PremiumFeatureGridSectionEditor from './premium-section-editors/premium-feature-grid-section-editor';
 import PremiumHeroSectionEditor from './premium-section-editors/premium-hero-section-editor';
+import PremiumProductShowcaseSectionEditor from './premium-section-editors/premium-product-showcase-section-editor';
 import PremiumReserveCtaSectionEditor from './premium-section-editors/premium-reserve-cta-section-editor';
 import PremiumStatementSectionEditor from './premium-section-editors/premium-statement-section-editor';
 
@@ -39,6 +40,7 @@ import PremiumStatementSectionEditor from './premium-section-editors/premium-sta
 
 const SECTION_EDITORS = {
   'premium-hero': PremiumHeroSectionEditor,
+  'premium-product-showcase': PremiumProductShowcaseSectionEditor,
   'premium-fabric-details': PremiumFabricDetailsSectionEditor,
   'premium-statement': PremiumStatementSectionEditor,
   'premium-feature-grid': PremiumFeatureGridSectionEditor,
@@ -62,6 +64,7 @@ const SECTION_EDITORS = {
 
 const SECTION_TITLES = {
   'premium-hero': 'Premium Hero Section',
+  'premium-product-showcase': 'Premium Product Showcase Section',
   'premium-fabric-details': 'Premium Fabric Details Section',
   'premium-statement': 'Premium Statement Section',
   'premium-feature-grid': 'Premium Feature Grid Section',

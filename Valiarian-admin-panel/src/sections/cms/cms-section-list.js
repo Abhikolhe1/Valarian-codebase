@@ -30,6 +30,11 @@ const SECTION_TYPE_CONFIG = {
     color: 'secondary',
     icon: 'solar:crown-bold',
   },
+  'premium-product-showcase': {
+    label: 'Premium Product Showcase',
+    color: 'primary',
+    icon: 'solar:gallery-wide-bold',
+  },
   'premium-fabric-details': {
     label: 'Premium Fabric',
     color: 'primary',

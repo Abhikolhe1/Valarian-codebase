@@ -7,6 +7,7 @@ export { default as PremiumCountdownSection } from './PremiumCountdownSection';
 export { default as PremiumFabricDetailsSection } from './PremiumFabricDetailsSection';
 export { default as PremiumFeatureGridSection } from './PremiumFeatureGridSection';
 export { default as PremiumHeroSection } from './PremiumHeroSection';
+export { default as PremiumProductShowcaseSection } from './PremiumProductShowcaseSection';
 export { default as PremiumReserveCtaSection } from './PremiumReserveCtaSection';
 export { default as PremiumStatementSection } from './PremiumStatementSection';
 export { default as TestimonialsSection } from './TestimonialsSection';

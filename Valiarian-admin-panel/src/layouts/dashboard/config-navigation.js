@@ -154,6 +154,13 @@ export function useNavData() {
             ],
           },
           {
+            title: t('Premium Orders'),
+            path: paths.dashboard.premiumOrder.root,
+            icon: ICONS.order,
+            roles: ['super_admin', 'admin'],
+            children: [{ title: t('List'), path: paths.dashboard.premiumOrder.root }],
+          },
+          {
             title: t('Contact Requests'),
             path: paths.dashboard.cms.contactSubmissions.list,
             icon: ICONS.mail,

@@ -31,6 +31,14 @@ const SECTION_TYPES = [
     preview: '/assets/illustrations/section-hero.svg',
   },
   {
+    type: 'premium-product-showcase',
+    label: 'Premium Product Showcase',
+    description: 'Displays the linked premium product gallery and images below the hero',
+    icon: 'solar:gallery-wide-bold',
+    color: 'primary',
+    preview: '/assets/illustrations/section-gallery.svg',
+  },
+  {
     type: 'premium-fabric-details',
     label: 'Premium Fabric Details',
     description: 'Scrollable fabric story cards with specs like weight, weave, and feel',

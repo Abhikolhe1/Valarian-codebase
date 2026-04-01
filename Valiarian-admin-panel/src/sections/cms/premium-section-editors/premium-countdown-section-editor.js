@@ -21,6 +21,8 @@ const DEFAULT_CONTENT = {
   selectedSize: 'M',
   preorderButtonText: 'Preorder',
   preorderButtonLink: '/products',
+  preorderProductSlug: '',
+  preorderVariantId: '',
   headingPrimary: 'Time is Luxury',
   headingSecondary: "Don't waste it.",
   description:
@@ -139,6 +141,8 @@ export default function PremiumCountdownSectionEditor({ section, onSave, onCance
         selectedSize,
         preorderButtonText: data.content.preorderButtonText,
         preorderButtonLink: data.content.preorderButtonLink,
+        preorderProductSlug: data.content.preorderProductSlug,
+        preorderVariantId: data.content.preorderVariantId,
         headingPrimary: data.content.headingPrimary,
         headingSecondary: data.content.headingSecondary,
         description: data.content.description,
@@ -199,6 +203,18 @@ export default function PremiumCountdownSectionEditor({ section, onSave, onCance
               <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
                 <RHFTextField name="content.preorderButtonText" label="Preorder Button Text" />
                 <RHFTextField name="content.preorderButtonLink" label="Preorder Button Link" />
+              </Stack>
+              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+                <RHFTextField
+                  name="content.preorderProductSlug"
+                  label="Preorder Product Slug"
+                  helperText="If filled, the countdown button opens the premium preorder checkout for this product."
+                />
+                <RHFTextField
+                  name="content.preorderVariantId"
+                  label="Fallback Variant ID"
+                  helperText="Optional fixed variant when you do not want size-based matching."
+                />
               </Stack>
             </Stack>
           </CardContent>

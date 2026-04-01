@@ -47,6 +47,8 @@ export default function PremiumHeroSectionEditor({ section, onSave, onCancel }) 
     height: section?.content?.height || 'full',
     primaryButtonText: section?.content?.primaryButtonText || 'Explore Details',
     primaryButtonLink: section?.content?.primaryButtonLink || '/products',
+    preorderProductSlug: section?.content?.preorderProductSlug || '',
+    preorderVariantId: section?.content?.preorderVariantId || '',
     ctaButtons: section?.content?.ctaButtons || [],
   };
 
@@ -80,6 +82,8 @@ export default function PremiumHeroSectionEditor({ section, onSave, onCancel }) 
         height: data.height,
         primaryButtonText: data.primaryButtonText,
         primaryButtonLink: data.primaryButtonLink,
+        preorderProductSlug: data.preorderProductSlug,
+        preorderVariantId: data.preorderVariantId,
         ctaButtons: data.ctaButtons,
       },
       settings: {},
@@ -177,6 +181,18 @@ export default function PremiumHeroSectionEditor({ section, onSave, onCancel }) 
               <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
                 <RHFTextField name="primaryButtonText" label="Primary Button Text" />
                 <RHFTextField name="primaryButtonLink" label="Primary Button Link" />
+              </Stack>
+              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+                <RHFTextField
+                  name="preorderProductSlug"
+                  label="Preorder Product Slug"
+                  helperText="When set, every hero button redirects to the premium preorder checkout for this product."
+                />
+                <RHFTextField
+                  name="preorderVariantId"
+                  label="Preorder Variant ID"
+                  helperText="Optional fixed variant for all hero buttons."
+                />
               </Stack>
             </Stack>
           </CardContent>

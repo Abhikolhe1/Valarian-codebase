@@ -15,6 +15,7 @@ import {
   PremiumFabricDetailsSection,
   PremiumFeatureGridSection,
   PremiumHeroSection,
+  PremiumProductShowcaseSection,
   PremiumReserveCtaSection,
   PremiumStatementSection,
   TestimonialsSection,
@@ -182,6 +183,7 @@ SectionRenderer.propTypes = {
 function getSectionComponent(type) {
   const sectionComponents = {
     'premium-hero': PremiumHeroSection,
+    'premium-product-showcase': PremiumProductShowcaseSection,
     'premium-fabric-details': PremiumFabricDetailsSection,
     'premium-statement': PremiumStatementSection,
     'premium-feature-grid': PremiumFeatureGridSection,

@@ -40,6 +40,7 @@ export class Section extends Entity {
     jsonSchema: {
       enum: [
         'premium-hero',
+        'premium-product-showcase',
         'premium-fabric-details',
         'premium-statement',
         'premium-feature-grid',
@@ -69,6 +70,7 @@ export class Section extends Entity {
   })
   type:
     | 'premium-hero'
+    | 'premium-product-showcase'
     | 'premium-fabric-details'
     | 'premium-statement'
     | 'premium-feature-grid'

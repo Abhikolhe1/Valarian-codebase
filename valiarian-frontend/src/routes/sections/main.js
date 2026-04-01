@@ -8,11 +8,12 @@ import SimpleLayout from 'src/layouts/simple';
 import AboutPage from 'src/pages/about-us';
 import ContactPage from 'src/pages/contact-us';
 import PremiumPage from 'src/pages/premium';
+import PremiumPreorderPage from 'src/pages/premium-preorder';
 import ProductCheckoutPage from 'src/pages/product/checkout';
 import ProductListPage from 'src/pages/product/list';
 // components
-import { SplashScreen } from 'src/components/loading-screen';
 import { AuthGuard } from 'src/auth/guard';
+import { SplashScreen } from 'src/components/loading-screen';
 
 // ----------------------------------------------------------------------
 
@@ -60,6 +61,7 @@ export const mainRoutes = [
       { path: 'contact-us', element: <ContactPage /> },
       { path: 'faqs', element: <FaqsPage /> },
       { path: 'premium', element: <PremiumPage /> },
+      { path: 'premium/preorder', element: <PremiumPreorderPage /> },
       {
         path: 'favorites',
         element: (

@@ -9,6 +9,9 @@ import Stack from '@mui/material/Stack';
 import ToggleButton from '@mui/material/ToggleButton';
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 import Typography from '@mui/material/Typography';
+import { useGetProduct } from 'src/api/product';
+import { useRouter } from 'src/routes/hook';
+import { resolvePremiumActionPath } from 'src/utils/premium-preorder';
 
 // ----------------------------------------------------------------------
 
@@ -20,6 +23,8 @@ const DEFAULT_CONTENT = {
   selectedSize: 'M',
   preorderButtonText: 'Preorder',
   preorderButtonLink: '/products',
+  preorderProductSlug: '',
+  preorderVariantId: '',
   headingPrimary: 'Time is Luxury',
   headingSecondary: "Don't waste it.",
   description:
@@ -62,7 +67,10 @@ function formatTime(value) {
 }
 
 export default function PremiumCountdownSection({ section }) {
+  const router = useRouter();
   const content = { ...DEFAULT_CONTENT, ...(section?.content || {}) };
+  const preorderProductSlug = String(content.preorderProductSlug || '').trim();
+  const { product } = useGetProduct(preorderProductSlug);
 
   const sizes = Array.isArray(content.sizes) && content.sizes.length > 0 ? content.sizes : ['M'];
   const initialSize = sizes.includes(content.selectedSize) ? content.selectedSize : sizes[0];
@@ -92,6 +100,39 @@ export default function PremiumCountdownSection({ section }) {
 
     return Math.max(0, Math.min(100, (sold / total) * 100));
   }, [content.soldCount, content.totalCount]);
+
+  const resolvedVariantId = useMemo(() => {
+    if (content.preorderVariantId) {
+      return content.preorderVariantId;
+    }
+
+    const variants = Array.isArray(product?.variants) ? product.variants : [];
+    const preferredVariant =
+      variants.find((variant) => variant.size === selectedSize && variant.inStock !== false) ||
+      variants.find((variant) => variant.size === selectedSize) ||
+      null;
+
+    return preferredVariant?.id || '';
+  }, [content.preorderVariantId, product?.variants, selectedSize]);
+
+  const handlePreorder = () => {
+    const nextPath = resolvePremiumActionPath({
+      productSlug: preorderProductSlug,
+      variantId: resolvedVariantId,
+      fallbackPath: content.preorderButtonLink,
+    });
+
+    if (!nextPath) {
+      return;
+    }
+
+    if (/^https?:\/\//i.test(nextPath)) {
+      window.location.href = nextPath;
+      return;
+    }
+
+    router.push(nextPath);
+  };
 
   return (
     <Box
@@ -174,7 +215,7 @@ export default function PremiumCountdownSection({ section }) {
 
             <Button
               variant="contained"
-              href={content.preorderButtonLink}
+              onClick={handlePreorder}
               sx={{
                 px: 4,
                 borderRadius: 999,

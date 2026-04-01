@@ -158,6 +158,7 @@ export class CMSSectionController {
                 type: 'string',
                 enum: [
                   'premium-hero',
+                  'premium-product-showcase',
                   'premium-fabric-details',
                   'premium-statement',
                   'premium-feature-grid',
@@ -252,6 +253,7 @@ export class CMSSectionController {
                 type: 'string',
                 enum: [
                   'premium-hero',
+                  'premium-product-showcase',
                   'premium-fabric-details',
                   'premium-statement',
                   'premium-feature-grid',

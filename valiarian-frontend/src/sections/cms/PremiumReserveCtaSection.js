@@ -2,6 +2,8 @@ import PropTypes from 'prop-types';
 import { LoadingButton } from '@mui/lab';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
+import { useRouter } from 'src/routes/hook';
+import { resolvePremiumActionPath } from 'src/utils/premium-preorder';
 
 const DEFAULT_CONTENT = {
   heading: 'Reserve Yours Today',
@@ -9,13 +11,35 @@ const DEFAULT_CONTENT = {
   availabilityText: 'Only Available Until 15th January 2026',
   buttonText: 'Buy Now',
   buttonLink: '/products',
+  preorderProductSlug: '',
+  preorderVariantId: '',
   background: '#f3e5d8',
   headingColor: '#8C6549',
   textColor: '#637381',
 };
 
 export default function PremiumReserveCtaSection({ section }) {
+  const router = useRouter();
   const content = { ...DEFAULT_CONTENT, ...(section?.content || {}) };
+
+  const handleClick = () => {
+    const nextPath = resolvePremiumActionPath({
+      productSlug: content.preorderProductSlug,
+      variantId: content.preorderVariantId,
+      fallbackPath: content.buttonLink,
+    });
+
+    if (!nextPath) {
+      return;
+    }
+
+    if (/^https?:\/\//i.test(nextPath)) {
+      window.location.href = nextPath;
+      return;
+    }
+
+    router.push(nextPath);
+  };
 
   return (
     <Box sx={{ py: { xs: 10, md: 14 }, px: { xs: 2, md: 0 }, background: content.background, textAlign: 'center' }}>
@@ -33,7 +57,7 @@ export default function PremiumReserveCtaSection({ section }) {
 
       <LoadingButton
         variant="contained"
-        href={content.buttonLink}
+        onClick={handleClick}
         sx={(theme) => ({
           mt: 4,
           px: 5,

@@ -14,6 +14,7 @@ export * from './favorites.controller';
 export * from './order.controller';
 export * from './permissions.controller';
 export * from './ping.controller';
+export * from './premium-preorder.controller';
 export * from './product.controller';
 export * from './public-product.controller';
 export * from './review.controller';
