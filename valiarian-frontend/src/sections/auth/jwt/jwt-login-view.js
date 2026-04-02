@@ -200,7 +200,7 @@ export default function JwtLoginView() {
 
       <GoogleLoginButton />
       <Link component={RouterLink} href="/" sx={{ display: 'contents' }}>
-        <Button fullWidth size="large" variant="outlined"> Login As Guest</Button>
+        <Button fullWidth size="large" color='secondary' variant="outlined"> Login As Guest</Button>
       </Link>
 
       <Divider sx={{ my: 1 }}>
@@ -227,7 +227,7 @@ export default function JwtLoginView() {
           InputProps={{
             endAdornment: (
               <LoadingButton
-                color="primary"
+                color="secondary"
                 variant="contained"
                 onClick={handleSubmit(onSubmitIdentifier)}
                 loading={isSubmitting}

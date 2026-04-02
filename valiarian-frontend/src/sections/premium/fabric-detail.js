@@ -96,97 +96,107 @@ export default function FabricDetail() {
           sx={{
             maxWidth: 900,
             mx: 'auto',
-            p: 2,
+            px: { xs: 2, md: 6 },
+            py: 2,
             position: 'relative',
-            overflow: 'hidden',
-            touchAction: 'pan-y',
+            overflow: 'visible',
           }}
         >
-          <AnimatePresence mode="wait">
-            <m.div
-              key={fabric.id}
-              drag="x"
-              dragConstraints={{ left: 0, right: 0 }}
-              dragElastic={0.35}
-              dragMomentum='true'
-              whileDrag={{ scale: 0.98 }}
+          <Box
+            sx={{
+              overflow: 'hidden',
+              borderRadius: '28px',
+              touchAction: 'pan-y',
+              display: 'grid',
+            }}
+          >
+            <AnimatePresence mode="sync" initial={false}>
+              <m.div
+                key={fabric.id}
+                style={{ gridArea: '1 / 1', width: '100%' }}
+                drag="x"
+                dragConstraints={{ left: 0, right: 0 }}
+                dragElastic={0.35}
+                dragMomentum='true'
+                whileDrag={{ scale: 0.98 }}
 
-              onDragEnd={(e, info) => {
-                const swipePower = Math.abs(info.velocity.x) * info.offset.x;
+                onDragEnd={(e, info) => {
+                  const swipePower = Math.abs(info.velocity.x) * info.offset.x;
 
-                if (swipePower < -10000) {
-                  next();
-                } else if (swipePower > 10000) {
-                  prev();
-                }
-              }}
-
-              initial={{ x: direction === 1 ? '100%' : '-100%', opacity: 0.0 }}
-              animate={{ x: '0%', opacity: 1 }}
-              exit={{ x: direction === 1 ? '-100%' : '100%', opacity: 0.0 }}
-              transition={{ duration: 0.2, ease: [0.43, 0.13, 0.23, 0.96] }}
-
-            // initial={{ opacity: 0, x: 30 }}
-            // animate={{ opacity: 1, x: 0 }}
-            // exit={{ opacity: 0, x: -10 }}
-
-            // transition={{
-            //   type: 'spring',
-            //   stiffness: 500,
-            //   damping: 50,
-            //   // restDelta: 0.001,
-
-            // }}
-            >
-              <Box
-                sx={{
-                  backgroundColor: '#ffffff',
-                  borderRadius: '28px',
-                  p: { xs: 5, md: 6 },
-                  boxShadow: '0 30px 80px rgba(0,0,0,0.12)',
-                  backdropFilter: 'blur(6px)',
+                  if (swipePower < -10000) {
+                    next();
+                  } else if (swipePower > 10000) {
+                    prev();
+                  }
                 }}
+
+                initial={{ x: direction === 1 ? '100%' : '-100%', opacity: 0.0 }}
+                animate={{ x: '0%', opacity: 1 }}
+                exit={{ x: direction === 1 ? '-100%' : '100%', opacity: 0.0 }}
+                transition={{ duration: 0.4, ease: [0.43, 0.13, 0.23, 0.96] }}
+
+              // initial={{ opacity: 0, x: 30 }}
+              // animate={{ opacity: 1, x: 0 }}
+              // exit={{ opacity: 0, x: -10 }}
+
+              // transition={{
+              //   type: 'spring',
+              //   stiffness: 500,
+              //   damping: 50,
+              //   // restDelta: 0.001,
+
+              // }}
               >
-                <Typography
+                <Box
                   sx={{
-                    fontFamily: 'Lora, serif',
-                    fontSize: '0.75 rem',
-                    fontWeight: 600,
-                    mb: 2,
-                    color: '#1a1a1a',
+                    backgroundColor: '#ffffff',
+                    borderRadius: '28px',
+                    p: { xs: 5, md: 6 },
+                    // boxShadow: '0 30px 80px rgba(0,0,0,0.12)',
+                    backdropFilter: 'blur(6px)',
                   }}
                 >
-                  {fabric.name}
-                </Typography>
+                  <Typography
+                    sx={{
+                      fontFamily: 'Lora, serif',
+                      fontSize: '0.75 rem',
+                      fontWeight: 600,
+                      mb: 2,
+                      color: '#1a1a1a',
+                    }}
+                  >
+                    {fabric.name}
+                  </Typography>
 
-                <Typography
-                  sx={{
-                    fontSize: '0.50 rem',
-                    color: '#555',
-                    lineHeight: 1.8,
-                    mb: 4,
-                    maxWidth: 700,
-                  }}
-                >
-                  {fabric.description}
-                </Typography>
+                  <Typography
+                    sx={{
+                      fontSize: '0.50 rem',
+                      color: '#555',
+                      lineHeight: 1.8,
+                      mb: 4,
+                      maxWidth: 700,
+                    }}
+                  >
+                    {fabric.description}
+                  </Typography>
 
-                {/* Specs */}
-                <Stack direction="row" spacing={{ xs: 3, md: 6 }} display='flex' justifyContent={{ xs: "center", md: "space-between" }} p={{ xs: 2, md: 0 }}>
-                  <Spec label="Weight" value={fabric.weight} />
-                  <Spec label="Weave" value={fabric.weave} />
-                  <Spec label="Feel" value={fabric.feel} />
-                </Stack>
-              </Box>
-            </m.div>
-          </AnimatePresence>
+                  {/* Specs */}
+                  <Stack direction="row" spacing={{ xs: 3, md: 6 }} display='flex' justifyContent={{ xs: "center", md: "space-between" }} p={{ xs: 2, md: 0 }}>
+                    <Spec label="Weight" value={fabric.weight} />
+                    <Spec label="Weave" value={fabric.weave} />
+                    <Spec label="Feel" value={fabric.feel} />
+                  </Stack>
+                </Box>
+              </m.div>
+            </AnimatePresence>
+          </Box>
 
           {/* Arrows */}
           <IconButton
             onClick={prev}
             sx={{
               position: 'absolute',
-              left: { md: 10, },
+              left: { md: -8 },
               top: '50%',
               transform: 'translateY(-50%)',
               backgroundColor: '#fff',
@@ -202,7 +212,7 @@ export default function FabricDetail() {
             onClick={next}
             sx={{
               position: 'absolute',
-              right: { md: 10 },
+              right: { md: -8 },
               top: '50%',
               display: { xs: 'none', md: 'flex' },
               transform: 'translateY(-50%)',
