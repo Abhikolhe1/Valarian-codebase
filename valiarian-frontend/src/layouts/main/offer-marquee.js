@@ -1,14 +1,15 @@
 import { useRef, useEffect, useState } from 'react';
 // @mui
-import { useTheme, styled, alpha } from '@mui/material/styles';
+import { styled, alpha } from '@mui/material/styles';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 // hooks
 import { useMarqueeVisibility } from 'src/hooks/use-marquee-visibility';
+import { useSiteSettings } from 'src/hooks/use-site-settings';
 
 // ----------------------------------------------------------------------
 
-const OFFERS = [
+const DEFAULT_OFFERS = [
   'Flat 20% off on premium polos',
   'Free shipping on orders above ₹1999',
   'Limited edition drop – Shop now',
@@ -91,17 +92,21 @@ const StyledSeparator = styled(Box)(({ theme }) => ({
 // ----------------------------------------------------------------------
 
 export default function OfferMarquee() {
-  const theme = useTheme();
   const isVisible = useMarqueeVisibility();
+  const { settings } = useSiteSettings();
   const trackRef = useRef(null);
   const [offset, setOffset] = useState(0);
   const setWidthRef = useRef(0);
   const animationFrameRef = useRef(null);
   const [isReady, setIsReady] = useState(false);
+  const offers = (settings?.offers?.marquee || [])
+    .map((item) => String(item?.text || '').trim())
+    .filter(Boolean);
+  const activeOffers = offers.length ? offers : DEFAULT_OFFERS;
 
   // Create seamless infinite loop by duplicating offers multiple times
   // Using 3 sets ensures we always have content ready when looping
-  const seamlessOffers = [...OFFERS, ...OFFERS, ...OFFERS];
+  const seamlessOffers = [...activeOffers, ...activeOffers, ...activeOffers];
 
   // Calculate the exact width of one set of offers
   useEffect(() => {
@@ -121,7 +126,7 @@ export default function OfferMarquee() {
 
       // Calculate width of one set (OFFERS.length items)
       let oneSetWidth = 0;
-      const itemsPerSet = OFFERS.length;
+      const itemsPerSet = activeOffers.length;
       
       for (let i = 0; i < itemsPerSet; i += 1) {
         if (items[i]) {
@@ -166,7 +171,7 @@ export default function OfferMarquee() {
       clearTimeout(debounceTimeout);
       resizeObserver.disconnect();
     };
-  }, [isVisible]);
+  }, [activeOffers.length, isVisible]);
 
   // Continuous animation loop - truly seamless infinite scroll
   useEffect(() => {

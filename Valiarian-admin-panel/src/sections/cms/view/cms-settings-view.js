@@ -65,6 +65,11 @@ const TABS = [
     label: 'Theme',
     icon: 'solar:pallete-2-bold',
   },
+  {
+    value: 'offers',
+    label: 'Offers',
+    icon: 'solar:ticket-sale-bold',
+  },
 ];
 
 // ----------------------------------------------------------------------
@@ -147,6 +152,15 @@ export default function CMSSettingsView() {
           contrastText: siteSettings?.theme?.secondary?.contrastText || '#FFFFFF',
         },
       },
+      offers: {
+        marquee: siteSettings?.offers?.marquee?.length
+          ? siteSettings.offers.marquee
+          : [
+              { text: 'Flat 20% off on premium polos' },
+              { text: 'Free shipping on orders above ₹1999' },
+              { text: 'Limited edition drop - Shop now' },
+            ],
+      },
     }),
     [siteSettings]
   );
@@ -168,6 +182,14 @@ export default function CMSSettingsView() {
   const { fields, append, remove } = useFieldArray({
     control,
     name: 'contactPage.locations',
+  });
+  const {
+    fields: marqueeFields,
+    append: appendMarqueeOffer,
+    remove: removeMarqueeOffer,
+  } = useFieldArray({
+    control,
+    name: 'offers.marquee',
   });
 
   const values = watch();
@@ -212,6 +234,13 @@ export default function CMSSettingsView() {
         darker: String(data.theme?.secondary?.darker || '').trim(),
         contrastText: String(data.theme?.secondary?.contrastText || '').trim(),
       },
+    },
+    offers: {
+      marquee: (data.offers?.marquee || [])
+        .map((item) => ({
+          text: String(item?.text || '').trim(),
+        }))
+        .filter((item) => item.text),
     },
   });
 
@@ -843,6 +872,54 @@ export default function CMSSettingsView() {
     </Stack>
   );
 
+  const renderOffers = (
+    <Stack spacing={3}>
+      <Typography variant="h6">Offer Marquee</Typography>
+
+      <Typography variant="body2" color="text.secondary">
+        Manage the scrolling offer announcements shown at the top of the storefront.
+      </Typography>
+
+      <Stack direction="row" justifyContent="space-between" alignItems="center">
+        <Typography variant="subtitle1">Marquee Offers</Typography>
+        <Button
+          variant="outlined"
+          startIcon={<Iconify icon="solar:add-circle-bold" />}
+          onClick={() => appendMarqueeOffer({ text: '' })}
+        >
+          Add Offer
+        </Button>
+      </Stack>
+
+      <Stack spacing={2}>
+        {marqueeFields.map((field, index) => (
+          <Card key={field.id} variant="outlined" sx={{ p: 3 }}>
+            <Stack spacing={2}>
+              <Stack direction="row" justifyContent="space-between" alignItems="center">
+                <Typography variant="subtitle2">Offer {index + 1}</Typography>
+                <Button
+                  color="error"
+                  onClick={() => removeMarqueeOffer(index)}
+                  disabled={marqueeFields.length === 1}
+                  startIcon={<Iconify icon="solar:trash-bin-trash-bold" />}
+                >
+                  Remove
+                </Button>
+              </Stack>
+
+              <TextField
+                fullWidth
+                label="Offer Text"
+                placeholder="e.g., Free shipping on orders above ₹1999"
+                {...methods.register(`offers.marquee.${index}.text`)}
+              />
+            </Stack>
+          </Card>
+        ))}
+      </Stack>
+    </Stack>
+  );
+
   return (
     <Container maxWidth={settings.themeStretch ? false : 'xl'}>
       <CustomBreadcrumbs
@@ -892,6 +969,7 @@ export default function CMSSettingsView() {
                 {currentTab === 'contact' && renderContact}
                 {currentTab === 'legal' && renderLegal}
                 {currentTab === 'theme' && renderTheme}
+                {currentTab === 'offers' && renderOffers}
 
                 <Stack direction="row" justifyContent="flex-end" sx={{ mt: 4 }}>
                   <LoadingButton

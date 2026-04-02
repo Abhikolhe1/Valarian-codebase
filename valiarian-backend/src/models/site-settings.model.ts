@@ -51,6 +51,14 @@ export interface ThemeSettings {
   secondary?: ThemePaletteColorSettings;
 }
 
+export interface MarqueeOfferItem {
+  text: string;
+}
+
+export interface OffersSettings {
+  marquee?: MarqueeOfferItem[];
+}
+
 @model({
   settings: {
     postgresql: {
@@ -152,6 +160,14 @@ export class SiteSettings extends Entity {
     },
   })
   theme?: ThemeSettings;
+
+  @property({
+    type: 'object',
+    postgresql: {
+      dataType: 'jsonb',
+    },
+  })
+  offers?: OffersSettings;
 
   
   

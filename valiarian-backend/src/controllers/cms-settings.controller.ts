@@ -68,6 +68,14 @@ const defaultThemeSettings = {
   },
 };
 
+const defaultOffersSettings = {
+  marquee: [
+    {text: 'Flat 20% off on premium polos'},
+    {text: 'Free shipping on orders above ₹1999'},
+    {text: 'Limited edition drop - Shop now'},
+  ],
+};
+
 export class CMSSettingsController {
   constructor(
     @repository(SiteSettingsRepository)
@@ -110,6 +118,7 @@ export class CMSSettingsController {
         contactPage: defaultContactPage,
         legalDocuments: defaultLegalDocuments,
         theme: defaultThemeSettings,
+        offers: defaultOffersSettings,
         createdAt: new Date(),
         updatedAt: new Date(),
       };
@@ -140,6 +149,14 @@ export class CMSSettingsController {
         ...defaultThemeSettings.secondary,
         ...(settings.theme?.secondary || {}),
       },
+    };
+    settings.offers = {
+      ...defaultOffersSettings,
+      ...(settings.offers || {}),
+      marquee:
+        settings.offers?.marquee?.length
+          ? settings.offers.marquee.filter(item => item?.text?.trim())
+          : defaultOffersSettings.marquee,
     };
 
     return settings;
@@ -244,6 +261,20 @@ export class CMSSettingsController {
                       dark: {type: 'string'},
                       darker: {type: 'string'},
                       contrastText: {type: 'string'},
+                    },
+                  },
+                },
+              },
+              offers: {
+                type: 'object',
+                properties: {
+                  marquee: {
+                    type: 'array',
+                    items: {
+                      type: 'object',
+                      properties: {
+                        text: {type: 'string'},
+                      },
                     },
                   },
                 },
