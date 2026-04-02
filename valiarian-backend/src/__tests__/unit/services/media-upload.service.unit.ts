@@ -294,6 +294,8 @@ describe('MediaUploadService - File Validation (unit)', () => {
         'image/png',
         'image/webp',
         'image/svg+xml',
+        'image/x-icon',
+        'image/vnd.microsoft.icon',
       ];
 
       imageTypes.forEach(mimetype => {
@@ -329,7 +331,6 @@ describe('MediaUploadService - File Validation (unit)', () => {
 
     it('rejects invalid file types', () => {
       const invalidTypes = [
-        'application/pdf',
         'text/plain',
         'application/zip',
         'application/x-executable',
@@ -347,6 +348,17 @@ describe('MediaUploadService - File Validation (unit)', () => {
         const isValid = mediaUploadService.validateFileType(file);
         expect(isValid).to.be.false();
       });
+    });
+  });
+
+  describe('isTransformableImage', () => {
+    it('returns false for ico files', () => {
+      expect(mediaUploadService.isTransformableImage('image/x-icon')).to.be.false();
+      expect(mediaUploadService.isTransformableImage('image/vnd.microsoft.icon')).to.be.false();
+    });
+
+    it('returns true for standard images', () => {
+      expect(mediaUploadService.isTransformableImage('image/png')).to.be.true();
     });
   });
 
