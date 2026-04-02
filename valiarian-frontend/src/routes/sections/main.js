@@ -38,6 +38,7 @@ const FavoritesPage = lazy(() => import('src/pages/favorites'));
 const OrderConfirmationPage = lazy(() => import('src/pages/order-confirmation'));
 const OrderDetailsPage = lazy(() => import('src/pages/order-details'));
 const OrderHistoryPage = lazy(() => import('src/pages/order-history'));
+const PremiumOrderDetailsPage = lazy(() => import('src/pages/premium-order-details'));
 const OrderTrackingPage = lazy(() => import('src/pages/order-tracking'));
 // USER
 const UserProfilePage = lazy(() => import('src/pages/user/profile'));
@@ -94,6 +95,14 @@ export const mainRoutes = [
             element: (
               <AuthGuard>
                 <OrderHistoryPage />
+              </AuthGuard>
+            ),
+          },
+          {
+            path: 'premium/:id',
+            element: (
+              <AuthGuard>
+                <PremiumOrderDetailsPage />
               </AuthGuard>
             ),
           },
