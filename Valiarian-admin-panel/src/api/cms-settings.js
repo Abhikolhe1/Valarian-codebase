@@ -16,7 +16,7 @@ const options = {
 // ----------------------------------------------------------------------
 
 export function useGetSettings() {
-  const { data, isLoading, error, isValidating } = useSWR(URL, fetcher, options);
+  const { data, isLoading, error, isValidating, mutate } = useSWR(URL, fetcher, options);
 
   const memoizedValue = useMemo(
     () => ({
@@ -24,8 +24,9 @@ export function useGetSettings() {
       settingsLoading: isLoading,
       settingsError: error,
       settingsValidating: isValidating,
+      mutate,
     }),
-    [data, error, isLoading, isValidating]
+    [data, error, isLoading, isValidating, mutate]
   );
 
   return memoizedValue;

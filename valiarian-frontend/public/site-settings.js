@@ -26,7 +26,17 @@
     footerText: '',
     copyrightText: '© 2024 Valiarian. All rights reserved.',
     gtmId: '',
-    gaId: ''
+    gaId: '',
+    theme: {
+      primary: {
+        main: '#00A76F',
+        contrastText: '#FFFFFF'
+      },
+      secondary: {
+        main: '#8E33FF',
+        contrastText: '#FFFFFF'
+      }
+    }
   };
 
   // API endpoint

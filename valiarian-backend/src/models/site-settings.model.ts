@@ -37,6 +37,20 @@ export interface LegalDocumentsSettings {
   privacyPolicyUrl?: string;
 }
 
+export interface ThemePaletteColorSettings {
+  lighter?: string;
+  light?: string;
+  main?: string;
+  dark?: string;
+  darker?: string;
+  contrastText?: string;
+}
+
+export interface ThemeSettings {
+  primary?: ThemePaletteColorSettings;
+  secondary?: ThemePaletteColorSettings;
+}
+
 @model({
   settings: {
     postgresql: {
@@ -130,6 +144,14 @@ export class SiteSettings extends Entity {
     },
   })
   legalDocuments?: LegalDocumentsSettings;
+
+  @property({
+    type: 'object',
+    postgresql: {
+      dataType: 'jsonb',
+    },
+  })
+  theme?: ThemeSettings;
 
   
   

@@ -3,13 +3,13 @@ import { customShadows } from '../custom-shadows';
 
 // ----------------------------------------------------------------------
 
-export function contrast(contrastBold, mode) {
+export function contrast(contrastBold, mode, themeOverrides = {}) {
   const theme = {
     ...(contrastBold &&
       mode === 'light' && {
         palette: {
           background: {
-            default: palette(mode).grey[100],
+            default: palette(mode, themeOverrides).grey[100],
           },
         },
       }),
@@ -20,7 +20,7 @@ export function contrast(contrastBold, mode) {
       MuiCard: {
         styleOverrides: {
           root: {
-            boxShadow: customShadows(mode).z4,
+            boxShadow: customShadows(mode, themeOverrides).z4,
           },
         },
       },

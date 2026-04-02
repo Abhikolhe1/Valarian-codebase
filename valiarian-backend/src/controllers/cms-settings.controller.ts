@@ -49,6 +49,25 @@ const defaultLegalDocuments = {
   privacyPolicyUrl: '',
 };
 
+const defaultThemeSettings = {
+  primary: {
+    lighter: '#C8FAD6',
+    light: '#5BE49B',
+    main: '#00A76F',
+    dark: '#007867',
+    darker: '#004B50',
+    contrastText: '#FFFFFF',
+  },
+  secondary: {
+    lighter: '#EFD6FF',
+    light: '#C684FF',
+    main: '#8E33FF',
+    dark: '#5119B7',
+    darker: '#27097A',
+    contrastText: '#FFFFFF',
+  },
+};
+
 export class CMSSettingsController {
   constructor(
     @repository(SiteSettingsRepository)
@@ -90,6 +109,7 @@ export class CMSSettingsController {
         gaId: '',
         contactPage: defaultContactPage,
         legalDocuments: defaultLegalDocuments,
+        theme: defaultThemeSettings,
         createdAt: new Date(),
         updatedAt: new Date(),
       };
@@ -108,6 +128,18 @@ export class CMSSettingsController {
     settings.legalDocuments = {
       ...defaultLegalDocuments,
       ...(settings.legalDocuments || {}),
+    };
+    settings.theme = {
+      ...defaultThemeSettings,
+      ...(settings.theme || {}),
+      primary: {
+        ...defaultThemeSettings.primary,
+        ...(settings.theme?.primary || {}),
+      },
+      secondary: {
+        ...defaultThemeSettings.secondary,
+        ...(settings.theme?.secondary || {}),
+      },
     };
 
     return settings;
@@ -187,6 +219,33 @@ export class CMSSettingsController {
                 properties: {
                   termsAndConditionsUrl: {type: 'string'},
                   privacyPolicyUrl: {type: 'string'},
+                },
+              },
+              theme: {
+                type: 'object',
+                properties: {
+                  primary: {
+                    type: 'object',
+                    properties: {
+                      lighter: {type: 'string'},
+                      light: {type: 'string'},
+                      main: {type: 'string'},
+                      dark: {type: 'string'},
+                      darker: {type: 'string'},
+                      contrastText: {type: 'string'},
+                    },
+                  },
+                  secondary: {
+                    type: 'object',
+                    properties: {
+                      lighter: {type: 'string'},
+                      light: {type: 'string'},
+                      main: {type: 'string'},
+                      dark: {type: 'string'},
+                      darker: {type: 'string'},
+                      contrastText: {type: 'string'},
+                    },
+                  },
                 },
               },
             },
