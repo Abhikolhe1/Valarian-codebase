@@ -174,8 +174,7 @@ export default function PremiumCountdownSection({ section }) {
       colorOptions.map((colorOption) => ({
         ...colorOption,
         disabled:
-          variants.length > 0 &&
-          !isPremiumColorAvailable(product, colorOption.value, selectedSize),
+          variants.length > 0 && !isPremiumColorAvailable(product, colorOption.value, selectedSize),
       })),
     [colorOptions, product, selectedSize, variants.length]
   );
@@ -283,12 +282,6 @@ export default function PremiumCountdownSection({ section }) {
           >
             {!!colorAvailability.length && (
               <Stack spacing={1} sx={{ minWidth: { xs: '100%', sm: 240 }, alignSelf: 'stretch' }}>
-                <Typography
-                  variant="caption"
-                  sx={{ color: content.descriptionColor, fontWeight: 700, letterSpacing: 1 }}
-                >
-                  Color
-                </Typography>
                 <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
                   {colorAvailability.map(({ disabled, label, swatch, value }) => {
                     const contentNode = (
@@ -303,8 +296,7 @@ export default function PremiumCountdownSection({ section }) {
                           alignItems: 'center',
                           gap: 1,
                           border: '1px solid',
-                          borderColor:
-                            selectedColor === value ? 'secondary.main' : 'divider',
+                          borderColor: selectedColor === value ? 'secondary.main' : 'divider',
                           bgcolor:
                             selectedColor === value ? 'secondary.lighter' : 'background.paper',
                           borderRadius: 999,
@@ -355,12 +347,6 @@ export default function PremiumCountdownSection({ section }) {
             )}
 
             <Stack spacing={1} sx={{ minWidth: { xs: '100%', sm: 260 }, alignSelf: 'stretch' }}>
-              <Typography
-                variant="caption"
-                sx={{ color: content.descriptionColor, fontWeight: 700, letterSpacing: 1 }}
-              >
-                Size
-              </Typography>
               <ToggleButtonGroup
                 value={selectedSize}
                 exclusive
@@ -464,12 +450,20 @@ export default function PremiumCountdownSection({ section }) {
           </Typography>
           {resolvedPrice > 0 && (
             <Typography variant="h5" sx={{ color: content.headingColor }}>
-              {resolvedPrice.toLocaleString('en-IN', { style: 'currency', currency: product?.currency || 'INR' })}
+              {resolvedPrice.toLocaleString('en-IN', {
+                style: 'currency',
+                currency: product?.currency || 'INR',
+              })}
             </Typography>
           )}
           {variants.length > 0 && (
-            <Typography variant="body2" sx={{ color: selectedVariantInStock ? 'success.main' : 'error.main' }}>
-              {selectedVariantInStock ? 'Selected variant available' : 'Selected size/color is out of stock'}
+            <Typography
+              variant="body2"
+              sx={{ color: selectedVariantInStock ? 'success.main' : 'error.main' }}
+            >
+              {selectedVariantInStock
+                ? 'Selected variant available'
+                : 'Selected size/color is out of stock'}
             </Typography>
           )}
         </Stack>
