@@ -21,7 +21,6 @@ import { paths } from 'src/routes/paths';
 import { useResponsive } from 'src/hooks/use-responsive';
 // api
 import { useGetCategories } from 'src/api/category';
-import { useGetVariants } from 'src/api/product';
 // utils
 // components
 import { Alert, Tab, Tabs } from '@mui/material';
@@ -35,8 +34,8 @@ import FormProvider, {
 } from 'src/components/hook-form';
 import { useSnackbar } from 'src/components/snackbar';
 import { useRouter } from 'src/routes/hook';
-import useSWR, { mutate } from 'swr';
 import axiosInstance, { endpoints } from 'src/utils/axios';
+import { mutate } from 'swr';
 import ProductVariantManager from './product-variant-manager';
 
 // ----------------------------------------------------------------------
@@ -469,6 +468,23 @@ export default function ProductNewEditForm({ currentProduct }) {
     },
     [setValue]
   );
+
+  useEffect(() => {
+    if (values?.isPremium) {
+      setValue('isFeatured', false);
+      setValue('isBestSeller', false);
+      setValue('isNewArrival', false);
+
+    }
+  }, [values?.isPremium, setValue]);
+
+  useEffect(() => {
+    if (values?.isFeatured || values?.isBestSeller || values?.isNewArrival) {
+      setValue('isPremium', false);
+    }
+  }, [values?.isFeatured, values?.isBestSeller, values?.isNewArrival, setValue]);
+
+
 
   const renderDetails = (
     <Grid container spacing={3}>
