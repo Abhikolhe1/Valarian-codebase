@@ -5,13 +5,7 @@ import { palette as themePalette } from './palette';
 
 // ----------------------------------------------------------------------
 
-const palette = themePalette('light');
-
-const LIGHT_MODE = palette.grey[500];
-
-const DARK_MODE = palette.common.black;
-
-function createShadow(color) {
+function createShadow(color, palette) {
   const transparent = alpha(color, 0.16);
   return {
     z1: `0 1px 2px 0 ${transparent}`,
@@ -35,6 +29,9 @@ function createShadow(color) {
   };
 }
 
-export function customShadows(mode) {
-  return mode === 'light' ? createShadow(LIGHT_MODE) : createShadow(DARK_MODE);
+export function customShadows(mode, themeOverrides = {}) {
+  const palette = themePalette(mode, themeOverrides);
+  const shadowColor = mode === 'light' ? palette.grey[500] : palette.common.black;
+
+  return createShadow(shadowColor, palette);
 }

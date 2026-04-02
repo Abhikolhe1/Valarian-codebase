@@ -1,4 +1,4 @@
-import { alpha } from '@mui/material/styles';
+import { alpha, darken, lighten } from '@mui/material/styles';
 
 // ----------------------------------------------------------------------
 
@@ -96,9 +96,31 @@ const COMMON = {
   },
 };
 
-export function palette(mode) {
-  const light = {
+function createColorScale(defaultColor, override = {}) {
+  const main = override.main || defaultColor.main;
+  const contrastText = override.contrastText || defaultColor.contrastText;
+
+  return {
+    lighter: override.lighter || lighten(main, 0.82),
+    light: override.light || lighten(main, 0.35),
+    main,
+    dark: override.dark || darken(main, 0.2),
+    darker: override.darker || darken(main, 0.45),
+    contrastText,
+  };
+}
+
+export function palette(mode, themeOverrides = {}) {
+  const primary = createColorScale(PRIMARY, themeOverrides.primary);
+  const secondary = createColorScale(SECONDARY, themeOverrides.secondary);
+  const common = {
     ...COMMON,
+    primary,
+    secondary,
+  };
+
+  const light = {
+    ...common,
     mode: 'light',
     text: {
       primary: GREY[800],
@@ -117,7 +139,7 @@ export function palette(mode) {
   };
 
   const dark = {
-    ...COMMON,
+    ...common,
     mode: 'dark',
     text: {
       primary: '#FFFFFF',

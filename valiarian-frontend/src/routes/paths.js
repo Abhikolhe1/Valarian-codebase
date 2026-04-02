@@ -51,6 +51,7 @@ export const paths = {
     history: '/orders/history',
     confirmation: (id) => `/orders/confirmation/${id}`,
     details: (id) => `/orders/${id}`,
+    premiumDetails: (id) => `/orders/premium/${id}`,
     tracking: (id) => `/orders/${id}/tracking`,
   },
   product: {

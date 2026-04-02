@@ -43,6 +43,11 @@ interface VerifyPremiumPreorderRequest {
 }
 
 type PremiumProductVariant = NonNullable<Product['variants']>[number];
+type PremiumPreorderTimelineEntry = {
+  status: string;
+  comment: string;
+  createdAt: Date;
+};
 
 const roundCurrency = (value: number) => Number((value ?? 0).toFixed(2));
 
@@ -133,6 +138,101 @@ export class PremiumPreorderController {
     return this.premiumPreorderRepository.findById(preorderId, {
       include: [{relation: 'user'}, {relation: 'product'}],
     });
+  }
+
+  private buildPremiumPreorderTimeline(
+    preorder: PremiumPreorder,
+  ): PremiumPreorderTimelineEntry[] {
+    const timeline: PremiumPreorderTimelineEntry[] = [
+      {
+        status: 'initiated',
+        comment: 'Premium preorder was created.',
+        createdAt: preorder.createdAt,
+      },
+    ];
+
+    if (preorder.paymentStatus === 'paid' && preorder.razorpayPaymentId) {
+      timeline.push({
+        status: 'paid',
+        comment: `Payment captured via Razorpay (${preorder.razorpayPaymentId}).`,
+        createdAt: preorder.updatedAt || preorder.createdAt,
+      });
+    } else if (preorder.paymentStatus === 'pending') {
+      timeline.push({
+        status: 'payment_pending',
+        comment: 'Payment is awaiting gateway confirmation.',
+        createdAt: preorder.updatedAt || preorder.createdAt,
+      });
+    } else if (preorder.paymentStatus === 'failed') {
+      timeline.push({
+        status: 'payment_failed',
+        comment: preorder.failureReason
+          ? `Payment failed: ${preorder.failureReason}.`
+          : 'Payment failed.',
+        createdAt: preorder.updatedAt || preorder.createdAt,
+      });
+    } else if (preorder.paymentStatus === 'refunded') {
+      timeline.push({
+        status: 'refunded',
+        comment: 'Payment was refunded for this premium preorder.',
+        createdAt: preorder.updatedAt || preorder.createdAt,
+      });
+    }
+
+    if (
+      preorder.status &&
+      !timeline.some(entry => entry.status === preorder.status)
+    ) {
+      timeline.push({
+        status: preorder.status,
+        comment:
+          preorder.notes?.trim() ||
+          `Premium preorder moved to ${preorder.status.replace(/_/g, ' ')}.`,
+        createdAt: preorder.updatedAt || preorder.createdAt,
+      });
+    }
+
+    if (preorder.expectedDispatchDate) {
+      timeline.push({
+        status: 'expected_dispatch',
+        comment: `Expected dispatch planned for ${new Date(
+          preorder.expectedDispatchDate,
+        ).toLocaleDateString()}.`,
+        createdAt: preorder.updatedAt || preorder.createdAt,
+      });
+    }
+
+    return timeline.sort(
+      (a, b) =>
+        new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+    );
+  }
+
+  private getAvailableAdminStatusOptions(preorder: PremiumPreorder) {
+    switch (preorder.status) {
+      case 'initiated':
+        return ['paid', 'payment_review', 'cancelled', 'failed'];
+      case 'paid':
+        return ['reserved', 'ready_to_fulfill', 'fulfilled', 'refunded'];
+      case 'payment_review':
+        return ['paid', 'reserved', 'cancelled', 'refunded'];
+      case 'reserved':
+        return ['ready_to_fulfill', 'fulfilled', 'cancelled', 'refunded'];
+      case 'ready_to_fulfill':
+        return ['fulfilled', 'cancelled', 'refunded'];
+      default:
+        return [];
+    }
+  }
+
+  private async buildPreorderDetailResponse(preorderId: string) {
+    const preorder = await this.getPreorderWithRelations(preorderId);
+
+    return {
+      preorder,
+      timeline: this.buildPremiumPreorderTimeline(preorder),
+      availableStatusOptions: this.getAvailableAdminStatusOptions(preorder),
+    };
   }
 
   private async getOwnedPreorder(preorderId: string, userId: string) {
@@ -589,6 +689,28 @@ export class PremiumPreorderController {
     };
   }
 
+  @get('/api/premium-preorders/{preorderId}')
+  @authenticate('jwt')
+  @authorize({roles: ['user']})
+  async getPremiumPreorderDetails(
+    @param.path.string('preorderId') preorderId: string,
+    @inject(SecurityBindings.USER) currentUser: UserProfile,
+  ): Promise<{
+    success: boolean;
+    preorder: PremiumPreorder;
+    timeline: PremiumPreorderTimelineEntry[];
+  }> {
+    await this.getOwnedPreorder(preorderId, currentUser.id);
+
+    const detail = await this.buildPreorderDetailResponse(preorderId);
+
+    return {
+      success: true,
+      preorder: detail.preorder,
+      timeline: detail.timeline,
+    };
+  }
+
   @get('/api/admin/premium-preorders')
   @authenticate('jwt')
   @authorize({roles: ['super_admin', 'admin']})
@@ -663,7 +785,12 @@ export class PremiumPreorderController {
   @authorize({roles: ['super_admin', 'admin']})
   async getAdminPremiumPreorderDetails(
     @param.path.string('preorderId') preorderId: string,
-  ): Promise<{success: boolean; preorder: PremiumPreorder}> {
+  ): Promise<{
+    success: boolean;
+    preorder: PremiumPreorder;
+    timeline: PremiumPreorderTimelineEntry[];
+    availableStatusOptions: string[];
+  }> {
     const preorder = await this.premiumPreorderRepository.findById(preorderId, {
       include: [{relation: 'user'}, {relation: 'product'}],
     });
@@ -672,9 +799,13 @@ export class PremiumPreorderController {
       throw new HttpErrors.NotFound('Premium preorder not found');
     }
 
+    const detail = await this.buildPreorderDetailResponse(preorderId);
+
     return {
       success: true,
-      preorder,
+      preorder: detail.preorder,
+      timeline: detail.timeline,
+      availableStatusOptions: detail.availableStatusOptions,
     };
   }
 
@@ -683,8 +814,18 @@ export class PremiumPreorderController {
   @authorize({roles: ['super_admin', 'admin']})
   async updateAdminPremiumPreorderStatus(
     @param.path.string('preorderId') preorderId: string,
-    @requestBody() request: {status: PremiumPreorder['status']; notes?: string},
-  ): Promise<{success: boolean; preorder: PremiumPreorder}> {
+    @requestBody()
+    request: {
+      status: PremiumPreorder['status'];
+      notes?: string;
+      expectedDispatchDate?: string;
+    },
+  ): Promise<{
+    success: boolean;
+    preorder: PremiumPreorder;
+    timeline: PremiumPreorderTimelineEntry[];
+    availableStatusOptions: string[];
+  }> {
     const preorder = await this.premiumPreorderRepository.findById(preorderId);
 
     if (!preorder || preorder.isDeleted) {
@@ -694,13 +835,19 @@ export class PremiumPreorderController {
     await this.premiumPreorderRepository.updateById(preorder.id, {
       status: request.status,
       notes: request.notes ?? preorder.notes,
+      expectedDispatchDate: request.expectedDispatchDate
+        ? new Date(request.expectedDispatchDate)
+        : preorder.expectedDispatchDate,
+      updatedAt: new Date(),
     });
+
+    const detail = await this.buildPreorderDetailResponse(preorder.id);
 
     return {
       success: true,
-      preorder: await this.premiumPreorderRepository.findById(preorder.id, {
-        include: [{relation: 'user'}, {relation: 'product'}],
-      }),
+      preorder: detail.preorder,
+      timeline: detail.timeline,
+      availableStatusOptions: detail.availableStatusOptions,
     };
   }
 }

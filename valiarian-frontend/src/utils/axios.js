@@ -139,6 +139,7 @@ export const endpoints = {
     create: '/api/premium-preorders/create',
     verify: '/api/premium-preorders/verify',
     paymentFailed: (preorderId) => `/api/premium-preorders/${preorderId}/payment-failed`,
+    details: (preorderId) => `/api/premium-preorders/${preorderId}`,
     user: (userId) => `/api/premium-preorders/user/${userId}`,
   },
   payments: {

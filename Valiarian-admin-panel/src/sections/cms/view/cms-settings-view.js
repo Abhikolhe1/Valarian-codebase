@@ -5,6 +5,7 @@ import LoadingButton from '@mui/lab/LoadingButton';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
+import Chip from '@mui/material/Chip';
 import Container from '@mui/material/Container';
 import Stack from '@mui/material/Stack';
 import Tab from '@mui/material/Tab';
@@ -59,6 +60,16 @@ const TABS = [
     label: 'Legal Docs',
     icon: 'solar:document-text-bold',
   },
+  {
+    value: 'theme',
+    label: 'Theme',
+    icon: 'solar:pallete-2-bold',
+  },
+  {
+    value: 'offers',
+    label: 'Offers',
+    icon: 'solar:ticket-sale-bold',
+  },
 ];
 
 // ----------------------------------------------------------------------
@@ -70,7 +81,7 @@ export default function CMSSettingsView() {
   const [currentTab, setCurrentTab] = useState('general');
 
   // Use SWR to fetch settings
-  const { settings: siteSettings, settingsLoading } = useGetSettings();
+  const { settings: siteSettings, settingsLoading, mutate } = useGetSettings();
 
   const defaultValues = useMemo(
     () => ({
@@ -123,12 +134,40 @@ export default function CMSSettingsView() {
         termsAndConditionsUrl: siteSettings?.legalDocuments?.termsAndConditionsUrl || '',
         privacyPolicyUrl: siteSettings?.legalDocuments?.privacyPolicyUrl || '',
       },
+      theme: {
+        primary: {
+          lighter: siteSettings?.theme?.primary?.lighter || '#C8FAD6',
+          light: siteSettings?.theme?.primary?.light || '#5BE49B',
+          main: siteSettings?.theme?.primary?.main || '#00A76F',
+          dark: siteSettings?.theme?.primary?.dark || '#007867',
+          darker: siteSettings?.theme?.primary?.darker || '#004B50',
+          contrastText: siteSettings?.theme?.primary?.contrastText || '#FFFFFF',
+        },
+        secondary: {
+          lighter: siteSettings?.theme?.secondary?.lighter || '#EFD6FF',
+          light: siteSettings?.theme?.secondary?.light || '#C684FF',
+          main: siteSettings?.theme?.secondary?.main || '#8E33FF',
+          dark: siteSettings?.theme?.secondary?.dark || '#5119B7',
+          darker: siteSettings?.theme?.secondary?.darker || '#27097A',
+          contrastText: siteSettings?.theme?.secondary?.contrastText || '#FFFFFF',
+        },
+      },
+      offers: {
+        marquee: siteSettings?.offers?.marquee?.length
+          ? siteSettings.offers.marquee
+          : [
+              { text: 'Flat 20% off on premium polos' },
+              { text: 'Free shipping on orders above ₹1999' },
+              { text: 'Limited edition drop - Shop now' },
+            ],
+      },
     }),
     [siteSettings]
   );
 
   const methods = useForm({
     defaultValues,
+    shouldUnregister: false,
   });
 
 
@@ -144,6 +183,14 @@ export default function CMSSettingsView() {
     control,
     name: 'contactPage.locations',
   });
+  const {
+    fields: marqueeFields,
+    append: appendMarqueeOffer,
+    remove: removeMarqueeOffer,
+  } = useFieldArray({
+    control,
+    name: 'offers.marquee',
+  });
 
   const values = watch();
 
@@ -154,13 +201,62 @@ export default function CMSSettingsView() {
     }
   }, [siteSettings, defaultValues, reset]);
 
+  const buildSettingsPayload = (data) => ({
+    ...data,
+    contactPage: {
+      ...data.contactPage,
+      locations: (data.contactPage?.locations || []).map((location) => ({
+        ...location,
+        latitude:
+          location.latitude === '' || Number.isNaN(location.latitude)
+            ? undefined
+            : Number(location.latitude),
+        longitude:
+          location.longitude === '' || Number.isNaN(location.longitude)
+            ? undefined
+            : Number(location.longitude),
+      })),
+    },
+    theme: {
+      primary: {
+        lighter: String(data.theme?.primary?.lighter || '').trim(),
+        light: String(data.theme?.primary?.light || '').trim(),
+        main: String(data.theme?.primary?.main || '').trim(),
+        dark: String(data.theme?.primary?.dark || '').trim(),
+        darker: String(data.theme?.primary?.darker || '').trim(),
+        contrastText: String(data.theme?.primary?.contrastText || '').trim(),
+      },
+      secondary: {
+        lighter: String(data.theme?.secondary?.lighter || '').trim(),
+        light: String(data.theme?.secondary?.light || '').trim(),
+        main: String(data.theme?.secondary?.main || '').trim(),
+        dark: String(data.theme?.secondary?.dark || '').trim(),
+        darker: String(data.theme?.secondary?.darker || '').trim(),
+        contrastText: String(data.theme?.secondary?.contrastText || '').trim(),
+      },
+    },
+    offers: {
+      marquee: (data.offers?.marquee || [])
+        .map((item) => ({
+          text: String(item?.text || '').trim(),
+        }))
+        .filter((item) => item.text),
+    },
+  });
+
   const onSubmit = handleSubmit(async (data) => {
     try {
-      await axiosInstance.patch(endpoints.cms.settings, data);
+      const payload = buildSettingsPayload(data);
+      const response = await axiosInstance.patch(endpoints.cms.settings, payload);
+      reset(response.data || payload);
+      await mutate();
       enqueueSnackbar('Site settings updated successfully', { variant: 'success' });
     } catch (error) {
       console.error('Error updating site settings:', error);
-      enqueueSnackbar(error.message || 'Failed to update site settings', { variant: 'error' });
+      enqueueSnackbar(
+        error?.message || error?.error?.message || 'Failed to update site settings',
+        { variant: 'error' }
+      );
     }
   });
 
@@ -600,6 +696,230 @@ export default function CMSSettingsView() {
     </Stack>
   );
 
+  const renderTheme = (
+    <Stack spacing={3}>
+      <Typography variant="h6">Theme Colors</Typography>
+
+      <Typography variant="body2" color="text.secondary">
+        Manage the storefront primary and secondary brand colors used by the frontend theme.
+      </Typography>
+
+      <Card variant="outlined" sx={{ p: 3 }}>
+        <Stack spacing={2}>
+          <Typography variant="subtitle1">Primary Palette</Typography>
+
+          <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
+            <TextField
+              fullWidth
+              type="color"
+              label="Primary Lighter"
+              InputLabelProps={{ shrink: true }}
+              {...methods.register('theme.primary.lighter')}
+            />
+            <TextField
+              fullWidth
+              type="color"
+              label="Primary Light"
+              InputLabelProps={{ shrink: true }}
+              {...methods.register('theme.primary.light')}
+            />
+          </Stack>
+
+          <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
+            <TextField
+              fullWidth
+              type="color"
+              label="Primary Main"
+              InputLabelProps={{ shrink: true }}
+              {...methods.register('theme.primary.main')}
+            />
+            <TextField
+              fullWidth
+              label="Primary Contrast Text"
+              placeholder="#FFFFFF"
+              {...methods.register('theme.primary.contrastText')}
+            />
+          </Stack>
+
+          <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
+            <TextField
+              fullWidth
+              type="color"
+              label="Primary Dark"
+              InputLabelProps={{ shrink: true }}
+              {...methods.register('theme.primary.dark')}
+            />
+            <TextField
+              fullWidth
+              type="color"
+              label="Primary Darker"
+              InputLabelProps={{ shrink: true }}
+              {...methods.register('theme.primary.darker')}
+            />
+          </Stack>
+
+          <Stack direction="row" spacing={2} alignItems="center" flexWrap="wrap">
+            <Chip
+              label="Primary Main"
+              sx={{
+                bgcolor: values.theme?.primary?.main || '#00A76F',
+                color: values.theme?.primary?.contrastText || '#FFFFFF',
+              }}
+            />
+            <Chip
+              label="Primary Light"
+              sx={{
+                bgcolor: values.theme?.primary?.light || '#5BE49B',
+                color: values.theme?.primary?.contrastText || '#FFFFFF',
+              }}
+            />
+            <Chip
+              label="Primary Dark"
+              sx={{
+                bgcolor: values.theme?.primary?.dark || '#007867',
+                color: values.theme?.primary?.contrastText || '#FFFFFF',
+              }}
+            />
+            <Typography variant="caption" color="text.secondary">
+              Preview: {values.theme?.primary?.main || '#00A76F'}
+            </Typography>
+          </Stack>
+        </Stack>
+      </Card>
+
+      <Card variant="outlined" sx={{ p: 3 }}>
+        <Stack spacing={2}>
+          <Typography variant="subtitle1">Secondary Palette</Typography>
+
+          <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
+            <TextField
+              fullWidth
+              type="color"
+              label="Secondary Lighter"
+              InputLabelProps={{ shrink: true }}
+              {...methods.register('theme.secondary.lighter')}
+            />
+            <TextField
+              fullWidth
+              type="color"
+              label="Secondary Light"
+              InputLabelProps={{ shrink: true }}
+              {...methods.register('theme.secondary.light')}
+            />
+          </Stack>
+
+          <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
+            <TextField
+              fullWidth
+              type="color"
+              label="Secondary Main"
+              InputLabelProps={{ shrink: true }}
+              {...methods.register('theme.secondary.main')}
+            />
+            <TextField
+              fullWidth
+              label="Secondary Contrast Text"
+              placeholder="#FFFFFF"
+              {...methods.register('theme.secondary.contrastText')}
+            />
+          </Stack>
+
+          <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
+            <TextField
+              fullWidth
+              type="color"
+              label="Secondary Dark"
+              InputLabelProps={{ shrink: true }}
+              {...methods.register('theme.secondary.dark')}
+            />
+            <TextField
+              fullWidth
+              type="color"
+              label="Secondary Darker"
+              InputLabelProps={{ shrink: true }}
+              {...methods.register('theme.secondary.darker')}
+            />
+          </Stack>
+
+          <Stack direction="row" spacing={2} alignItems="center" flexWrap="wrap">
+            <Chip
+              label="Secondary Main"
+              sx={{
+                bgcolor: values.theme?.secondary?.main || '#8E33FF',
+                color: values.theme?.secondary?.contrastText || '#FFFFFF',
+              }}
+            />
+            <Chip
+              label="Secondary Light"
+              sx={{
+                bgcolor: values.theme?.secondary?.light || '#C684FF',
+                color: values.theme?.secondary?.contrastText || '#FFFFFF',
+              }}
+            />
+            <Chip
+              label="Secondary Dark"
+              sx={{
+                bgcolor: values.theme?.secondary?.dark || '#5119B7',
+                color: values.theme?.secondary?.contrastText || '#FFFFFF',
+              }}
+            />
+            <Typography variant="caption" color="text.secondary">
+              Preview: {values.theme?.secondary?.main || '#8E33FF'}
+            </Typography>
+          </Stack>
+        </Stack>
+      </Card>
+    </Stack>
+  );
+
+  const renderOffers = (
+    <Stack spacing={3}>
+      <Typography variant="h6">Offer Marquee</Typography>
+
+      <Typography variant="body2" color="text.secondary">
+        Manage the scrolling offer announcements shown at the top of the storefront.
+      </Typography>
+
+      <Stack direction="row" justifyContent="space-between" alignItems="center">
+        <Typography variant="subtitle1">Marquee Offers</Typography>
+        <Button
+          variant="outlined"
+          startIcon={<Iconify icon="solar:add-circle-bold" />}
+          onClick={() => appendMarqueeOffer({ text: '' })}
+        >
+          Add Offer
+        </Button>
+      </Stack>
+
+      <Stack spacing={2}>
+        {marqueeFields.map((field, index) => (
+          <Card key={field.id} variant="outlined" sx={{ p: 3 }}>
+            <Stack spacing={2}>
+              <Stack direction="row" justifyContent="space-between" alignItems="center">
+                <Typography variant="subtitle2">Offer {index + 1}</Typography>
+                <Button
+                  color="error"
+                  onClick={() => removeMarqueeOffer(index)}
+                  disabled={marqueeFields.length === 1}
+                  startIcon={<Iconify icon="solar:trash-bin-trash-bold" />}
+                >
+                  Remove
+                </Button>
+              </Stack>
+
+              <TextField
+                fullWidth
+                label="Offer Text"
+                placeholder="e.g., Free shipping on orders above ₹1999"
+                {...methods.register(`offers.marquee.${index}.text`)}
+              />
+            </Stack>
+          </Card>
+        ))}
+      </Stack>
+    </Stack>
+  );
+
   return (
     <Container maxWidth={settings.themeStretch ? false : 'xl'}>
       <CustomBreadcrumbs
@@ -648,6 +968,8 @@ export default function CMSSettingsView() {
                 {currentTab === 'analytics' && renderAnalytics}
                 {currentTab === 'contact' && renderContact}
                 {currentTab === 'legal' && renderLegal}
+                {currentTab === 'theme' && renderTheme}
+                {currentTab === 'offers' && renderOffers}
 
                 <Stack direction="row" justifyContent="flex-end" sx={{ mt: 4 }}>
                   <LoadingButton

@@ -8,6 +8,7 @@ import { createTheme, ThemeProvider as MuiThemeProvider } from '@mui/material/st
 import { useLocales } from 'src/locales';
 // components
 import { useSettingsContext } from 'src/components/settings';
+import { useSiteSettings } from 'src/hooks/use-site-settings';
 // system
 import { palette } from './palette';
 import { shadows } from './shadows';
@@ -26,24 +27,33 @@ export default function ThemeProvider({ children }) {
   const { currentLang } = useLocales();
 
   const settings = useSettingsContext();
+  const { settings: siteSettings } = useSiteSettings();
 
-  const darkModeOption = darkMode(settings.themeMode);
+  const siteThemeOverrides = useMemo(
+    () => ({
+      primary: siteSettings?.theme?.primary || {},
+      secondary: siteSettings?.theme?.secondary || {},
+    }),
+    [siteSettings?.theme?.primary, siteSettings?.theme?.secondary]
+  );
+
+  const darkModeOption = darkMode(settings.themeMode, siteThemeOverrides);
 
   const presetsOption = presets(settings.themeColorPresets);
 
-  const contrastOption = contrast(settings.themeContrast === 'bold', settings.themeMode);
+  const contrastOption = contrast(settings.themeContrast === 'bold', settings.themeMode, siteThemeOverrides);
 
   const directionOption = direction(settings.themeDirection);
 
   const baseOption = useMemo(
     () => ({
-      palette: palette('light'),
+      palette: palette('light', siteThemeOverrides),
       shadows: shadows('light'),
-      customShadows: customShadows('light'),
+      customShadows: customShadows('light', siteThemeOverrides),
       typography,
       shape: { borderRadius: 8 },
     }),
-    []
+    [siteThemeOverrides]
   );
 
   const memoizedValue = useMemo(

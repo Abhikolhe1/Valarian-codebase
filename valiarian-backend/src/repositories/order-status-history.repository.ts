@@ -1,9 +1,18 @@
 import {Constructor, Getter, inject} from '@loopback/core';
-import {BelongsToAccessor, DefaultCrudRepository, Filter, repository} from '@loopback/repository';
+import {
+  BelongsToAccessor,
+  DefaultCrudRepository,
+  Entity,
+  Filter,
+  InclusionFilter,
+  InclusionResolver,
+  repository,
+} from '@loopback/repository';
 import {ValiarianDataSource} from '../datasources';
 import {TimeStampRepositoryMixin} from '../mixins/timestamp-repository-mixin';
 import {OrderStatusHistory, OrderStatusHistoryRelations, Users} from '../models';
 import {UsersRepository} from './users.repository';
+import {validate as isUuid} from 'uuid';
 
 export class OrderStatusHistoryRepository extends TimeStampRepositoryMixin<
   OrderStatusHistory,
@@ -33,8 +42,49 @@ export class OrderStatusHistoryRepository extends TimeStampRepositoryMixin<
     );
     this.registerInclusionResolver(
       'changedByUser',
-      this.changedByUser.inclusionResolver,
+      this.createSafeChangedByUserInclusionResolver(),
     );
+  }
+
+  private createSafeChangedByUserInclusionResolver(): InclusionResolver<
+    OrderStatusHistory,
+    Users
+  > {
+    return async (
+      entities: Entity[],
+      inclusion: InclusionFilter,
+      options?: object,
+    ) => {
+      const statusHistoryEntities = entities as OrderStatusHistory[];
+      const changedByIds = statusHistoryEntities.map(entity => entity.changedBy);
+      const scope =
+        typeof inclusion === 'string'
+          ? undefined
+          : (inclusion.scope as Filter<Users> | undefined);
+      const validUserIds = Array.from(
+        new Set(changedByIds.filter(id => typeof id === 'string' && isUuid(id))),
+      );
+
+      if (validUserIds.length === 0) {
+        return changedByIds.map(() => undefined);
+      }
+
+      const usersRepository = await this.usersRepositoryGetter();
+      const users = await usersRepository.find(
+        {
+          ...(scope ?? {}),
+          where: {
+            ...(scope?.where as object | undefined),
+            id: {inq: validUserIds},
+          },
+        },
+        options,
+      );
+
+      const usersById = new Map(users.map(user => [user.id, user]));
+
+      return changedByIds.map(changedById => usersById.get(changedById));
+    };
   }
 
   /**
