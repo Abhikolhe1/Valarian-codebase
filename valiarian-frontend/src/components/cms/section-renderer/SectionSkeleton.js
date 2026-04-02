@@ -14,6 +14,14 @@ import Stack from '@mui/material/Stack';
  */
 export default function SectionSkeleton({ type = 'default', sx, ...other }) {
   const skeletonMap = {
+    'premium-hero': <HeroSkeleton />,
+    'premium-product-showcase': <GallerySkeleton />,
+    'premium-fabric-details': <DefaultSkeleton />,
+    'premium-statement': <TextSkeleton />,
+    'premium-feature-grid': <FeaturesSkeleton />,
+    'premium-confidence': <FeaturesSkeleton />,
+    'premium-reserve-cta': <CTASkeleton />,
+    'premium-countdown': <CTASkeleton />,
     hero: <HeroSkeleton />,
     features: <FeaturesSkeleton />,
     testimonials: <TestimonialsSkeleton />,
@@ -26,7 +34,6 @@ export default function SectionSkeleton({ type = 'default', sx, ...other }) {
     pricing: <PricingSkeleton />,
     contact: <ContactSkeleton />,
     custom: <DefaultSkeleton />,
-    'premium-countdown': <CTASkeleton />,
     default: <DefaultSkeleton />,
   };
 
@@ -49,6 +56,14 @@ export default function SectionSkeleton({ type = 'default', sx, ...other }) {
 SectionSkeleton.propTypes = {
   type: PropTypes.oneOf([
     'hero',
+    'premium-hero',
+    'premium-product-showcase',
+    'premium-fabric-details',
+    'premium-statement',
+    'premium-feature-grid',
+    'premium-confidence',
+    'premium-reserve-cta',
+    'premium-countdown',
     'features',
     'testimonials',
     'gallery',
@@ -60,7 +75,6 @@ SectionSkeleton.propTypes = {
     'pricing',
     'contact',
     'custom',
-    'premium-countdown',
     'default',
   ]),
   sx: PropTypes.object,

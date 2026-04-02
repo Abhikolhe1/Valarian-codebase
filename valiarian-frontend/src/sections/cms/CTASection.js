@@ -15,7 +15,7 @@ import Image from 'src/components/image';
 // ----------------------------------------------------------------------
 
 export default function CTASection({ section }) {
-  const { content, settings = {} } = section;
+  const { content } = section;
   const {
     heading,
     description,
@@ -32,6 +32,12 @@ export default function CTASection({ section }) {
   };
 
   const hasBackground = backgroundImage || backgroundColor;
+  const stackMarginX = alignment === 'center' ? 'auto' : 0;
+  let stackMarginLeft = 0;
+
+  if (alignment === 'right' || alignment === 'center') {
+    stackMarginLeft = 'auto';
+  }
 
   return (
     <Box
@@ -95,8 +101,8 @@ export default function CTASection({ section }) {
           alignItems={alignmentMap[alignment]}
           sx={{
             maxWidth: 800,
-            mx: alignment === 'center' ? 'auto' : 0,
-            ml: alignment === 'right' ? 'auto' : alignment === 'center' ? 'auto' : 0,
+            mx: stackMarginX,
+            ml: stackMarginLeft,
           }}
         >
           <m.div variants={varFade().inDown}>
@@ -131,18 +137,39 @@ export default function CTASection({ section }) {
                 spacing={2}
                 justifyContent={alignmentMap[alignment]}
               >
-                {buttons.map((button, index) => (
+                {buttons.map((button, index) => {
+                  let buttonVariant = 'text';
+                  const hasOutlinedStyle =
+                    button.style === 'secondary' || button.style === 'outline';
+                  let backgroundButtonSx = {};
+
+                  if (button.style === 'primary') {
+                    buttonVariant = 'contained';
+                  } else if (hasOutlinedStyle) {
+                    buttonVariant = 'outlined';
+                  }
+
+                  if (hasBackground) {
+                    if (hasOutlinedStyle) {
+                      backgroundButtonSx = {
+                        borderColor: 'common.white',
+                        color: 'common.white',
+                        '&:hover': {
+                          borderColor: 'common.white',
+                          bgcolor: alpha('#fff', 0.1),
+                        },
+                      };
+                    } else if (button.style === 'text') {
+                      backgroundButtonSx = {
+                        color: 'common.white',
+                      };
+                    }
+                  }
+
+                  return (
                   <Button
                     key={index}
-                    variant={
-                      button.style === 'primary'
-                        ? 'contained'
-                        : button.style === 'secondary'
-                          ? 'outlined'
-                          : button.style === 'outline'
-                            ? 'outlined'
-                            : 'text'
-                    }
+                    variant={buttonVariant}
                     size="large"
                     color={button.style === 'primary' ? 'primary' : 'inherit'}
                     href={button.url}
@@ -152,26 +179,14 @@ export default function CTASection({ section }) {
                     sx={{
                       minWidth: 160,
                       ...(hasBackground && {
-                        ...(button.style === 'outlined' || button.style === 'outline'
-                          ? {
-                            borderColor: 'common.white',
-                            color: 'common.white',
-                            '&:hover': {
-                              borderColor: 'common.white',
-                              bgcolor: alpha('#fff', 0.1),
-                            },
-                          }
-                          : button.style === 'text'
-                            ? {
-                              color: 'common.white',
-                            }
-                            : {}),
+                        ...backgroundButtonSx,
                       }),
                     }}
                   >
                     {button.text}
                   </Button>
-                ))}
+                  );
+                })}
               </Stack>
             </m.div>
           )}

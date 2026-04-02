@@ -10,7 +10,14 @@ import {
   FeaturesSection,
   GallerySection,
   HeroSection,
+  PremiumConfidenceSection,
   PremiumCountdownSection,
+  PremiumFabricDetailsSection,
+  PremiumFeatureGridSection,
+  PremiumHeroSection,
+  PremiumProductShowcaseSection,
+  PremiumReserveCtaSection,
+  PremiumStatementSection,
   TestimonialsSection,
   TextSection,
 } from 'src/sections/cms';
@@ -175,6 +182,14 @@ SectionRenderer.propTypes = {
  */
 function getSectionComponent(type) {
   const sectionComponents = {
+    'premium-hero': PremiumHeroSection,
+    'premium-product-showcase': PremiumProductShowcaseSection,
+    'premium-fabric-details': PremiumFabricDetailsSection,
+    'premium-statement': PremiumStatementSection,
+    'premium-feature-grid': PremiumFeatureGridSection,
+    'premium-confidence': PremiumConfidenceSection,
+    'premium-reserve-cta': PremiumReserveCtaSection,
+    'premium-countdown': PremiumCountdownSection,
     hero: HeroSection,
     features: FeaturesSection,
     testimonials: TestimonialsSection,
@@ -187,7 +202,6 @@ function getSectionComponent(type) {
     pricing: null, // Future implementation
     contact: null, // Future implementation
     custom: null, // Future implementation
-    'premium-countdown': PremiumCountdownSection,
   };
 
   return sectionComponents[type] || null;

@@ -5,6 +5,7 @@ export { default as CMSPageCreateView } from './cms-page-create-view';
 export { default as CMSPageDetailsView } from './cms-page-details-view';
 export { default as CMSPageEditView } from './cms-page-edit-view';
 export { default as CMSPagesListView } from './cms-pages-list-view';
+export { default as CMSPremiumView } from './cms-premium-view';
 export { default as CMSSettingsView } from './cms-settings-view';
 
 

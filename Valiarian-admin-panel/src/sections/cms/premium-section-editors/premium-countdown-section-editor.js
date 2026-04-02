@@ -2,14 +2,16 @@ import PropTypes from 'prop-types';
 import { useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 // @mui
+import Alert from '@mui/material/Alert';
 import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
 import MenuItem from '@mui/material/MenuItem';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
+import { useGetProducts } from 'src/api/product';
 // components
-import FormProvider, { RHFSelect, RHFTextField } from 'src/components/hook-form';
+import FormProvider, { RHFAutocomplete, RHFSelect, RHFTextField } from 'src/components/hook-form';
 
 // ----------------------------------------------------------------------
 
@@ -20,7 +22,9 @@ const DEFAULT_CONTENT = {
   sizes: ['S', 'M', 'L', 'XL'],
   selectedSize: 'M',
   preorderButtonText: 'Preorder',
-  preorderButtonLink: '/products',
+  preorderButtonLink: '/premium/preorder',
+  preorderProductSlug: '',
+  preorderVariantId: '',
   headingPrimary: 'Time is Luxury',
   headingSecondary: "Don't waste it.",
   description:
@@ -44,6 +48,12 @@ const DEFAULT_CONTENT = {
 // ----------------------------------------------------------------------
 
 export default function PremiumCountdownSectionEditor({ section, onSave, onCancel }) {
+  const { products: premiumProducts, productsLoading } = useGetProducts({
+    isPremium: true,
+    status: 'published',
+    limit: 100,
+  });
+
   const content = { ...DEFAULT_CONTENT, ...(section?.content || {}) };
 
   const toDateTimeLocalValue = (value, timezone) => {
@@ -139,6 +149,8 @@ export default function PremiumCountdownSectionEditor({ section, onSave, onCance
         selectedSize,
         preorderButtonText: data.content.preorderButtonText,
         preorderButtonLink: data.content.preorderButtonLink,
+        preorderProductSlug: data.content.preorderProductSlug,
+        preorderVariantId: data.content.preorderVariantId,
         headingPrimary: data.content.headingPrimary,
         headingSecondary: data.content.headingSecondary,
         description: data.content.description,
@@ -198,8 +210,43 @@ export default function PremiumCountdownSectionEditor({ section, onSave, onCance
 
               <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
                 <RHFTextField name="content.preorderButtonText" label="Preorder Button Text" />
-                <RHFTextField name="content.preorderButtonLink" label="Preorder Button Link" />
+                <RHFTextField
+                  name="content.preorderButtonLink"
+                  label="Preorder Button Link"
+                  helperText="Recommended fallback: /premium/preorder"
+                />
               </Stack>
+              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+                <RHFAutocomplete
+                  name="content.preorderProductSlug"
+                  label="Premium Product"
+                  loading={productsLoading}
+                  placeholder="Select a premium product"
+                  options={premiumProducts.map((product) => product.slug)}
+                  getOptionLabel={(option) => {
+                    const matchedProduct = premiumProducts.find((product) => product.slug === option);
+                    return matchedProduct?.name || option || '';
+                  }}
+                  isOptionEqualToValue={(option, value) => option === value}
+                  renderOption={(props, option) => {
+                    const product = premiumProducts.find((item) => item.slug === option);
+                    return (
+                      <li {...props} key={option}>
+                        {product?.name || option}
+                      </li>
+                    );
+                  }}
+                  helperText="If filled, the countdown button opens the premium preorder checkout for this premium product."
+                />
+                <RHFTextField
+                  name="content.preorderVariantId"
+                  label="Fallback Variant ID"
+                  helperText="Optional fixed variant when you do not want size-based matching."
+                />
+              </Stack>
+              <Alert severity="info">
+                The selected premium product drives available colors, sizes, stock, and checkout pricing on the storefront countdown section.
+              </Alert>
             </Stack>
           </CardContent>
         </Card>

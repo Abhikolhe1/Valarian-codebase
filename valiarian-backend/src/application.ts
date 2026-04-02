@@ -25,6 +25,7 @@ import {JWTService} from './services/jwt-service';
 import {MediaService} from './services/media.service';
 import {OtpNotificationService} from './services/otp-notification.service';
 import {PendingOrderCleanupService} from './services/pending-order-cleanup.service';
+import {PremiumPreorderExpiryService} from './services/premium-preorder-expiry.service';
 import {RateLimiterService} from './services/rate-limiter.service';
 import {RazorpayService} from './services/razorpay.service';
 import {RbacService} from './services/rbac.service';
@@ -63,6 +64,7 @@ export class ValiarianBackendApplication extends BootMixin(
     this.configureFileUpload(options.fileStorageDirectory);
     registerAuthenticationStrategy(this, JWTStrategy);
     this.lifeCycleObserver(PendingOrderCleanupService);
+    this.lifeCycleObserver(PremiumPreorderExpiryService);
 
     this.projectRoot = __dirname;
     // Customize @loopback/boot Booter Conventions here
@@ -109,6 +111,18 @@ export class ValiarianBackendApplication extends BootMixin(
     if (process.env.PENDING_ORDER_CLEANUP_INTERVAL_MS !== undefined) {
       this.bind('services.pending.order.cleanup.interval.ms').to(
         Number(process.env.PENDING_ORDER_CLEANUP_INTERVAL_MS),
+      );
+    }
+
+    if (process.env.PREMIUM_PREORDER_EXPIRY_MINUTES !== undefined) {
+      this.bind('services.premium.preorder.expiry.minutes').to(
+        Number(process.env.PREMIUM_PREORDER_EXPIRY_MINUTES),
+      );
+    }
+
+    if (process.env.PREMIUM_PREORDER_EXPIRY_INTERVAL_MS !== undefined) {
+      this.bind('services.premium.preorder.expiry.interval.ms').to(
+        Number(process.env.PREMIUM_PREORDER_EXPIRY_INTERVAL_MS),
       );
     }
   }

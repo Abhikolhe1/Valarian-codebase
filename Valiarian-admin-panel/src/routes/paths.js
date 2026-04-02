@@ -177,6 +177,10 @@ export const paths = {
         details: `${ROOTS.DASHBOARD}/order/${MOCK_ID}`,
       },
     },
+    premiumOrder: {
+      root: `${ROOTS.DASHBOARD}/premium-orders`,
+      details: (id) => `${ROOTS.DASHBOARD}/premium-orders/${id}`,
+    },
     job: {
       root: `${ROOTS.DASHBOARD}/job`,
       new: `${ROOTS.DASHBOARD}/job/new`,
@@ -204,6 +208,9 @@ export const paths = {
       },
       comingSoon: {
         root: `${ROOTS.DASHBOARD}/cms/coming-soon`,
+      },
+      premium: {
+        root: `${ROOTS.DASHBOARD}/cms/premium`,
       },
       pages: {
         root: `${ROOTS.DASHBOARD}/cms/pages`,

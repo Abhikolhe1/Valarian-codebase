@@ -583,7 +583,6 @@ export default function CMSSettingsView() {
         value={values.legalDocuments?.termsAndConditionsUrl}
         onChange={(url) => setValue('legalDocuments.termsAndConditionsUrl', url)}
         helperText="Upload a PDF document for Terms and Conditions."
-        compact
         accept={{
           'application/pdf': ['.pdf'],
         }}
@@ -594,7 +593,6 @@ export default function CMSSettingsView() {
         value={values.legalDocuments?.privacyPolicyUrl}
         onChange={(url) => setValue('legalDocuments.privacyPolicyUrl', url)}
         helperText="Upload a PDF document for Privacy Policy."
-        compact
         accept={{
           'application/pdf': ['.pdf'],
         }}

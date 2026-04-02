@@ -24,6 +24,12 @@ export default function TextSection({ section }) {
     center: 'center',
     right: 'flex-end',
   };
+  const stackMarginX = alignment === 'center' ? 'auto' : 0;
+  let stackMarginLeft = 0;
+
+  if (alignment === 'right' || alignment === 'center') {
+    stackMarginLeft = 'auto';
+  }
 
   return (
     <Container
@@ -37,8 +43,8 @@ export default function TextSection({ section }) {
         alignItems={alignmentMap[alignment]}
         sx={{
           maxWidth: 900,
-          mx: alignment === 'center' ? 'auto' : 0,
-          ml: alignment === 'right' ? 'auto' : alignment === 'center' ? 'auto' : 0,
+          mx: stackMarginX,
+          ml: stackMarginLeft,
         }}
       >
         {heading && (

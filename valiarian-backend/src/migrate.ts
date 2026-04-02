@@ -37,6 +37,7 @@ export async function migrate(args: string[]) {
       'AuditLog',
       'OrderItemEntity',
       'Payment',
+      'PremiumPreorder',
       'Invoice',
       'Review',
       'ContactSubmission',

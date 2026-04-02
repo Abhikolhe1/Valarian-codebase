@@ -14,6 +14,7 @@ export * from './order-status-history.model';
 export * from './order-item.model';
 export * from './order.model';
 export * from './payment.model';
+export * from './premium-preorder.model';
 export * from './otp.model';
 export * from './page.model';
 export * from './permissions.model';

@@ -27,11 +27,26 @@ import FabricInfoSectionEditor from './section-editors/fabric-info-section-edito
 import NewArrivalsSectionEditor from './section-editors/new-arrivals-section-editor';
 import ScrollAnimatedSectionEditor from './section-editors/scroll-animated-section-editor';
 import SocialMediaSectionEditor from './section-editors/social-media-section-editor';
+import PremiumConfidenceSectionEditor from './premium-section-editors/premium-confidence-section-editor';
 import PremiumCountdownSectionEditor from './premium-section-editors/premium-countdown-section-editor';
+import PremiumFabricDetailsSectionEditor from './premium-section-editors/premium-fabric-details-section-editor';
+import PremiumFeatureGridSectionEditor from './premium-section-editors/premium-feature-grid-section-editor';
+import PremiumHeroSectionEditor from './premium-section-editors/premium-hero-section-editor';
+import PremiumProductShowcaseSectionEditor from './premium-section-editors/premium-product-showcase-section-editor';
+import PremiumReserveCtaSectionEditor from './premium-section-editors/premium-reserve-cta-section-editor';
+import PremiumStatementSectionEditor from './premium-section-editors/premium-statement-section-editor';
 
 // ----------------------------------------------------------------------
 
 const SECTION_EDITORS = {
+  'premium-hero': PremiumHeroSectionEditor,
+  'premium-product-showcase': PremiumProductShowcaseSectionEditor,
+  'premium-fabric-details': PremiumFabricDetailsSectionEditor,
+  'premium-statement': PremiumStatementSectionEditor,
+  'premium-feature-grid': PremiumFeatureGridSectionEditor,
+  'premium-confidence': PremiumConfidenceSectionEditor,
+  'premium-reserve-cta': PremiumReserveCtaSectionEditor,
+  'premium-countdown': PremiumCountdownSectionEditor,
   hero: HeroSectionEditor,
   'scroll-animated': ScrollAnimatedSectionEditor,
   'new-arrivals': NewArrivalsSectionEditor,
@@ -39,7 +54,6 @@ const SECTION_EDITORS = {
   'best-sellers': BestSellersSectionEditor,
   'fabric-info': FabricInfoSectionEditor,
   'social-media': SocialMediaSectionEditor,
-  'premium-countdown': PremiumCountdownSectionEditor,
   features: FeaturesSectionEditor,
   testimonials: TestimonialsSectionEditor,
   gallery: GallerySectionEditor,
@@ -49,6 +63,14 @@ const SECTION_EDITORS = {
 };
 
 const SECTION_TITLES = {
+  'premium-hero': 'Premium Hero Section',
+  'premium-product-showcase': 'Premium Product Showcase Section',
+  'premium-fabric-details': 'Premium Fabric Details Section',
+  'premium-statement': 'Premium Statement Section',
+  'premium-feature-grid': 'Premium Feature Grid Section',
+  'premium-confidence': 'Premium Confidence Section',
+  'premium-reserve-cta': 'Premium Reserve CTA Section',
+  'premium-countdown': 'Premium Countdown Section',
   hero: 'Hero Section',
   'scroll-animated': 'Scroll Animated Section',
   'new-arrivals': 'New Arrivals Section',
@@ -56,7 +78,6 @@ const SECTION_TITLES = {
   'best-sellers': 'Best Sellers Section',
   'fabric-info': 'Fabric Information Section',
   'social-media': 'Social Media Section',
-  'premium-countdown': 'Premium Countdown Section',
   features: 'Features Section',
   testimonials: 'Testimonials Section',
   gallery: 'Gallery Section',

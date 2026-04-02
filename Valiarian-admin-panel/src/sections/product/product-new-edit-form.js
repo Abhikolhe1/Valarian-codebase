@@ -128,6 +128,7 @@ export default function ProductNewEditForm({ currentProduct }) {
     sku: Yup.string().max(100, 'SKU must not exceed 100 characters'),
     // New arrival dates are optional - only required if isNewArrival is true
     isNewArrival: Yup.boolean(),
+    isPremium: Yup.boolean(),
     newArrivalStartDate: Yup.date()
       .nullable()
       .transform((value, originalValue) => originalValue === '' ? null : value)
@@ -179,6 +180,7 @@ export default function ProductNewEditForm({ currentProduct }) {
       isNewArrival: currentProduct?.isNewArrival || false,
       isBestSeller: currentProduct?.isBestSeller || false,
       isFeatured: currentProduct?.isFeatured || false,
+      isPremium: currentProduct?.isPremium || false,
       newArrivalStartDate: currentProduct?.newArrivalStartDate ? new Date(currentProduct.newArrivalStartDate) : null,
       newArrivalEndDate: currentProduct?.newArrivalEndDate ? new Date(currentProduct.newArrivalEndDate) : null,
       categoryId: currentProduct?.categoryId || '',
@@ -397,7 +399,7 @@ export default function ProductNewEditForm({ currentProduct }) {
         setCurrentTab('variants');
       } else if (errorFields.some(field => ['stockQuantity', 'trackInventory', 'lowStockThreshold', 'inStock'].includes(field))) {
         setCurrentTab('inventory');
-      } else if (errorFields.some(field => ['isNewArrival', 'isBestSeller', 'isFeatured', 'newArrivalStartDate', 'newArrivalEndDate'].includes(field))) {
+      } else if (errorFields.some(field => ['isNewArrival', 'isBestSeller', 'isFeatured', 'isPremium', 'newArrivalStartDate', 'newArrivalEndDate'].includes(field))) {
         setCurrentTab('labels');
       } else if (errorFields.some(field => ['categories', 'tags'].includes(field))) {
         setCurrentTab('organization');
@@ -782,6 +784,15 @@ export default function ProductNewEditForm({ currentProduct }) {
             <RHFSwitch name="isBestSeller" label="Best Seller" />
 
             <RHFSwitch name="isFeatured" label="Featured" />
+
+            <Divider sx={{ borderStyle: 'dashed' }} />
+
+            <Stack spacing={1.5}>
+              <RHFSwitch name="isPremium" label="Premium Product" />
+              <Typography variant="caption" color="text.secondary">
+                Premium products stay available for the premium preorder flow, but will be hidden from the normal storefront product listings.
+              </Typography>
+            </Stack>
           </Stack>
         </Card>
       </Grid>

@@ -13,6 +13,7 @@ export function useGetProducts(filters = {}) {
   if (filters.isNewArrival !== undefined) params.append('isNewArrival', filters.isNewArrival);
   if (filters.isBestSeller !== undefined) params.append('isBestSeller', filters.isBestSeller);
   if (filters.isFeatured !== undefined) params.append('isFeatured', filters.isFeatured);
+  if (filters.isPremium !== undefined) params.append('isPremium', filters.isPremium);
   if (filters.inStock !== undefined) params.append('inStock', filters.inStock);
   if (filters.categoryId) params.append('categoryId', filters.categoryId);
   if (filters.limit) params.append('limit', filters.limit);

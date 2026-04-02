@@ -1,6 +1,7 @@
 import PropTypes from 'prop-types';
 import { useForm } from 'react-hook-form';
 // @mui
+import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
@@ -9,8 +10,9 @@ import MenuItem from '@mui/material/MenuItem';
 import Stack from '@mui/material/Stack';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
+import { useGetProducts } from 'src/api/product';
 // components
-import FormProvider, { RHFEditor, RHFSelect, RHFTextField } from 'src/components/hook-form';
+import FormProvider, { RHFAutocomplete, RHFEditor, RHFSelect, RHFTextField } from 'src/components/hook-form';
 import CMSMediaPickerField from '../cms-media-picker-field';
 //
 
@@ -31,16 +33,30 @@ const HEIGHT_OPTIONS = [
 // ----------------------------------------------------------------------
 
 export default function PremiumHeroSectionEditor({ section, onSave, onCancel }) {
+  const { products: premiumProducts, productsLoading } = useGetProducts({
+    isPremium: true,
+    status: 'published',
+    limit: 100,
+  });
+
   const defaultValues = {
-    name: section?.name || 'Hero Section',
+    name: section?.name || 'Premium Hero Section',
     backgroundImage: section?.content?.backgroundImage || '',
     backgroundVideo: section?.content?.backgroundVideo || '',
     overlayOpacity: section?.content?.overlayOpacity || 0.5,
-    heading: section?.content?.heading || '',
-    subheading: section?.content?.subheading || '',
+    badgeText: section?.content?.badgeText || 'DROP LIVE NOW',
+    eyebrow: section?.content?.eyebrow || 'Signature Edition',
+    heading: section?.content?.heading || 'Once in a Lifetime.',
+    subheading:
+      section?.content?.subheading ||
+      "Handcrafted in Portugal using the world's finest cotton. Only 150 pieces available.",
     description: section?.content?.description || '',
     alignment: section?.content?.alignment || 'center',
     height: section?.content?.height || 'full',
+    primaryButtonText: section?.content?.primaryButtonText || 'Explore Details',
+    primaryButtonLink: section?.content?.primaryButtonLink || '/premium/preorder',
+    preorderProductSlug: section?.content?.preorderProductSlug || '',
+    preorderVariantId: section?.content?.preorderVariantId || '',
     ctaButtons: section?.content?.ctaButtons || [],
   };
 
@@ -60,16 +76,22 @@ export default function PremiumHeroSectionEditor({ section, onSave, onCancel }) 
   const onSubmit = handleSubmit(async (data) => {
     const sectionData = {
       name: data.name,
-      type: 'hero',
+      type: 'premium-hero',
       content: {
         backgroundImage: data.backgroundImage,
         backgroundVideo: data.backgroundVideo,
         overlayOpacity: parseFloat(data.overlayOpacity),
+        badgeText: data.badgeText,
+        eyebrow: data.eyebrow,
         heading: data.heading,
         subheading: data.subheading,
         description: data.description,
         alignment: data.alignment,
         height: data.height,
+        primaryButtonText: data.primaryButtonText,
+        primaryButtonLink: data.primaryButtonLink,
+        preorderProductSlug: data.preorderProductSlug,
+        preorderVariantId: data.preorderVariantId,
         ctaButtons: data.ctaButtons,
       },
       settings: {},
@@ -118,6 +140,8 @@ export default function PremiumHeroSectionEditor({ section, onSave, onCancel }) 
             </Typography>
             <Stack spacing={2}>
               <RHFTextField name="name" label="Section Name" />
+              <RHFTextField name="badgeText" label="Badge Text" />
+              <RHFTextField name="eyebrow" label="Eyebrow" />
               <RHFTextField name="heading" label="Heading" multiline rows={2} />
               <RHFTextField name="subheading" label="Subheading" />
               <RHFEditor
@@ -162,6 +186,45 @@ export default function PremiumHeroSectionEditor({ section, onSave, onCancel }) 
                 inputProps={{ min: 0, max: 1, step: 0.1 }}
                 helperText="0 = transparent, 1 = solid"
               />
+              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+                <RHFTextField name="primaryButtonText" label="Primary Button Text" />
+                <RHFTextField
+                  name="primaryButtonLink"
+                  label="Primary Button Link"
+                  helperText="Recommended fallback: /premium/preorder"
+                />
+              </Stack>
+              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+                <RHFAutocomplete
+                  name="preorderProductSlug"
+                  label="Premium Product"
+                  loading={productsLoading}
+                  placeholder="Select a premium product"
+                  options={premiumProducts.map((product) => product.slug)}
+                  getOptionLabel={(option) => {
+                    const matchedProduct = premiumProducts.find((product) => product.slug === option);
+                    return matchedProduct?.name || option || '';
+                  }}
+                  isOptionEqualToValue={(option, value) => option === value}
+                  renderOption={(props, option) => {
+                    const product = premiumProducts.find((item) => item.slug === option);
+                    return (
+                      <li {...props} key={option}>
+                        {product?.name || option}
+                      </li>
+                    );
+                  }}
+                  helperText="When set, every hero button redirects to the premium preorder checkout for this premium product."
+                />
+                <RHFTextField
+                  name="preorderVariantId"
+                  label="Preorder Variant ID"
+                  helperText="Optional fixed variant for all hero buttons."
+                />
+              </Stack>
+              <Alert severity="info">
+                The selected premium product is the source of truth for checkout data. Keep the button link as a fallback only.
+              </Alert>
             </Stack>
           </CardContent>
         </Card>

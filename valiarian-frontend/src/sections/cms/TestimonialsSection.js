@@ -7,7 +7,6 @@ import Card from '@mui/material/Card';
 import Container from '@mui/material/Container';
 import Rating from '@mui/material/Rating';
 import Stack from '@mui/material/Stack';
-import { useTheme } from '@mui/material/styles';
 import Typography from '@mui/material/Typography';
 // components
 import { MotionViewport, varFade } from 'src/components/animate';
@@ -17,7 +16,6 @@ import Iconify from 'src/components/iconify';
 // ----------------------------------------------------------------------
 
 export default function TestimonialsSection({ section }) {
-  const theme = useTheme();
   const { content } = section;
   const {
     heading,
@@ -213,7 +211,7 @@ function TestimonialCard({ testimonial, index, showRatings, variant = 'default' 
             fontStyle: 'italic',
           }}
         >
-          "{content}"
+          &ldquo;{content}&rdquo;
         </Typography>
 
         {/* Author */}

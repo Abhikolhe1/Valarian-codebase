@@ -8,7 +8,23 @@ import Container from '@mui/material/Container';
 import Stack from '@mui/material/Stack';
 import ToggleButton from '@mui/material/ToggleButton';
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
+import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
+import { useGetProduct } from 'src/api/product';
+import { useRouter } from 'src/routes/hook';
+import { resolvePremiumActionPath } from 'src/utils/premium-preorder';
+import {
+  getDefaultPremiumVariant,
+  getPremiumProductVariants,
+  getPremiumVariantColorValue,
+  getPremiumVariantColorOptions,
+  getPremiumVariantPrice,
+  getPremiumVariantSizeOptions,
+  getPremiumNextAvailableVariant,
+  isPremiumColorAvailable,
+  isPremiumSizeAvailable,
+  isPremiumVariantInStock,
+} from 'src/utils/premium-product';
 
 // ----------------------------------------------------------------------
 
@@ -19,7 +35,9 @@ const DEFAULT_CONTENT = {
   sizes: ['S', 'M', 'L', 'XL'],
   selectedSize: 'M',
   preorderButtonText: 'Preorder',
-  preorderButtonLink: '/products',
+  preorderButtonLink: '/premium/preorder',
+  preorderProductSlug: '',
+  preorderVariantId: '',
   headingPrimary: 'Time is Luxury',
   headingSecondary: "Don't waste it.",
   description:
@@ -62,16 +80,44 @@ function formatTime(value) {
 }
 
 export default function PremiumCountdownSection({ section }) {
+  const router = useRouter();
   const content = { ...DEFAULT_CONTENT, ...(section?.content || {}) };
+  const preorderProductSlug = String(content.preorderProductSlug || '').trim();
+  const { product } = useGetProduct(preorderProductSlug);
+  const variants = useMemo(() => getPremiumProductVariants(product), [product]);
+  const colorOptions = useMemo(() => getPremiumVariantColorOptions(product), [product]);
+  const productSizes = useMemo(() => getPremiumVariantSizeOptions(product), [product]);
+  const fallbackSizes = useMemo(() => {
+    if (Array.isArray(content.sizes) && content.sizes.length > 0) {
+      return content.sizes;
+    }
 
-  const sizes = Array.isArray(content.sizes) && content.sizes.length > 0 ? content.sizes : ['M'];
-  const initialSize = sizes.includes(content.selectedSize) ? content.selectedSize : sizes[0];
-  const [selectedSize, setSelectedSize] = useState(initialSize);
+    return ['M'];
+  }, [content.sizes]);
+  const sizes = useMemo(() => {
+    const mergedSizes = [...fallbackSizes, ...productSizes]
+      .map((size) => String(size || '').trim())
+      .filter(Boolean);
+    const uniqueSizes = [...new Set(mergedSizes)];
+
+    return uniqueSizes.length > 0 ? uniqueSizes : ['M'];
+  }, [fallbackSizes, productSizes]);
+  const [selectedSize, setSelectedSize] = useState(content.selectedSize || sizes[0]);
+  const [selectedColor, setSelectedColor] = useState('');
   const [timeLeft, setTimeLeft] = useState(() => getRemainingTime(content.countdownEndDate));
 
   useEffect(() => {
-    setSelectedSize(initialSize);
-  }, [initialSize]);
+    const defaultVariant = getDefaultPremiumVariant(product, content.preorderVariantId);
+
+    if (defaultVariant) {
+      setSelectedSize(defaultVariant.size || content.selectedSize || sizes[0]);
+      setSelectedColor(getPremiumVariantColorValue(defaultVariant));
+      return;
+    }
+
+    setSelectedSize(content.selectedSize || sizes[0]);
+    setSelectedColor(colorOptions[0]?.value || '');
+  }, [colorOptions, content.preorderVariantId, content.selectedSize, product, sizes]);
 
   useEffect(() => {
     setTimeLeft(getRemainingTime(content.countdownEndDate));
@@ -92,6 +138,92 @@ export default function PremiumCountdownSection({ section }) {
 
     return Math.max(0, Math.min(100, (sold / total) * 100));
   }, [content.soldCount, content.totalCount]);
+
+  const resolvedVariantId = useMemo(() => {
+    if (content.preorderVariantId) {
+      return content.preorderVariantId;
+    }
+
+    const preferredVariant = getPremiumNextAvailableVariant(product, {
+      color: selectedColor,
+      size: selectedSize,
+    });
+
+    return preferredVariant?.id || '';
+  }, [content.preorderVariantId, product, selectedColor, selectedSize]);
+
+  const resolvedVariant = useMemo(
+    () => variants.find((variant) => variant.id === resolvedVariantId) || null,
+    [resolvedVariantId, variants]
+  );
+  const resolvedPrice = useMemo(
+    () => getPremiumVariantPrice(product, resolvedVariant),
+    [product, resolvedVariant]
+  );
+  const selectedVariantInStock = isPremiumVariantInStock(product, resolvedVariant);
+  const sizeAvailability = useMemo(
+    () =>
+      sizes.map((size) => ({
+        value: size,
+        disabled: variants.length > 0 && !isPremiumSizeAvailable(product, size, selectedColor),
+      })),
+    [product, selectedColor, sizes, variants.length]
+  );
+  const colorAvailability = useMemo(
+    () =>
+      colorOptions.map((colorOption) => ({
+        ...colorOption,
+        disabled:
+          variants.length > 0 &&
+          !isPremiumColorAvailable(product, colorOption.value, selectedSize),
+      })),
+    [colorOptions, product, selectedSize, variants.length]
+  );
+
+  const handleSizeChange = (value) => {
+    const nextVariant = getPremiumNextAvailableVariant(product, {
+      color: selectedColor,
+      size: value,
+    });
+
+    setSelectedSize(value);
+
+    if (nextVariant) {
+      setSelectedColor(getPremiumVariantColorValue(nextVariant));
+    }
+  };
+
+  const handleColorChange = (value) => {
+    const nextVariant = getPremiumNextAvailableVariant(product, {
+      color: value,
+      size: selectedSize,
+    });
+
+    setSelectedColor(value);
+
+    if (nextVariant?.size) {
+      setSelectedSize(nextVariant.size);
+    }
+  };
+
+  const handlePreorder = () => {
+    const nextPath = resolvePremiumActionPath({
+      productSlug: preorderProductSlug,
+      variantId: resolvedVariantId,
+      fallbackPath: content.preorderButtonLink,
+    });
+
+    if (!nextPath) {
+      return;
+    }
+
+    if (/^https?:\/\//i.test(nextPath)) {
+      window.location.href = nextPath;
+      return;
+    }
+
+    router.push(nextPath);
+  };
 
   return (
     <Box
@@ -141,42 +273,157 @@ export default function PremiumCountdownSection({ section }) {
           <Stack
             direction={{ xs: 'column', sm: 'row' }}
             spacing={2}
-            alignItems={{ xs: 'stretch', sm: 'center' }}
+            alignItems={{ xs: 'stretch', sm: 'flex-end' }}
             justifyContent={{ xs: 'flex-start', md: 'flex-end' }}
-            sx={{ width: { xs: '100%', md: 'auto' } }}
+            sx={{
+              width: { xs: '100%', md: 'auto' },
+              flexWrap: 'wrap',
+              rowGap: 1.5,
+            }}
           >
-            <ToggleButtonGroup
-              value={selectedSize}
-              exclusive
-              onChange={(event, value) => {
-                if (value) {
-                  setSelectedSize(value);
-                }
-              }}
-              aria-label="size"
-              sx={{
-                bgcolor: 'rgba(0,0,0,0.06)',
-                p: 0.5,
-                borderRadius: 999,
-                '& .MuiToggleButton-root': {
-                  border: 'none',
-                  borderRadius: '999px !important',
-                  px: 2,
-                },
-              }}
-            >
-              {sizes.map((size) => (
-                <ToggleButton key={size} value={size}>
-                  {size}
-                </ToggleButton>
-              ))}
-            </ToggleButtonGroup>
+            {!!colorAvailability.length && (
+              <Stack spacing={1} sx={{ minWidth: { xs: '100%', sm: 240 }, alignSelf: 'stretch' }}>
+                <Typography
+                  variant="caption"
+                  sx={{ color: content.descriptionColor, fontWeight: 700, letterSpacing: 1 }}
+                >
+                  Color
+                </Typography>
+                <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                  {colorAvailability.map(({ disabled, label, swatch, value }) => {
+                    const contentNode = (
+                      <Box
+                        component="button"
+                        type="button"
+                        onClick={() => !disabled && handleColorChange(value)}
+                        disabled={disabled}
+                        sx={{
+                          position: 'relative',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 1,
+                          border: '1px solid',
+                          borderColor:
+                            selectedColor === value ? 'secondary.main' : 'divider',
+                          bgcolor:
+                            selectedColor === value ? 'secondary.lighter' : 'background.paper',
+                          borderRadius: 999,
+                          px: 1.5,
+                          py: 1,
+                          minHeight: 42,
+                          color: 'text.primary',
+                          opacity: disabled ? 0.58 : 1,
+                          cursor: disabled ? 'not-allowed' : 'pointer',
+                          '&::after': disabled
+                            ? {
+                                content: '""',
+                                position: 'absolute',
+                                left: 10,
+                                right: 10,
+                                top: '50%',
+                                borderTop: '2.5px solid',
+                                borderColor: 'error.main',
+                                transform: 'rotate(-24deg)',
+                                zIndex: 2,
+                              }
+                            : undefined,
+                        }}
+                      >
+                        <Box
+                          sx={{
+                            width: 12,
+                            height: 12,
+                            borderRadius: '50%',
+                            bgcolor: swatch || 'transparent',
+                            border: '1px solid rgba(0,0,0,0.16)',
+                          }}
+                        />
+                        <Box component="span">{label}</Box>
+                      </Box>
+                    );
+
+                    return disabled ? (
+                      <Tooltip key={value} title="Out of stock">
+                        <Box>{contentNode}</Box>
+                      </Tooltip>
+                    ) : (
+                      <Box key={value}>{contentNode}</Box>
+                    );
+                  })}
+                </Stack>
+              </Stack>
+            )}
+
+            <Stack spacing={1} sx={{ minWidth: { xs: '100%', sm: 260 }, alignSelf: 'stretch' }}>
+              <Typography
+                variant="caption"
+                sx={{ color: content.descriptionColor, fontWeight: 700, letterSpacing: 1 }}
+              >
+                Size
+              </Typography>
+              <ToggleButtonGroup
+                value={selectedSize}
+                exclusive
+                onChange={(event, value) => {
+                  if (value) {
+                    handleSizeChange(value);
+                  }
+                }}
+                aria-label="size"
+                sx={{
+                  bgcolor: 'rgba(0,0,0,0.06)',
+                  p: 0.5,
+                  borderRadius: 999,
+                  flexWrap: 'wrap',
+                  justifyContent: 'flex-start',
+                  minHeight: 54,
+                  '& .MuiToggleButton-root': {
+                    border: 'none',
+                    borderRadius: '999px !important',
+                    px: 2,
+                    minHeight: 42,
+                    color: 'text.primary',
+                  },
+                }}
+              >
+                {sizeAvailability.map((sizeOption) => (
+                  <ToggleButton
+                    key={sizeOption.value}
+                    value={sizeOption.value}
+                    disabled={sizeOption.disabled}
+                    sx={{
+                      position: 'relative',
+                      ...(sizeOption.disabled && {
+                        '&::after': {
+                          content: '""',
+                          position: 'absolute',
+                          left: 10,
+                          right: 10,
+                          top: '50%',
+                          borderTop: '2.5px solid',
+                          borderColor: 'error.main',
+                          transform: 'rotate(-24deg)',
+                          zIndex: 2,
+                        },
+                        color: 'text.disabled',
+                        opacity: 0.72,
+                      }),
+                    }}
+                  >
+                    {sizeOption.value}
+                  </ToggleButton>
+                ))}
+              </ToggleButtonGroup>
+            </Stack>
 
             <Button
               variant="contained"
-              href={content.preorderButtonLink}
+              onClick={handlePreorder}
+              disabled={variants.length > 0 && !selectedVariantInStock}
               sx={{
+                alignSelf: { xs: 'stretch', sm: 'flex-end' },
                 px: 4,
+                minHeight: 44,
                 borderRadius: 999,
                 backgroundColor: content.buttonBg,
                 color: content.buttonText,
@@ -215,6 +462,16 @@ export default function PremiumCountdownSection({ section }) {
           <Typography sx={{ maxWidth: 760, color: content.descriptionColor }}>
             {content.description}
           </Typography>
+          {resolvedPrice > 0 && (
+            <Typography variant="h5" sx={{ color: content.headingColor }}>
+              {resolvedPrice.toLocaleString('en-IN', { style: 'currency', currency: product?.currency || 'INR' })}
+            </Typography>
+          )}
+          {variants.length > 0 && (
+            <Typography variant="body2" sx={{ color: selectedVariantInStock ? 'success.main' : 'error.main' }}>
+              {selectedVariantInStock ? 'Selected variant available' : 'Selected size/color is out of stock'}
+            </Typography>
+          )}
         </Stack>
 
         <Box sx={{ display: 'flex', justifyContent: 'center' }}>

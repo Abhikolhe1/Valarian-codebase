@@ -98,13 +98,14 @@ export function useNavData() {
           // CMS
           {
             title: t('CMS'),
-            path: paths.dashboard.cms.pages.list,
+            path: paths.dashboard.cms.root,
             icon: ICONS.file,
             roles: ['super_admin'],
             children: [
               { title: t('Pages'), path: paths.dashboard.cms.pages.list },
               { title: t('About Us'), path: paths.dashboard.cms.about.root },
               { title: t('Coming Soon'), path: paths.dashboard.cms.comingSoon.root },
+              { title: t('Premium'), path: paths.dashboard.cms.premium.root },
               { title: t('Media Library'), path: paths.dashboard.cms.media.list },
               { title: t('Navigation'), path: paths.dashboard.cms.navigation.root },
               { title: t('Settings'), path: paths.dashboard.cms.settings.root },
@@ -115,7 +116,7 @@ export function useNavData() {
             path: paths.dashboard.user.list,
             icon: ICONS.user,
             roles: ['super_admin', 'admin'],
-            children: [{ title: t('List'), path: paths.dashboard.user.list }],
+            // children: [{ title: t('List'), path: paths.dashboard.user.list }],
           },
           // PRODUCT
           {
@@ -129,6 +130,18 @@ export function useNavData() {
             ],
           },
           // CATEGORY
+          // {
+          //   title: t('Categories'),
+          //   path: paths.dashboard.category.root,
+          //   icon: ICONS.label,
+          //   roles: ['super_admin'],
+          //   children: [
+          //     { title: t('Category List'), path: paths.dashboard.category.list },
+          //     { title: t('Create Category'), path: paths.dashboard.category.new },
+          //     { title: t('Parent Category List'), path: paths.dashboard.parentCategory.list },
+          //     { title: t('Create Parent Category'), path: paths.dashboard.parentCategory.new },
+          //   ],
+          // },
           {
             title: t('Categories'),
             path: paths.dashboard.category.root,
@@ -137,20 +150,37 @@ export function useNavData() {
             children: [
               { title: t('Category List'), path: paths.dashboard.category.list },
               { title: t('Create Category'), path: paths.dashboard.category.new },
+            ],
+          },
+
+          {
+            title: t('Parent Categories'),
+            path: paths.dashboard.parentCategory.root,
+            icon: ICONS.label,
+            roles: ['super_admin'],
+            children: [
               { title: t('Parent Category List'), path: paths.dashboard.parentCategory.list },
               { title: t('Create Parent Category'), path: paths.dashboard.parentCategory.new },
             ],
           },
+
           // ORDER
           {
             title: t('Orders'),
             path: paths.dashboard.order.root,
             icon: ICONS.order,
             roles: ['super_admin', 'admin'],
-            children: [
-              { title: t('List'), path: paths.dashboard.order.root },
-              // { title: t('Details'), path: paths.dashboard.order.demo.details },
-            ],
+            // children: [
+            //   { title: t('List'), path: paths.dashboard.order.root },
+            //   // { title: t('Details'), path: paths.dashboard.order.demo.details },
+            // ],
+          },
+          {
+            title: t('Premium Orders'),
+            path: paths.dashboard.premiumOrder.root,
+            icon: ICONS.order,
+            roles: ['super_admin', 'admin'],
+            children: [{ title: t('List'), path: paths.dashboard.premiumOrder.root }],
           },
           {
             title: t('Contact Requests'),
@@ -160,7 +190,7 @@ export function useNavData() {
           },
           {
             title: t('Admins'),
-            path: paths.dashboard.admins.list,
+            path: paths.dashboard.admins.root,
             icon: ICONS.user,
             roles: ['super_admin'],
             children: [

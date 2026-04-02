@@ -39,6 +39,13 @@ export default function HeroSection({ section }) {
     auto: 'auto',
     custom: settings.customHeight || '600px',
   };
+  const hasMediaBackground = backgroundImage || backgroundVideo;
+  const stackMarginX = alignment === 'center' ? 'auto' : 0;
+  let stackMarginLeft = 0;
+
+  if (alignment === 'right' || alignment === 'center') {
+    stackMarginLeft = 'auto';
+  }
 
   return (
     <Box
@@ -124,8 +131,8 @@ export default function HeroSection({ section }) {
           alignItems={alignmentMap[alignment]}
           sx={{
             maxWidth: 800,
-            mx: alignment === 'center' ? 'auto' : 0,
-            ml: alignment === 'right' ? 'auto' : alignment === 'center' ? 'auto' : 0,
+            mx: stackMarginX,
+            ml: stackMarginLeft,
           }}
         >
           {subheading && (
@@ -134,7 +141,7 @@ export default function HeroSection({ section }) {
                 component="div"
                 variant="overline"
                 sx={{
-                  color: backgroundImage || backgroundVideo ? 'common.white' : 'text.disabled',
+                  color: hasMediaBackground ? 'common.white' : 'text.disabled',
                 }}
               >
                 {subheading}
@@ -146,7 +153,7 @@ export default function HeroSection({ section }) {
             <Typography
               variant="h1"
               sx={{
-                color: backgroundImage || backgroundVideo ? 'common.white' : 'text.primary',
+                color: hasMediaBackground ? 'common.white' : 'text.primary',
               }}
             >
               {heading}
@@ -158,7 +165,7 @@ export default function HeroSection({ section }) {
               <Typography
                 variant="h5"
                 sx={{
-                  color: backgroundImage || backgroundVideo ? 'grey.300' : 'text.secondary',
+                  color: hasMediaBackground ? 'grey.300' : 'text.secondary',
                   fontWeight: 400,
                 }}
               >
@@ -174,10 +181,19 @@ export default function HeroSection({ section }) {
                 spacing={2}
                 justifyContent={alignmentMap[alignment]}
               >
-                {ctaButtons.map((button, index) => (
+                {ctaButtons.map((button, index) => {
+                  let buttonVariant = 'text';
+
+                  if (button.style === 'primary') {
+                    buttonVariant = 'contained';
+                  } else if (button.style === 'secondary') {
+                    buttonVariant = 'outlined';
+                  }
+
+                  return (
                   <Button
                     key={index}
-                    variant={button.style === 'primary' ? 'contained' : button.style === 'secondary' ? 'outlined' : 'text'}
+                    variant={buttonVariant}
                     size="large"
                     color={button.style === 'primary' ? 'primary' : 'inherit'}
                     href={button.url}
@@ -192,7 +208,8 @@ export default function HeroSection({ section }) {
                   >
                     {button.text}
                   </Button>
-                ))}
+                  );
+                })}
               </Stack>
             </m.div>
           )}

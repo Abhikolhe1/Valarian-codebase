@@ -21,6 +21,9 @@ export const paths = {
   maintenance: '/maintenance',
   pricing: '/pricing',
   premium: '/premium',
+  premiumPreorder: {
+    checkout: '/premium/preorder',
+  },
   payment: {
     root: '/payment',
     success: '/payment/success',

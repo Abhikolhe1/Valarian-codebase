@@ -39,6 +39,14 @@ export class Section extends Entity {
     required: true,
     jsonSchema: {
       enum: [
+        'premium-hero',
+        'premium-product-showcase',
+        'premium-fabric-details',
+        'premium-statement',
+        'premium-feature-grid',
+        'premium-confidence',
+        'premium-reserve-cta',
+        'premium-countdown',
         'hero',
         'scroll-animated',
         'new-arrivals',
@@ -61,6 +69,14 @@ export class Section extends Entity {
     },
   })
   type:
+    | 'premium-hero'
+    | 'premium-product-showcase'
+    | 'premium-fabric-details'
+    | 'premium-statement'
+    | 'premium-feature-grid'
+    | 'premium-confidence'
+    | 'premium-reserve-cta'
+    | 'premium-countdown'
     | 'hero'
     | 'scroll-animated'
     | 'new-arrivals'
