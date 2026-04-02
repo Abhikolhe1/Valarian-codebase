@@ -71,6 +71,7 @@
     "isemail": "^3.2.0",
     "jsonwebtoken": "^9.0.2",
     "loopback-connector-postgresql": "^8.0.3",
+    "migrate": "^2.1.0",
     "multer": "^2.0.2",
     "node-fetch": "^2.7.0",
     "nodemailer": "^7.0.10",

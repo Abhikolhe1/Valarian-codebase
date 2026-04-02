@@ -186,7 +186,7 @@ const SubtitleText = styled(Typography)({
   letterSpacing: '0.3px',
 });
 
-const ExploreButton = styled(Button)(({theme}) => ({
+const ExploreButton = styled(Button)(({ theme }) => ({
   fontFamily: '"Lato", "Helvetica", sans-serif',
   fontSize: '0.95rem',
   fontWeight: 600,
@@ -280,7 +280,7 @@ const SignatureHero = () => (
         150 pieces available.
       </SubtitleText>
 
-      <ExploreButton variant="contained"  disableElevation>
+      <ExploreButton variant="contained" disableElevation>
         Explore Details
       </ExploreButton>
     </ContentWrapper>

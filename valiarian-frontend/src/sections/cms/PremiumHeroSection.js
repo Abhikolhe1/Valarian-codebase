@@ -72,9 +72,8 @@ export default function PremiumHeroSection({ section }) {
             content: '""',
             position: 'absolute',
             inset: 0,
-            background: `linear-gradient(180deg, rgba(245,245,240,${
-              Number(content.overlayOpacity) * 0.6
-            }) 0%, rgba(245,245,240,${content.overlayOpacity}) 100%)`,
+            background: `linear-gradient(180deg, rgba(245,245,240,${Number(content.overlayOpacity) * 0.6
+              }) 0%, rgba(245,245,240,${content.overlayOpacity}) 100%)`,
           },
         }}
       />

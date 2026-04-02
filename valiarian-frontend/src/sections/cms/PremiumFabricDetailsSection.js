@@ -1,11 +1,11 @@
-import PropTypes from 'prop-types';
-import { useState } from 'react';
+import { Icon } from '@iconify/react';
 import Box from '@mui/material/Box';
 import IconButton from '@mui/material/IconButton';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import { AnimatePresence, LazyMotion, domAnimation, m } from 'framer-motion';
-import { Icon } from '@iconify/react';
+import PropTypes from 'prop-types';
+import { useState } from 'react';
 
 const DEFAULT_CONTENT = {
   subheading: 'Fabric Story',
@@ -28,6 +28,7 @@ export default function PremiumFabricDetailsSection({ section }) {
   const [index, setIndex] = useState(0);
   const [direction, setDirection] = useState(1);
   const item = items[index];
+  const swipeThreshold = 5000;
 
   const next = () => {
     setDirection(1);
@@ -51,30 +52,55 @@ export default function PremiumFabricDetailsSection({ section }) {
           </Typography>
         </Box>
 
-        <Box sx={{ maxWidth: 900, mx: 'auto', px: 2, position: 'relative', overflow: 'hidden' }}>
-          <AnimatePresence mode="wait">
-            <m.div
-              key={`${item.title}-${index}`}
-              initial={{ x: direction === 1 ? '100%' : '-100%', opacity: 0 }}
-              animate={{ x: '0%', opacity: 1 }}
-              exit={{ x: direction === 1 ? '-100%' : '100%', opacity: 0 }}
-              transition={{ duration: 0.2 }}
-            >
-              <Box sx={{ backgroundColor: '#fff', borderRadius: '28px', p: { xs: 4, md: 6 }, boxShadow: '0 30px 80px rgba(0,0,0,0.12)' }}>
-                <Typography sx={{ fontFamily: 'Lora, serif', fontSize: '1.75rem', fontWeight: 600, mb: 2, color: '#1a1a1a' }}>
-                  {item.title}
-                </Typography>
-                <Typography sx={{ color: '#555', lineHeight: 1.8, mb: 4, maxWidth: 700 }}>
-                  {item.description}
-                </Typography>
-                <Stack direction={{ xs: 'column', md: 'row' }} spacing={{ xs: 2, md: 6 }} justifyContent="space-between">
-                  <Spec label="Weight" value={item.weight} />
-                  <Spec label="Weave" value={item.weave} />
-                  <Spec label="Feel" value={item.feel} />
-                </Stack>
-              </Box>
-            </m.div>
-          </AnimatePresence>
+        <Box sx={{ maxWidth: 900, mx: 'auto', px: { xs: 2, md: 6 }, py: 2, position: 'relative', overflow: 'visible' }}>
+          <Box sx={{ overflow: 'hidden', borderRadius: '28px', display: 'grid', touchAction: 'pan-y' }}>
+            <AnimatePresence mode="sync" initial={false}>
+              <m.div
+                key={`${item.title}-${index}`}
+                style={{
+                  gridArea: '1 / 1',
+                  width: '100%',
+                  touchAction: 'pan-y',
+                  cursor: 'grab',
+                }}
+                drag="x"
+                dragConstraints={{ left: 0, right: 0 }}
+                dragElastic={0.35}
+                dragDirectionLock
+                dragMomentum
+                whileDrag={{ scale: 0.98 }}
+
+                onDragEnd={(e, info) => {
+                  const swipePower = Math.abs(info.offset.x) * info.velocity.x;
+
+                  if (swipePower < -swipeThreshold) {
+                    next();
+                  } else if (swipePower > swipeThreshold) {
+                    prev();
+                  }
+                }}
+
+                initial={{ x: direction === 1 ? '100%' : '-100%', opacity: 0 }}
+                animate={{ x: '0%', opacity: 1 }}
+                exit={{ x: direction === 1 ? '-100%' : '100%', opacity: 0 }}
+                transition={{ duration: 0.4 }}
+              >
+                <Box sx={{ backgroundColor: '#fff', borderRadius: '28px', p: { xs: 4, md: 6 }, boxShadow: '0 30px 80px rgba(0,0,0,0.12)' }}>
+                  <Typography sx={{ fontFamily: 'Lora, serif', fontSize: '1.75rem', fontWeight: 600, mb: 2, color: '#1a1a1a' }}>
+                    {item.title}
+                  </Typography>
+                  <Typography sx={{ color: '#555', lineHeight: 1.8, mb: 4, maxWidth: 700 }}>
+                    {item.description}
+                  </Typography>
+                  <Stack direction={{ xs: 'column', md: 'row' }} spacing={{ xs: 2, md: 6 }} justifyContent="space-between">
+                    <Spec label="Weight" value={item.weight} />
+                    <Spec label="Weave" value={item.weave} />
+                    <Spec label="Feel" value={item.feel} />
+                  </Stack>
+                </Box>
+              </m.div>
+            </AnimatePresence>
+          </Box>
 
           {items.length > 1 && (
             <>
@@ -82,11 +108,13 @@ export default function PremiumFabricDetailsSection({ section }) {
                 onClick={prev}
                 sx={{
                   position: 'absolute',
-                  left: { md: 8 },
+                  left: { md: -8 },
                   top: '50%',
                   transform: 'translateY(-50%)',
                   bgcolor: '#fff',
                   display: { xs: 'none', md: 'flex' },
+                  boxShadow: '0 10px 30px rgba(0,0,0,0.15)',
+                  '&:hover': { bgcolor: '#fff' },
                 }}
               >
                 <Icon icon="mdi:chevron-left" width={22} />
@@ -95,11 +123,13 @@ export default function PremiumFabricDetailsSection({ section }) {
                 onClick={next}
                 sx={{
                   position: 'absolute',
-                  right: { md: 8 },
+                  right: { md: -8 },
                   top: '50%',
                   transform: 'translateY(-50%)',
                   bgcolor: '#fff',
                   display: { xs: 'none', md: 'flex' },
+                  boxShadow: '0 10px 30px rgba(0,0,0,0.15)',
+                  '&:hover': { bgcolor: '#fff' },
                 }}
               >
                 <Icon icon="mdi:chevron-right" width={22} />
