@@ -25,6 +25,7 @@ export async function migrate(args: string[]) {
       'SectionTemplate',
       'NavigationMenu',
       'SiteSettings',
+      'Coupon',
       'ParentCategory',
       'Category',
       'Product',

@@ -37,6 +37,32 @@ export interface LegalDocumentsSettings {
   privacyPolicyUrl?: string;
 }
 
+export interface ThemePaletteColorSettings {
+  lighter?: string;
+  light?: string;
+  main?: string;
+  dark?: string;
+  darker?: string;
+  contrastText?: string;
+}
+
+export interface ThemeSettings {
+  primary?: ThemePaletteColorSettings;
+  secondary?: ThemePaletteColorSettings;
+}
+
+export interface HeaderSettings {
+  categoryMegaMenuPlaceholderImage?: string;
+}
+
+export interface MarqueeOfferItem {
+  text: string;
+}
+
+export interface OffersSettings {
+  marquee?: MarqueeOfferItem[];
+}
+
 @model({
   settings: {
     postgresql: {
@@ -130,6 +156,30 @@ export class SiteSettings extends Entity {
     },
   })
   legalDocuments?: LegalDocumentsSettings;
+
+  @property({
+    type: 'object',
+    postgresql: {
+      dataType: 'jsonb',
+    },
+  })
+  theme?: ThemeSettings;
+
+  @property({
+    type: 'object',
+    postgresql: {
+      dataType: 'jsonb',
+    },
+  })
+  header?: HeaderSettings;
+
+  @property({
+    type: 'object',
+    postgresql: {
+      dataType: 'jsonb',
+    },
+  })
+  offers?: OffersSettings;
 
   
   

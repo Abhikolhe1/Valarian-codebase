@@ -8,6 +8,7 @@ export * from './cart-items.model';
 export * from './carts.model';
 export * from './content-version.model';
 export * from './contact-submission.model';
+export * from './coupon.model';
 export * from './media.model';
 export * from './navigation-menu.model';
 export * from './order-status-history.model';

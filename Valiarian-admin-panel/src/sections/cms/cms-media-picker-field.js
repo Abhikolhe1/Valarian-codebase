@@ -57,7 +57,7 @@ export default function CMSMediaPickerField({
   );
 
   const renderSingleValue = () => {
-    const isImage = value?.match(/\.(jpg|jpeg|png|gif|webp|svg)$/i);
+    const isImage = value?.match(/\.(jpg|jpeg|png|gif|webp|svg|ico)$/i);
     const isVideo = value?.match(/\.(mp4|webm)$/i);
     const fileName = value ? decodeURIComponent(value.split('/').pop()?.split('?')[0] || '') : '';
 

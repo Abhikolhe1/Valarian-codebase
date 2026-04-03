@@ -87,7 +87,16 @@ EmailPromptAction.propTypes = {
   onClick: PropTypes.func,
 };
 
-export default function CheckoutPayment({ checkout, onBackStep, onGotoStep, onApplyShipping }) {
+export default function CheckoutPayment({
+  checkout,
+  onBackStep,
+  onGotoStep,
+  onApplyShipping,
+  onApplyCoupon,
+  onRemoveCoupon,
+  couponLoading,
+  couponError,
+}) {
   const {
     total,
     discount,
@@ -99,6 +108,7 @@ export default function CheckoutPayment({ checkout, onBackStep, onGotoStep, onAp
     unavailableCart,
     actualSubTotal,
     productDiscount,
+    appliedCoupon,
   } = checkout;
   const { user } = useAuthContext();
   const { enqueueSnackbar } = useSnackbar();
@@ -320,6 +330,7 @@ export default function CheckoutPayment({ checkout, onBackStep, onGotoStep, onAp
       shippingAddress: billingAddress,
       paymentMethod,
       discount: Number(discount || 0),
+      couponCode: appliedCoupon?.code || undefined,
       shipping: Number(shipping || 0),
     };
   };
@@ -580,6 +591,7 @@ export default function CheckoutPayment({ checkout, onBackStep, onGotoStep, onAp
             <CheckoutBillingInfo onBackStep={onBackStep} billing={billing} />
 
             <CheckoutSummary
+              enableDiscount
               enableEdit
               total={total}
               subTotal={subTotal}
@@ -594,6 +606,11 @@ export default function CheckoutPayment({ checkout, onBackStep, onGotoStep, onAp
               shipping_charge={shipping}
               gst_amount={tax}
               final_payable={total}
+              appliedCoupon={appliedCoupon}
+              onApplyCoupon={(code) => onApplyCoupon?.(code, selectedPayment)}
+              onRemoveCoupon={onRemoveCoupon}
+              couponLoading={couponLoading}
+              couponError={couponError}
               onEdit={() => onGotoStep(0)}
             />
 
@@ -631,4 +648,8 @@ CheckoutPayment.propTypes = {
   onBackStep: PropTypes.func,
   onGotoStep: PropTypes.func,
   onApplyShipping: PropTypes.func,
+  onApplyCoupon: PropTypes.func,
+  onRemoveCoupon: PropTypes.func,
+  couponLoading: PropTypes.bool,
+  couponError: PropTypes.string,
 };

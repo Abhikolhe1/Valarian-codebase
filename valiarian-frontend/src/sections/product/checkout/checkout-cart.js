@@ -28,9 +28,12 @@ export default function CheckoutCart({
   checkout,
   onNextStep,
   onDeleteCart,
-  onApplyDiscount,
+  onApplyCoupon,
+  onRemoveCoupon,
   onIncreaseQuantity,
   onDecreaseQuantity,
+  couponLoading,
+  couponError,
 }) {
   const { authenticated, user } = useAuthContext();
   const {
@@ -44,6 +47,7 @@ export default function CheckoutCart({
     tax,
     actualSubTotal,
     productDiscount,
+    appliedCoupon,
   } = checkout;
 
   const totalItems = sum((eligibleCart || []).map((item) => item.quantity));
@@ -126,7 +130,11 @@ export default function CheckoutCart({
           shipping_charge={shipping}
           gst_amount={tax}
           final_payable={total}
-          onApplyDiscount={onApplyDiscount}
+          appliedCoupon={appliedCoupon}
+          onApplyCoupon={onApplyCoupon}
+          onRemoveCoupon={onRemoveCoupon}
+          couponLoading={couponLoading}
+          couponError={couponError}
         />
 
         <Button
@@ -149,7 +157,10 @@ CheckoutCart.propTypes = {
   checkout: PropTypes.object,
   onNextStep: PropTypes.func,
   onDeleteCart: PropTypes.func,
-  onApplyDiscount: PropTypes.func,
+  onApplyCoupon: PropTypes.func,
+  onRemoveCoupon: PropTypes.func,
+  couponLoading: PropTypes.bool,
+  couponError: PropTypes.string,
   onDecreaseQuantity: PropTypes.func,
   onIncreaseQuantity: PropTypes.func,
 };

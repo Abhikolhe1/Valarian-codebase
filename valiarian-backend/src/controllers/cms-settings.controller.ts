@@ -49,6 +49,38 @@ const defaultLegalDocuments = {
   privacyPolicyUrl: '',
 };
 
+const defaultThemeSettings = {
+  primary: {
+    lighter: '#C8FAD6',
+    light: '#5BE49B',
+    main: '#00A76F',
+    dark: '#007867',
+    darker: '#004B50',
+    contrastText: '#FFFFFF',
+  },
+  secondary: {
+    lighter: '#EFD6FF',
+    light: '#C684FF',
+    main: '#8E33FF',
+    dark: '#5119B7',
+    darker: '#27097A',
+    contrastText: '#FFFFFF',
+  },
+};
+
+const defaultHeaderSettings = {
+  categoryMegaMenuPlaceholderImage:
+    'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRUHOpowQpT8ZqJLNRZ1LIcQlmsAd1aPqugpg&s',
+};
+
+const defaultOffersSettings = {
+  marquee: [
+    {text: 'Flat 20% off on premium polos'},
+    {text: 'Free shipping on orders above ₹1999'},
+    {text: 'Limited edition drop - Shop now'},
+  ],
+};
+
 export class CMSSettingsController {
   constructor(
     @repository(SiteSettingsRepository)
@@ -90,6 +122,9 @@ export class CMSSettingsController {
         gaId: '',
         contactPage: defaultContactPage,
         legalDocuments: defaultLegalDocuments,
+        theme: defaultThemeSettings,
+        header: defaultHeaderSettings,
+        offers: defaultOffersSettings,
         createdAt: new Date(),
         updatedAt: new Date(),
       };
@@ -108,6 +143,30 @@ export class CMSSettingsController {
     settings.legalDocuments = {
       ...defaultLegalDocuments,
       ...(settings.legalDocuments || {}),
+    };
+    settings.theme = {
+      ...defaultThemeSettings,
+      ...(settings.theme || {}),
+      primary: {
+        ...defaultThemeSettings.primary,
+        ...(settings.theme?.primary || {}),
+      },
+      secondary: {
+        ...defaultThemeSettings.secondary,
+        ...(settings.theme?.secondary || {}),
+      },
+    };
+    settings.header = {
+      ...defaultHeaderSettings,
+      ...(settings.header || {}),
+    };
+    settings.offers = {
+      ...defaultOffersSettings,
+      ...(settings.offers || {}),
+      marquee:
+        settings.offers?.marquee?.length
+          ? settings.offers.marquee.filter(item => item?.text?.trim())
+          : defaultOffersSettings.marquee,
     };
 
     return settings;
@@ -187,6 +246,53 @@ export class CMSSettingsController {
                 properties: {
                   termsAndConditionsUrl: {type: 'string'},
                   privacyPolicyUrl: {type: 'string'},
+                },
+              },
+              theme: {
+                type: 'object',
+                properties: {
+                  primary: {
+                    type: 'object',
+                    properties: {
+                      lighter: {type: 'string'},
+                      light: {type: 'string'},
+                      main: {type: 'string'},
+                      dark: {type: 'string'},
+                      darker: {type: 'string'},
+                      contrastText: {type: 'string'},
+                    },
+                  },
+                  secondary: {
+                    type: 'object',
+                    properties: {
+                      lighter: {type: 'string'},
+                      light: {type: 'string'},
+                      main: {type: 'string'},
+                      dark: {type: 'string'},
+                      darker: {type: 'string'},
+                      contrastText: {type: 'string'},
+                    },
+                  },
+                },
+              },
+              header: {
+                type: 'object',
+                properties: {
+                  categoryMegaMenuPlaceholderImage: {type: 'string'},
+                },
+              },
+              offers: {
+                type: 'object',
+                properties: {
+                  marquee: {
+                    type: 'array',
+                    items: {
+                      type: 'object',
+                      properties: {
+                        text: {type: 'string'},
+                      },
+                    },
+                  },
                 },
               },
             },

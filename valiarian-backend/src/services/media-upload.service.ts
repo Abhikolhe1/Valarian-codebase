@@ -18,6 +18,13 @@ export const ALLOWED_IMAGE_TYPES = [
   'image/png',
   'image/webp',
   'image/svg+xml',
+  'image/x-icon',
+  'image/vnd.microsoft.icon',
+];
+
+export const NON_TRANSFORMABLE_IMAGE_TYPES = [
+  'image/x-icon',
+  'image/vnd.microsoft.icon',
 ];
 
 export const ALLOWED_VIDEO_TYPES = [
@@ -392,6 +399,10 @@ export class MediaUploadService {
    */
   isImage(mimetype: string): boolean {
     return ALLOWED_IMAGE_TYPES.includes(mimetype);
+  }
+
+  isTransformableImage(mimetype: string): boolean {
+    return this.isImage(mimetype) && !NON_TRANSFORMABLE_IMAGE_TYPES.includes(mimetype);
   }
 
   /**
@@ -790,7 +801,7 @@ export class MediaUploadService {
     } = {};
 
     // Process images
-    if (isImage && file.buffer) {
+    if (isImage && file.buffer && this.isTransformableImage(file.mimetype)) {
       // Process image and generate variants
       const {metadata, variants} = await this.processImage(file.buffer);
 
@@ -838,7 +849,7 @@ export class MediaUploadService {
       return this.createMediaRecord(file, originalUrl, options, imageData);
     }
 
-    // For non-images (videos, etc.), just upload the file
+    // For non-transformable images (e.g. ICO favicons) and other files, just upload the file
     if (file.buffer) {
       const filePath = await this.storageService!.uploadFile(
         file.buffer,

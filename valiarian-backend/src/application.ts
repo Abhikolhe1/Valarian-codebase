@@ -34,7 +34,6 @@ import {SlugService} from './services/slug.service';
 import {TokenBlacklistService} from './services/token-blacklist.service';
 import {UserProfileService} from './services/user-profile.service';
 import {MyUserService} from './services/user-service';
-
 export {ApplicationConfig};
 
 export class ValiarianBackendApplication extends BootMixin(

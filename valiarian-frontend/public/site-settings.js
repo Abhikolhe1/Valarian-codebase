@@ -26,7 +26,28 @@
     footerText: '',
     copyrightText: '© 2024 Valiarian. All rights reserved.',
     gtmId: '',
-    gaId: ''
+    gaId: '',
+    theme: {
+      primary: {
+        main: '#00A76F',
+        contrastText: '#FFFFFF'
+      },
+      secondary: {
+        main: '#8E33FF',
+        contrastText: '#FFFFFF'
+      }
+    },
+    header: {
+      categoryMegaMenuPlaceholderImage:
+        'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRUHOpowQpT8ZqJLNRZ1LIcQlmsAd1aPqugpg&s'
+    },
+    offers: {
+      marquee: [
+        { text: 'Flat 20% off on premium polos' },
+        { text: 'Free shipping on orders above ₹1999' },
+        { text: 'Limited edition drop - Shop now' }
+      ]
+    }
   };
 
   // API endpoint

@@ -183,6 +183,13 @@ export function useNavData() {
             children: [{ title: t('List'), path: paths.dashboard.premiumOrder.root }],
           },
           {
+            title: t('Coupons'),
+            path: paths.dashboard.coupon.root,
+            icon: ICONS.label,
+            roles: ['super_admin', 'admin'],
+            children: [{ title: t('List'), path: paths.dashboard.coupon.root }],
+          },
+          {
             title: t('Contact Requests'),
             path: paths.dashboard.cms.contactSubmissions.list,
             icon: ICONS.mail,

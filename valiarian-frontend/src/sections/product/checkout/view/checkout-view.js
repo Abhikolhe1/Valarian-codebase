@@ -40,10 +40,13 @@ export default function CheckoutView() {
     onBackStep,
     onDeleteCart,
     onCreateBilling,
-    onApplyDiscount,
+    onApplyCoupon,
+    onRemoveCoupon,
     onApplyShipping,
     onIncreaseQuantity,
     onDecreaseQuantity,
+    couponLoading,
+    couponError,
   } = useCheckout();
 
   const { cart, billing, activeStep } = checkoutSession;
@@ -137,9 +140,12 @@ export default function CheckoutView() {
                   checkout={checkoutSession}
                   onNextStep={onNextStep}
                   onDeleteCart={onDeleteCart}
-                  onApplyDiscount={onApplyDiscount}
+                  onApplyCoupon={onApplyCoupon}
+                  onRemoveCoupon={onRemoveCoupon}
                   onIncreaseQuantity={onIncreaseQuantity}
                   onDecreaseQuantity={onDecreaseQuantity}
+                  couponLoading={couponLoading}
+                  couponError={couponError}
                 />
               )}
 
@@ -165,6 +171,10 @@ export default function CheckoutView() {
                   onBackStep={onBackStep}
                   onGotoStep={onGotoStep}
                   onApplyShipping={onApplyShipping}
+                  onApplyCoupon={onApplyCoupon}
+                  onRemoveCoupon={onRemoveCoupon}
+                  couponLoading={couponLoading}
+                  couponError={couponError}
                   onReset={onResetAll}
                 />
               )}

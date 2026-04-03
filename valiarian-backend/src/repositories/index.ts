@@ -6,6 +6,7 @@ export * from './parent-category.repository';
 export * from './category.repository';
 export * from './content-version.repository';
 export * from './contact-submission.repository';
+export * from './coupon.repository';
 export * from './media.repository';
 export * from './navigation-menu.repository';
 export * from './order-status-history.repository';

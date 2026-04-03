@@ -21,7 +21,7 @@ export function useSiteSettings() {
     if (window.siteSettings) {
       setSettings(window.siteSettings);
       setLoading(false);
-      return;
+      return undefined;
     }
 
     // Listen for settings loaded event
@@ -57,17 +57,25 @@ export function useSiteSetting(key, defaultValue) {
   if (!key) return settings;
 
   const keys = key.split('.');
-  let value = settings;
+  const value = settings;
 
-  for (const k of keys) {
-    if (value && typeof value === 'object' && k in value) {
-      value = value[k];
-    } else {
-      return defaultValue !== undefined ? defaultValue : null;
+  const resolved = keys.reduce((acc, currentKey) => {
+    if (acc && typeof acc === 'object' && currentKey in acc) {
+      return acc[currentKey];
     }
+
+    return undefined;
+  }, value);
+
+  if (resolved !== undefined) {
+    return resolved;
   }
 
-  return value;
+  if (defaultValue !== undefined) {
+    return defaultValue;
+  }
+
+  return null;
 }
 
 /**
