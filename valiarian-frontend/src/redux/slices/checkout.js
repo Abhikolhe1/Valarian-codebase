@@ -19,6 +19,7 @@ const initialState = {
   subTotal: 0,
   total: 0,
   discount: 0,
+  appliedCoupon: null,
   shipping: 0,
   tax: 0,
   billing: null,
@@ -35,6 +36,11 @@ const getCartSignature = (cart = []) =>
 const resetCheckoutProgress = (state) => {
   state.activeStep = 0;
   state.billing = null;
+};
+
+const clearAppliedCoupon = (state) => {
+  state.discount = 0;
+  state.appliedCoupon = null;
 };
 
 const applyCartState = (state, cart) => {
@@ -73,8 +79,12 @@ const slice = createSlice({
       const nextCart = action.payload || [];
       applyCartState(state, nextCart);
 
-      if (!state.buyNowItem && state.activeStep > 0 && previousSignature !== getCartSignature(nextCart)) {
-        resetCheckoutProgress(state);
+      if (previousSignature !== getCartSignature(nextCart)) {
+        clearAppliedCoupon(state);
+
+        if (!state.buyNowItem && state.activeStep > 0) {
+          resetCheckoutProgress(state);
+        }
       }
     },
 
@@ -109,8 +119,12 @@ const slice = createSlice({
       const previousSignature = getCartSignature(state.cart);
       applyCartState(state, updatedCart);
 
-      if (!state.buyNowItem && state.activeStep > 0 && previousSignature !== getCartSignature(updatedCart)) {
-        resetCheckoutProgress(state);
+      if (previousSignature !== getCartSignature(updatedCart)) {
+        clearAppliedCoupon(state);
+
+        if (!state.buyNowItem && state.activeStep > 0) {
+          resetCheckoutProgress(state);
+        }
       }
     },
 
@@ -125,8 +139,12 @@ const slice = createSlice({
       const updatedCart = state.cart.filter((product) => !isCartItemMatch(product, action.payload));
       applyCartState(state, updatedCart);
 
-      if (!state.buyNowItem && state.activeStep > 0 && previousSignature !== getCartSignature(updatedCart)) {
-        resetCheckoutProgress(state);
+      if (previousSignature !== getCartSignature(updatedCart)) {
+        clearAppliedCoupon(state);
+
+        if (!state.buyNowItem && state.activeStep > 0) {
+          resetCheckoutProgress(state);
+        }
       }
     },
 
@@ -140,6 +158,7 @@ const slice = createSlice({
       state.productDiscount = 0;
       state.subTotal = 0;
       state.discount = 0;
+      state.appliedCoupon = null;
       state.shipping = 0;
       state.actualSubTotal = 0;
       state.productDiscount = 0;
@@ -183,8 +202,12 @@ const slice = createSlice({
 
       applyCartState(state, updatedCart);
 
-      if (!state.buyNowItem && state.activeStep > 0 && previousSignature !== getCartSignature(updatedCart)) {
-        resetCheckoutProgress(state);
+      if (previousSignature !== getCartSignature(updatedCart)) {
+        clearAppliedCoupon(state);
+
+        if (!state.buyNowItem && state.activeStep > 0) {
+          resetCheckoutProgress(state);
+        }
       }
     },
 
@@ -213,8 +236,12 @@ const slice = createSlice({
 
       applyCartState(state, updatedCart);
 
-      if (!state.buyNowItem && state.activeStep > 0 && previousSignature !== getCartSignature(updatedCart)) {
-        resetCheckoutProgress(state);
+      if (previousSignature !== getCartSignature(updatedCart)) {
+        clearAppliedCoupon(state);
+
+        if (!state.buyNowItem && state.activeStep > 0) {
+          resetCheckoutProgress(state);
+        }
       }
     },
 
@@ -227,6 +254,7 @@ const slice = createSlice({
       state.billing = null;
       state.activeStep = 0;
       state.discount = 0;
+      state.appliedCoupon = null;
       state.shipping = 0;
       state.tax = 0;
       state.paymentSession = null;
@@ -258,7 +286,19 @@ const slice = createSlice({
       const discount = action.payload;
 
       state.discount = discount;
+      state.appliedCoupon = null;
       state.total = state.subTotal - discount;
+    },
+
+    applyCoupon(state, action) {
+      state.discount = Number(action.payload?.discount || 0);
+      state.appliedCoupon = action.payload?.coupon || null;
+      state.total = state.subTotal - state.discount;
+    },
+
+    removeCoupon(state) {
+      clearAppliedCoupon(state);
+      state.total = state.subTotal;
     },
 
     applyShipping(state, action) {
@@ -289,6 +329,8 @@ export const {
   startBuyNow,
   applyShipping,
   applyDiscount,
+  applyCoupon,
+  removeCoupon,
   increaseQuantity,
   decreaseQuantity,
 } = slice.actions;

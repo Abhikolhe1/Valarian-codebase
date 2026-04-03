@@ -142,6 +142,9 @@ export const endpoints = {
     details: (preorderId) => `/api/premium-preorders/${preorderId}`,
     user: (userId) => `/api/premium-preorders/user/${userId}`,
   },
+  coupons: {
+    validate: '/api/coupons/validate',
+  },
   payments: {
     verify: '/api/payments/verify',
   },

@@ -96,6 +96,13 @@ export const endpoints = {
       availability: (productId, variantId) => `/api/products/${productId}/variants/${variantId}/availability`,
     },
   },
+  coupons: {
+    list: '/api/admin/coupons',
+    details: (id) => `/api/admin/coupons/${id}`,
+    create: '/api/admin/coupons',
+    update: (id) => `/api/admin/coupons/${id}`,
+    delete: (id) => `/api/admin/coupons/${id}`,
+  },
   reviews: {
     details: (id) => `/api/reviews/${id}`,
     adminByProduct: (productId) => `/api/admin/products/${productId}/reviews`,

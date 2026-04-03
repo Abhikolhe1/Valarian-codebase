@@ -36,6 +36,7 @@ const OrderListPage = lazy(() => import('src/pages/orders/orders-list'));
 const OrderDetailsPage = lazy(() => import('src/pages/orders/order-details'));
 const PremiumOrderListPage = lazy(() => import('src/pages/dashboard/premium-orders/list'));
 const PremiumOrderDetailsPage = lazy(() => import('src/pages/dashboard/premium-orders/details'));
+const CouponListPage = lazy(() => import('src/pages/dashboard/coupon/list'));
 // INVOICE
 const InvoiceListPage = lazy(() => import('src/pages/dashboard/invoice/list'));
 const InvoiceDetailsPage = lazy(() => import('src/pages/dashboard/invoice/details'));
@@ -258,6 +259,18 @@ export const dashboardRoutes = [
         children: [
           { index: true, element: <PremiumOrderListPage /> },
           { path: ':id', element: <PremiumOrderDetailsPage /> },
+        ],
+      },
+      {
+        path: 'coupons',
+        element: (
+          <DashboardRoleGuard roles={ADMIN_PANEL_ROLES}>
+            <Outlet />
+          </DashboardRoleGuard>
+        ),
+        children: [
+          {index: true, element: <CouponListPage />},
+          {path: 'list', element: <CouponListPage />},
         ],
       },
       {

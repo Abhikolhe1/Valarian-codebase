@@ -181,6 +181,10 @@ export const paths = {
       root: `${ROOTS.DASHBOARD}/premium-orders`,
       details: (id) => `${ROOTS.DASHBOARD}/premium-orders/${id}`,
     },
+    coupon: {
+      root: `${ROOTS.DASHBOARD}/coupons`,
+      list: `${ROOTS.DASHBOARD}/coupons/list`,
+    },
     job: {
       root: `${ROOTS.DASHBOARD}/job`,
       new: `${ROOTS.DASHBOARD}/job/new`,

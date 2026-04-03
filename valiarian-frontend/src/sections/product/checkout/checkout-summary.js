@@ -1,15 +1,17 @@
 import PropTypes from 'prop-types';
+import { useEffect, useState } from 'react';
 // @mui
+import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
-import Card from '@mui/material/Card';
-import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
-import Divider from '@mui/material/Divider';
-import TextField from '@mui/material/TextField';
-import CardHeader from '@mui/material/CardHeader';
-import Typography from '@mui/material/Typography';
+import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
+import CardHeader from '@mui/material/CardHeader';
+import Divider from '@mui/material/Divider';
 import InputAdornment from '@mui/material/InputAdornment';
+import Stack from '@mui/material/Stack';
+import TextField from '@mui/material/TextField';
+import Typography from '@mui/material/Typography';
 // utils
 import { fCurrency } from 'src/utils/format-number';
 // components
@@ -35,6 +37,11 @@ export default function CheckoutSummary({
   selling_price_incl_tax,
   final_payable,
   onApplyDiscount,
+  onApplyCoupon,
+  onRemoveCoupon,
+  appliedCoupon,
+  couponLoading = false,
+  couponError = '',
   enableEdit = false,
   enableDiscount = false,
 }) {
@@ -52,14 +59,25 @@ export default function CheckoutSummary({
       : Number(tax ?? 0);
   const gstAmount = Number(gst_amount ?? derivedGstAmount);
   const payableAmount = Number(final_payable ?? total ?? 0);
+  const [couponCode, setCouponCode] = useState(appliedCoupon?.code || '');
+
+  useEffect(() => {
+    setCouponCode(appliedCoupon?.code || '');
+  }, [appliedCoupon?.code]);
 
   return (
     <Card sx={{ mb: 3 }}>
       <CardHeader
-        title="Order Summary"
+        title="Order Summary1"
         action={
           enableEdit && (
-            <Button variant='outlined' color='secondary' size="small" onClick={onEdit} startIcon={<Iconify icon="solar:pen-bold" />}>
+            <Button
+              variant="outlined"
+              color="secondary"
+              size="small"
+              onClick={onEdit}
+              startIcon={<Iconify icon="solar:pen-bold" />}
+            >
               Edit
             </Button>
           )
@@ -79,7 +97,9 @@ export default function CheckoutSummary({
             <Typography variant="body2" sx={{ color: 'text.secondary' }}>
               Sale Price (incl. shipping & tax)
             </Typography>
-            <Typography variant="subtitle2">{fCurrency(salePrice || sellingPriceInclTax)}</Typography>
+            <Typography variant="subtitle2">
+              {fCurrency(salePrice || sellingPriceInclTax)}
+            </Typography>
           </Stack>
 
           {!!productDiscount && (
@@ -135,21 +155,53 @@ export default function CheckoutSummary({
             </Box>
           </Stack>
 
-          {enableDiscount && onApplyDiscount && (
-            <TextField
-              fullWidth
-              placeholder="Discount codes / Gifts"
-              value="DISCOUNT5"
-              InputProps={{
-                endAdornment: (
-                  <InputAdornment position="end">
-                    <Button color="primary" onClick={() => onApplyDiscount(5)} sx={{ mr: -0.5 }}>
-                      Apply
-                    </Button>
-                  </InputAdornment>
-                ),
-              }}
-            />
+          {enableDiscount && (
+            <Stack spacing={1.5}>
+              {!!couponError && <Alert severity="error">{couponError}</Alert>}
+
+              {appliedCoupon && (
+                <Alert
+                  severity="success"
+                  action={
+                    onRemoveCoupon ? (
+                      <Button color="inherit" size="small" onClick={onRemoveCoupon}>
+                        Remove
+                      </Button>
+                    ) : null
+                  }
+                >
+                  {appliedCoupon.code} applied
+                  {appliedCoupon.title ? ` - ${appliedCoupon.title}` : ''}
+                </Alert>
+              )}
+
+              <TextField
+                fullWidth
+                placeholder="Enter coupon code"
+                value={couponCode}
+                onChange={(event) => setCouponCode(event.target.value.toUpperCase())}
+                InputProps={{
+                  endAdornment: (
+                    <InputAdornment position="end">
+                      <Button
+                        color="primary"
+                        disabled={couponLoading}
+                        onClick={() => {
+                          if (onApplyCoupon) {
+                            onApplyCoupon(couponCode);
+                          } else if (onApplyDiscount) {
+                            onApplyDiscount(5);
+                          }
+                        }}
+                        sx={{ mr: -0.5 }}
+                      >
+                        {couponLoading ? 'Applying...' : 'Apply'}
+                      </Button>
+                    </InputAdornment>
+                  ),
+                }}
+              />
+            </Stack>
           )}
         </Stack>
       </CardContent>
@@ -159,16 +211,21 @@ export default function CheckoutSummary({
 
 CheckoutSummary.propTypes = {
   base_price: PropTypes.number,
+  appliedCoupon: PropTypes.object,
   actual_price: PropTypes.number,
   coupon_discount: PropTypes.number,
+  couponError: PropTypes.string,
+  couponLoading: PropTypes.bool,
   discount: PropTypes.number,
   enableDiscount: PropTypes.bool,
   enableEdit: PropTypes.bool,
   final_payable: PropTypes.number,
   gst_amount: PropTypes.number,
   gst_rate: PropTypes.number,
+  onApplyCoupon: PropTypes.func,
   onApplyDiscount: PropTypes.func,
   onEdit: PropTypes.func,
+  onRemoveCoupon: PropTypes.func,
   product_discount: PropTypes.number,
   sale_price: PropTypes.number,
   selling_price_incl_tax: PropTypes.number,

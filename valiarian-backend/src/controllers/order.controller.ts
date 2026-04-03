@@ -15,8 +15,9 @@ import {SecurityBindings, UserProfile} from '@loopback/security';
 import {v4 as uuidv4} from 'uuid';
 import {authorize} from '../authorization';
 import {ValiarianDataSource} from '../datasources';
-import {Invoice, Order, OrderItemEntity, Payment} from '../models';
+import {Coupon, Invoice, Order, OrderItemEntity, Payment} from '../models';
 import {
+  CouponRepository,
   InvoiceRepository,
   OrderItemRepository,
   OrderRepository,
@@ -29,6 +30,13 @@ import {EmailTemplateService} from '../services/email-template.service';
 import {EmailService} from '../services/email.service';
 import {InvoiceGeneratorService} from '../services/invoice-generator.service';
 import {RazorpayService} from '../services/razorpay.service';
+import {
+  calculateCouponDiscount,
+  getCouponAvailabilityError,
+  normalizeCouponCode,
+  resolveCheckoutOriginalUnitPrice,
+  resolveCheckoutUnitPrice,
+} from '../utils/coupon.utils';
 import {
   buildInvoiceFromOrder,
   calculateInclusiveGstBreakup,
@@ -54,6 +62,7 @@ interface CreateOrderRequest {
     variantId?: string;
     quantity: number;
     price: number;
+    originalPrice?: number;
   }>;
   billingAddress: {
     fullName: string;
@@ -77,6 +86,7 @@ interface CreateOrderRequest {
   };
   paymentMethod: 'razorpay' | 'cod' | 'wallet';
   discount?: number;
+  couponCode?: string;
   shipping?: number;
   tax?: number;
   orderNumber?: string;
@@ -101,6 +111,8 @@ export class OrderController {
   constructor(
     @repository(OrderRepository)
     public orderRepository: OrderRepository,
+    @repository(CouponRepository)
+    public couponRepository: CouponRepository,
     @repository(OrderStatusHistoryRepository)
     public orderStatusHistoryRepository: OrderStatusHistoryRepository,
     @repository(OrderItemRepository)
@@ -124,6 +136,118 @@ export class OrderController {
     @inject('services.invoice.generator')
     public invoiceGeneratorService: InvoiceGeneratorService,
   ) {}
+
+  private async countCouponUsage(couponId: string, userId?: string): Promise<number> {
+    const where: any = {
+      couponId,
+      isDeleted: false,
+      paymentStatus: {neq: 'failed'},
+      status: {neq: 'cancelled'},
+    };
+
+    if (userId) {
+      where.userId = userId;
+    }
+
+    const result = await this.orderRepository.count(where);
+    return result.count;
+  }
+
+  private async countCompletedOrdersForUser(userId: string): Promise<number> {
+    const result = await this.orderRepository.count({
+      userId,
+      isDeleted: false,
+      paymentStatus: {neq: 'failed'},
+      status: {neq: 'cancelled'},
+    } as any);
+
+    return result.count;
+  }
+
+  private async validateAppliedCoupon(params: {
+    couponCode?: string;
+    subtotal: number;
+    userId: string;
+    paymentMethod: CreateOrderRequest['paymentMethod'];
+  }): Promise<{
+    coupon: Coupon;
+    discountAmount: number;
+    couponSnapshot: NonNullable<Order['couponSnapshot']>;
+  } | null> {
+    const normalizedCode = normalizeCouponCode(params.couponCode || '');
+
+    if (!normalizedCode) {
+      return null;
+    }
+
+    const coupon = await this.couponRepository.findByCode(normalizedCode);
+    const availabilityError = getCouponAvailabilityError(coupon as Coupon);
+
+    if (availabilityError) {
+      throw new HttpErrors.BadRequest(availabilityError);
+    }
+
+    if (Number(coupon!.minOrderAmount || 0) > Number(params.subtotal || 0)) {
+      throw new HttpErrors.BadRequest(
+        `Coupon is valid on orders above Rs. ${Number(coupon!.minOrderAmount).toFixed(2)}`,
+      );
+    }
+
+    if (
+      Array.isArray(coupon!.applicablePaymentMethods) &&
+      coupon!.applicablePaymentMethods.length > 0 &&
+      !coupon!.applicablePaymentMethods.includes(params.paymentMethod)
+    ) {
+      throw new HttpErrors.BadRequest('This coupon is not valid for the selected payment method');
+    }
+
+    if (coupon!.isFirstOrderOnly) {
+      const priorOrders = await this.countCompletedOrdersForUser(params.userId);
+
+      if (priorOrders > 0) {
+        throw new HttpErrors.BadRequest('This coupon is only valid on your first order');
+      }
+    }
+
+    const [totalUsageCount, userUsageCount] = await Promise.all([
+      this.countCouponUsage(coupon!.id),
+      this.countCouponUsage(coupon!.id, params.userId),
+    ]);
+
+    if (
+      Number(coupon!.totalUsageLimit || 0) > 0 &&
+      totalUsageCount >= Number(coupon!.totalUsageLimit)
+    ) {
+      throw new HttpErrors.BadRequest('This coupon has reached its maximum usage limit');
+    }
+
+    if (
+      Number(coupon!.perUserUsageLimit || 0) > 0 &&
+      userUsageCount >= Number(coupon!.perUserUsageLimit)
+    ) {
+      throw new HttpErrors.BadRequest('You have already used this coupon the maximum number of times');
+    }
+
+    const discountAmount = calculateCouponDiscount(coupon!, Number(params.subtotal || 0));
+
+    if (discountAmount <= 0) {
+      throw new HttpErrors.BadRequest('This coupon is not valid for your cart');
+    }
+
+    return {
+      coupon: coupon!,
+      discountAmount,
+      couponSnapshot: {
+        id: coupon!.id,
+        code: coupon!.code,
+        title: coupon!.title,
+        discountType: coupon!.discountType,
+        discountValue: Number(coupon!.discountValue || 0),
+        maxDiscountAmount: Number(coupon!.maxDiscountAmount || 0) || undefined,
+        minOrderAmount: Number(coupon!.minOrderAmount || 0) || 0,
+      },
+    };
+  }
 
   private async enrichOrderItems(items: Order['items'] = []): Promise<Order['items']> {
     const sourceItems = Array.isArray(items) ? items : [];
@@ -161,7 +285,7 @@ export class OrderController {
     } as Order;
   }
 
-  private async buildOrderDraft(request: CreateOrderRequest) {
+  private async buildOrderDraft(request: CreateOrderRequest, userId: string) {
     if (!request.cartItems || request.cartItems.length === 0) {
       throw new HttpErrors.BadRequest('Cart is empty');
     }
@@ -193,22 +317,17 @@ export class OrderController {
       }
 
       let availableStock = product.stockQuantity;
-      let itemPrice = product.salePrice || product.price;
-      let itemOriginalPrice = product.price || itemPrice;
       let variantDetails = null;
       let selectedVariant: any = null;
+      let variant = null;
 
       if (item.variantId) {
-        let variant = await this.productVariantRepository
-          .findById(item.variantId)
-          .catch(() => null);
+        variant = await this.productVariantRepository.findById(item.variantId).catch(() => null);
 
         if (!variant && Array.isArray(product.variants)) {
           variant = product.variants.find(v => v.id === item.variantId) || null;
         }
 
-        console.log('Product:', product);
-        console.log('Variant:', variant);
         if (!variant) {
           throw new HttpErrors.NotFound(
             `Variant ${item.variantId} not found for product ${product.name}`,
@@ -218,8 +337,6 @@ export class OrderController {
         selectedVariant = variant;
 
         availableStock = variant.stockQuantity;
-        itemPrice = product.salePrice || variant.price || product.price;
-        itemOriginalPrice = variant.price || product.price || itemPrice;
 
         variantDetails = {
           variantId: variant.id,
@@ -234,6 +351,18 @@ export class OrderController {
           `Insufficient stock for ${product.name}. Available: ${availableStock}, Requested: ${item.quantity}`,
         );
       }
+
+      const itemPrice = resolveCheckoutUnitPrice({
+        requestedPrice: item.price,
+        product,
+        variant,
+      });
+      const itemOriginalPrice = resolveCheckoutOriginalUnitPrice({
+        requestedOriginalPrice: item.originalPrice,
+        requestedPrice: item.price,
+        product,
+        variant,
+      });
 
       const itemSubtotal = itemPrice * item.quantity;
       subtotal += itemSubtotal;
@@ -273,7 +402,13 @@ export class OrderController {
       });
     }
 
-    const discount = request.discount || 0;
+    const couponApplication = await this.validateAppliedCoupon({
+      couponCode: request.couponCode,
+      subtotal,
+      userId,
+      paymentMethod: request.paymentMethod,
+    });
+    const discount = couponApplication ? couponApplication.discountAmount : 0;
     const shipping = request.shipping || 0;
     tax = Number(roundCurrency(tax));
     const total = subtotal - discount;
@@ -286,6 +421,7 @@ export class OrderController {
       orderItems,
       subtotal,
       discount,
+      couponApplication,
       shipping,
       tax,
       total: subtotal - discount,
@@ -1344,7 +1480,7 @@ export class OrderController {
       }
 
       const {subtotal, discount, shipping, tax, total} =
-        await this.buildOrderDraft(request);
+        await this.buildOrderDraft(request, currentUser.id);
       const orderNumber =
         request.orderNumber ||
         (await this.orderRepository.generateOrderNumber(
@@ -1398,8 +1534,8 @@ export class OrderController {
     let transactionCompleted = false;
     try {
       const userId = currentUser.id;
-      const {orderItems, subtotal, discount, shipping, tax, total} =
-        await this.buildOrderDraft(request);
+      const {orderItems, subtotal, discount, couponApplication, shipping, tax, total} =
+        await this.buildOrderDraft(request, userId);
 
       const orderNumber =
         request.orderNumber ||
@@ -1458,6 +1594,9 @@ export class OrderController {
           razorpaySignature,
           subtotal,
           discount,
+          couponId: couponApplication?.coupon.id,
+          couponCode: couponApplication?.coupon.code,
+          couponSnapshot: couponApplication?.couponSnapshot,
           shipping,
           tax,
           total,

@@ -1,6 +1,7 @@
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 // auth
 import { useAuthContext } from 'src/auth/hooks';
+import { useSnackbar } from 'src/components/snackbar';
 // api
 import {
   addCartItem as addCartItemRequest,
@@ -10,6 +11,7 @@ import {
 // redux
 import {
   addToCart,
+  applyCoupon,
   applyDiscount,
   applyShipping,
   createBilling,
@@ -18,11 +20,13 @@ import {
   getCart,
   gotoStep,
   increaseQuantity,
+  removeCoupon,
   resetCart,
   resetCheckoutFlow,
   startBuyNow,
 } from 'src/redux/slices/checkout';
 import { useDispatch, useSelector } from 'src/redux/store';
+import axios, { endpoints } from 'src/utils/axios';
 // utils
 import { calculateCheckoutTotals, findCartItem, isCartItemMatch } from 'src/utils/cart-utils';
 // _mock
@@ -36,8 +40,11 @@ import { paths } from 'src/routes/paths';
 export default function useCheckout() {
   const dispatch = useDispatch();
   const { authenticated, user } = useAuthContext();
+  const { enqueueSnackbar } = useSnackbar();
 
   const router = useRouter();
+  const [couponLoading, setCouponLoading] = useState(false);
+  const [couponError, setCouponError] = useState('');
 
   const checkout = useSelector((state) => state.checkout);
   const checkoutItems = checkout.buyNowItem ? [checkout.buyNowItem] : checkout.cart;
@@ -267,6 +274,72 @@ export default function useCheckout() {
     [checkoutSession.cart.length, dispatch]
   );
 
+  const onApplyCoupon = useCallback(
+    async (code, paymentMethod) => {
+      if (!checkoutSession.eligibleCart.length) {
+        return;
+      }
+
+      const normalizedCode = String(code || '').trim();
+
+      if (!normalizedCode) {
+        setCouponError('Please enter a coupon code');
+        return;
+      }
+
+      try {
+        setCouponLoading(true);
+        setCouponError('');
+
+        const response = await axios.post(endpoints.coupons.validate, {
+          code: normalizedCode,
+          userId: user?.id,
+          paymentMethod,
+          cartItems: checkoutSession.eligibleCart.map((item) => ({
+            productId: item.productId || item.id,
+            variantId: item.variantId || undefined,
+            quantity: item.quantity,
+            price: item.price,
+          })),
+        });
+
+        const coupon = response.data?.coupon || {};
+        const discountAmount = Number(response.data?.discountAmount || 0);
+
+        dispatch(
+          applyCoupon({
+            discount: discountAmount,
+            coupon: {
+              ...coupon,
+              discountAmount,
+            },
+          })
+        );
+
+        enqueueSnackbar(`${coupon.code || normalizedCode} applied successfully`, {
+          variant: 'success',
+        });
+      } catch (error) {
+        const message =
+          error?.response?.data?.error?.message ||
+          error?.response?.data?.message ||
+          error?.message ||
+          'Failed to apply coupon';
+        setCouponError(message);
+        enqueueSnackbar(message, { variant: 'error' });
+      } finally {
+        setCouponLoading(false);
+      }
+    },
+    [checkoutSession.eligibleCart, dispatch, enqueueSnackbar, user?.id]
+  );
+
+  const onRemoveCoupon = useCallback(() => {
+    dispatch(removeCoupon());
+    setCouponError('');
+    enqueueSnackbar('Coupon removed', { variant: 'info' });
+  }, [dispatch, enqueueSnackbar]);
+
   const onApplyShipping = useCallback(
     (value) => {
       dispatch(applyShipping(value));
@@ -304,9 +377,13 @@ export default function useCheckout() {
     onResetBilling,
     onCreateBilling,
     onApplyDiscount,
+    onApplyCoupon,
+    onRemoveCoupon,
     onApplyShipping,
     onIncreaseQuantity,
     onDecreaseQuantity,
     onResetCheckoutFlow,
+    couponLoading,
+    couponError,
   };
 }

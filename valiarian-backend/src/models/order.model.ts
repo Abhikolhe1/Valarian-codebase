@@ -57,6 +57,16 @@ export interface ReturnRequestImages {
   additionalImages?: string[];
 }
 
+export interface OrderCouponSnapshot {
+  id: string;
+  code: string;
+  title: string;
+  discountType: 'percentage' | 'fixed';
+  discountValue: number;
+  maxDiscountAmount?: number;
+  minOrderAmount?: number;
+}
+
 @model({
   settings: {
     postgresql: {
@@ -223,6 +233,24 @@ export class Order extends Entity {
     },
   })
   discount: number;
+
+  @property({
+    type: 'string',
+  })
+  couponId?: string;
+
+  @property({
+    type: 'string',
+  })
+  couponCode?: string;
+
+  @property({
+    type: 'object',
+    postgresql: {
+      dataType: 'jsonb',
+    },
+  })
+  couponSnapshot?: OrderCouponSnapshot;
 
   @property({
     type: 'number',
