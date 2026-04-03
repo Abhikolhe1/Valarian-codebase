@@ -18,9 +18,15 @@ export default function HomeCollectionHero({ imageSrc, videoSrc, cmsData, ...oth
   // Use CMS data if available
   const title = cmsData?.content?.title || 'COLLECTION';
   const subtitle = cmsData?.content?.subtitle || 'Explore our latest designs';
-  const backgroundImage = cmsData?.content?.backgroundImage || imageSrc || '/assets/images/home/new-arrival/new-arrival-hero.jpeg';
+  const ctaText = cmsData?.content?.ctaText || 'View All';
+  const ctaLink = cmsData?.content?.ctaLink || paths.product.root;
+  const backgroundVideo = cmsData?.content?.backgroundVideo || videoSrc;
+  const backgroundImage =
+    cmsData?.content?.backgroundImage ||
+    imageSrc ||
+    '/assets/images/home/new-arrival/new-arrival-hero.jpeg';
 
-  const hasVideo = Boolean(videoSrc);
+  const hasVideo = Boolean(backgroundVideo);
   const hasImage = Boolean(backgroundImage);
 
   const renderMedia = () => {
@@ -47,8 +53,8 @@ export default function HomeCollectionHero({ imageSrc, videoSrc, cmsData, ...oth
             e.currentTarget.style.display = 'none';
           }}
         >
-          <source src={videoSrc} type="video/mp4" />
-          <source src={videoSrc} type="video/webm" />
+          <source src={backgroundVideo} type="video/mp4" />
+          <source src={backgroundVideo} type="video/webm" />
           Your browser does not support the video tag.
         </Box>
       );
@@ -169,7 +175,7 @@ export default function HomeCollectionHero({ imageSrc, videoSrc, cmsData, ...oth
                     <m.div variants={varFade().in}>
                       <Button
                         component={RouterLink}
-                        href={paths.product.root}
+                        href={ctaLink}
                         size="large"
                         variant="outlined"
                         sx={{
@@ -188,7 +194,7 @@ export default function HomeCollectionHero({ imageSrc, videoSrc, cmsData, ...oth
                           },
                         }}
                       >
-                        View All
+                        {ctaText}
                       </Button>
                     </m.div>
                   </Grid>
@@ -210,6 +216,9 @@ HomeCollectionHero.propTypes = {
       title: PropTypes.string,
       subtitle: PropTypes.string,
       backgroundImage: PropTypes.string,
+      backgroundVideo: PropTypes.string,
+      ctaText: PropTypes.string,
+      ctaLink: PropTypes.string,
     }),
   }),
 };

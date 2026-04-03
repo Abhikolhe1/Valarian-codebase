@@ -28,6 +28,7 @@ export default function HomeBestSellers({ cmsData, ...other }) {
   // Use CMS data for title and subtitle
   const title = cmsData?.content?.title || 'Best Sellers';
   const subtitle = cmsData?.content?.subtitle || 'Our most beloved pieces, chosen by customers for their exceptional quality and timeless appeal.';
+  const backgroundColor = cmsData?.settings?.backgroundColor || 'background.default';
 
   // Carousel logic - Max 3 cards
   const totalProducts = products?.length || 0;
@@ -75,7 +76,7 @@ export default function HomeBestSellers({ cmsData, ...other }) {
       sx={{
         position: 'relative',
         width: '100%',
-        bgcolor: 'background.default',
+        bgcolor: backgroundColor,
         zIndex: 1,
         display: totalProducts === 0 && !isLoading ? 'none' : 'block',
       }}
@@ -229,6 +230,9 @@ HomeBestSellers.propTypes = {
     content: PropTypes.shape({
       title: PropTypes.string,
       subtitle: PropTypes.string,
+    }),
+    settings: PropTypes.shape({
+      backgroundColor: PropTypes.string,
     }),
   }),
 };
