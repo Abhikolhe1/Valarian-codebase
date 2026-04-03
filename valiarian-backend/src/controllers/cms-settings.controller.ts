@@ -68,6 +68,11 @@ const defaultThemeSettings = {
   },
 };
 
+const defaultHeaderSettings = {
+  categoryMegaMenuPlaceholderImage:
+    'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRUHOpowQpT8ZqJLNRZ1LIcQlmsAd1aPqugpg&s',
+};
+
 const defaultOffersSettings = {
   marquee: [
     {text: 'Flat 20% off on premium polos'},
@@ -118,6 +123,7 @@ export class CMSSettingsController {
         contactPage: defaultContactPage,
         legalDocuments: defaultLegalDocuments,
         theme: defaultThemeSettings,
+        header: defaultHeaderSettings,
         offers: defaultOffersSettings,
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -149,6 +155,10 @@ export class CMSSettingsController {
         ...defaultThemeSettings.secondary,
         ...(settings.theme?.secondary || {}),
       },
+    };
+    settings.header = {
+      ...defaultHeaderSettings,
+      ...(settings.header || {}),
     };
     settings.offers = {
       ...defaultOffersSettings,
@@ -263,6 +273,12 @@ export class CMSSettingsController {
                       contrastText: {type: 'string'},
                     },
                   },
+                },
+              },
+              header: {
+                type: 'object',
+                properties: {
+                  categoryMegaMenuPlaceholderImage: {type: 'string'},
                 },
               },
               offers: {

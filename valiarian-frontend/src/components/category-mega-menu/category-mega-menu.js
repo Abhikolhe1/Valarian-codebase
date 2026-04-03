@@ -19,6 +19,7 @@ import { bgBlur } from 'src/theme/css';
 import { useGetCategories, useGetCategoryTree } from 'src/api/category';
 // components
 import Skeleton from '@mui/material/Skeleton';
+import { useSiteSettings } from 'src/hooks/use-site-settings';
 
 // ----------------------------------------------------------------------
 
@@ -159,7 +160,9 @@ const PreviewImage = styled('img')(() => ({
 
 // Default placeholder images
 const PLACEHOLDER_IMAGE =
-  'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRUHOpowQpT8ZqJLNRZ1LIcQlmsAd1aPqugpg&s';
+  (typeof window !== 'undefined' &&
+    window.siteSettings?.header?.categoryMegaMenuPlaceholderImage) ||
+  '';
 
 // ... rest of styled components remain same until DEFAULT_CATEGORY_GROUPS ...
 
@@ -186,8 +189,10 @@ export default function CategoryMegaMenu({
   defaultImage = DEFAULT_IMAGE,
   isTransparent = false,
 }) {
+  const { settings } = useSiteSettings();
   const { categories = [] } = useGetCategories(open);
   const { categoryTree = [], treeLoading } = useGetCategoryTree(open);
+  const fallbackImage = settings?.header?.categoryMegaMenuPlaceholderImage || defaultImage;
 
   const pathname = usePathname();
   const [hoveredSubcategory, setHoveredSubcategory] = useState(null);
@@ -298,7 +303,7 @@ export default function CategoryMegaMenu({
   useEffect(() => {
     if (open && categoryGroups.length > 0) {
       const imagesToPreload = [
-        defaultImage,
+        fallbackImage,
         ...categoryGroups.flatMap((group) => group.subcategories.map((sub) => sub.image)),
       ].filter(Boolean);
 
@@ -311,7 +316,7 @@ export default function CategoryMegaMenu({
         }
       });
     }
-  }, [open, defaultImage, categoryGroups]);
+  }, [open, fallbackImage, categoryGroups]);
 
   const handleSubcategoryHover = useCallback((subcategory, groupName) => {
     if (timeoutRef.current) {
@@ -339,7 +344,7 @@ export default function CategoryMegaMenu({
   const previewData = hoveredSubcategory || {
     name: categoryGroups[0]?.subcategories[0]?.name || '',
     groupName: categoryGroups[0]?.group || '',
-    image: defaultImage,
+    image: fallbackImage,
   };
 
   // 🔹 derive title
@@ -352,7 +357,7 @@ export default function CategoryMegaMenu({
   const [titleVisible, setTitleVisible] = useState(true);
 
   // 🔹 image animation state
-  const [displayImage, setDisplayImage] = useState(hoveredSubcategory?.image || defaultImage);
+  const [displayImage, setDisplayImage] = useState(hoveredSubcategory?.image || fallbackImage);
   const [imageVisible, setImageVisible] = useState(true);
 
   useEffect(() => {
@@ -372,13 +377,13 @@ export default function CategoryMegaMenu({
     setImageVisible(false);
 
     const timeout = setTimeout(() => {
-      const newImage = hoveredSubcategory ? hoveredSubcategory.image : defaultImage;
+      const newImage = hoveredSubcategory ? hoveredSubcategory.image : fallbackImage;
       setDisplayImage(newImage);
       setImageVisible(true);
     }, 150);
 
     return () => clearTimeout(timeout);
-  }, [hoveredSubcategory, defaultImage, open]);
+  }, [hoveredSubcategory, fallbackImage, open]);
 
   const renderCategoryListContent = () => {
     if (treeLoading) {

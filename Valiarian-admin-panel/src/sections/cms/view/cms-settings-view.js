@@ -66,6 +66,11 @@ const TABS = [
     icon: 'solar:pallete-2-bold',
   },
   {
+    value: 'header',
+    label: 'Header',
+    icon: 'solar:gallery-bold',
+  },
+  {
     value: 'offers',
     label: 'Offers',
     icon: 'solar:ticket-sale-bold',
@@ -152,6 +157,11 @@ export default function CMSSettingsView() {
           contrastText: siteSettings?.theme?.secondary?.contrastText || '#FFFFFF',
         },
       },
+      header: {
+        categoryMegaMenuPlaceholderImage:
+          siteSettings?.header?.categoryMegaMenuPlaceholderImage ||
+          'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRUHOpowQpT8ZqJLNRZ1LIcQlmsAd1aPqugpg&s',
+      },
       offers: {
         marquee: siteSettings?.offers?.marquee?.length
           ? siteSettings.offers.marquee
@@ -234,6 +244,11 @@ export default function CMSSettingsView() {
         darker: String(data.theme?.secondary?.darker || '').trim(),
         contrastText: String(data.theme?.secondary?.contrastText || '').trim(),
       },
+    },
+    header: {
+      categoryMegaMenuPlaceholderImage: String(
+        data.header?.categoryMegaMenuPlaceholderImage || ''
+      ).trim(),
     },
     offers: {
       marquee: (data.offers?.marquee || [])
@@ -872,6 +887,26 @@ export default function CMSSettingsView() {
     </Stack>
   );
 
+  const renderHeader = (
+    <Stack spacing={3}>
+      <Typography variant="h6">Header Settings</Typography>
+
+      <Typography variant="body2" color="text.secondary">
+        Manage the fallback image used in the storefront category mega menu.
+      </Typography>
+
+      <CMSMediaPickerField
+        label="Mega Menu Placeholder Image"
+        value={values.header?.categoryMegaMenuPlaceholderImage}
+        onChange={(url) => setValue('header.categoryMegaMenuPlaceholderImage', url)}
+        helperText="This image is shown in the category mega menu when no category-specific preview image is set."
+        accept={{
+          'image/*': ['.png', '.jpg', '.jpeg', '.svg', '.webp'],
+        }}
+      />
+    </Stack>
+  );
+
   const renderOffers = (
     <Stack spacing={3}>
       <Typography variant="h6">Offer Marquee</Typography>
@@ -969,6 +1004,7 @@ export default function CMSSettingsView() {
                 {currentTab === 'contact' && renderContact}
                 {currentTab === 'legal' && renderLegal}
                 {currentTab === 'theme' && renderTheme}
+                {currentTab === 'header' && renderHeader}
                 {currentTab === 'offers' && renderOffers}
 
                 <Stack direction="row" justifyContent="flex-end" sx={{ mt: 4 }}>

@@ -37,6 +37,10 @@
         contrastText: '#FFFFFF'
       }
     },
+    header: {
+      categoryMegaMenuPlaceholderImage:
+        'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRUHOpowQpT8ZqJLNRZ1LIcQlmsAd1aPqugpg&s'
+    },
     offers: {
       marquee: [
         { text: 'Flat 20% off on premium polos' },

@@ -51,6 +51,10 @@ export interface ThemeSettings {
   secondary?: ThemePaletteColorSettings;
 }
 
+export interface HeaderSettings {
+  categoryMegaMenuPlaceholderImage?: string;
+}
+
 export interface MarqueeOfferItem {
   text: string;
 }
@@ -160,6 +164,14 @@ export class SiteSettings extends Entity {
     },
   })
   theme?: ThemeSettings;
+
+  @property({
+    type: 'object',
+    postgresql: {
+      dataType: 'jsonb',
+    },
+  })
+  header?: HeaderSettings;
 
   @property({
     type: 'object',
