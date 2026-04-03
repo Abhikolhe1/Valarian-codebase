@@ -96,11 +96,11 @@ function normalizeVariants(variants = []) {
     };
   });
 
-  const defaultVariants = normalizedVariants.filter((variant) => variant.isDefault);
+  const defaultVariant = [...normalizedVariants].reverse().find((variant) => variant.isDefault);
 
   return normalizedVariants.map((variant, index) => ({
     ...variant,
-    isDefault: defaultVariants.length > 0 ? variant.id === defaultVariants[0].id : index === 0,
+    isDefault: defaultVariant ? variant.id === defaultVariant.id : index === 0,
   }));
 }
 
@@ -385,6 +385,13 @@ export default function ProductVariantManager({ variants = [], onChange, product
       } else {
         updatedVariants = [...variants, variantData];
         enqueueSnackbar('Variant added successfully', { variant: 'success' });
+      }
+
+      if (variantData.isDefault) {
+        updatedVariants = updatedVariants.map((variant) => ({
+          ...variant,
+          isDefault: variant.id === variantData.id,
+        }));
       }
 
       onChange(normalizeVariants(updatedVariants));
