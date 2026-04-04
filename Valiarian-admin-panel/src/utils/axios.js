@@ -122,6 +122,7 @@ export const endpoints = {
     pages: {
       list: '/api/cms/pages',
       details: (id) => `/api/cms/pages/${id}`,
+      delete: (id) => `/api/cms/pages/${id}`,
       bySlug: (slug) => `/api/cms/pages/${slug}`,
       publish: (id) => `/api/cms/pages/${id}/publish`,
       duplicate: (id) => `/api/cms/pages/${id}/duplicate`,

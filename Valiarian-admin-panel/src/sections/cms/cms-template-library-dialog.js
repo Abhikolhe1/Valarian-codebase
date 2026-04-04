@@ -21,6 +21,7 @@ import EmptyContent from 'src/components/empty-content';
 import Iconify from 'src/components/iconify';
 import { LoadingScreen } from 'src/components/loading-screen';
 import { useSnackbar } from 'src/components/snackbar';
+import axiosInstance, { endpoints } from 'src/utils/axios';
 //
 import CMSTemplatePreviewDialog from './cms-template-preview-dialog';
 
@@ -86,13 +87,8 @@ export default function CMSTemplateLibraryDialog({ open, onClose, onSelect }) {
   const fetchTemplates = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await fetch('http://localhost:3035/api/cms/templates?grouped=true');
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch templates');
-      }
-
-      const data = await response.json();
+      const response = await axiosInstance.get(`${endpoints.cms.templates.list}?grouped=true`);
+      const data = response.data;
       setGroupedTemplates(data);
 
       // Flatten for 'all' tab

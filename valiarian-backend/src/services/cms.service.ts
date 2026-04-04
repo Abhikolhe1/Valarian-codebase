@@ -442,6 +442,19 @@ export class CMSService {
   }
 
   /**
+   * Delete a page and all CMS records that belong to it.
+   * Removes sections first, then version history, then the page record.
+   * @param pageId - The page ID to delete
+   */
+  async deletePage(pageId: string): Promise<void> {
+    await this.pageRepository.findById(pageId);
+
+    await this.sectionRepository.deleteAll({pageId});
+    await this.contentVersionRepository.deleteAll({pageId});
+    await this.pageRepository.deleteById(pageId);
+  }
+
+  /**
    * Reorder sections for a page
    * Updates the order field for multiple sections in a single operation
    * @param sectionOrders - Array of objects with sectionId and new order

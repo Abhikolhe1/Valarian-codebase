@@ -29,6 +29,7 @@ import { useSnackbar } from 'src/components/snackbar';
 import { useBoolean } from 'src/hooks/use-boolean';
 // utils
 import { fDateTime } from 'src/utils/format-time';
+import axiosInstance, { endpoints } from 'src/utils/axios';
 
 // ----------------------------------------------------------------------
 
@@ -50,14 +51,8 @@ export default function CMSVersionHistoryDialog({ open, onClose, pageId, onRever
 
     try {
       setLoading(true);
-      const response = await fetch(`http://localhost:3035/api/cms/pages/${pageId}/versions`);
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch versions');
-      }
-
-      const data = await response.json();
-      setVersions(data);
+      const response = await axiosInstance.get(endpoints.cms.pages.versions(pageId));
+      setVersions(response.data?.versions || response.data || []);
     } catch (error) {
       console.error('Error fetching versions:', error);
       enqueueSnackbar('Failed to load version history', { variant: 'error' });
@@ -77,24 +72,14 @@ export default function CMSVersionHistoryDialog({ open, onClose, pageId, onRever
 
     try {
       setIsReverting(true);
-      const response = await fetch(
-        `http://localhost:3035/api/cms/pages/${pageId}/revert/${selectedVersion.version}`,
+      const response = await axiosInstance.post(
+        endpoints.cms.pages.revert(pageId, selectedVersion.version),
         {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            comment: revertComment || `Reverted to version ${selectedVersion.version}`,
-          }),
+          comment: revertComment || `Reverted to version ${selectedVersion.version}`,
         }
       );
 
-      if (!response.ok) {
-        throw new Error('Failed to revert to version');
-      }
-
-      const revertedPage = await response.json();
+      const revertedPage = response.data;
       enqueueSnackbar(`Successfully reverted to version ${selectedVersion.version}`, {
         variant: 'success',
       });
