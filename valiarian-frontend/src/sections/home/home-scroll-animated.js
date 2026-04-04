@@ -1,625 +1,148 @@
 import { AnimatePresence, m, useScroll, useSpring, useTransform } from 'framer-motion';
 import PropTypes from 'prop-types';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 // @mui
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Container from '@mui/material/Container';
 import Stack from '@mui/material/Stack';
-import { useTheme } from '@mui/material/styles';
 import Typography from '@mui/material/Typography';
-import useMediaQuery from '@mui/material/useMediaQuery';
-// components
-import Image from 'src/components/image';
+import { alpha, useTheme } from '@mui/material/styles';
 import { RouterLink } from 'src/routes/components';
 import { paths } from 'src/routes/paths';
 
 // ----------------------------------------------------------------------
 
-// Sample product data - replace with your actual data
+const HOLD_PORTION = 0.62;
+const FINAL_CARD_HOLD_PORTION = 0.16;
+
 const PRODUCTS = [
   {
     id: 1,
     title: 'Premium Classic T-Shirt',
-    description: 'Crafted with premium cotton for ultimate comfort and style. Perfect for everyday wear.Crafted with premium cotton for ultimate comfort and style. Perfect for everyday wear.Crafted with premium cotton for ultimate comfort and style. Perfect for everyday wear.',
+    description:
+      'Crafted with premium cotton for ultimate comfort and style. Perfect for everyday wear with a polished finish.',
     image: '/assets/images/home/scroll-animation/tshirt1-removebg-preview.png',
     buttonText: 'Shop Now',
     buttonLink: paths.product.root,
+    accent: '#D97706',
+    imageFit: 'contain',
   },
   {
     id: 2,
     title: 'Essential Comfort Fit',
-    description: 'Experience the perfect blend of comfort and durability. Made to last, designed to impress.',
+    description:
+      'Experience the perfect blend of comfort and durability. Made to last, designed to impress from every angle.',
     image: '/assets/images/home/scroll-animation/tshirt2-removebg-preview.png',
     buttonText: 'Explore',
     buttonLink: paths.product.root,
+    accent: '#B91C1C',
+    imageFit: 'contain',
   },
   {
     id: 3,
     title: 'Modern Fit Premium',
-    description: 'Contemporary design meets classic elegance. Elevate your wardrobe with this timeless piece.',
+    description:
+      'Contemporary design meets classic elegance. Elevate your wardrobe with a silhouette made for all-day confidence.',
     image: '/assets/images/home/scroll-animation/tshirt3-removebg-preview.png',
     buttonText: 'Discover',
     buttonLink: paths.product.root,
+    accent: '#0F766E',
+    imageFit: 'contain',
   },
   {
     id: 4,
     title: 'Signature Collection',
-    description: 'Our signature piece that defines quality and style. A must-have for the modern wardrobe.',
+    description:
+      'Our signature piece defines quality and style with premium texture, clean finishing, and a timeless visual identity.',
     image: '/assets/images/home/scroll-animation/tshirt2-removebg-preview.png',
     buttonText: 'View Collection',
     buttonLink: paths.product.root,
+    accent: '#1D4ED8',
+    imageFit: 'contain',
   },
 ];
 
-// ----------------------------------------------------------------------
+function mapProgressToIndex(progress, itemCount) {
+  if (itemCount <= 1) {
+    return 0;
+  }
 
-// Image item component - separate component to use hooks properly
-function ImageItem({ product, index: imageIndex, smoothIndex, isMobile }) {
-  // Determine if this image is the main (active) or blurred (next) image
-  const isMainImage = useTransform(
-    smoothIndex,
-    (latest) => Math.abs(latest - imageIndex) < 0.5
-  );
+  const clampedProgress = Math.min(Math.max(progress, 0), 1);
 
-  const isNextImage = useTransform(
-    smoothIndex,
-    (latest) => latest > imageIndex && latest < imageIndex + 1
-  );
+  if (clampedProgress >= 1 - FINAL_CARD_HOLD_PORTION) {
+    return itemCount - 1;
+  }
 
-  // Calculate opacity
-  // Main image: full opacity (1)
-  // Next blurred image (imageIndex + 1): low opacity (0.3-0.4), fades in as it transitions
-  // Others: invisible (0)
-  const opacity = useTransform(
-    smoothIndex,
-    (latest) => {
-      const currentIndex = Math.floor(latest);
-      const nextIndex = currentIndex + 1;
+  const adjustedProgress = clampedProgress / (1 - FINAL_CARD_HOLD_PORTION);
+  const segments = itemCount - 1;
+  const scaled = adjustedProgress * segments;
+  const segmentIndex = Math.min(Math.floor(scaled), segments - 1);
+  const segmentProgress = scaled - segmentIndex;
 
-      // This is the main/active image (currentIndex)
-      if (imageIndex === currentIndex) {
-        const progress = latest - currentIndex;
-        // Fade out as it transitions out
-        return Math.max(0, 1 - progress * 2);
-      }
+  if (segmentProgress <= HOLD_PORTION) {
+    return segmentIndex;
+  }
 
-      // This is the NEXT image (nextIndex) that should be visible in background
-      if (imageIndex === nextIndex) {
-        const progress = latest - currentIndex;
-        // Starts at low opacity when visible, increases as it becomes main
-        if (progress < 0) return 0; // Not visible yet
-        return Math.min(1, 0.3 + progress * 0.7); // 0.3 to 1.0
-      }
-
-      return 0;
-    }
-  );
-
-  // Calculate scale
-  // Main image: larger scale (1.2-1.3 for bigger size)
-  // Next blurred image (imageIndex + 1): smaller scale (0.5-0.6), scales up as it transitions
-  const scale = useTransform(
-    smoothIndex,
-    (latest) => {
-      const currentIndex = Math.floor(latest);
-      const nextIndex = currentIndex + 1;
-
-      // This is the main/active image (currentIndex)
-      if (imageIndex === currentIndex) {
-        const progress = latest - currentIndex;
-        const mainScale = isMobile ? 1.15 : 1.25;
-        // Scale down slightly as it transitions out
-        return Math.max(0.85, mainScale - progress * (mainScale - 0.85) * 0.15);
-      }
-
-      // This is the NEXT image (nextIndex) coming forward
-      if (imageIndex === nextIndex) {
-        const progress = latest - currentIndex;
-        const startScale = isMobile ? 0.6 : 0.5;
-        const endScale = isMobile ? 1.15 : 1.25;
-        if (progress < 0) return startScale; // Start at small scale
-        return startScale + Math.min(1, progress) * (endScale - startScale);
-      }
-
-      return isMobile ? 0.6 : 0.5; // Smaller default scale
-    }
-  );
-
-  // Calculate blur
-  // Main image: no blur (0)
-  // Next blurred image (imageIndex + 1): blurred (8-12px), blur decreases as it transitions
-  const blur = useTransform(
-    smoothIndex,
-    (latest) => {
-      const currentIndex = Math.floor(latest);
-      const nextIndex = currentIndex + 1;
-
-      // This is the main/active image (currentIndex)
-      if (imageIndex === currentIndex) {
-        const progress = latest - currentIndex;
-        // Slight blur as it fades out
-        return progress * 4;
-      }
-
-      // This is the NEXT image (nextIndex) coming forward
-      if (imageIndex === nextIndex) {
-        const progress = latest - currentIndex;
-        const startBlur = isMobile ? 8 : 12;
-        // Blur decreases as it becomes main
-        if (progress < 0) return startBlur; // Start blurred
-        return startBlur - Math.min(1, progress) * startBlur; // 12px to 0px
-      }
-
-      return isMobile ? 8 : 12;
-    }
-  );
-
-  // Calculate z-index
-  // Main image: highest z-index (10)
-  // Next image (imageIndex + 1): lower z-index (5), increases as it becomes main
-  const zIndex = useTransform(
-    smoothIndex,
-    (latest) => {
-      const currentIndex = Math.floor(latest);
-      const nextIndex = currentIndex + 1;
-
-      // This is the main/active image (currentIndex)
-      if (imageIndex === currentIndex) {
-        return 10; // On top
-      }
-
-      // This is the NEXT image (nextIndex) coming forward
-      if (imageIndex === nextIndex) {
-        const progress = latest - currentIndex;
-        // Z-index increases as it becomes main
-        if (progress < 0) return 5; // Start behind
-        return 5 + Math.round(Math.min(1, progress) * 5); // 5 to 10
-      }
-
-      return 1;
-    }
-  );
-
-  // Calculate filter string from blur value
-  const filter = useTransform(blur, (b) => `blur(${b}px)`);
-
-  // Position calculation based on provided CSS
-  // Desktop: Main image: top: 30%, left: 16%, translateX(-30%), translateY(0%)
-  // Desktop: Blurred image: top: 8%, left: 50%, translateX(-29.9%), translateY(-0.05%)
-  // Mobile: Main image: centered (top: 50%, left: 50%, translateX(-50%), translateY(-50%))
-  // Mobile: Blurred image: right side, slightly top (top: 10%, right: 10%)
-
-  const positionTop = useTransform(
-    smoothIndex,
-    (latest) => {
-      const currentIndex = Math.floor(latest);
-      const nextIndex = currentIndex + 1;
-
-      // This is the main/active image (currentIndex)
-      if (imageIndex === currentIndex) {
-        if (isMobile) {
-          return '50%'; // Centered vertically on mobile
-        }
-        return '30%'; // Desktop: top: 30%
-      }
-
-      // This is the NEXT image (nextIndex) coming forward
-      if (imageIndex === nextIndex) {
-        const progress = latest - currentIndex;
-        if (isMobile) {
-          // Mobile: from top: 10% to top: 50%
-          const startTop = 10;
-          const endTop = 50;
-          const currentTop = startTop + (endTop - startTop) * progress;
-          return `${currentTop}%`;
-        }
-        // Desktop: from top: 8% to top: 30%
-        const startTop = 8;
-        const endTop = 30;
-        const currentTop = startTop + (endTop - startTop) * progress;
-        return `${currentTop}%`;
-      }
-
-      // Default: blurred image position (for next image when visible)
-      if (imageIndex === nextIndex) {
-        return isMobile ? '10%' : '8%';
-      }
-
-      return '0%';
-    }
-  );
-
-  const positionLeft = useTransform(
-    smoothIndex,
-    (latest) => {
-      const currentIndex = Math.floor(latest);
-      const nextIndex = currentIndex + 1;
-
-      // This is the main/active image (currentIndex)
-      if (imageIndex === currentIndex) {
-        if (isMobile) {
-          return '50%'; // Centered horizontally on mobile
-        }
-        return '16%'; // Desktop: left: 16%
-      }
-
-      // This is the NEXT image (nextIndex) coming forward
-      if (imageIndex === nextIndex) {
-        const progress = latest - currentIndex;
-        if (isMobile) {
-          // Mobile: from right: 10% (left: auto, right: 10%) to left: 50%
-          // For mobile, we'll use left positioning transitioning from ~85% to 50%
-          const startLeft = 85; // Approximate right: 10% position
-          const endLeft = 50;
-          const currentLeft = startLeft + (endLeft - startLeft) * Math.min(1, Math.max(0, progress));
-          return `${currentLeft}%`;
-        }
-        // Desktop: from left: 50% to left: 16%
-        const startLeft = 50;
-        const endLeft = 16;
-        const currentLeft = startLeft + (endLeft - startLeft) * Math.min(1, Math.max(0, progress));
-        return `${currentLeft}%`;
-      }
-
-      // Default: blurred image position (for next image when visible)
-      if (imageIndex === nextIndex) {
-        if (isMobile) {
-          return '85%'; // Right side on mobile (approximate)
-        }
-        return '50%'; // Desktop
-      }
-
-      return '0%';
-    }
-  );
-
-  const positionRight = useTransform(
-    smoothIndex,
-    (latest) => {
-      if (!isMobile) return 'auto'; // Desktop uses left positioning
-
-      const currentIndex = Math.floor(latest);
-      const nextIndex = currentIndex + 1;
-
-      // This is the main/active image (currentIndex)
-      if (imageIndex === currentIndex) {
-        return 'auto'; // Centered, use left instead
-      }
-
-      // This is the NEXT image (nextIndex) coming forward
-      if (imageIndex === nextIndex) {
-        const progress = latest - currentIndex;
-        if (progress < 0.5 && progress >= 0) {
-          return '10%'; // Still on right side
-        }
-        return 'auto'; // Switch to left positioning
-      }
-
-      // Default: blurred image on right (for next image when visible)
-      if (imageIndex === nextIndex) {
-        return '10%';
-      }
-
-      return 'auto';
-    }
-  );
-
-  const translateX = useTransform(
-    smoothIndex,
-    (latest) => {
-      const currentIndex = Math.floor(latest);
-      const nextIndex = currentIndex + 1;
-
-      // This is the main/active image (currentIndex)
-      if (imageIndex === currentIndex) {
-        if (isMobile) {
-          return '-50%'; // Centered on mobile
-        }
-        return '-30%'; // Desktop: translateX(-30%)
-      }
-
-      // This is the NEXT image (nextIndex) coming forward
-      if (imageIndex === nextIndex) {
-        const progress = latest - currentIndex;
-        if (isMobile) {
-          // Mobile: from ~0% to -50%
-          const startX = 0;
-          const endX = -50;
-          const currentX = startX + (endX - startX) * Math.min(1, Math.max(0, progress));
-          return `${currentX}%`;
-        }
-        // Desktop: from translateX(-29.9%) to translateX(-30%)
-        const startX = -29.9;
-        const endX = -30;
-        const currentX = startX + (endX - startX) * Math.min(1, Math.max(0, progress));
-        return `${currentX}%`;
-      }
-
-      // Default: blurred image translateX (for next image when visible)
-      if (imageIndex === nextIndex) {
-        if (isMobile) {
-          return '0%'; // Right side positioning on mobile
-        }
-        return '-29.9%'; // Desktop
-      }
-
-      return '0%';
-    }
-  );
-
-  const translateY = useTransform(
-    smoothIndex,
-    (latest) => {
-      const currentIndex = Math.floor(latest);
-      const nextIndex = currentIndex + 1;
-
-      // This is the main/active image (currentIndex)
-      if (imageIndex === currentIndex) {
-        if (isMobile) {
-          return '-50%'; // Centered on mobile
-        }
-        return '0%'; // Desktop: translateY(0%)
-      }
-
-      // This is the NEXT image (nextIndex) coming forward
-      if (imageIndex === nextIndex) {
-        const progress = latest - currentIndex;
-        if (isMobile) {
-          // Mobile: from slight top to center
-          const startY = -5; // Slightly top
-          const endY = -50;
-          const currentY = startY + (endY - startY) * Math.min(1, Math.max(0, progress));
-          return `${currentY}%`;
-        }
-        // Desktop: from translateY(-0.05%) to translateY(0%)
-        const startY = -0.05;
-        const endY = 0;
-        const currentY = startY + (endY - startY) * Math.min(1, Math.max(0, progress));
-        return `${currentY}%`;
-      }
-
-      // Default: blurred image translateY (for next image when visible)
-      if (imageIndex === nextIndex) {
-        if (isMobile) {
-          return '-5%'; // Slightly top on mobile
-        }
-        return '-0.05%'; // Desktop
-      }
-
-      return '0%';
-    }
-  );
-
-  // Calculate max size based on whether it's main or next image
-  const maxSize = useTransform(
-    smoothIndex,
-    (latest) => {
-      const currentIndex = Math.floor(latest);
-      const nextIndex = currentIndex + 1;
-
-      // This is the main/active image (currentIndex)
-      if (imageIndex === currentIndex) {
-        return '85%'; // Main image: max-width/max-height: 85%
-      }
-
-      // This is the NEXT image (nextIndex) coming forward
-      if (imageIndex === nextIndex && latest >= currentIndex && latest < nextIndex + 0.5) {
-        return '40%'; // Blurred image: max-width/max-height: 40%
-      }
-
-      // Default for next image
-      if (imageIndex === nextIndex) {
-        return '40%';
-      }
-
-      return '40%';
-    }
-  );
-
-  // Calculate width for main image (350px)
-  const imageWidth = useTransform(
-    smoothIndex,
-    (latest) => {
-      const currentIndex = Math.floor(latest);
-
-      // This is the main/active image (currentIndex)
-      if (imageIndex === currentIndex) {
-        return '350px'; // Main image: width: 350px
-      }
-
-      return 'auto'; // Blurred image: width: auto
-    }
-  );
-
-  return (
-    <Box
-      component={m.div}
-      style={{
-        position: 'absolute',
-        top: positionTop,
-        left: isMobile ? positionLeft : positionLeft,
-        right: isMobile ? positionRight : 'auto',
-        width: imageWidth,
-        height: 'auto',
-        opacity,
-        scale,
-        zIndex,
-        x: translateX,
-        y: translateY,
-        filter,
-        transformOrigin: 'center center',
-        maxWidth: maxSize,
-        maxHeight: maxSize,
-      }}
-      sx={{
-        willChange: 'transform, opacity, filter, max-width, max-height, top, left, right, width',
-      }}
-    >
-      <Image
-        src={product.image}
-        alt={product.title}
-        disabledEffect
-        sx={{
-          width: '100%',
-          height: '100%',
-          objectFit: 'contain',
-          display: 'block',
-        }}
-      />
-    </Box>
-  );
+  const transitionProgress = (segmentProgress - HOLD_PORTION) / (1 - HOLD_PORTION);
+  return segmentIndex + transitionProgress;
 }
 
-ImageItem.propTypes = {
-  product: PropTypes.shape({
-    id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
-    image: PropTypes.string.isRequired,
-    title: PropTypes.string.isRequired,
-  }).isRequired,
-  index: PropTypes.number.isRequired,
-  smoothIndex: PropTypes.object.isRequired,
-  isMobile: PropTypes.bool.isRequired,
-};
+function normalizeProducts(products) {
+  return products.map((product, index) => ({
+    id: product.id ?? index + 1,
+    title: product.title,
+    description: product.description,
+    image: product.image,
+    buttonText: product.buttonText || 'Explore',
+    buttonLink: product.buttonLink || paths.product.root,
+    accent: product.accent || PRODUCTS[index % PRODUCTS.length].accent,
+    imageFit: product.imageFit || 'contain',
+    eyebrow: product.eyebrow || `Story ${String(index + 1).padStart(2, '0')}`,
+  }));
+}
 
 // ----------------------------------------------------------------------
 
 export default function HomeScrollAnimated({ products: propProducts, cmsData, ...other }) {
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
-
   const wrapperRef = useRef(null);
-  const spacerRef = useRef(null);
-  const containerRef = useRef(null);
   const [currentProductIndex, setCurrentProductIndex] = useState(0);
 
-  // Use CMS data if available, otherwise use prop products, fallback to PRODUCTS
-  const products = cmsData?.content?.products || propProducts || PRODUCTS;
-
-  // Number of products
+  const rawProducts = cmsData?.content?.products || propProducts || PRODUCTS;
+  const products = useMemo(() => normalizeProducts(rawProducts), [rawProducts]);
   const productCount = products.length;
+  const backgroundColor = cmsData?.settings?.backgroundColor || theme.palette.background.default;
 
-  // Calculate scroll progress - track from when wrapper enters viewport until spacer ends
   const { scrollYProgress } = useScroll({
     target: wrapperRef,
     offset: ['start start', 'end end'],
   });
 
-  // Calculate which product index we're currently showing based on scroll progress
-  const currentIndex = useTransform(
-    scrollYProgress,
-    [0, 1],
-    [0, productCount - 1]
+  const mappedIndex = useTransform(scrollYProgress, (value) =>
+    mapProgressToIndex(value, productCount)
   );
-
-  // Use spring for smooth index transitions
-  const smoothIndex = useSpring(currentIndex, {
-    stiffness: 100,
-    damping: 30,
+  const smoothIndex = useSpring(mappedIndex, {
+    stiffness: 90,
+    damping: 24,
+    mass: 0.8,
     restDelta: 0.001,
   });
 
-  // Update current product index for text rendering
   useEffect(() => {
     const unsubscribe = smoothIndex.on('change', (latest) => {
-      const newIndex = Math.round(latest);
-      if (newIndex !== currentProductIndex && newIndex >= 0 && newIndex < productCount) {
-        setCurrentProductIndex(newIndex);
-      }
+      const nextIndex = Math.max(0, Math.min(productCount - 1, Math.round(latest)));
+      setCurrentProductIndex((current) => (current === nextIndex ? current : nextIndex));
     });
+
     return () => unsubscribe();
-  }, [smoothIndex, currentProductIndex, productCount]);
+  }, [productCount, smoothIndex]);
 
-  // Render text content for current product
-  const renderTextContent = () => {
-    const product = products[currentProductIndex];
-    if (!product) return null;
+  const currentProduct = products[currentProductIndex] || products[0];
 
-    return (
-      <AnimatePresence mode="wait">
-        <m.div
-          key={product.id}
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -30 }}
-          transition={{ duration: 0.6, ease: [0.43, 0.13, 0.23, 0.96] }}
-        >
-          <Stack
-            spacing={3}
-            sx={{
-              maxWidth: { xs: '100%', md: 520 },
-              maxHeight: { xs: '50%', md: 'auto' },
-              mx: { xs: 'auto', md: 0 },
-              textAlign: { xs: 'center', md: 'left' },
-            }}
-          >
-            <Typography
-              variant="h2"
-              sx={{
-                fontSize: { xs: '2rem', md: '3rem' },
-                fontWeight: 700,
-                mb: 1,
-              }}
-            >
-              {product.title}
-            </Typography>
-            <Typography
-              variant="body1"
-              sx={{
-                fontSize: { xs: '1rem', md: '1.125rem' },
-                color: 'text.secondary',
-                lineHeight: 1.8,
-                maxHeight: '5.4em', // 👈 3 lines
-                overflowY: 'auto',
-              }}
-            >
-              {product.description}
-            </Typography>
-
-
-            <Button
-              component={RouterLink}
-              href={product.buttonLink}
-              variant="contained"
-              size="large"
-              color="secondary"
-              sx={{
-                minWidth: { xs: '100%', md: 180 },
-                // py: 1.5,
-                fontSize: '1rem',
-                fontWeight: 600,
-              }}
-            >
-              {product.buttonText}
-            </Button>
-          </Stack>
-        </m.div>
-      </AnimatePresence>
-    );
-  };
-
-  // Render image stack
-  const renderImageStack = () => (
-    <Box
-      sx={{
-        position: 'relative',
-        width: '100%',
-        height: { md: '80vh' },
-        minHeight: { xs: 350, sm: 600, md: 600 },
-        overflow: 'visible',
-      }}
-    >
-      {products.map((product, index) => (
-        <ImageItem
-          key={product.id}
-          product={product}
-          index={index}
-          smoothIndex={smoothIndex}
-          isMobile={isMobile}
-        />
-      ))}
-    </Box>
-  );
+  if (!currentProduct) {
+    return null;
+  }
 
   return (
     <Box
@@ -627,77 +150,268 @@ export default function HomeScrollAnimated({ products: propProducts, cmsData, ..
       {...other}
       sx={{
         position: 'relative',
-        width: '100%',
-        bgcolor: 'background.default',
+        height: {
+          xs: `${productCount * 110 + 35}vh`,
+          md: `${productCount * 135 + 30}vh`,
+        },
       }}
     >
-      {/* Sticky container - comes first so it's visible immediately */}
       <Box
-        ref={containerRef}
-        component={m.div}
         sx={{
           position: 'sticky',
           top: 0,
-          width: '100%',
           minHeight: '100vh',
           display: 'flex',
           alignItems: 'center',
-          bgcolor: 'background.default',
-          zIndex: 2,
           overflow: 'hidden',
+          bgcolor: backgroundColor,
         }}
       >
         <Container
           maxWidth="xl"
           sx={{
-            width: '100%',
-            py: { xs: 8, md: 10 },
+            display: 'flex',
+            alignItems: 'center',
+            py: { xs: 0, sm: 5, md: 10 },
+            minHeight: { xs: '100vh', md: 'auto' },
           }}
         >
           <Box
             sx={{
               display: 'grid',
-              gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' },
-              gap: { xs: 4, md: 6 },
-              alignItems: 'center',
+              gridTemplateColumns: { xs: '1fr', md: 'minmax(0, 0.92fr) minmax(0, 1.08fr)' },
+              gridTemplateRows: { xs: '60vh 40vh', sm: 'auto', md: 'auto' },
+              alignItems: { xs: 'stretch', md: 'center' },
+              gap: { xs: 0, sm: 4, md: 8 },
+              width: '100%',
+              minHeight: { xs: '100vh', md: 'auto' },
             }}
           >
-            {/* Text Content - Left side on desktop, below image on mobile */}
             <Box
               sx={{
                 order: { xs: 2, md: 1 },
                 display: 'flex',
-                alignItems: 'center',
-                justifyContent: { xs: 'center', md: 'flex-start' },
-                minHeight: { xs: 'auto', md: '60vh' },
+                alignItems: { xs: 'stretch', md: 'center' },
+                minHeight: { xs: '40vh', sm: 'auto' },
               }}
             >
-              {renderTextContent()}
+              <Stack
+                spacing={{ xs: 1.75, sm: 2.25, md: 3.5 }}
+                sx={{
+                  maxWidth: 560,
+                  width: '100%',
+                  minHeight: { xs: '40vh', sm: 'auto' },
+                  justifyContent: { xs: 'space-between', sm: 'flex-start' },
+                  py: { xs: 2.5, sm: 0 },
+                }}
+              >
+                <Stack direction="row" spacing={1.25} alignItems="center">
+                  <Typography
+                    variant="overline"
+                    sx={{
+                      letterSpacing: { xs: '0.16em', md: '0.24em' },
+                      color: currentProduct.accent,
+                      fontWeight: 700,
+                      fontSize: { xs: '0.65rem', sm: '0.72rem', md: '0.75rem' },
+                    }}
+                  >
+                    {currentProduct.eyebrow}
+                  </Typography>
+
+                  <Box
+                    sx={{
+                      width: 56,
+                      height: 1,
+                      bgcolor: alpha(currentProduct.accent, 0.4),
+                    }}
+                  />
+                </Stack>
+
+                <AnimatePresence mode="wait">
+                  <m.div
+                    key={currentProduct.id}
+                    initial={{ opacity: 0, x: -32 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: 24 }}
+                    transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
+                  >
+                    <Stack
+                      spacing={{ xs: 1.5, sm: 3 }}
+                      sx={{
+                        minHeight: { xs: '100%', sm: 'auto' },
+                        justifyContent: { xs: 'space-between', sm: 'flex-start' },
+                      }}
+                    >
+                      <Typography
+                        variant="h1"
+                        sx={{
+                          fontSize: { xs: '1.9rem', sm: '2.5rem', md: '4.35rem' },
+                          lineHeight: { xs: 1.05, md: 1 },
+                          letterSpacing: '-0.04em',
+                          fontWeight: 700,
+                          color: 'grey.900',
+                        }}
+                      >
+                        {currentProduct.title}
+                      </Typography>
+
+                      <Typography
+                        variant="h6"
+                        sx={{
+                          maxWidth: 500,
+                          color: 'text.secondary',
+                          fontWeight: 400,
+                          lineHeight: { xs: 1.55, md: 1.7 },
+                          fontSize: { xs: '0.95rem', sm: '1rem', md: '1.25rem' },
+                          maxHeight: {
+                            xs: 'calc(0.95rem * 1.55 * 3)',
+                            sm: 'calc(1rem * 1.55 * 3)',
+                            md: 'calc(1.25rem * 1.7 * 3)',
+                          },
+                          overflowY: 'auto',
+                          pr: 0.5,
+                        }}
+                      >
+                        {currentProduct.description}
+                      </Typography>
+
+                      <Stack
+                        direction="row"
+                        spacing={1.25}
+                        sx={{ pt: { xs: 0.5, md: 1 }, flexWrap: 'wrap' }}
+                      >
+                        <Button
+                          component={RouterLink}
+                          href={currentProduct.buttonLink}
+                          variant="contained"
+                          size="medium"
+                          sx={{
+                            minWidth: { xs: 140, sm: 160, md: 180 },
+                            px: { xs: 2.25, md: 3 },
+                            py: { xs: 1, md: 1.2 },
+                            fontSize: { xs: '0.95rem', md: '1rem' },
+                            bgcolor: currentProduct.accent,
+                            '&:hover': {
+                              bgcolor: currentProduct.accent,
+                              filter: 'brightness(0.94)',
+                            },
+                          }}
+                        >
+                          {currentProduct.buttonText}
+                        </Button>
+                      </Stack>
+                    </Stack>
+                  </m.div>
+                </AnimatePresence>
+
+                <Stack direction="row" spacing={1.25} sx={{ pt: 1 }}>
+                  {products.map((product, index) => (
+                    <Box
+                      key={product.id || `${product.title}-${index}`}
+                      sx={{
+                        width: index === currentProductIndex ? 48 : 16,
+                        height: 6,
+                        borderRadius: 999,
+                        bgcolor:
+                          index === currentProductIndex
+                            ? currentProduct.accent
+                            : alpha(theme.palette.grey[900], 0.12),
+                        transition: 'all 320ms ease',
+                      }}
+                    />
+                  ))}
+                </Stack>
+              </Stack>
             </Box>
 
-            {/* Image Stack - Right side on desktop, top on mobile */}
             <Box
               sx={{
                 order: { xs: 1, md: 2 },
+                position: 'relative',
+                minHeight: { xs: '60vh', sm: 300, md: 620 },
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
+                '@media (min-width:400px) and (max-width:599.95px)': {
+                  minHeight: '60vh',
+                },
               }}
             >
-              {renderImageStack()}
+              <Box
+                sx={{
+                  position: 'absolute',
+                  inset: { xs: '8% 0 0 0', md: '10% 4% 8% 10%' },
+                  borderRadius: { xs: 8, md: 10 },
+                  background: 'transparent',
+                }}
+              />
+
+              <AnimatePresence mode="wait">
+                <m.div
+                  key={`${currentProduct.id}-image`}
+                  initial={{ opacity: 0, x: 42, scale: 0.94, rotate: -2 }}
+                  animate={{ opacity: 1, x: 0, scale: 1, rotate: 0 }}
+                  exit={{ opacity: 0, x: -18, scale: 0.96, rotate: 1.5 }}
+                  transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+                  style={{ width: '100%' }}
+                >
+                  <Box
+                    sx={{
+                      position: 'relative',
+                      width: '100%',
+                      minHeight: { xs: '60vh', sm: 400, md: 620 },
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      pt: { xs: 2, sm: 0 },
+                      '@media (min-width:400px) and (max-width:599.95px)': {
+                        minHeight: '60vh',
+                      },
+                    }}
+                  >
+                    <Box
+                      component="img"
+                      src={currentProduct.image}
+                      alt={currentProduct.title}
+                      sx={{
+                        width: 'auto',
+                        height: 'auto',
+                        maxWidth: '100%',
+                        maxHeight: { xs: '48vh', sm: '38vh', md: '72vh' },
+                        display: 'block',
+                        objectFit: currentProduct.imageFit,
+                        objectPosition: 'center',
+                        '@media (min-width:400px) and (max-width:599.95px)': {
+                          maxHeight: '52vh',
+                        },
+                      }}
+                    />
+                  </Box>
+                </m.div>
+              </AnimatePresence>
+
+              <Box
+                sx={{
+                  position: 'absolute',
+                  right: { xs: 4, sm: 12, md: -18 },
+                  bottom: { xs: 12, sm: 12, md: 20 },
+                  px: { xs: 1.5, md: 2.25 },
+                  py: { xs: 0.75, md: 1.25 },
+                  borderRadius: 999,
+                  bgcolor: alpha(theme.palette.common.white, 0.84),
+                  backdropFilter: 'blur(12px)',
+                  boxShadow: `0 12px 30px ${alpha(theme.palette.grey[900], 0.08)}`,
+                }}
+              >
+                <Typography variant="subtitle2" sx={{ color: 'grey.900' }}>
+                  {String(currentProductIndex + 1).padStart(2, '0')} /{' '}
+                  {String(productCount).padStart(2, '0')}
+                </Typography>
+              </Box>
             </Box>
           </Box>
         </Container>
       </Box>
-
-      {/* Spacer to create scroll space - each product gets 100vh */}
-      {/* Positioned after sticky container so scroll works correctly */}
-      <Box
-        ref={spacerRef}
-        sx={{
-          height: `${productCount * 100}vh`,
-        }}
-      />
     </Box>
   );
 }
@@ -705,25 +419,35 @@ export default function HomeScrollAnimated({ products: propProducts, cmsData, ..
 HomeScrollAnimated.propTypes = {
   products: PropTypes.arrayOf(
     PropTypes.shape({
-      id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
+      id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
       title: PropTypes.string.isRequired,
       description: PropTypes.string.isRequired,
       image: PropTypes.string.isRequired,
-      buttonText: PropTypes.string.isRequired,
-      buttonLink: PropTypes.string.isRequired,
+      buttonText: PropTypes.string,
+      buttonLink: PropTypes.string,
+      accent: PropTypes.string,
+      imageFit: PropTypes.string,
+      eyebrow: PropTypes.string,
     })
   ),
   cmsData: PropTypes.shape({
     content: PropTypes.shape({
       products: PropTypes.arrayOf(
         PropTypes.shape({
+          id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
           title: PropTypes.string.isRequired,
           description: PropTypes.string.isRequired,
           image: PropTypes.string.isRequired,
-          buttonText: PropTypes.string.isRequired,
-          buttonLink: PropTypes.string.isRequired,
+          buttonText: PropTypes.string,
+          buttonLink: PropTypes.string,
+          accent: PropTypes.string,
+          imageFit: PropTypes.string,
+          eyebrow: PropTypes.string,
         })
       ),
+    }),
+    settings: PropTypes.shape({
+      backgroundColor: PropTypes.string,
     }),
   }),
 };
