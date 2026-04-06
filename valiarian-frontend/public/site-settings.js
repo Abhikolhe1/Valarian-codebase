@@ -38,8 +38,7 @@
       }
     },
     header: {
-      categoryMegaMenuPlaceholderImage:
-        'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRUHOpowQpT8ZqJLNRZ1LIcQlmsAd1aPqugpg&s'
+      categoryMegaMenuPlaceholderImage: ''
     },
     offers: {
       marquee: [
@@ -266,8 +265,39 @@
       .then(function (data) {
         console.log('✅ Site settings loaded from API:', data);
 
-        // Merge API data with defaults
-        window.siteSettings = Object.assign({}, DEFAULT_SETTINGS, data);
+        // Merge API data with defaults while preserving nested objects
+        window.siteSettings = {
+          ...DEFAULT_SETTINGS,
+          ...data,
+          socialMedia: {
+            ...DEFAULT_SETTINGS.socialMedia,
+            ...(data.socialMedia || {})
+          },
+          theme: {
+            ...DEFAULT_SETTINGS.theme,
+            ...(data.theme || {}),
+            primary: {
+              ...DEFAULT_SETTINGS.theme.primary,
+              ...(data.theme?.primary || {})
+            },
+            secondary: {
+              ...DEFAULT_SETTINGS.theme.secondary,
+              ...(data.theme?.secondary || {})
+            }
+          },
+          header: {
+            ...DEFAULT_SETTINGS.header,
+            ...(data.header || {})
+          },
+          offers: {
+            ...DEFAULT_SETTINGS.offers,
+            ...(data.offers || {}),
+            marquee:
+              data.offers?.marquee?.length
+                ? data.offers.marquee
+                : DEFAULT_SETTINGS.offers.marquee
+          }
+        };
 
         // Apply settings to document
         applySettingsToDocument();

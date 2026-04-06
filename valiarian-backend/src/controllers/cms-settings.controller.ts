@@ -69,8 +69,7 @@ const defaultThemeSettings = {
 };
 
 const defaultHeaderSettings = {
-  categoryMegaMenuPlaceholderImage:
-    'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRUHOpowQpT8ZqJLNRZ1LIcQlmsAd1aPqugpg&s',
+  categoryMegaMenuPlaceholderImage: '',
 };
 
 const defaultOffersSettings = {

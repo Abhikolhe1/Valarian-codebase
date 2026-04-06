@@ -80,6 +80,10 @@ export function SiteSettingsProvider({ children }) {
           termsAndConditionsUrl: settings.legalDocuments?.termsAndConditionsUrl || '',
           privacyPolicyUrl: settings.legalDocuments?.privacyPolicyUrl || '',
         },
+        header: {
+          categoryMegaMenuPlaceholderImage:
+            settings.header?.categoryMegaMenuPlaceholderImage || '',
+        },
         footerText: settings.footerText,
         copyrightText: settings.copyrightText,
       } : getDefaultSettings(),
@@ -239,6 +243,9 @@ function getDefaultSettings() {
     legalDocuments: {
       termsAndConditionsUrl: '',
       privacyPolicyUrl: '',
+    },
+    header: {
+      categoryMegaMenuPlaceholderImage: '',
     },
   };
 }

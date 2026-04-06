@@ -350,7 +350,7 @@ export default function CategoryMegaMenu({
   // 🔹 derive title
   const previewTitle = hoveredSubcategory
     ? `${hoveredSubcategory.name.toUpperCase()} ${hoveredSubcategory.groupName}`
-    : `${previewData.groupName} ${previewData.name ? previewData.name.toUpperCase() : ''}`;
+    : '';
 
   // 🔹 title animation state
   const [displayTitle, setDisplayTitle] = useState(previewTitle);
@@ -377,7 +377,7 @@ export default function CategoryMegaMenu({
     setImageVisible(false);
 
     const timeout = setTimeout(() => {
-      const newImage = hoveredSubcategory ? hoveredSubcategory.image : fallbackImage;
+      const newImage = hoveredSubcategory?.image || fallbackImage;
       setDisplayImage(newImage);
       setImageVisible(true);
     }, 150);
@@ -478,9 +478,11 @@ export default function CategoryMegaMenu({
               <ImagePreview>
                 {!treeLoading && (
                   <>
-                    <Fade in={titleVisible} timeout={200}>
-                      <PreviewTitle>{displayTitle}</PreviewTitle>
-                    </Fade>
+                    {hoveredSubcategory && displayTitle && (
+                      <Fade in={titleVisible} timeout={200}>
+                        <PreviewTitle>{displayTitle}</PreviewTitle>
+                      </Fade>
+                    )}
 
                     {/* Image with Fade animation */}
                     <Fade in={imageVisible} timeout={300}>
@@ -495,10 +497,16 @@ export default function CategoryMegaMenu({
                       >
                         {displayImage ? (
                           <PreviewImage
+                            key={displayImage}
                             src={displayImage}
                             alt={hoveredSubcategory?.name || 'Default category'}
-                            onError={(e) => {
-                              e.target.style.display = 'none';
+                            onError={() => {
+                              if (displayImage !== fallbackImage && fallbackImage) {
+                                setDisplayImage(fallbackImage);
+                                return;
+                              }
+
+                              setDisplayImage('');
                             }}
                           />
                         ) : (

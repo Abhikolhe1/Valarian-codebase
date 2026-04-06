@@ -159,8 +159,7 @@ export default function CMSSettingsView() {
       },
       header: {
         categoryMegaMenuPlaceholderImage:
-          siteSettings?.header?.categoryMegaMenuPlaceholderImage ||
-          'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRUHOpowQpT8ZqJLNRZ1LIcQlmsAd1aPqugpg&s',
+          siteSettings?.header?.categoryMegaMenuPlaceholderImage || '',
       },
       offers: {
         marquee: siteSettings?.offers?.marquee?.length
@@ -660,6 +659,8 @@ export default function CMSSettingsView() {
                   fullWidth
                   type="number"
                   label="Latitude"
+                  inputProps={{ step: 'any' }}
+                  placeholder="e.g. 18.5204303"
                   {...methods.register(`contactPage.locations.${index}.latitude`, {
                     valueAsNumber: true,
                   })}
@@ -668,6 +669,8 @@ export default function CMSSettingsView() {
                   fullWidth
                   type="number"
                   label="Longitude"
+                  inputProps={{ step: 'any' }}
+                  placeholder="e.g. 73.8567437"
                   {...methods.register(`contactPage.locations.${index}.longitude`, {
                     valueAsNumber: true,
                   })}
