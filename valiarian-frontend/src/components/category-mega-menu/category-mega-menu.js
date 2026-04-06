@@ -19,7 +19,7 @@ import { bgBlur } from 'src/theme/css';
 import { useGetCategories, useGetCategoryTree } from 'src/api/category';
 // components
 import Skeleton from '@mui/material/Skeleton';
-import { useSiteSettings } from 'src/hooks/use-site-settings';
+import { useSiteSettings } from 'src/contexts/SiteSettingsContext';
 
 // ----------------------------------------------------------------------
 
@@ -163,11 +163,11 @@ const PLACEHOLDER_IMAGE =
   (typeof window !== 'undefined' &&
     window.siteSettings?.header?.categoryMegaMenuPlaceholderImage) ||
   '';
-
+console.log('PLACEHOLDER_IMAGE:', PLACEHOLDER_IMAGE);
 // ... rest of styled components remain same until DEFAULT_CATEGORY_GROUPS ...
 
 const DEFAULT_IMAGE = PLACEHOLDER_IMAGE;
-
+console.log('DEFAULT_IMAGE:', DEFAULT_IMAGE);
 // ----------------------------------------------------------------------
 
 function resolveCategoryImage(category) {
