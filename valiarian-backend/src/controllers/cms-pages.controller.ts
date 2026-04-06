@@ -1,7 +1,7 @@
 import {authenticate} from '@loopback/authentication';
 import {inject} from '@loopback/core';
 import {repository} from '@loopback/repository';
-import {get, HttpErrors, param, patch, post, requestBody, response} from '@loopback/rest';
+import {del, get, HttpErrors, param, patch, post, requestBody, response} from '@loopback/rest';
 import {v4 as uuidv4} from 'uuid';
 import {authorize} from '../authorization';
 import {Page} from '../models';
@@ -66,6 +66,14 @@ export class CMSPageController {
     const existing = await this.pageRepository.findById(id);
     if (!existing) throw new HttpErrors.NotFound('Page not found');
     await this.pageRepository.updateById(id, {...page, version: (existing.version || 1) + 1});
+  }
+
+  @authenticate('jwt')
+  @authorize({roles: ['super_admin', 'admin']})
+  @del('/api/cms/pages/{id}')
+  @response(204, {description: 'Delete page'})
+  async deleteById(@param.path.string('id') id: string): Promise<void> {
+    await this.cmsService.deletePage(id);
   }
 
   @authenticate('jwt')

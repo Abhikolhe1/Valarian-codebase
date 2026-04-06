@@ -11,6 +11,15 @@ export default function HomeSocialMedia({ cmsData }) {
   const title = cmsData?.content?.title || '@valiarianpremiumpolos';
   const instagramHandle = cmsData?.content?.instagram || 'valiarian.wear';
   const youtubeHandle = cmsData?.content?.youtube || 'valiarianwear';
+  const galleryImages = cmsData?.content?.galleryImages?.length
+    ? cmsData.content.galleryImages
+    : [
+        '/assets/images/home/social-media/social-1.jpeg',
+        '/assets/images/home/social-media/social-2.jpeg',
+        '/assets/images/home/social-media/social-3.jpeg',
+        '/assets/images/home/social-media/social-4.jpeg',
+        '/assets/images/home/social-media/social-5.jpeg',
+      ];
 
   const openLink = (url) => {
     window.open(url, '_blank', 'noopener,noreferrer');
@@ -36,7 +45,7 @@ export default function HomeSocialMedia({ cmsData }) {
                   }}
                 >
                   <Image
-                    src="/assets/images/home/social-media/social-1.jpeg"
+                    src={galleryImages[0]}
                     alt="Instagram Main"
                     sx={{ width: '100%', height: '100%', objectFit: 'cover' }}
                   />
@@ -57,7 +66,7 @@ export default function HomeSocialMedia({ cmsData }) {
                         }}
                       >
                         <Image
-                          src="/assets/images/home/social-media/social-2.jpeg"
+                          src={galleryImages[1] || galleryImages[0]}
                           alt="YouTube 1"
                           sx={{ width: '100%', height: '100%', objectFit: 'cover' }}
                         />
@@ -75,7 +84,7 @@ export default function HomeSocialMedia({ cmsData }) {
                         }}
                       >
                         <Image
-                          src="/assets/images/home/social-media/social-3.jpeg"
+                          src={galleryImages[2] || galleryImages[0]}
                           alt="YouTube 2"
                           sx={{ width: '100%', height: '100%', objectFit: 'cover' }}
                         />
@@ -95,7 +104,7 @@ export default function HomeSocialMedia({ cmsData }) {
                         }}
                       >
                         <Image
-                          src="/assets/images/home/social-media/social-4.jpeg"
+                          src={galleryImages[3] || galleryImages[0]}
                           alt="YouTube 3"
                           sx={{ width: '100%', height: '100%', objectFit: 'cover' }}
                         />
@@ -113,7 +122,7 @@ export default function HomeSocialMedia({ cmsData }) {
                         }}
                       >
                         <Image
-                          src="/assets/images/home/social-media/social-5.jpeg"
+                          src={galleryImages[4] || galleryImages[0]}
                           alt="YouTube 4"
                           sx={{ width: '100%', height: '100%', objectFit: 'cover' }}
                         />
@@ -137,6 +146,7 @@ HomeSocialMedia.propTypes = {
       subtitle: PropTypes.string,
       instagram: PropTypes.string,
       youtube: PropTypes.string,
+      galleryImages: PropTypes.arrayOf(PropTypes.string),
       facebook: PropTypes.string,
       twitter: PropTypes.string,
     }),

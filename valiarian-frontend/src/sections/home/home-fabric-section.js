@@ -427,7 +427,7 @@ export default function HomeFabricSection({ fabrics: propFabrics, cmsData, ...ot
   const subtitle = cmsData?.content?.subtitle || 'Discover the exceptional materials that make our clothing extraordinary';
 
   // Use prop fabrics if provided, otherwise use FABRICS
-  const fabrics = propFabrics || FABRICS;
+  const fabrics = cmsData?.content?.fabrics || propFabrics || FABRICS;
 
   // Calculate scroll progress - track the wrapper
   const { scrollYProgress } = useScroll({
@@ -595,6 +595,15 @@ HomeFabricSection.propTypes = {
       title: PropTypes.string,
       subtitle: PropTypes.string,
       description: PropTypes.string,
+      fabrics: PropTypes.arrayOf(
+        PropTypes.shape({
+          name: PropTypes.string,
+          description: PropTypes.string,
+          image: PropTypes.string,
+          video: PropTypes.string,
+          tags: PropTypes.arrayOf(PropTypes.string),
+        })
+      ),
     }),
   }),
 };

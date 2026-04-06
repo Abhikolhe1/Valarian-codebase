@@ -130,7 +130,11 @@ function CompactMediaPickerButton({ value, onChange, index }) {
               },
             }}
           >
-            <Iconify icon="solar:gallery-add-bold-duotone" width={32} sx={{ color: 'text.disabled' }} />
+            <Iconify
+              icon="solar:gallery-add-bold-duotone"
+              width={32}
+              sx={{ color: 'text.disabled' }}
+            />
             <Typography variant="caption" color="text.secondary">
               Upload
             </Typography>
@@ -172,6 +176,9 @@ export default function ScrollAnimatedSectionEditor({ section, onSave, onCancel 
           image: '/assets/images/home/scroll-animation/tshirt1-removebg-preview.png',
           buttonText: 'Shop Now',
           buttonLink: '/products',
+          accent: '#D97706',
+          eyebrow: 'Story 01',
+          imageFit: 'contain',
         },
       ],
     },
@@ -210,8 +217,11 @@ export default function ScrollAnimatedSectionEditor({ section, onSave, onCancel 
       image: '/assets/images/placeholder.svg',
       buttonText: 'Shop Now',
       buttonLink: '/products',
+      accent: '#D97706',
+      eyebrow: `Story ${String(fields.length + 1).padStart(2, '0')}`,
+      imageFit: 'contain',
     });
-  }, [append]);
+  }, [append, fields.length]);
 
   return (
     <FormProvider methods={methods} onSubmit={onSubmit}>
@@ -297,6 +307,27 @@ export default function ScrollAnimatedSectionEditor({ section, onSave, onCancel 
                       placeholder="/products"
                     />
                   </Stack>
+
+                  <Stack direction="row" spacing={2}>
+                    <RHFTextField
+                      name={`content.products.${index}.eyebrow`}
+                      label="Eyebrow"
+                      placeholder={`Story ${String(index + 1).padStart(2, '0')}`}
+                    />
+
+                    <RHFTextField
+                      name={`content.products.${index}.accent`}
+                      label="Accent Color"
+                      placeholder="#D97706"
+                    />
+                  </Stack>
+
+                  <RHFTextField
+                    name={`content.products.${index}.imageFit`}
+                    label="Image Fit"
+                    placeholder="contain"
+                    helperText="Use CSS object-fit values like contain or cover."
+                  />
                 </Stack>
               </Card>
             ))}

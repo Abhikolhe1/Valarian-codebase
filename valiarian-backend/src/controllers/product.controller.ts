@@ -72,12 +72,14 @@ export class ProductController {
       } as ProductVariant;
     });
 
-    const defaultVariants = normalizedVariants.filter(variant => variant.isDefault);
+    const defaultVariant = [...normalizedVariants]
+      .reverse()
+      .find(variant => variant.isDefault);
     const variantsWithDefault = normalizedVariants.map((variant, index) => ({
       ...variant,
       isDefault:
-        defaultVariants.length > 0
-          ? variant.id === defaultVariants[0].id
+        defaultVariant
+          ? variant.id === defaultVariant.id
           : index === 0,
     })) as ProductVariant[];
 
@@ -244,6 +246,24 @@ export class ProductController {
               currency: {type: 'string'},
               coverImage: {type: 'string'},
               images: {type: 'array', items: {type: 'string'}},
+              variants: {
+                type: 'array',
+                items: {
+                  type: 'object',
+                  properties: {
+                    id: {type: 'string'},
+                    sku: {type: 'string'},
+                    color: {type: 'string'},
+                    colorName: {type: 'string'},
+                    size: {type: 'string'},
+                    images: {type: 'array', items: {type: 'string'}},
+                    price: {type: 'number', minimum: 0},
+                    stockQuantity: {type: 'number', minimum: 0},
+                    inStock: {type: 'boolean'},
+                    isDefault: {type: 'boolean'},
+                  },
+                },
+              },
               colors: {type: 'array', items: {type: 'string'}},
               sizes: {type: 'array', items: {type: 'string'}},
               stockQuantity: {type: 'number'},
@@ -407,6 +427,24 @@ export class ProductController {
               currency: {type: 'string'},
               coverImage: {type: 'string'},
               images: {type: 'array', items: {type: 'string'}},
+              variants: {
+                type: 'array',
+                items: {
+                  type: 'object',
+                  properties: {
+                    id: {type: 'string'},
+                    sku: {type: 'string'},
+                    color: {type: 'string'},
+                    colorName: {type: 'string'},
+                    size: {type: 'string'},
+                    images: {type: 'array', items: {type: 'string'}},
+                    price: {type: 'number', minimum: 0},
+                    stockQuantity: {type: 'number', minimum: 0},
+                    inStock: {type: 'boolean'},
+                    isDefault: {type: 'boolean'},
+                  },
+                },
+              },
               colors: {type: 'array', items: {type: 'string'}},
               sizes: {type: 'array', items: {type: 'string'}},
               stockQuantity: {type: 'number'},

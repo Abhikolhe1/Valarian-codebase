@@ -17,6 +17,7 @@ import Typography from '@mui/material/Typography';
 import FormProvider, { RHFTextField } from 'src/components/hook-form';
 import Iconify from 'src/components/iconify';
 import { useSnackbar } from 'src/components/snackbar';
+import axiosInstance, { endpoints } from 'src/utils/axios';
 
 // ----------------------------------------------------------------------
 
@@ -50,14 +51,6 @@ export default function CMSSaveTemplateDialog({ open, onClose, section, onSave }
   const onSubmit = useCallback(
     async (data) => {
       try {
-        // Get auth token from localStorage
-        const token = localStorage.getItem('accessToken');
-
-        if (!token) {
-          enqueueSnackbar('You must be logged in to save templates', { variant: 'error' });
-          return;
-        }
-
         const templateData = {
           name: data.name,
           description: data.description,
@@ -66,21 +59,8 @@ export default function CMSSaveTemplateDialog({ open, onClose, section, onSave }
           thumbnail: null, // Could be enhanced to capture a screenshot
         };
 
-        const response = await fetch('http://localhost:3035/api/cms/templates', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify(templateData),
-        });
-
-        if (!response.ok) {
-          const error = await response.json();
-          throw new Error(error.error?.message || 'Failed to save template');
-        }
-
-        const savedTemplate = await response.json();
+        const response = await axiosInstance.post(endpoints.cms.templates.list, templateData);
+        const savedTemplate = response.data;
 
         enqueueSnackbar('Template saved successfully!');
 

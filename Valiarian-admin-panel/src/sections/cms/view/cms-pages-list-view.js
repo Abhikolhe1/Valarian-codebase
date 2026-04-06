@@ -32,6 +32,7 @@ import {
   TableSkeleton,
   useTable,
 } from 'src/components/table';
+import axiosInstance, { endpoints } from 'src/utils/axios';
 //
 import CMSPageTableFiltersResult from '../cms-page-table-filters-result';
 import CMSPageTableRow from '../cms-page-table-row';
@@ -82,9 +83,8 @@ export default function CMSPagesListView() {
     const fetchPages = async () => {
       try {
         setLoading(true);
-        const response = await fetch('http://localhost:3035/api/cms/pages');
-        const data = await response.json();
-        setTableData(data);
+        const response = await axiosInstance.get(endpoints.cms.pages.list);
+        setTableData(Array.isArray(response.data) ? response.data : response.data?.pages || []);
       } catch (error) {
         console.error('Failed to fetch pages:', error);
       } finally {
@@ -126,9 +126,7 @@ export default function CMSPagesListView() {
   const handleDeleteRow = useCallback(
     async (id) => {
       try {
-        await fetch(`http://localhost:3035/api/cms/pages/${id}`, {
-          method: 'DELETE',
-        });
+        await axiosInstance.delete(endpoints.cms.pages.delete(id));
 
         const deleteRow = tableData.filter((row) => row.id !== id);
         setTableData(deleteRow);
@@ -143,11 +141,7 @@ export default function CMSPagesListView() {
   const handleDeleteRows = useCallback(async () => {
     try {
       await Promise.all(
-        table.selected.map((id) =>
-          fetch(`http://localhost:3035/api/cms/pages/${id}`, {
-            method: 'DELETE',
-          })
-        )
+        table.selected.map((id) => axiosInstance.delete(endpoints.cms.pages.delete(id)))
       );
 
       const deleteRows = tableData.filter((row) => !table.selected.includes(row.id));

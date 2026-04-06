@@ -36,11 +36,21 @@ export default function HeroSectionEditor({ section, onSave, onCancel }) {
     backgroundImage: section?.content?.backgroundImage || '',
     backgroundVideo: section?.content?.backgroundVideo || '',
     overlayOpacity: section?.content?.overlayOpacity || 0.5,
-    heading: section?.content?.heading || '',
+    title: section?.content?.title || section?.content?.heading || '',
     subheading: section?.content?.subheading || '',
     description: section?.content?.description || '',
     alignment: section?.content?.alignment || 'center',
     height: section?.content?.height || 'full',
+    ctaText:
+      section?.content?.ctaText ||
+      section?.content?.primaryButtonText ||
+      section?.content?.ctaButtons?.[0]?.text ||
+      '',
+    ctaLink:
+      section?.content?.ctaLink ||
+      section?.content?.primaryButtonLink ||
+      section?.content?.ctaButtons?.[0]?.url ||
+      '',
     ctaButtons: section?.content?.ctaButtons || [],
   };
 
@@ -65,11 +75,14 @@ export default function HeroSectionEditor({ section, onSave, onCancel }) {
         backgroundImage: data.backgroundImage,
         backgroundVideo: data.backgroundVideo,
         overlayOpacity: parseFloat(data.overlayOpacity),
-        heading: data.heading,
+        title: data.title,
+        heading: data.title,
         subheading: data.subheading,
         description: data.description,
         alignment: data.alignment,
         height: data.height,
+        ctaText: data.ctaText,
+        ctaLink: data.ctaLink,
         ctaButtons: data.ctaButtons,
       },
       settings: {},
@@ -118,7 +131,7 @@ export default function HeroSectionEditor({ section, onSave, onCancel }) {
             </Typography>
             <Stack spacing={2}>
               <RHFTextField name="name" label="Section Name" />
-              <RHFTextField name="heading" label="Heading" multiline rows={2} />
+              <RHFTextField name="title" label="Title" multiline rows={2} />
               <RHFTextField name="subheading" label="Subheading" />
               <RHFEditor
                 name="description"
@@ -126,6 +139,10 @@ export default function HeroSectionEditor({ section, onSave, onCancel }) {
                 simple
                 placeholder="Enter description..."
               />
+              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+                <RHFTextField name="ctaText" label="Button Text" />
+                <RHFTextField name="ctaLink" label="Button Link" placeholder="/products" />
+              </Stack>
             </Stack>
           </CardContent>
         </Card>
