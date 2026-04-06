@@ -190,7 +190,9 @@ export class CouponController {
       Number(coupon!.perUserUsageLimit || 0) > 0 &&
       userUsageCount >= Number(coupon!.perUserUsageLimit)
     ) {
-      throw new HttpErrors.BadRequest('You have already used this coupon the maximum number of times');
+      throw new HttpErrors.BadRequest(
+        `You have already used this coupon ${Number(coupon!.perUserUsageLimit)} times`,
+      );
     }
 
     const discountAmount = calculateCouponDiscount(coupon!, subtotal);

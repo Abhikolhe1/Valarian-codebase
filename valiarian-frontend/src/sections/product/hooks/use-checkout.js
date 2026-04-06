@@ -316,9 +316,9 @@ export default function useCheckout() {
           })
         );
 
-        enqueueSnackbar(`${coupon.code || normalizedCode} applied successfully`, {
-          variant: 'success',
-        });
+        // enqueueSnackbar(`${coupon.code || normalizedCode} applied successfully`, {
+        //   variant: 'success',
+        // });
       } catch (error) {
         const message =
           error?.response?.data?.error?.message ||
@@ -326,12 +326,12 @@ export default function useCheckout() {
           error?.message ||
           'Failed to apply coupon';
         setCouponError(message);
-        enqueueSnackbar(message, { variant: 'error' });
+        // enqueueSnackbar(message, { variant: 'error' });
       } finally {
         setCouponLoading(false);
       }
     },
-    [checkoutSession.eligibleCart, dispatch, enqueueSnackbar, user?.id]
+    [checkoutSession.eligibleCart, dispatch, user?.id]
   );
 
   const onRemoveCoupon = useCallback(() => {
