@@ -172,6 +172,7 @@ export const paths = {
     },
     order: {
       root: `${ROOTS.DASHBOARD}/order`,
+      returns: `${ROOTS.DASHBOARD}/order/returns`,
       details: (id) => `${ROOTS.DASHBOARD}/order/${id}`,
       demo: {
         details: `${ROOTS.DASHBOARD}/order/${MOCK_ID}`,

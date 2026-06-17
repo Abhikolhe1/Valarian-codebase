@@ -15,6 +15,7 @@ import {Users} from './users.model';
 export interface OrderItem {
   id: string;
   productId: string;
+  orderItemId?: string;
   name: string;
   image: string;
   sku: string;
@@ -36,6 +37,20 @@ export interface OrderItem {
   igstAmount?: number;
   totalAmount?: number;
   subtotal: number;
+  productNameSnapshot?: string;
+  variantSnapshot?: {
+    variantId?: string;
+    sku?: string;
+    color?: string;
+    colorName?: string;
+    size?: string;
+    attributes?: {[key: string]: string | number | boolean | null | undefined};
+  };
+  priceSnapshot?: number;
+  barcodeId?: string;
+  barcodeCode?: string;
+  barcodeImageUrl?: string;
+  barcodeStatus?: string;
 }
 
 // Order Address Interface

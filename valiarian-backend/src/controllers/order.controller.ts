@@ -30,6 +30,7 @@ import {EmailTemplateService} from '../services/email-template.service';
 import {EmailService} from '../services/email.service';
 import {InvoiceGeneratorService} from '../services/invoice-generator.service';
 import {RazorpayService} from '../services/razorpay.service';
+import {BarcodeService} from '../services/barcode.service';
 import {
   calculateCouponDiscount,
   getCouponAvailabilityError,
@@ -135,6 +136,8 @@ export class OrderController {
     public emailTemplateService: EmailTemplateService,
     @inject('services.invoice.generator')
     public invoiceGeneratorService: InvoiceGeneratorService,
+    @inject('services.barcode')
+    public barcodeService: BarcodeService,
   ) {}
 
   private async countCouponUsage(couponId: string, userId?: string): Promise<number> {
@@ -287,6 +290,106 @@ export class OrderController {
     } as Order;
   }
 
+  private buildVariantSnapshot(item: {
+    variantId?: string;
+    sku?: string;
+    color?: string;
+    colorName?: string;
+    size?: string;
+  }) {
+    return {
+      variantId: item.variantId,
+      sku: item.sku,
+      color: item.color,
+      colorName: item.colorName,
+      size: item.size,
+      attributes: {
+        color: item.color,
+        colorName: item.colorName,
+        size: item.size,
+      },
+    };
+  }
+
+  private attachBarcodesToOrderItems(
+    orderItems: Order['items'],
+    barcodeEntries: Array<{id: string; orderItemId: string; code: string; barcodeImageUrl?: string; status: string}>,
+  ): Order['items'] {
+    const barcodeMap = new Map(
+      barcodeEntries.map(entry => [entry.orderItemId, entry]),
+    );
+
+    return orderItems.map(item => {
+      const barcode = barcodeMap.get(item.id);
+
+      if (!barcode) {
+        return item;
+      }
+
+      return {
+        ...item,
+        orderItemId: item.id,
+        barcodeId: barcode.id,
+        barcodeCode: barcode.code,
+        barcodeImageUrl: barcode.barcodeImageUrl,
+        barcodeStatus: barcode.status,
+      };
+    });
+  }
+
+  private mapOrderStatusToBarcodeStatus(
+    status: Order['status'],
+  ): 'PACKED' | 'SHIPPED' | 'DELIVERED' | 'RETURN_REQUESTED' | 'RETURNED' | 'REFUNDED' | null {
+    switch (status) {
+      case 'packed':
+        return 'PACKED';
+      case 'shipped':
+        return 'SHIPPED';
+      case 'delivered':
+        return 'DELIVERED';
+      case 'return_requested':
+        return 'RETURN_REQUESTED';
+      case 'returned':
+      case 'parcel_received':
+        return 'RETURNED';
+      case 'refunded':
+        return 'REFUNDED';
+      default:
+        return null;
+    }
+  }
+
+  private async syncOrderBarcodesForStatus(
+    orderId: string,
+    orderStatus: Order['status'],
+  ): Promise<void> {
+    const barcodeStatus = this.mapOrderStatusToBarcodeStatus(orderStatus);
+
+    if (!barcodeStatus) {
+      return;
+    }
+
+    const orderItems = await this.orderItemRepository.find({
+      where: {orderId},
+      include: [{relation: 'barcode'}],
+    });
+
+    for (const orderItem of orderItems) {
+      const barcode = (orderItem as OrderItemEntity & {barcode?: any}).barcode;
+
+      if (!barcode || barcode.status === barcodeStatus) {
+        continue;
+      }
+
+      await this.barcodeService.updateBarcodeStatus(
+        barcode,
+        barcodeStatus,
+        `Barcode status synced from order status ${orderStatus}`,
+        {orderId, orderItemId: orderItem.id},
+      );
+    }
+  }
+
   private async buildOrderDraft(request: CreateOrderRequest, userId: string) {
     if (!request.cartItems || request.cartItems.length === 0) {
       throw new HttpErrors.BadRequest('Cart is empty');
@@ -379,6 +482,7 @@ export class OrderController {
       orderItems.push({
         id: uuidv4(),
         productId: product.id,
+        orderItemId: undefined,
         name: product.name,
         image:
           selectedVariant?.images?.[0] ||
@@ -401,6 +505,15 @@ export class OrderController {
         igstAmount: taxBreakup.igstAmount,
         totalAmount: taxBreakup.totalAmount,
         subtotal: itemSubtotal,
+        productNameSnapshot: product.name,
+        variantSnapshot: this.buildVariantSnapshot({
+          variantId: selectedVariant?.id,
+          sku: selectedVariant?.sku || product.sku || '',
+          color: selectedVariant?.color,
+          colorName: selectedVariant?.colorName,
+          size: selectedVariant?.size,
+        }),
+        priceSnapshot: itemPrice,
       });
     }
 
@@ -936,8 +1049,10 @@ export class OrderController {
     orderItems: Array<any>,
   ): Partial<OrderItemEntity>[] {
     return orderItems.map(item => ({
+      id: item.id,
       orderId,
       productId: item.productId,
+      variantId: item.variantId,
       quantity: item.quantity,
       price: item.price,
       basePrice: item.basePrice,
@@ -950,6 +1065,9 @@ export class OrderController {
       igstAmount: item.igstAmount,
       totalAmount: item.totalAmount,
       name: item.name,
+      productNameSnapshot: item.productNameSnapshot || item.name,
+      variantSnapshot: item.variantSnapshot,
+      priceSnapshot: item.priceSnapshot ?? item.price,
       sku: item.sku,
       image: item.image,
       subtotal: item.subtotal,
@@ -1015,7 +1133,12 @@ export class OrderController {
       orderId,
       {
         include: [
-          {relation: 'orderItems'},
+          {
+            relation: 'orderItems',
+            scope: {
+              include: [{relation: 'barcode'}, {relation: 'variant'}],
+            },
+          },
           {relation: 'payment'},
           {relation: 'invoice'},
           {relation: 'user'},
@@ -1614,8 +1737,41 @@ export class OrderController {
         {transaction},
       );
 
-      await this.orderItemRepository.createAll(
-        this.buildOrderItemEntities(order.id, orderItems),
+      const orderItemEntities = this.buildOrderItemEntities(order.id, orderItems);
+      const createdOrderItems = await this.orderItemRepository.createAll(
+        orderItemEntities,
+        {transaction},
+      );
+
+      const createdBarcodes = [];
+      for (const createdOrderItem of createdOrderItems) {
+        const barcode = await this.barcodeService.createBarcodeForOrderItem(
+          createdOrderItem as OrderItemEntity,
+          order,
+          {transaction},
+        );
+        createdBarcodes.push(barcode);
+        await this.orderItemRepository.updateById(
+          createdOrderItem.id,
+          {
+            barcodeId: barcode.id,
+          },
+          {transaction},
+        );
+      }
+
+      const orderItemsWithBarcodes = this.attachBarcodesToOrderItems(
+        orderItems,
+        createdBarcodes,
+      );
+      order.items = orderItemsWithBarcodes;
+
+      await this.orderRepository.updateById(
+        order.id,
+        {
+          items: orderItemsWithBarcodes,
+          updatedAt: new Date(),
+        },
         {transaction},
       );
 
@@ -2380,7 +2536,15 @@ export class OrderController {
       console.log(`[Admin] Fetching order details for ID: ${orderId}`);
 
       const order = await this.orderRepository.findById(orderId, {
-        include: [{relation: 'user'}],
+        include: [
+          {relation: 'user'},
+          {
+            relation: 'orderItems',
+            scope: {
+              include: [{relation: 'barcode'}, {relation: 'variant'}],
+            },
+          },
+        ],
       });
 
       if (!order) {
@@ -2622,6 +2786,9 @@ export class OrderController {
 
       console.log(`[Admin] Fetching updated order...`);
       const updatedOrder = await this.orderRepository.findById(order.id);
+      if (statusChanged) {
+        await this.syncOrderBarcodesForStatus(order.id, request.status as Order['status']);
+      }
       console.log(`[Admin] Updated order fetched successfully`);
 
       if (statusChanged) {

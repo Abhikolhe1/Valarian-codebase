@@ -1,5 +1,7 @@
 export * from './about-page.repository';
 export * from './audit-log.repository';
+export * from './barcode-scan-log.repository';
+export * from './barcode.repository';
 export * from './cart-items.repository';
 export * from './carts.repository';
 export * from './parent-category.repository';
@@ -22,6 +24,7 @@ export * from './product-variant.repository';
 export * from './invoice.repository';
 export * from './refresh-token.repository';
 export * from './registration-sessions.repository';
+export * from './return-request.repository';
 export * from './review.repository';
 export * from './role-permissions.repository';
 export * from './roles.repository';

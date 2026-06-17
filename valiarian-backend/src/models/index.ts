@@ -1,6 +1,8 @@
 export * from './about-page.model';
 export * from './address.model';
 export * from './audit-log.model';
+export * from './barcode-scan-log.model';
+export * from './barcode.model';
 export * from './parent-category.model';
 export * from './category.model';
 export * from './category-product.model';
@@ -24,6 +26,7 @@ export * from './product-variant.model';
 export * from './invoice.model';
 export * from './refresh-token.model';
 export * from './registration-sessions.model';
+export * from './return-request.model';
 export * from './review.model';
 export * from './role-permissions.model';
 export * from './roles.model';

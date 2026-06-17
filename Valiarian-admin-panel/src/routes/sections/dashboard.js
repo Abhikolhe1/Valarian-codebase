@@ -34,6 +34,7 @@ const ParentCategoryEditPage = lazy(() => import('src/pages/dashboard/parent-cat
 // ORDER
 const OrderListPage = lazy(() => import('src/pages/orders/orders-list'));
 const OrderDetailsPage = lazy(() => import('src/pages/orders/order-details'));
+const ReturnRequestsPage = lazy(() => import('src/pages/orders/return-requests'));
 const PremiumOrderListPage = lazy(() => import('src/pages/dashboard/premium-orders/list'));
 const PremiumOrderDetailsPage = lazy(() => import('src/pages/dashboard/premium-orders/details'));
 const CouponListPage = lazy(() => import('src/pages/dashboard/coupon/list'));
@@ -283,6 +284,7 @@ export const dashboardRoutes = [
         children: [
           { element: <OrderListPage />, index: true },
           { path: 'list', element: <OrderListPage /> },
+          { path: 'returns', element: <ReturnRequestsPage /> },
           { path: ':id', element: <OrderDetailsPage /> },
         ],
       },

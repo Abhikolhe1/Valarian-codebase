@@ -170,10 +170,10 @@ export function useNavData() {
             path: paths.dashboard.order.root,
             icon: ICONS.order,
             roles: ['super_admin', 'admin'],
-            // children: [
-            //   { title: t('List'), path: paths.dashboard.order.root },
-            //   // { title: t('Details'), path: paths.dashboard.order.demo.details },
-            // ],
+            children: [
+              { title: t('List'), path: paths.dashboard.order.root },
+              { title: t('Return Requests'), path: paths.dashboard.order.returns },
+            ],
           },
           {
             title: t('Premium Orders'),

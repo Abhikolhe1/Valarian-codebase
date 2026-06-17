@@ -1,6 +1,23 @@
-import {belongsTo, Entity, model, property} from '@loopback/repository';
+import {
+  belongsTo,
+  Entity,
+  hasOne,
+  model,
+  property,
+} from '@loopback/repository';
+import {Barcode} from './barcode.model';
 import {Order} from './order.model';
 import {Product} from './product.model';
+import {ProductVariant} from './product-variant.model';
+
+export interface OrderItemVariantSnapshot {
+  variantId?: string;
+  sku?: string;
+  color?: string;
+  colorName?: string;
+  size?: string;
+  attributes?: {[key: string]: string | number | boolean | null | undefined};
+}
 
 @model({
   settings: {
@@ -14,6 +31,12 @@ import {Product} from './product.model';
       },
       orderItemsProductIdx: {
         keys: {productId: 1},
+      },
+      orderItemsVariantIdx: {
+        keys: {variantId: 1},
+      },
+      orderItemsBarcodeIdx: {
+        keys: {barcodeId: 1},
       },
     },
   },
@@ -54,6 +77,18 @@ export class OrderItemEntity extends Entity {
     },
   })
   productId: string;
+
+  @belongsTo(() => ProductVariant, {
+    name: 'variant',
+    keyFrom: 'variantId',
+    keyTo: 'id',
+  }, {
+    postgresql: {
+      columnName: 'variantid',
+      dataType: 'text',
+    },
+  })
+  variantId?: string;
 
   @property({
     type: 'number',
@@ -219,6 +254,39 @@ export class OrderItemEntity extends Entity {
 
   @property({
     type: 'string',
+    required: true,
+    postgresql: {
+      columnName: 'productnamesnapshot',
+    },
+  })
+  productNameSnapshot: string;
+
+  @property({
+    type: 'object',
+    postgresql: {
+      columnName: 'variantsnapshot',
+      dataType: 'jsonb',
+    },
+  })
+  variantSnapshot?: OrderItemVariantSnapshot;
+
+  @property({
+    type: 'number',
+    required: true,
+    jsonSchema: {
+      minimum: 0,
+    },
+    postgresql: {
+      columnName: 'pricesnapshot',
+      dataType: 'decimal',
+      precision: 10,
+      scale: 2,
+    },
+  })
+  priceSnapshot: number;
+
+  @property({
+    type: 'string',
     postgresql: {
       columnName: 'sku',
     },
@@ -248,6 +316,18 @@ export class OrderItemEntity extends Entity {
   subtotal?: number;
 
   @property({
+    type: 'string',
+    postgresql: {
+      columnName: 'barcodeid',
+      dataType: 'uuid',
+    },
+  })
+  barcodeId?: string;
+
+  @hasOne(() => Barcode, {keyTo: 'orderItemId'})
+  barcode?: Barcode;
+
+  @property({
     type: 'date',
     defaultFn: 'now',
     postgresql: {
@@ -273,6 +353,8 @@ export class OrderItemEntity extends Entity {
 export interface OrderItemEntityRelations {
   order?: Order;
   product?: Product;
+  variant?: ProductVariant;
+  barcode?: Barcode;
 }
 
 export type OrderItemWithRelations = OrderItemEntity & OrderItemEntityRelations;
