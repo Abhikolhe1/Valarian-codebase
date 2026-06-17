@@ -13,7 +13,7 @@ import { ListItem } from './styles';
 // ----------------------------------------------------------------------
 
 export default function NavItem({ item, open, active, externalLink, ...other }) {
-  const { title, path, icon, children } = item;
+  const { title, path, icon, children, onClick } = item;
 
   const renderContent = (
     <ListItem active={active} {...other}>
@@ -21,7 +21,7 @@ export default function NavItem({ item, open, active, externalLink, ...other }) 
 
       <ListItemText disableTypography primary={title} />
 
-      {!!children && (
+      {!!children && title !== 'Categories' && (
         <Iconify
           width={16}
           icon={open ? 'eva:arrow-ios-downward-fill' : 'eva:arrow-ios-forward-fill'}
@@ -42,6 +42,11 @@ export default function NavItem({ item, open, active, externalLink, ...other }) 
 
   // Has child
   if (children) {
+    return renderContent;
+  }
+
+  // Action item
+  if (onClick) {
     return renderContent;
   }
 

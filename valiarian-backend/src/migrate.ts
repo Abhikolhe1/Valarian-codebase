@@ -9,6 +9,7 @@ export async function migrate(args: string[]) {
   await app.migrateSchema({
     existingSchema,
     models: [
+      'AboutPage',
       'Users',
       'Roles',
       'Permissions',
@@ -17,12 +18,36 @@ export async function migrate(args: string[]) {
       'Media',
       'Otp',
       'RegistrationSessions',
-    ]
+      'RefreshToken',
+      'Page',
+      'Section',
+      'ContentVersion',
+      'SectionTemplate',
+      'NavigationMenu',
+      'SiteSettings',
+      'Coupon',
+      'ParentCategory',
+      'Category',
+      'Product',
+      'ProductVariant',
+      'Carts',
+      'CartItems',
+      'Order',
+      'OrderStatusHistory',
+      'Address',
+      'AuditLog',
+      'Barcode',
+      'BarcodeScanLog',
+      'OrderItemEntity',
+      'Payment',
+      'PremiumPreorder',
+      'Invoice',
+      'ReturnRequest',
+      'Review',
+      'ContactSubmission',
+    ],
   });
 
-  // Connectors usually keep a pool of opened connections,
-  // this keeps the process running even after all work is done.
-  // We need to exit explicitly.
   process.exit(0);
 }
 

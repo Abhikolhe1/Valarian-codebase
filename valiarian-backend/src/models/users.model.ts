@@ -1,4 +1,6 @@
-import {Entity, model, property, hasMany} from '@loopback/repository';
+import {belongsTo, Entity, hasMany, model, property} from '@loopback/repository';
+import {Media} from './media.model';
+import {Order} from './order.model';
 import {Roles} from './roles.model';
 import {UserRoles} from './user-roles.model';
 
@@ -20,7 +22,6 @@ import {UserRoles} from './user-roles.model';
     },
   },
 })
-
 export class Users extends Entity {
   @property({
     type: 'string',
@@ -39,15 +40,13 @@ export class Users extends Entity {
 
   @property({
     type: 'string',
-    required: true,
   })
-  email: string;
+  email?: string;
 
   @property({
     type: 'string',
-    required: true,
   })
-  phone: string;
+  phone?: string;
 
   @property({
     type: 'string',
@@ -56,41 +55,126 @@ export class Users extends Entity {
 
   @property({
     type: 'boolean',
-    default: true,
+    default: false,
   })
-  isActive?: boolean;
+  isEmailVerified?: boolean;
 
   @property({
     type: 'boolean',
     default: false,
   })
-  isDeleted?: boolean;
+  isMobileVerified?: boolean;
+
+  @property({
+    type: 'array',
+    itemType: 'string',
+    default: [],
+  })
+  passwordHistory?: string[];
+
+  @property({
+    type: 'array',
+    itemType: 'string',
+    default: [],
+    postgresql: {
+      dataType: 'jsonb',
+    },
+  })
+  favoriteProductIds?: string[];
+
+  @property({
+    type: 'number',
+    default: 0,
+  })
+  failedLoginAttempts?: number;
 
   @property({
     type: 'date',
-    defaultFn: 'now',
   })
-  createdAt?: Date;
-
-  @property({
-    type: 'date',
-    defaultFn: 'now',
-  })
-  updatedAt?: Date;
+  lockedUntil?: Date;
 
   @property({
     type: 'date',
   })
-  deletedAt?: Date;
+  lastLoginAt?: Date;
+
+  @property({
+    type: 'date',
+  })
+  passwordChangedAt?: Date;
+
+  @property({
+    type: 'string',
+  })
+  googleId?: string;
+
+  @belongsTo(() => Media, {name: 'avatar'})
+  avatarId?: string;
+
+  @property({
+    type: 'string',
+  })
+  profilePicture?: string;
+
+  @property({
+    type: 'string',
+    default: 'local',
+  })
+  authProvider?: string;
 
   @hasMany(() => Roles, {through: {model: () => UserRoles}})
   roles: Roles[];
+
+  @hasMany(() => Order, {keyTo: 'userId'})
+  orders?: Order[];
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+  @property({
+    type: 'boolean',
+    default: true,
+  })
+  isActive: boolean;
+
+  @property({
+    type: 'boolean',
+    default: false,
+  })
+  isDeleted: boolean;
+
+  @property({
+    type: 'date',
+    defaultFn: 'now',
+  })
+  createdAt: Date;
+
+  @property({
+    type: 'date',
+    defaultFn: 'now',
+  })
+  updatedAt: Date;
+
+  @property({
+    type: 'date',
+  })
+  deletedAt: Date;
 
   constructor(data?: Partial<Users>) {
     super(data);
   }
 }
 
-export interface UsersRelations { }
+export interface UsersRelations {
+  avatar?: Media;
+}
 
 export type UsersWithRelations = Users & UsersRelations;

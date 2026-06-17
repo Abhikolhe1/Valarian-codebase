@@ -9,7 +9,7 @@ import Stack from '@mui/material/Stack';
 import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
 import InputAdornment from '@mui/material/InputAdornment';
-import { Alert, Button, Card, Grid, TextField } from '@mui/material';
+import { Alert, Card, Grid, TextField } from '@mui/material';
 // routes
 import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
@@ -19,8 +19,6 @@ import { useBoolean } from 'src/hooks/use-boolean';
 import { useCountdownSeconds } from 'src/hooks/use-countdown';
 // auth
 import { useAuthContext } from 'src/auth/hooks';
-// assets
-import { SentIcon } from 'src/assets/icons';
 // components
 import Iconify from 'src/components/iconify';
 import FormProvider, { RHFTextField } from 'src/components/hook-form';
@@ -32,6 +30,9 @@ export default function JwtNewPasswordView() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const email = searchParams.get('email');
+  const loginType = searchParams.get('loginType') === 'admin' ? 'admin' : 'super_admin';
+  const loginPath = loginType === 'admin' ? paths.auth.jwt.adminLogin : paths.auth.jwt.login;
+  const accountLabel = loginType === 'admin' ? 'admin' : 'super admin';
 
   const password = useBoolean();
   const { countdown, counting, startCountdown } = useCountdownSeconds(60);
@@ -91,8 +92,8 @@ export default function JwtNewPasswordView() {
     }
 
     try {
-      await newPassword?.(data.email, enteredOtp, data.password);
-      router.push(paths.auth.jwt.login);
+      await newPassword?.(data.email, enteredOtp, data.password, loginType);
+      router.push(loginPath);
     } catch (error) {
       console.error(error);
       const message =
@@ -113,13 +114,13 @@ export default function JwtNewPasswordView() {
   const handleResendCode = useCallback(async () => {
     try {
       startCountdown();
-      await forgotPassword?.(values.email);
+      await forgotPassword?.(values.email, loginType);
       setOtp(Array(4).fill(''));
       otpRefs.current[0]?.focus();
     } catch (error) {
       console.error(error);
     }
-  }, [forgotPassword, startCountdown, values.email]);
+  }, [forgotPassword, loginType, startCountdown, values.email]);
 
   const renderOtpBoxes = (
     <Grid container spacing={2} sx={{ mt: 1, mb: 2 }}>
@@ -208,7 +209,7 @@ export default function JwtNewPasswordView() {
 
       <Link
         component={RouterLink}
-        href={paths.auth.jwt.login}
+        href={loginPath}
         variant="subtitle2"
         sx={{ display: 'inline-flex', alignItems: 'center' }}
       >
@@ -232,7 +233,7 @@ export default function JwtNewPasswordView() {
         </Typography>
 
         <Typography variant="body2" sx={{ color: 'text.secondary', textAlign: 'left' }}>
-          We have sent a 4-digit verification code to your email.
+          We have sent a verification code to your {accountLabel} email.
           <br />
           Please enter the code below.
         </Typography>

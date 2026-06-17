@@ -4,11 +4,11 @@ import { customShadows } from '../custom-shadows';
 
 // ----------------------------------------------------------------------
 
-export function darkMode(mode) {
+export function darkMode(mode, themeOverrides = {}) {
   const theme = {
-    palette: palette(mode),
+    palette: palette(mode, themeOverrides),
     shadows: shadows(mode),
-    customShadows: customShadows(mode),
+    customShadows: customShadows(mode, themeOverrides),
   };
 
   return theme;

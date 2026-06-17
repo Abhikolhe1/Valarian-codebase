@@ -5,13 +5,15 @@ import AppBar from '@mui/material/AppBar';
 import Toolbar from '@mui/material/Toolbar';
 // theme
 import { bgBlur } from 'src/theme/css';
-// hooks
-import { useMockedUser } from 'src/hooks/use-mocked-user';
 // components
 import { NavSectionHorizontal } from 'src/components/nav-section';
+// auth
+import { useAuthContext } from 'src/auth/hooks';
+import { getUserPrimaryRole } from 'src/auth/utils/role';
 //
 import { HEADER } from '../config-layout';
 import { useNavData } from './config-navigation';
+import { filterNavGroupsByRole } from './nav-utils';
 import { HeaderShadow } from '../_common';
 
 // ----------------------------------------------------------------------
@@ -19,9 +21,11 @@ import { HeaderShadow } from '../_common';
 function NavHorizontal() {
   const theme = useTheme();
 
-  const { user } = useMockedUser();
+  const { user } = useAuthContext();
+  const currentRole = getUserPrimaryRole(user);
 
   const navData = useNavData();
+  const filteredNavData = filterNavGroupsByRole(navData, currentRole);
 
   return (
     <AppBar
@@ -38,9 +42,9 @@ function NavHorizontal() {
         }}
       >
         <NavSectionHorizontal
-          data={navData}
+          data={filteredNavData}
           config={{
-            currentRole: user?.role || 'admin',
+            currentRole,
           }}
         />
       </Toolbar>

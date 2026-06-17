@@ -7,6 +7,7 @@
   "scripts": {
     "start": "react-scripts start",
     "build": "react-scripts build",
+    "test": "react-scripts test",
     "eject": "react-scripts eject",
     "lint": "eslint src --ext .js,.jsx,.ts,.tsx",
     "lint:fix": "eslint src --ext .js,.jsx,.ts,.tsx --fix",
@@ -56,6 +57,7 @@
     "@mui/x-date-pickers": "^6.8.0",
     "@react-pdf/renderer": "^3.1.12",
     "@reduxjs/toolkit": "^1.9.5",
+    "@zxing/browser": "^0.1.5",
     "apexcharts": "^4.7.0",
     "autosuggest-highlight": "^3.3.4",
     "axios": "^1.4.0",
@@ -100,6 +102,7 @@
     "stylis": "^4.2.0",
     "stylis-plugin-rtl": "^2.0.2",
     "swr": "^2.1.5",
+    "uuid": "^13.0.0",
     "worker-loader": "^3.0.8",
     "yet-another-react-lightbox": "^3.11.1",
     "yup": "^1.2.0"

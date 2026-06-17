@@ -1,19 +1,19 @@
 import PropTypes from 'prop-types';
 import { useCallback } from 'react';
 // @mui
-import Stack from '@mui/material/Stack';
-import MenuItem from '@mui/material/MenuItem';
 import Checkbox from '@mui/material/Checkbox';
-import TextField from '@mui/material/TextField';
-import InputLabel from '@mui/material/InputLabel';
-import IconButton from '@mui/material/IconButton';
 import FormControl from '@mui/material/FormControl';
-import OutlinedInput from '@mui/material/OutlinedInput';
+import IconButton from '@mui/material/IconButton';
 import InputAdornment from '@mui/material/InputAdornment';
+import InputLabel from '@mui/material/InputLabel';
+import MenuItem from '@mui/material/MenuItem';
+import OutlinedInput from '@mui/material/OutlinedInput';
 import Select from '@mui/material/Select';
+import Stack from '@mui/material/Stack';
+import TextField from '@mui/material/TextField';
 // components
-import Iconify from 'src/components/iconify';
 import CustomPopover, { usePopover } from 'src/components/custom-popover';
+import Iconify from 'src/components/iconify';
 
 // ----------------------------------------------------------------------
 
@@ -22,13 +22,13 @@ export default function ProductTableToolbar({
   onFilters,
   //
   stockOptions,
-  publishOptions,
+  statusOptions,
 }) {
   const popover = usePopover();
 
-  const handleFilterName = useCallback(
+  const handleFilterSearch = useCallback(
     (event) => {
-      onFilters('name', event.target.value);
+      onFilters('search', event.target.value);
     },
     [onFilters]
   );
@@ -43,10 +43,10 @@ export default function ProductTableToolbar({
     [onFilters]
   );
 
-  const handleFilterPublish = useCallback(
+  const handleFilterStatus = useCallback(
     (event) => {
       onFilters(
-        'publish',
+        'status',
         typeof event.target.value === 'string' ? event.target.value.split(',') : event.target.value
       );
     },
@@ -102,22 +102,22 @@ export default function ProductTableToolbar({
             width: { xs: 1, md: 200 },
           }}
         >
-          <InputLabel>Publish</InputLabel>
+          <InputLabel>Status</InputLabel>
 
           <Select
             multiple
-            value={filters.publish}
-            onChange={handleFilterPublish}
-            input={<OutlinedInput label="Publish" />}
+            value={filters.status}
+            onChange={handleFilterStatus}
+            input={<OutlinedInput label="Status" />}
             renderValue={(selected) => selected.map((value) => value).join(', ')}
             sx={{ textTransform: 'capitalize' }}
           >
-            {publishOptions.map((option) => (
+            {statusOptions.map((option) => (
               <MenuItem key={option.value} value={option.value}>
                 <Checkbox
                   disableRipple
                   size="small"
-                  checked={filters.publish.includes(option.value)}
+                  checked={filters.status.includes(option.value)}
                 />
                 {option.label}
               </MenuItem>
@@ -128,8 +128,8 @@ export default function ProductTableToolbar({
         <Stack direction="row" alignItems="center" spacing={2} flexGrow={1} sx={{ width: 1 }}>
           <TextField
             fullWidth
-            value={filters.name}
-            onChange={handleFilterName}
+            value={filters.search}
+            onChange={handleFilterSearch}
             placeholder="Search..."
             InputProps={{
               startAdornment: (
@@ -186,6 +186,6 @@ export default function ProductTableToolbar({
 ProductTableToolbar.propTypes = {
   filters: PropTypes.object,
   onFilters: PropTypes.func,
-  publishOptions: PropTypes.array,
+  statusOptions: PropTypes.array,
   stockOptions: PropTypes.array,
 };

@@ -1,8 +1,10 @@
 import PropTypes from 'prop-types';
-import { useEffect, useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 // routes
-import { paths } from 'src/routes/paths';
 import { useRouter } from 'src/routes/hook';
+import { paths } from 'src/routes/paths';
+// components
+import { LoadingScreen } from 'src/components/loading-screen';
 //
 import { useAuthContext } from '../hooks';
 
@@ -20,11 +22,15 @@ const loginPaths = {
 export default function AuthGuard({ children }) {
   const router = useRouter();
 
-  const { authenticated, method } = useAuthContext();
+  const { authenticated, method, loading } = useAuthContext();
 
   const [checked, setChecked] = useState(false);
 
   const check = useCallback(() => {
+    if (loading) {
+      return;
+    }
+
     if (!authenticated) {
       const searchParams = new URLSearchParams({ returnTo: window.location.pathname }).toString();
 
@@ -36,12 +42,15 @@ export default function AuthGuard({ children }) {
     } else {
       setChecked(true);
     }
-  }, [authenticated, method, router]);
+  }, [authenticated, loading, method, router]);
 
   useEffect(() => {
     check();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [check]);
+
+  if (loading) {
+    return <LoadingScreen />;
+  }
 
   if (!checked) {
     return null;

@@ -1,56 +1,61 @@
-import * as Yup from 'yup';
-import { useForm } from 'react-hook-form';
-import { useState } from 'react';
 import { yupResolver } from '@hookform/resolvers/yup';
+import { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import * as Yup from 'yup';
 // @mui
 import LoadingButton from '@mui/lab/LoadingButton';
-import Link from '@mui/material/Link';
 import Alert from '@mui/material/Alert';
-import Stack from '@mui/material/Stack';
-import IconButton from '@mui/material/IconButton';
-import Typography from '@mui/material/Typography';
+import Button from '@mui/material/Button';
 import InputAdornment from '@mui/material/InputAdornment';
-// hooks
-import { useBoolean } from 'src/hooks/use-boolean';
+import Link from '@mui/material/Link';
+import Stack from '@mui/material/Stack';
+import Typography from '@mui/material/Typography';
 // routes
-import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
-import { useSearchParams, useRouter } from 'src/routes/hook';
-// config
-import { PATH_AFTER_LOGIN } from 'src/config-global';
+import { useRouter, useSearchParams } from 'src/routes/hook';
+import { paths } from 'src/routes/paths';
 // auth
 import { useAuthContext } from 'src/auth/hooks';
+// utils
+import { resolveAuthRedirect } from 'src/utils/auth-redirect';
 // components
-import Iconify from 'src/components/iconify';
+import { Divider } from '@mui/material';
 import FormProvider, { RHFTextField } from 'src/components/hook-form';
+import GoogleLoginButton from './google-login-button';
+import OtpVerificationModal from './otp-verification-modal';
 
 // ----------------------------------------------------------------------
 
 export default function JwtRegisterView() {
-  const { register } = useAuthContext();
+  const { userRegister } = useAuthContext();
 
   const router = useRouter();
 
   const [errorMsg, setErrorMsg] = useState('');
+  const [otpModalOpen, setOtpModalOpen] = useState(false);
+  const [sessionId, setSessionId] = useState('');
+  const [registrationData, setRegistrationData] = useState(null);
 
   const searchParams = useSearchParams();
 
   const returnTo = searchParams.get('returnTo');
 
-  const password = useBoolean();
-
   const RegisterSchema = Yup.object().shape({
     firstName: Yup.string().required('First name required'),
     lastName: Yup.string().required('Last name required'),
-    email: Yup.string().required('Email is required').email('Email must be a valid email address'),
-    password: Yup.string().required('Password is required'),
+    mobile: Yup.string()
+      .required('Mobile number is required')
+      .matches(/^[0-9]{10}$/, 'Mobile number must be exactly 10 digits'),
+    email: Yup.string()
+      .email('Email must be a valid email address')
+      .notRequired(),
   });
 
   const defaultValues = {
     firstName: '',
     lastName: '',
+    mobile: '',
     email: '',
-    password: '',
   };
 
   const methods = useForm({
@@ -59,22 +64,101 @@ export default function JwtRegisterView() {
   });
 
   const {
-    reset,
     handleSubmit,
     formState: { isSubmitting },
   } = methods;
 
-  const onSubmit = handleSubmit(async (data) => {
-    try {
-      await register?.(data.email, data.password, data.firstName, data.lastName);
+  const createGeneratedPassword = () =>
+    `Vali${Math.random().toString(36).slice(-6)}A1`;
 
-      router.push(returnTo || PATH_AFTER_LOGIN);
+  const sendOtpForRegistration = handleSubmit(async (data) => {
+    try {
+      setErrorMsg('');
+      setRegistrationData(data);
+
+      const response = await fetch(`${process.env.REACT_APP_HOST_API}/api/auth/send-phone-otp`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          phone: data.mobile,
+          role: 'user',
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.message || 'Failed to send OTP');
+      }
+
+      setSessionId(result.sessionId);
+      setOtpModalOpen(true);
     } catch (error) {
       console.error(error);
-      reset();
-      setErrorMsg(typeof error === 'string' ? error : error.message);
+      setErrorMsg(typeof error === 'string' ? error : error?.error?.message);
     }
   });
+
+  const handleOtpVerified = async (otp) => {
+    try {
+      // Verify OTP
+      const verifyResponse = await fetch(`${process.env.REACT_APP_HOST_API}/api/auth/verify-phone-otp`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          sessionId,
+          otp,
+        }),
+      });
+
+      const verifyResult = await verifyResponse.json();
+
+      if (!verifyResponse.ok) {
+        throw new Error(verifyResult.message || 'Invalid OTP');
+      }
+
+      // Complete registration
+      await userRegister({
+        sessionId,
+        fullName: `${registrationData.firstName} ${registrationData.lastName}`,
+        email: registrationData.email || undefined,
+        password: createGeneratedPassword(),
+      });
+
+      setOtpModalOpen(false);
+      router.push(returnTo || resolveAuthRedirect(searchParams));
+    } catch (error) {
+      console.error(error);
+      throw error; // Re-throw to be handled by modal
+    }
+  };
+
+  const handleResendOtp = async () => {
+    const response = await fetch(`${process.env.REACT_APP_HOST_API}/api/auth/send-phone-otp`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        phone: registrationData?.mobile,
+        role: 'user',
+      }),
+    });
+
+    const result = await response.json();
+
+    if (!response.ok) {
+      throw new Error(result.message || 'Failed to resend OTP');
+    }
+
+    if (result.sessionId) {
+      setSessionId(result.sessionId);
+    }
+  };
 
   const renderHead = (
     <Stack spacing={2} sx={{ mb: 5, position: 'relative' }}>
@@ -108,41 +192,61 @@ export default function JwtRegisterView() {
   );
 
   const renderForm = (
-    <FormProvider methods={methods} onSubmit={onSubmit}>
+    <FormProvider methods={methods} onSubmit={sendOtpForRegistration}>
       <Stack spacing={2.5}>
         {!!errorMsg && <Alert severity="error">{errorMsg}</Alert>}
+
+        {/* Google Sign Up Button */}
+        <GoogleLoginButton />
+
+        {/* OR Divider */}
+        <Divider sx={{ my: 2 }}>
+          <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+            OR
+          </Typography>
+        </Divider>
 
         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
           <RHFTextField name="firstName" label="First name" />
           <RHFTextField name="lastName" label="Last name" />
         </Stack>
 
-        <RHFTextField name="email" label="Email address" />
-
         <RHFTextField
-          name="password"
-          label="Password"
-          type={password.value ? 'text' : 'password'}
+          name="mobile"
+          label="Mobile number *"
+          placeholder="10 digit mobile number"
+          inputProps={{ maxLength: 10 }}
           InputProps={{
             endAdornment: (
               <InputAdornment position="end">
-                <IconButton onClick={password.onToggle} edge="end">
-                  <Iconify icon={password.value ? 'solar:eye-bold' : 'solar:eye-closed-bold'} />
-                </IconButton>
+                <Button
+                  size="small"
+                  onClick={sendOtpForRegistration}
+                  disabled={isSubmitting}
+                >
+                  Send OTP
+                </Button>
               </InputAdornment>
             ),
           }}
+        />
+
+        <RHFTextField
+          name="email"
+          label="Email address (Optional)"
+          placeholder="your@email.com"
         />
 
         <LoadingButton
           fullWidth
           color="inherit"
           size="large"
-          type="submit"
+          type="button"
           variant="contained"
           loading={isSubmitting}
+          onClick={sendOtpForRegistration}
         >
-          Create account
+          Send OTP
         </LoadingButton>
       </Stack>
     </FormProvider>
@@ -155,6 +259,15 @@ export default function JwtRegisterView() {
       {renderForm}
 
       {renderTerms}
+
+      <OtpVerificationModal
+        open={otpModalOpen}
+        onClose={() => setOtpModalOpen(false)}
+        mobile={registrationData?.mobile}
+        sessionId={sessionId}
+        onResend={handleResendOtp}
+        onVerified={handleOtpVerified}
+      />
     </>
   );
 }

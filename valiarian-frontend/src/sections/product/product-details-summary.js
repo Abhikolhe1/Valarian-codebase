@@ -1,5 +1,5 @@
 import PropTypes from 'prop-types';
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 // @mui
 import Box from '@mui/material/Box';
@@ -11,16 +11,26 @@ import MenuItem from '@mui/material/MenuItem';
 import Rating from '@mui/material/Rating';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
+// api
+import { addFavorite, removeFavorite } from 'src/api/favorites';
+// auth
+import { useAuthContext } from 'src/auth/hooks';
 // routes
 import { useRouter } from 'src/routes/hook';
 import { paths } from 'src/routes/paths';
+// redux
+import { revertFavorites, toggleFavorite } from 'src/redux/slices/favorites';
+import { useDispatch, useSelector } from 'src/redux/store';
 // utils
 import { fCurrency, fShortenNumber } from 'src/utils/format-number';
 // components
 import { ColorPicker } from 'src/components/color-utils';
+import CustomPopover, { usePopover } from 'src/components/custom-popover';
 import FormProvider, { RHFSelect } from 'src/components/hook-form';
 import Iconify from 'src/components/iconify';
 import Label from 'src/components/label';
+import { useSnackbar } from 'src/components/snackbar';
+import { getCartItemKey, MAX_CART_ITEM_QUANTITY } from 'src/utils/cart-utils';
 //
 import IncrementerButton from './common/incrementer-button';
 
@@ -29,45 +39,122 @@ import IncrementerButton from './common/incrementer-button';
 export default function ProductDetailsSummary({
   cart,
   product,
+  initialVariantId,
   onAddCart,
+  onBuyNow,
   onGotoStep,
   disabledActions,
-  onColorChange,
+  onVariantChange,
   ...other
 }) {
   const router = useRouter();
+  const dispatch = useDispatch();
+  const { enqueueSnackbar } = useSnackbar();
+  const { authenticated } = useAuthContext();
+  const sharePopover = usePopover();
+  const [isFavoriteSubmitting, setIsFavoriteSubmitting] = useState(false);
+  const favorites = useSelector((state) => state.favorites.items);
 
   const {
     id,
     name,
     sizes,
     price,
-    coverUrl,
+    coverImage,
     colors,
-    newLabel,
-    available,
-    priceSale,
-    saleLabel,
-    totalRatings,
-    totalReviews,
-    inventoryType,
-    subDescription,
+    inStock,
+    stockQuantity,
+    salePrice,
+    isNewArrival,
+    shortDescription,
+    variants,
   } = product;
 
-  const existProduct = cart.map((item) => item.id).includes(id);
+  // State for selected variant
+  const [selectedVariant, setSelectedVariant] = useState(null);
 
-  const isMaxQuantity =
-    cart.filter((item) => item.id === id).map((item) => item.quantity)[0] >= available;
+  const resolveEffectivePrice = useCallback(
+    (variant) => {
+      const prioritizedPrices = [variant?.salePrice, salePrice, variant?.price, price];
+      const resolvedPrice = prioritizedPrices.find(
+        (value) => Number.isFinite(Number(value)) && Number(value) > 0
+      );
+
+      return resolvedPrice ? Number(resolvedPrice) : 0;
+    },
+    [price, salePrice]
+  );
+
+  // Set default variant on component mount
+  useEffect(() => {
+    if (variants && variants.length > 0) {
+      const defaultVariant =
+        variants.find((v) => v.id === initialVariantId) ||
+        variants.find((v) => v.isDefault) ||
+        variants[0];
+      setSelectedVariant(defaultVariant);
+      if (defaultVariant && onVariantChange) {
+        onVariantChange(defaultVariant);
+      }
+    }
+  }, [initialVariantId, onVariantChange, variants]);
+
+  // Get variant-specific values or fallback to product values
+  const currentPrice = resolveEffectivePrice(selectedVariant);
+  const available = selectedVariant?.stockQuantity ?? stockQuantity ?? 0;
+  const maxAllowedQuantity = Math.min(Number(available || 0), MAX_CART_ITEM_QUANTITY);
+  const variantInStock = selectedVariant?.inStock ?? inStock;
+  const variantSKU = selectedVariant?.sku;
+  const shareUrl = useMemo(() => {
+    if (typeof window === 'undefined') {
+      return paths.product.details(id);
+    }
+
+    return window.location.href;
+  }, [id]);
+
+  const shareTitle = useMemo(() => `${name} | Valarian`, [name]);
+  const isFavorited = useMemo(
+    () => favorites.some((item) => item.productId === id),
+    [favorites, id]
+  );
+
+  // Map our product structure to what the component expects
+  const coverUrl = coverImage;
+  const priceSale = salePrice && salePrice < price ? price : null; // Original price when on sale
+  const subDescription = shortDescription || '';
+  const totalRatings = product.rating || 0;
+  const totalReviews = product.totalReviews || 0;
+
+  // Determine inventory type without nested ternary
+  let inventoryType = 'in stock';
+  if (!variantInStock) {
+    inventoryType = 'out of stock';
+  } else if (available < 10) {
+    inventoryType = 'low stock';
+  }
+
+  // Create label objects from our boolean fields
+  const newLabel = { enabled: isNewArrival || false, content: 'New' };
+  const saleLabel = { enabled: !!(salePrice && salePrice < price), content: 'Sale' };
+
+  // Get available colors and sizes from variants
+  const availableColors =
+    variants && variants.length > 0 ? [...new Set(variants.map((v) => v.color))] : colors || [];
+
+  const availableSizes =
+    variants && variants.length > 0 ? [...new Set(variants.map((v) => v.size))] : sizes || [];
 
   const defaultValues = {
     id,
     name,
     coverUrl,
     available,
-    price,
-    colors: colors[0],
-    size: sizes[4],
+    price: currentPrice,
+    colors: selectedVariant?.color || (availableColors.length > 0 ? availableColors[0] : '#000000'),
+    size: selectedVariant?.size || (availableSizes.length > 0 ? availableSizes[0] : 'M'),
     quantity: available < 1 ? 0 : 1,
+    variantId: selectedVariant?.id,
   };
 
   const methods = useForm({
@@ -83,35 +170,234 @@ export default function ProductDetailsSummary({
       reset(defaultValues);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [product]);
+  }, [product, selectedVariant]);
+
+  // Handle color change - find matching variant
+  const handleColorChange = useCallback(
+    (color) => {
+      if (variants && variants.length > 0) {
+        const variant = variants.find((v) => v.color === color && v.size === values.size);
+        if (variant) {
+          setSelectedVariant(variant);
+          setValue('colors', color);
+          setValue('variantId', variant.id);
+          setValue('price', resolveEffectivePrice(variant));
+          setValue('available', variant.stockQuantity);
+          setValue(
+            'quantity',
+            variant.stockQuantity < 1 ? 0 : Math.min(values.quantity, variant.stockQuantity)
+          );
+          if (onVariantChange) {
+            onVariantChange(variant);
+          }
+        }
+      } else {
+        setValue('colors', color);
+      }
+    },
+    [variants, values.size, values.quantity, setValue, onVariantChange, resolveEffectivePrice]
+  );
+
+  // Handle size change - find matching variant
+  const handleSizeChange = useCallback(
+    (size) => {
+      if (variants && variants.length > 0) {
+        let variant = variants.find(
+          (v) => v.color === values.colors && v.size === size && v.inStock && v.stockQuantity > 0
+        );
+
+        if (!variant) {
+          variant = variants.find((v) => v.size === size && v.inStock && v.stockQuantity > 0);
+        }
+
+        setValue('size', size);
+
+        if (variant) {
+          setSelectedVariant(variant);
+          setValue('colors', variant.color);
+          setValue('variantId', variant.id);
+          setValue('price', resolveEffectivePrice(variant));
+          setValue('available', variant.stockQuantity);
+          setValue(
+            'quantity',
+            variant.stockQuantity < 1 ? 0 : Math.min(values.quantity, variant.stockQuantity)
+          );
+
+          if (onVariantChange) {
+            onVariantChange(variant);
+          }
+        } else {
+          setSelectedVariant(null);
+          setValue('colors', '');
+          setValue('variantId', null);
+          setValue('available', 0);
+          setValue('quantity', 0);
+        }
+      } else {
+        setValue('size', size);
+      }
+    },
+    [variants, values.colors, values.quantity, setValue, onVariantChange, resolveEffectivePrice]
+  );
+
+  // Check if a color/size combination is available
+  const isColorAvailable = useCallback(
+    (color) => {
+      if (!variants || variants.length === 0) return true;
+
+      return variants.some(
+        (v) => v.color === color && v.size === values.size && v.inStock && v.stockQuantity > 0
+      );
+    },
+    [variants, values.size]
+  );
+  const filteredAvailableColors = availableColors?.filter((color) => isColorAvailable(color)) || [];
+
+  const isSizeAvailable = useCallback(
+    (size) => {
+      if (!variants || variants.length === 0) return true;
+      return variants.some((v) => v.size === size && v.color === values.colors && v.inStock);
+    },
+    [variants, values.colors]
+  );
 
   const onSubmit = handleSubmit(async (data) => {
     try {
-      if (!existProduct) {
-        onAddCart({
-          ...data,
-          colors: [values.colors],
-          subTotal: data.price * data.quantity,
-        });
-      }
-      onGotoStep(0);
+      await onBuyNow({
+        ...data,
+        colors: [values.colors],
+        subTotal: data.price * data.quantity,
+        variantId: selectedVariant?.id,
+      });
       router.push(paths.product.checkout);
     } catch (error) {
       console.error(error);
     }
   });
 
-  const handleAddCart = useCallback(() => {
+  const handleAddCart = useCallback(async () => {
     try {
-      onAddCart({
+      await onAddCart({
         ...values,
         colors: [values.colors],
         subTotal: values.price * values.quantity,
+        variantId: selectedVariant?.id,
       });
     } catch (error) {
       console.error(error);
     }
-  }, [onAddCart, values]);
+  }, [onAddCart, values, selectedVariant]);
+
+  const handleGoToCart = useCallback(() => {
+    router.push(paths.product.checkout);
+  }, [router]);
+
+  const handleOpenShare = useCallback(
+    (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      sharePopover.setOpen(event.currentTarget);
+    },
+    [sharePopover]
+  );
+
+  const handleCopyLink = useCallback(async () => {
+    try {
+      if (navigator?.clipboard?.writeText) {
+        await navigator.clipboard.writeText(shareUrl);
+      } else {
+        const textArea = document.createElement('textarea');
+        textArea.value = shareUrl;
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+      }
+
+      enqueueSnackbar('Product link copied.', { variant: 'success' });
+      sharePopover.onClose();
+    } catch (error) {
+      console.error(error);
+      enqueueSnackbar('Unable to copy product link.', { variant: 'error' });
+    }
+  }, [enqueueSnackbar, sharePopover, shareUrl]);
+
+  const handleShareTo = useCallback(
+    (platform) => {
+      const encodedUrl = encodeURIComponent(shareUrl);
+      const encodedText = encodeURIComponent(`Check this product: ${name}`);
+
+      const platformUrls = {
+        whatsapp: `https://wa.me/?text=${encodedText}%20${encodedUrl}`,
+        telegram: `https://t.me/share/url?url=${encodedUrl}&text=${encodedText}`,
+        facebook: `https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}`,
+        x: `https://twitter.com/intent/tweet?text=${encodedText}&url=${encodedUrl}`,
+      };
+
+      const targetUrl = platformUrls[platform];
+
+      if (targetUrl && typeof window !== 'undefined') {
+        window.open(targetUrl, '_blank', 'noopener,noreferrer');
+      }
+
+      sharePopover.onClose();
+    },
+    [name, sharePopover, shareUrl]
+  );
+
+  const handleNativeShare = useCallback(async () => {
+    try {
+      if (navigator?.share) {
+        await navigator.share({
+          title: shareTitle,
+          text: `Check this product: ${name}`,
+          url: shareUrl,
+        });
+      }
+
+      sharePopover.onClose();
+    } catch (error) {
+      if (error?.name !== 'AbortError') {
+        console.error(error);
+        enqueueSnackbar('Unable to open share dialog.', { variant: 'error' });
+      }
+    }
+  }, [enqueueSnackbar, name, sharePopover, shareTitle, shareUrl]);
+
+  const handleToggleFavorite = useCallback(
+    async (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+
+      if (!authenticated) {
+        router.push(paths.auth.jwt.login);
+        return;
+      }
+
+      if (isFavoriteSubmitting) {
+        return;
+      }
+
+      const previousFavorites = favorites;
+
+      dispatch(toggleFavorite(id));
+      setIsFavoriteSubmitting(true);
+
+      try {
+        if (isFavorited) {
+          await removeFavorite(id);
+        } else {
+          await addFavorite(id);
+        }
+      } catch (error) {
+        dispatch(revertFavorites(previousFavorites));
+        console.error('Failed to update favorites:', error);
+      } finally {
+        setIsFavoriteSubmitting(false);
+      }
+    },
+    [authenticated, dispatch, favorites, id, isFavoriteSubmitting, isFavorited, router]
+  );
 
   // ----------------------------------------------------------------------
 
@@ -126,39 +412,111 @@ export default function ProductDetailsSummary({
         </Box>
       )}
 
-      {fCurrency(price)}
+      {fCurrency(currentPrice)}
     </Box>
   );
 
   const renderShare = (
     <Stack direction="row" spacing={3} justifyContent="center">
-      <Link
+      {/* <Link
         variant="subtitle2"
         sx={{ color: 'text.secondary', display: 'inline-flex', alignItems: 'center' }}
       >
         <Iconify icon="mingcute:add-line" width={16} sx={{ mr: 1 }} />
         Compare
-      </Link>
+      </Link> */}
 
-      <Link
-        variant="subtitle2"
-        sx={{ color: 'text.secondary', display: 'inline-flex', alignItems: 'center' }}
+      <Box
+        component="button"
+        type="button"
+        onClick={handleToggleFavorite}
+        disabled={isFavoriteSubmitting}
+        sx={{
+          typography: 'subtitle2',
+          color: isFavorited ? 'error.main' : 'text.secondary',
+          display: 'inline-flex',
+          alignItems: 'center',
+          border: 0,
+          p: 0,
+          m: 0,
+          backgroundColor: 'transparent',
+          cursor: isFavoriteSubmitting ? 'default' : 'pointer',
+          '&:hover': { color: 'error.main' },
+          '&:disabled': {
+            opacity: 0.7,
+          },
+        }}
       >
-        <Iconify icon="solar:heart-bold" width={16} sx={{ mr: 1 }} />
+        <Iconify
+          icon={isFavorited ? 'eva:heart-fill' : 'eva:heart-outline'}
+          width={16}
+          sx={{ mr: 1 }}
+        />
         Favorite
-      </Link>
+      </Box>
 
-      <Link
-        variant="subtitle2"
-        sx={{ color: 'text.secondary', display: 'inline-flex', alignItems: 'center' }}
+      <Box
+        component="button"
+        type="button"
+        sx={{
+          typography: 'subtitle2',
+          color: 'text.secondary',
+          display: 'inline-flex',
+          alignItems: 'center',
+          border: 0,
+          p: 0,
+          m: 0,
+          backgroundColor: 'transparent',
+          cursor: 'pointer',
+          '&:hover': { color: 'text.primary' },
+        }}
+        onClick={handleOpenShare}
       >
         <Iconify icon="solar:share-bold" width={16} sx={{ mr: 1 }} />
         Share
-      </Link>
+      </Box>
+
+      <CustomPopover
+        open={sharePopover.open}
+        onClose={sharePopover.onClose}
+        arrow="top-right"
+        sx={{ width: 220, p: 0.5 }}
+      >
+        <MenuItem onClick={handleCopyLink}>
+          <Iconify icon="solar:link-bold" />
+          Copy Link
+        </MenuItem>
+
+        <MenuItem onClick={() => handleShareTo('whatsapp')}>
+          <Iconify icon="ic:baseline-whatsapp" />
+          WhatsApp
+        </MenuItem>
+
+        <MenuItem onClick={() => handleShareTo('telegram')}>
+          <Iconify icon="ic:baseline-telegram" />
+          Telegram
+        </MenuItem>
+
+        <MenuItem onClick={() => handleShareTo('facebook')}>
+          <Iconify icon="ri:facebook-fill" />
+          Facebook
+        </MenuItem>
+
+        <MenuItem onClick={() => handleShareTo('x')}>
+          <Iconify icon="ri:twitter-x-fill" />X
+        </MenuItem>
+
+        {typeof navigator !== 'undefined' && navigator.share && (
+          <MenuItem onClick={handleNativeShare}>
+            <Iconify icon="solar:share-bold" />
+            More Options
+          </MenuItem>
+        )}
+      </CustomPopover>
     </Stack>
   );
 
-  const renderColorOptions = (
+  const renderColorOptions = filteredAvailableColors.length > 0 && (
     <Stack direction="row">
       <Typography variant="subtitle2" sx={{ flexGrow: 1 }}>
         Color
@@ -169,14 +527,11 @@ export default function ProductDetailsSummary({
         control={control}
         render={({ field }) => (
           <ColorPicker
-            colors={colors}
+            colors={filteredAvailableColors}
             selected={field.value}
             onSelectColor={(color) => {
               field.onChange(color);
-              // Notify parent component about color change
-              if (onColorChange) {
-                onColorChange(color);
-              }
+              handleColorChange(color);
             }}
             limit={4}
           />
@@ -185,7 +540,7 @@ export default function ProductDetailsSummary({
     </Stack>
   );
 
-  const renderSizeOptions = (
+  const renderSizeOptions = availableSizes && availableSizes.length > 0 && (
     <Stack direction="row">
       <Typography variant="subtitle2" sx={{ flexGrow: 1 }}>
         Size
@@ -194,6 +549,7 @@ export default function ProductDetailsSummary({
       <RHFSelect
         name="size"
         size="small"
+        onChange={(e) => handleSizeChange(e.target.value)}
         helperText={
           <Link underline="always" color="textPrimary">
             Size Chart
@@ -208,7 +564,7 @@ export default function ProductDetailsSummary({
           },
         }}
       >
-        {sizes.map((size) => (
+        {availableSizes.map((size) => (
           <MenuItem key={size} value={size}>
             {size}
           </MenuItem>
@@ -228,8 +584,8 @@ export default function ProductDetailsSummary({
           name="quantity"
           quantity={values.quantity}
           disabledDecrease={values.quantity <= 1}
-          disabledIncrease={values.quantity >= available}
-          onIncrease={() => setValue('quantity', values.quantity + 1)}
+          disabledIncrease={values.quantity >= maxAllowedQuantity}
+          onIncrease={() => setValue('quantity', Math.min(values.quantity + 1, maxAllowedQuantity))}
           onDecrease={() => setValue('quantity', values.quantity - 1)}
         />
 
@@ -240,22 +596,48 @@ export default function ProductDetailsSummary({
     </Stack>
   );
 
+  const selectedCartKey = getCartItemKey({ id, variantId: selectedVariant?.id });
+  const existingCartItem = cart.find((item) => item.key === selectedCartKey);
+  const isAlreadyInCart = Boolean(existingCartItem);
+  const isMaxQuantity = existingCartItem ? existingCartItem.quantity >= available : false;
+
   const renderActions = (
     <Stack direction="row" spacing={2}>
+      {isAlreadyInCart ? (
+        <Button
+          fullWidth
+          size="large"
+          color="secondary"
+          variant="outlined"
+          startIcon={<Iconify icon="solar:cart-check-bold" width={24} />}
+          onClick={handleGoToCart}
+          sx={{ whiteSpace: 'nowrap' }}
+        >
+          Go to Cart
+        </Button>
+      ) : (
+        <Button
+          fullWidth
+          disabled={isMaxQuantity || disabledActions || !variantInStock || available < 1}
+          size="large"
+          color="secondary"
+          variant="outlined"
+          startIcon={<Iconify icon="solar:cart-plus-bold" width={24} />}
+          onClick={handleAddCart}
+          sx={{ whiteSpace: 'nowrap' }}
+        >
+          {!variantInStock || available < 1 ? 'Out of Stock' : 'Add to Cart'}
+        </Button>
+      )}
+
       <Button
         fullWidth
-        disabled={isMaxQuantity || disabledActions}
         size="large"
-        color="warning"
+        type="submit"
         variant="contained"
-        startIcon={<Iconify icon="solar:cart-plus-bold" width={24} />}
-        onClick={handleAddCart}
-        sx={{ whiteSpace: 'nowrap' }}
+        color="secondary"
+        disabled={disabledActions || !variantInStock || available < 1}
       >
-        Add to Cart
-      </Button>
-
-      <Button fullWidth size="large" type="submit" variant="contained" disabled={disabledActions}>
         Buy Now
       </Button>
     </Stack>
@@ -289,18 +671,25 @@ export default function ProductDetailsSummary({
   );
 
   const renderInventoryType = (
-    <Box
-      component="span"
-      sx={{
-        typography: 'overline',
-        color:
-          (inventoryType === 'out of stock' && 'error.main') ||
-          (inventoryType === 'low stock' && 'warning.main') ||
-          'success.main',
-      }}
-    >
-      {inventoryType}
-    </Box>
+    <Stack direction="row" spacing={2} alignItems="center">
+      <Box
+        component="span"
+        sx={{
+          typography: 'overline',
+          color:
+            (inventoryType === 'out of stock' && 'error.main') ||
+            (inventoryType === 'low stock' && 'warning.main') ||
+            'success.main',
+        }}
+      >
+        {inventoryType}
+      </Box>
+      {variantSKU && (
+        <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+          SKU: {variantSKU}
+        </Typography>
+      )}
+    </Stack>
   );
 
   return (
@@ -321,10 +710,8 @@ export default function ProductDetailsSummary({
         </Stack>
 
         <Divider sx={{ borderStyle: 'dashed' }} />
-
-        {renderColorOptions}
-
         {renderSizeOptions}
+        {renderColorOptions}
 
         {renderQuantity}
 
@@ -342,7 +729,9 @@ ProductDetailsSummary.propTypes = {
   cart: PropTypes.array,
   disabledActions: PropTypes.bool,
   onAddCart: PropTypes.func,
+  onBuyNow: PropTypes.func,
   onGotoStep: PropTypes.func,
-  onColorChange: PropTypes.func,
+  initialVariantId: PropTypes.string,
+  onVariantChange: PropTypes.func,
   product: PropTypes.object,
 };

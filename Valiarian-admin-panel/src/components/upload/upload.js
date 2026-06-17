@@ -1,11 +1,11 @@
 import PropTypes from 'prop-types';
 import { useDropzone } from 'react-dropzone';
 // @mui
-import { alpha } from '@mui/material/styles';
 import Box from '@mui/material/Box';
-import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
 import IconButton from '@mui/material/IconButton';
+import Stack from '@mui/material/Stack';
+import { alpha } from '@mui/material/styles';
 import Typography from '@mui/material/Typography';
 // assets
 import { UploadIllustration } from 'src/assets/illustrations';
@@ -14,6 +14,7 @@ import Iconify from '../iconify';
 //
 import RejectionFiles from './errors-rejection-files';
 import MultiFilePreview from './preview-multi-file';
+import MultiFilePreviewSortable from './preview-multi-file-sortable';
 import SingleFilePreview from './preview-single-file';
 
 // ----------------------------------------------------------------------
@@ -32,6 +33,7 @@ export default function Upload({
   onUpload,
   onRemove,
   onRemoveAll,
+  onReorder,
   sx,
   ...other
 }) {
@@ -97,7 +99,16 @@ export default function Upload({
   const renderMultiPreview = hasFiles && (
     <>
       <Box sx={{ my: 3 }}>
-        <MultiFilePreview files={files} thumbnail={thumbnail} onRemove={onRemove} />
+        {onReorder ? (
+          <MultiFilePreviewSortable
+            files={files}
+            thumbnail={thumbnail}
+            onRemove={onRemove}
+            onReorder={onReorder}
+          />
+        ) : (
+          <MultiFilePreview files={files} thumbnail={thumbnail} onRemove={onRemove} />
+        )}
       </Box>
 
       <Stack direction="row" justifyContent="flex-end" spacing={1.5}>
@@ -181,6 +192,7 @@ Upload.propTypes = {
   onDelete: PropTypes.func,
   onRemove: PropTypes.func,
   onRemoveAll: PropTypes.func,
+  onReorder: PropTypes.func,
   onUpload: PropTypes.func,
   sx: PropTypes.object,
   thumbnail: PropTypes.bool,

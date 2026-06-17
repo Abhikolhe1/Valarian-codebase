@@ -13,32 +13,14 @@ import { MotionContainer, varFade } from 'src/components/animate';
 
 // ----------------------------------------------------------------------
 
-const CONTACTS = [
-  {
-    country: 'Bali',
-    address: '508 Bridle Avenue Newnan, GA 30263',
-    phoneNumber: '(239) 555-0108',
-  },
-  {
-    country: 'London',
-    address: '508 Bridle Avenue Newnan, GA 30263',
-    phoneNumber: '(319) 555-0115',
-  },
-  {
-    country: 'Prague',
-    address: '508 Bridle Avenue Newnan, GA 30263',
-    phoneNumber: '(252) 555-0126',
-  },
-  {
-    country: 'Moscow',
-    address: '508 Bridle',
-    phoneNumber: '(307) 555-0133',
-  },
-];
-
-// ----------------------------------------------------------------------
-
-export default function ContactHero() {
+export default function ContactHero({
+  heroBadge = 'Where',
+  heroTitleLine1 = 'to',
+  heroTitleLine2 = 'find',
+  heroTitleLine3 = 'us?',
+  heroImage = '/assets/images/contact/hero.jpg',
+  contacts = [],
+}) {
   const theme = useTheme();
 
   return (
@@ -46,7 +28,7 @@ export default function ContactHero() {
       sx={{
         ...bgGradient({
           color: alpha(theme.palette.grey[900], 0.8),
-          imgUrl: '/assets/images/contact/hero.jpg',
+          imgUrl: heroImage,
         }),
         height: { md: 560 },
         py: { xs: 10, md: 0 },
@@ -62,13 +44,13 @@ export default function ContactHero() {
             textAlign: { xs: 'center', md: 'unset' },
           }}
         >
-          <TextAnimate text="Where" sx={{ color: 'primary.main' }} variants={varFade().inRight} />
+          <TextAnimate text={heroBadge} sx={{ color: 'primary.main' }} variants={varFade().inRight} />
           <br />
 
           <Stack spacing={2} display="inline-flex" direction="row" sx={{ color: 'common.white' }}>
-            <TextAnimate text="to" />
-            <TextAnimate text="find" />
-            <TextAnimate text="us?" />
+            <TextAnimate text={heroTitleLine1} />
+            <TextAnimate text={heroTitleLine2} />
+            <TextAnimate text={heroTitleLine3} />
           </Stack>
 
           <Stack
@@ -77,11 +59,11 @@ export default function ContactHero() {
             direction={{ xs: 'column', md: 'row' }}
             sx={{ mt: 5, color: 'common.white' }}
           >
-            {CONTACTS.map((contact) => (
-              <Stack key={contact.country} sx={{ maxWidth: 180 }}>
+            {contacts.map((contact, index) => (
+              <Stack key={contact.title || `contact-location-${index}`} sx={{ maxWidth: 220 }}>
                 <m.div variants={varFade().in}>
                   <Typography variant="h6" gutterBottom>
-                    {contact.country}
+                    {contact.title}
                   </Typography>
                 </m.div>
 
@@ -89,6 +71,11 @@ export default function ContactHero() {
                   <Typography variant="body2" sx={{ opacity: 0.8 }}>
                     {contact.address}
                   </Typography>
+                  {!!contact.phoneNumber && (
+                    <Typography variant="body2" sx={{ opacity: 0.8, mt: 1 }}>
+                      {contact.phoneNumber}
+                    </Typography>
+                  )}
                 </m.div>
               </Stack>
             ))}
@@ -126,4 +113,13 @@ TextAnimate.propTypes = {
   sx: PropTypes.object,
   text: PropTypes.string,
   variants: PropTypes.object,
+};
+
+ContactHero.propTypes = {
+  contacts: PropTypes.array,
+  heroBadge: PropTypes.string,
+  heroImage: PropTypes.string,
+  heroTitleLine1: PropTypes.string,
+  heroTitleLine2: PropTypes.string,
+  heroTitleLine3: PropTypes.string,
 };

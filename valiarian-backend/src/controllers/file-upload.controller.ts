@@ -12,12 +12,12 @@ import {
   RestBindings,
 } from '@loopback/rest';
 import fs from 'fs';
+import * as mime from 'mime-types';
 import path from 'path';
 import {promisify} from 'util';
 import {FILE_UPLOAD_SERVICE, STORAGE_DIRECTORY} from '../keys';
 import {MediaRepository} from '../repositories';
 import {FileUploadHandler} from '../types';
-import * as mime from 'mime-types';
 
 const readdir = promisify(fs.readdir);
 
@@ -100,18 +100,18 @@ export class FileUploadController {
 
     for (const file of result.files) {
       const saved = await this.mediaRepository.create({
-        fileOriginalName: file.fileName,
-        fileName: file.newFileName,
-        fileUrl: file.fileUrl,
-        fileLocation: file.location,
-        fileType: file.mimetype,
-        isUsed: false,
+        originalName: file.fileName,
+        filename: file.newFileName,
+        url: file.fileUrl,
+        mimeType: file.mimetype,
+        size: file.size,
+        folder: '/',
       });
 
       filesWithIds.push({
         id: saved.id,
-        fileUrl: saved.fileUrl,
-        fileName: saved.fileOriginalName,
+        fileUrl: saved.url,
+        fileName: saved.originalName,
       });
     }
 

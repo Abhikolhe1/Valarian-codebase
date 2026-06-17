@@ -135,7 +135,7 @@ function BookingItem({ item }) {
           position: 'absolute',
         }}
       >
-        {isHot && '🔥'} ${price}
+        {isHot && '🔥'} ₹{price}
       </Label>
 
       <Box sx={{ p: 1, position: 'relative' }}>

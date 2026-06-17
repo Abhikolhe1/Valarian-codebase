@@ -1,134 +1,223 @@
-import { useState, useCallback } from 'react';
+import { useEffect, useState } from 'react';
 // @mui
-import Tab from '@mui/material/Tab';
+import Alert from '@mui/material/Alert';
+import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
+import CardContent from '@mui/material/CardContent';
 import Container from '@mui/material/Container';
-import Tabs, { tabsClasses } from '@mui/material/Tabs';
+import Grid from '@mui/material/Grid';
+import Skeleton from '@mui/material/Skeleton';
+import Stack from '@mui/material/Stack';
+import Typography from '@mui/material/Typography';
 // routes
+import { useRouter } from 'src/routes/hook';
 import { paths } from 'src/routes/paths';
-// hooks
-import { useMockedUser } from 'src/hooks/use-mocked-user';
-// _mock
-import { _userAbout, _userFeeds, _userFriends, _userGallery, _userFollowers } from 'src/_mock';
+// auth
+import { useAuthContext } from 'src/auth/hooks';
+// api
+import { useGetProfile } from 'src/api/user';
 // components
 import Iconify from 'src/components/iconify';
-import { useSettingsContext } from 'src/components/settings';
-import CustomBreadcrumbs from 'src/components/custom-breadcrumbs';
+import { SplashScreen } from 'src/components/loading-screen';
 //
-import ProfileHome from '../profile-home';
-import ProfileCover from '../profile-cover';
-import ProfileFriends from '../profile-friends';
-import ProfileGallery from '../profile-gallery';
-import ProfileFollowers from '../profile-followers';
-
-// ----------------------------------------------------------------------
-
-const TABS = [
-  {
-    value: 'profile',
-    label: 'Profile',
-    icon: <Iconify icon="solar:user-id-bold" width={24} />,
-  },
-  {
-    value: 'followers',
-    label: 'Followers',
-    icon: <Iconify icon="solar:heart-bold" width={24} />,
-  },
-  {
-    value: 'friends',
-    label: 'Friends',
-    icon: <Iconify icon="solar:users-group-rounded-bold" width={24} />,
-  },
-  {
-    value: 'gallery',
-    label: 'Gallery',
-    icon: <Iconify icon="solar:gallery-wide-bold" width={24} />,
-  },
-];
+import ProfileDisplay from './profile-display';
+import ProfileEditForm from './profile-edit-form';
+import AccountChangePassword from './account-change-password';
+import UserAddressManagementView from './user-address-management-view';
 
 // ----------------------------------------------------------------------
 
 export default function UserProfileView() {
-  const settings = useSettingsContext();
+  const { user } = useAuthContext();
+  const router = useRouter();
+  const [viewMode, setViewMode] = useState('display'); // 'display', 'edit-profile', 'address', 'change-password'
+  const [errorMsg, setErrorMsg] = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
+  const [showSplash, setShowSplash] = useState(true);
 
-  const { user } = useMockedUser();
+  const { profile, isLoading, error, mutate } = useGetProfile();
 
-  const [searchFriends, setSearchFriends] = useState('');
+  useEffect(() => {
+    const splashTimer = setTimeout(() => {
+      setShowSplash(false);
+    }, 2000);
 
-  const [currentTab, setCurrentTab] = useState('profile');
-
-  const handleChangeTab = useCallback((event, newValue) => {
-    setCurrentTab(newValue);
+    return () => clearTimeout(splashTimer);
   }, []);
 
-  const handleSearchFriends = useCallback((event) => {
-    setSearchFriends(event.target.value);
-  }, []);
+  if (!user) {
+    router.push(paths.auth.jwt.login);
+    return null;
+  }
+
+  if (isLoading) {
+    if (showSplash) {
+      return <SplashScreen />;
+    }
+
+    return <UserProfileSkeleton />;
+  }
+
+  if (error) {
+    return (
+      <Container maxWidth="lg">
+        <Alert severity="error">Failed to load profile</Alert>
+      </Container>
+    );
+  }
+
+  const displayUser = profile || user;
+
+  const handleEditToggle = () => {
+    setViewMode(viewMode === 'edit-profile' ? 'display' : 'edit-profile');
+    setErrorMsg('');
+    setSuccessMsg('');
+  };
+
+  const handleAddressToggle = () => {
+    setViewMode(viewMode === 'address' ? 'display' : 'address');
+    setErrorMsg('');
+    setSuccessMsg('');
+  };
+
+  const handleChangePasswordToggle = () => {
+    setViewMode(viewMode === 'change-password' ? 'display' : 'change-password');
+    setErrorMsg('');
+    setSuccessMsg('');
+  };
 
   return (
-    <Container maxWidth={settings.themeStretch ? false : 'lg'}>
-      <CustomBreadcrumbs
-        heading="Profile"
-        links={[
-          { name: 'Dashboard', href: paths.dashboard.root },
-          { name: 'User', href: paths.dashboard.user.root },
-          { name: user?.displayName },
-        ]}
-        sx={{
-          mb: { xs: 3, md: 5 },
-        }}
-      />
+    <Container maxWidth="lg">
+      <Stack spacing={3} sx={{ py: 5 }}>
+        <Typography variant="h3">My Profile</Typography>
 
-      <Card
-        sx={{
-          mb: 3,
-          height: 290,
-        }}
-      >
-        <ProfileCover
-          role={_userAbout.role}
-          name={user?.displayName}
-          avatarUrl={user?.photoURL}
-          coverUrl={_userAbout.coverUrl}
-        />
+        {errorMsg && <Alert severity="error">{errorMsg}</Alert>}
+        {successMsg && <Alert severity="success">{successMsg}</Alert>}
 
-        <Tabs
-          value={currentTab}
-          onChange={handleChangeTab}
-          sx={{
-            width: 1,
-            bottom: 0,
-            zIndex: 9,
-            position: 'absolute',
-            bgcolor: 'background.paper',
-            [`& .${tabsClasses.flexContainer}`]: {
-              pr: { md: 3 },
-              justifyContent: {
-                sm: 'center',
-                md: 'flex-end',
-              },
-            },
-          }}
-        >
-          {TABS.map((tab) => (
-            <Tab key={tab.value} value={tab.value} icon={tab.icon} label={tab.label} />
-          ))}
-        </Tabs>
-      </Card>
+        <Grid container spacing={3}>
+          <Grid item xs={12} md={4}>
+            <Card>
+              <CardContent>
+                <Stack spacing={2} alignItems="center">
+                  <Typography variant="h5">{displayUser.fullName || 'User'}</Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    {displayUser.email || displayUser.phone}
+                  </Typography>
+                </Stack>
+              </CardContent>
+            </Card>
 
-      {currentTab === 'profile' && <ProfileHome info={_userAbout} posts={_userFeeds} />}
+            <Card sx={{ mt: 2 }}>
+              <CardContent>
+                <Stack spacing={2}>
+                  <Button
+                    fullWidth
+                    color='secondary'
+                    variant={viewMode === 'edit-profile' ? 'contained' : 'outlined'}
+                    startIcon={<Iconify icon="solar:pen-bold" />}
+                    onClick={handleEditToggle}
+                  >
+                    {viewMode === 'edit-profile' ? 'Back to Profile' : 'Edit Profile'}
+                  </Button>
+                  <Button
+                    fullWidth
+                    color='secondary'
+                    variant={viewMode === 'address' ? 'contained' : 'outlined'}
+                    startIcon={<Iconify icon="solar:map-point-wave-bold" />}
+                    onClick={handleAddressToggle}
+                  >
+                    {viewMode === 'address' ? 'Back to Profile' : 'Address'}
+                  </Button>
+                  {/* <Button
+                    fullWidth
+                    variant={viewMode === 'change-password' ? 'contained' : 'outlined'}
+                    startIcon={<Iconify icon="solar:lock-password-bold" />}
+                    onClick={handleChangePasswordToggle}
+                  >
+                    {viewMode === 'change-password' ? 'Back to Profile' : 'Change Password'}
+                  </Button> */}
+                </Stack>
+              </CardContent>
+            </Card>
+          </Grid>
 
-      {currentTab === 'followers' && <ProfileFollowers followers={_userFollowers} />}
+          <Grid item xs={12} md={8}>
+            {viewMode === 'display' && <ProfileDisplay user={displayUser} />}
 
-      {currentTab === 'friends' && (
-        <ProfileFriends
-          friends={_userFriends}
-          searchFriends={searchFriends}
-          onSearchFriends={handleSearchFriends}
-        />
-      )}
+            {viewMode === 'edit-profile' && (
+              <ProfileEditForm
+                user={displayUser}
+                onCancel={() => setViewMode('display')}
+                setErrorMsg={setErrorMsg}
+                setSuccessMsg={setSuccessMsg}
+                refreshProfile={mutate}
+              />
+            )}
 
-      {currentTab === 'gallery' && <ProfileGallery gallery={_userGallery} />}
+            {viewMode === 'address' && <UserAddressManagementView />}
+
+            {viewMode === 'change-password' && (
+              <AccountChangePassword
+                onCancel={() => setViewMode('display')}
+                setErrorMsg={setErrorMsg}
+                setSuccessMsg={setSuccessMsg}
+              />
+            )}
+          </Grid>
+        </Grid>
+      </Stack>
+    </Container>
+  );
+}
+
+function UserProfileSkeleton() {
+  return (
+    <Container maxWidth="lg">
+      <Stack spacing={3} sx={{ py: 5 }}>
+        <Skeleton variant="rounded" width={220} height={44} />
+
+        <Grid container spacing={3}>
+          <Grid item xs={12} md={4}>
+            <Card>
+              <CardContent>
+                <Stack spacing={2} alignItems="center">
+                  <Skeleton variant="circular" width={72} height={72} />
+                  <Skeleton variant="rounded" width="70%" height={28} />
+                  <Skeleton variant="rounded" width="55%" height={20} />
+                </Stack>
+              </CardContent>
+            </Card>
+
+            <Card sx={{ mt: 2 }}>
+              <CardContent>
+                <Stack spacing={2}>
+                  <Skeleton variant="rounded" height={40} />
+                  <Skeleton variant="rounded" height={40} />
+                  <Skeleton variant="rounded" height={40} />
+                </Stack>
+              </CardContent>
+            </Card>
+          </Grid>
+
+          <Grid item xs={12} md={8}>
+            <Card>
+              <CardContent>
+                <Stack spacing={3}>
+                  <Skeleton variant="rounded" width={180} height={28} />
+                  <Skeleton variant="rounded" width="100%" height={24} />
+                  <Skeleton variant="rounded" width="85%" height={24} />
+                  <Skeleton variant="rounded" width="78%" height={24} />
+
+                  <Skeleton variant="rounded" width={180} height={28} sx={{ mt: 2 }} />
+                  <Skeleton variant="rounded" width="100%" height={24} />
+                  <Skeleton variant="rounded" width="88%" height={24} />
+                  <Skeleton variant="rounded" width="72%" height={24} />
+                </Stack>
+              </CardContent>
+            </Card>
+          </Grid>
+        </Grid>
+      </Stack>
     </Container>
   );
 }

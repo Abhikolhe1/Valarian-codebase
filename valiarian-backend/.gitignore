@@ -69,3 +69,6 @@ typings/
 package-lock.json
 yarn.lock
 .sandbox
+
+# Uploaded media files (user content)
+uploads/

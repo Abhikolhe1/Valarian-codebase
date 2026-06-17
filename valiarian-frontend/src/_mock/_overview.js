@@ -85,7 +85,7 @@ export const _analyticPosts = [...Array(5)].map((_, index) => ({
 
 export const _analyticOrderTimeline = [...Array(5)].map((_, index) => {
   const title = [
-    '1983, orders, $4220',
+    '1983, orders, ₹4220',
     '12 Invoices have been paid',
     'Order #37745 from September',
     'New order placed #XF-2356',

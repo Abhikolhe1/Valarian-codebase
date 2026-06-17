@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      line-height: 1.6;
+      color: #333;
+      margin: 0;
+      padding: 0;
+      background-color: #f4f4f4;
+    }
+
+    .container {
+      max-width: 600px;
+      margin: 20px auto;
+      background-color: #ffffff;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .header {
+      background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);
+      color: white;
+      padding: 30px 20px;
+      text-align: center;
+    }
+
+    .header h1 {
+      margin: 0;
+      font-size: 28px;
+      font-weight: 600;
+    }
+
+    .header .icon {
+      font-size: 48px;
+      margin-bottom: 10px;
+    }
+
+    .content {
+      padding: 30px;
+    }
+
+    .status-message {
+      background-color: #d1ecf1;
+      color: #0c5460;
+      padding: 20px;
+      border-radius: 5px;
+      text-align: center;
+      margin: 20px 0;
+      border-left: 4px solid #17a2b8;
+    }
+
+    .status-message h2 {
+      margin: 0 0 10px 0;
+      font-size: 22px;
+    }
+
+    .refund-details {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 30px;
+      border-radius: 8px;
+      text-align: center;
+      margin: 25px 0;
+    }
+
+    .refund-details h3 {
+      margin: 0 0 10px 0;
+      font-size: 18px;
+      font-weight: 400;
+    }
+
+    .refund-details .amount {
+      font-size: 36px;
+      font-weight: 700;
+      margin: 15px 0;
+    }
+
+    .refund-details p {
+      margin: 8px 0;
+      font-size: 15px;
+    }
+
+    .order-info {
+      background-color: #f8f9fa;
+      padding: 20px;
+      border-radius: 5px;
+      margin: 20px 0;
+      border-left: 4px solid #17a2b8;
+    }
+
+    .order-info p {
+      margin: 10px 0;
+    }
+
+    .order-info strong {
+      color: #17a2b8;
+      display: inline-block;
+      min-width: 150px;
+    }
+
+    .timeline {
+      margin: 30px 0;
+    }
+
+    .timeline-item {
+      display: flex;
+      margin-bottom: 20px;
+      position: relative;
+    }
+
+    .timeline-item:not(:last-child)::after {
+      content: '';
+      position: absolute;
+      left: 15px;
+      top: 40px;
+      width: 2px;
+      height: calc(100% + 10px);
+      background-color: #e9ecef;
+    }
+
+    .timeline-dot {
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      background-color: #17a2b8;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-weight: bold;
+      margin-right: 15px;
+      flex-shrink: 0;
+      z-index: 1;
+    }
+
+    .timeline-dot.inactive {
+      background-color: #e9ecef;
+      color: #6c757d;
+    }
+
+    .timeline-content {
+      flex: 1;
+    }
+
+    .timeline-title {
+      font-weight: 600;
+      color: #333;
+      margin-bottom: 5px;
+    }
+
+    .timeline-desc {
+      color: #6c757d;
+      font-size: 14px;
+    }
+
+    .info-box {
+      background-color: #fff3cd;
+      padding: 20px;
+      border-radius: 5px;
+      margin: 20px 0;
+      border-left: 4px solid #ffc107;
+    }
+
+    .info-box h4 {
+      margin: 0 0 15px 0;
+      color: #856404;
+    }
+
+    .info-box ul {
+      margin: 10px 0;
+      padding-left: 20px;
+      color: #856404;
+    }
+
+    .info-box li {
+      margin: 8px 0;
+    }
+
+    .button {
+      display: inline-block;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 12px 30px;
+      text-decoration: none;
+      border-radius: 5px;
+      margin: 20px 0;
+      font-weight: 600;
+    }
+
+    .footer {
+      background-color: #f8f9fa;
+      text-align: center;
+      padding: 20px;
+      font-size: 12px;
+      color: #6c757d;
+    }
+
+    @media only screen and (max-width: 600px) {
+      .container {
+        margin: 0;
+        border-radius: 0;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <div class="header">
+      <div class="icon">💰</div>
+      <h1>Refund Initiated</h1>
+      <p>Your refund is being processed</p>
+    </div>
+
+    <div class="content">
+      <p>Dear {{customerName}},</p>
+
+      <div class="status-message">
+        <h2>Refund Processing Started</h2>
+        <p>We've initiated your refund</p>
+      </div>
+
+      <div class="refund-details">
+        <h3>Refund Amount</h3>
+        <div class="amount">₹{{refundAmount}}</div>
+        <p><strong>Refund Method:</strong> {{refundMethod}}</p>
+        <p><strong>Transaction ID:</strong> {{transactionId}}</p>
+      </div>
+
+      <div class="order-info">
+        <p><strong>Order Number:</strong> {{orderNumber}}</p>
+        <p><strong>Original Order Date:</strong> {{orderDate}}</p>
+        <p><strong>Refund Initiated:</strong> {{refundInitiatedDate}}</p>
+        <p><strong>Original Amount:</strong> ₹{{originalAmount}}</p>
+      </div>
+
+      <div class="timeline">
+        <h3 style="color: #17a2b8; margin-bottom: 20px;">Refund Timeline</h3>
+
+        <div class="timeline-item">
+          <div class="timeline-dot">✓</div>
+          <div class="timeline-content">
+            <div class="timeline-title">Return Received</div>
+            <div class="timeline-desc">Items received and inspected</div>
+          </div>
+        </div>
+
+        <div class="timeline-item">
+          <div class="timeline-dot">✓</div>
+          <div class="timeline-content">
+            <div class="timeline-title">Refund Initiated</div>
+            <div class="timeline-desc">Refund request sent to payment gateway</div>
+          </div>
+        </div>
+
+        <div class="timeline-item">
+          <div class="timeline-dot inactive">3</div>
+          <div class="timeline-content">
+            <div class="timeline-title">Processing</div>
+            <div class="timeline-desc">Payment gateway processing refund</div>
+          </div>
+        </div>
+
+        <div class="timeline-item">
+          <div class="timeline-dot inactive">4</div>
+          <div class="timeline-content">
+            <div class="timeline-title">Refund Completed</div>
+            <div class="timeline-desc">Amount credited to your account</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="info-box">
+        <h4>⏱️ When Will I Receive My Refund?</h4>
+        <ul>
+          <li><strong>Credit/Debit Card:</strong> 5-7 business days</li>
+          <li><strong>UPI/Wallet:</strong> 3-5 business days</li>
+          <li><strong>Net Banking:</strong> 5-7 business days</li>
+          <li><strong>COD Orders:</strong> Bank transfer within 7-10 business days</li>
+        </ul>
+        <p style="margin-top: 15px;">
+          The timeline may vary depending on your bank's processing time.
+        </p>
+      </div>
+
+      {{#if reason}}
+      <div
+        style="background-color: #e7f3ff; padding: 15px; border-radius: 5px; margin: 20px 0; border-left: 4px solid #2196F3;">
+        <p style="margin: 0; color: #0d47a1;"><strong>Refund Reason:</strong></p>
+        <p style="margin: 10px 0 0 0; color: #0d47a1;">{{reason}}</p>
+      </div>
+      {{/if}}
+
+      <div style="text-align: center;">
+        <a href="{{orderDetailsUrl}}" class="button">View Order Details</a>
+      </div>
+
+      <p style="margin-top: 30px; color: #6c757d; font-size: 14px; text-align: center;">
+        You'll receive another email once the refund is completed and credited to your account.
+      </p>
+    </div>
+
+    <div class="footer">
+      <p>Thank you for your patience!</p>
+      <p>If you have any questions, please contact our support team.</p>
+      <p>&copy; {{year}} {{companyName}}. All rights reserved.</p>
+    </div>
+  </div>
+</body>
+
+</html>

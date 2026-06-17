@@ -3,22 +3,26 @@ import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 // theme
 import { hideScroll } from 'src/theme/css';
-// hooks
-import { useMockedUser } from 'src/hooks/use-mocked-user';
 // components
 import Logo from 'src/components/logo';
 import { NavSectionMini } from 'src/components/nav-section';
+// auth
+import { useAuthContext } from 'src/auth/hooks';
+import { getUserPrimaryRole } from 'src/auth/utils/role';
 //
 import { NAV } from '../config-layout';
 import { useNavData } from './config-navigation';
+import { filterNavGroupsByRole } from './nav-utils';
 import { NavToggleButton } from '../_common';
 
 // ----------------------------------------------------------------------
 
 export default function NavMini() {
-  const { user } = useMockedUser();
+  const { user } = useAuthContext();
+  const currentRole = getUserPrimaryRole(user);
 
   const navData = useNavData();
+  const filteredNavData = filterNavGroupsByRole(navData, currentRole);
 
   return (
     <Box
@@ -48,9 +52,9 @@ export default function NavMini() {
         <Logo sx={{ mx: 'auto', my: 2 }} />
 
         <NavSectionMini
-          data={navData}
+          data={filteredNavData}
           config={{
-            currentRole: user?.role || 'admin',
+            currentRole,
           }}
         />
       </Stack>

@@ -1,0 +1,251 @@
+import PropTypes from 'prop-types';
+import { createContext, useContext, useEffect, useMemo } from 'react';
+import { Helmet } from 'react-helmet-async';
+// Import useSiteSettings from API and alias it to avoid naming conflict with context hook
+import { useSiteSettings as useSiteSettingsAPI } from 'src/api/cms-query';
+
+// ----------------------------------------------------------------------
+
+const SiteSettingsContext = createContext(null);
+
+export const useSiteSettings = () => {
+  const context = useContext(SiteSettingsContext);
+  if (!context) {
+    throw new Error('useSiteSettings must be used within SiteSettingsProvider');
+  }
+  return context;
+};
+
+// ----------------------------------------------------------------------
+
+SiteSettingsProvider.propTypes = {
+  children: PropTypes.node,
+};
+
+export function SiteSettingsProvider({ children }) {
+  const { settings, settingsLoading: isLoading, settingsError: error } = useSiteSettingsAPI();
+
+  // Inject analytics scripts when settings are loaded
+  useEffect(() => {
+    if (settings?.analytics) {
+      // Inject Google Tag Manager
+      if (settings.analytics.gtmId) {
+        injectGTM(settings.analytics.gtmId);
+      }
+
+      // Inject Google Analytics
+      if (settings.analytics.gaId) {
+        injectGA(settings.analytics.gaId);
+      }
+    }
+  }, [settings]);
+
+  const value = useMemo(
+    () => ({
+      settings: settings ? {
+        general: {
+          siteName: settings.siteName,
+          siteDescription: settings.siteDescription,
+          logo: settings.logo,
+          favicon: settings.favicon,
+          contactEmail: settings.contactEmail,
+          contactPhone: settings.contactPhone,
+        },
+        seo: {
+          defaultTitle: settings.seoTitle || settings.siteName,
+          defaultDescription: settings.seoDescription || settings.siteDescription,
+          defaultKeywords: settings.seoKeywords,
+          ogImage: settings.ogImage,
+        },
+        socialMedia: settings.socialMedia || {},
+        analytics: {
+          gtmId: settings.gtmId,
+          gaId: settings.gaId,
+        },
+        contactPage: {
+          heroBadge: settings.contactPage?.heroBadge,
+          heroTitleLine1: settings.contactPage?.heroTitleLine1,
+          heroTitleLine2: settings.contactPage?.heroTitleLine2,
+          heroTitleLine3: settings.contactPage?.heroTitleLine3,
+          heroImage: settings.contactPage?.heroImage,
+          formTitle: settings.contactPage?.formTitle,
+          formDescription: settings.contactPage?.formDescription,
+          submitLabel: settings.contactPage?.submitLabel,
+          mapTitle: settings.contactPage?.mapTitle,
+          mapDescription: settings.contactPage?.mapDescription,
+          mapEmbedUrl: settings.contactPage?.mapEmbedUrl,
+          locations: settings.contactPage?.locations || [],
+        },
+        legalDocuments: {
+          termsAndConditionsUrl: settings.legalDocuments?.termsAndConditionsUrl || '',
+          privacyPolicyUrl: settings.legalDocuments?.privacyPolicyUrl || '',
+        },
+        header: {
+          categoryMegaMenuPlaceholderImage:
+            settings.header?.categoryMegaMenuPlaceholderImage || '',
+        },
+        footerText: settings.footerText,
+        copyrightText: settings.copyrightText,
+      } : getDefaultSettings(),
+      isLoading,
+      error,
+      isFromCMS: !!settings,
+    }),
+    [settings, isLoading, error]
+  );
+
+  return (
+    // eslint-disable-next-line react/jsx-no-constructed-context-values
+    <SiteSettingsContext.Provider value={value}>
+      {settings && <SiteMetaTags settings={settings} />}
+      {children}
+    </SiteSettingsContext.Provider>
+  );
+}
+
+// ----------------------------------------------------------------------
+
+SiteMetaTags.propTypes = {
+  settings: PropTypes.object,
+};
+
+function SiteMetaTags({ settings }) {
+  return (
+    <Helmet>
+      {/* Favicon */}
+      {settings.general?.favicon && <link rel="icon" href={settings.general.favicon} />}
+
+      {/* Default SEO tags */}
+      {settings.seo?.defaultTitle && <title>{settings.seo.defaultTitle}</title>}
+      {settings.seo?.defaultDescription && (
+        <meta name="description" content={settings.seo.defaultDescription} />
+      )}
+      {settings.seo?.defaultKeywords && (
+        <meta name="keywords" content={settings.seo.defaultKeywords} />
+      )}
+
+      {/* Open Graph tags */}
+      {settings.seo?.ogImage && <meta property="og:image" content={settings.seo.ogImage} />}
+      {settings.general?.siteName && (
+        <meta property="og:site_name" content={settings.general.siteName} />
+      )}
+
+      {/* Twitter Card tags */}
+      <meta name="twitter:card" content="summary_large_image" />
+      {settings.socialMedia?.twitter && (
+        <meta name="twitter:site" content={`@${settings.socialMedia.twitter}`} />
+      )}
+    </Helmet>
+  );
+}
+
+// ----------------------------------------------------------------------
+
+function injectGTM(gtmId) {
+  // Check if GTM is already loaded
+  if (window.dataLayer) return;
+
+  // Inject GTM script
+  const script = document.createElement('script');
+  script.innerHTML = `
+    (function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+    new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+    j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+    'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+    })(window,document,'script','dataLayer','${gtmId}');
+  `;
+  document.head.appendChild(script);
+
+  // Inject GTM noscript
+  const noscript = document.createElement('noscript');
+  noscript.innerHTML = `<iframe src="https://www.googletagmanager.com/ns.html?id=${gtmId}"
+    height="0" width="0" style="display:none;visibility:hidden"></iframe>`;
+  document.body.insertBefore(noscript, document.body.firstChild);
+}
+
+function injectGA(gaId) {
+  // Check if GA is already loaded
+  if (window.gtag) return;
+
+  // Inject GA script
+  const script1 = document.createElement('script');
+  script1.async = true;
+  script1.src = `https://www.googletagmanager.com/gtag/js?id=${gaId}`;
+  document.head.appendChild(script1);
+
+  const script2 = document.createElement('script');
+  script2.innerHTML = `
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', '${gaId}');
+  `;
+  document.head.appendChild(script2);
+}
+
+function getDefaultSettings() {
+  return {
+    general: {
+      siteName: 'Valiarian',
+      siteDescription: 'Premium Fashion E-commerce',
+      logo: '/logo/footer-logo.png',
+      favicon: '/favicon/favicon.ico',
+      contactEmail: 'support@valiarian.in',
+      contactPhone: '',
+    },
+    seo: {
+      defaultTitle: 'Valiarian - Premium Fashion',
+      defaultDescription: 'Discover premium fashion at Valiarian',
+      defaultKeywords: 'fashion, premium, clothing, e-commerce',
+      ogImage: '/assets/images/og-image.jpg',
+    },
+    socialMedia: {
+      facebook: '',
+      instagram: '',
+      twitter: '',
+      linkedin: '',
+      youtube: '',
+      pinterest: '',
+    },
+    analytics: {
+      gtmId: '',
+      gaId: '',
+    },
+    contactPage: {
+      heroBadge: 'Where',
+      heroTitleLine1: 'to',
+      heroTitleLine2: 'find',
+      heroTitleLine3: 'us?',
+      heroImage: '/assets/images/contact/hero.jpg',
+      formTitle: 'Feel free to contact us.',
+      formDescription: "We'll be glad to hear from you, buddy.",
+      submitLabel: 'Submit Now',
+      mapTitle: 'Visit our office',
+      mapDescription: 'Find us on the map or reach out directly using the form.',
+      mapEmbedUrl: '',
+      locations: [
+        {
+          title: 'Head Office',
+          address: '508 Bridle Avenue Newnan, GA 30263',
+          phoneNumber: '(239) 555-0108',
+          latitude: 33,
+          longitude: 65,
+        },
+        {
+          title: 'Studio',
+          address: '14 Fashion Street, London, UK',
+          phoneNumber: '(319) 555-0115',
+          latitude: -12.5,
+          longitude: 18.5,
+        },
+      ],
+    },
+    legalDocuments: {
+      termsAndConditionsUrl: '',
+      privacyPolicyUrl: '',
+    },
+    header: {
+      categoryMegaMenuPlaceholderImage: '',
+    },
+  };
+}

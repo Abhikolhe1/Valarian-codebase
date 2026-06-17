@@ -100,7 +100,7 @@ export default function ProductFiltersResult({
           <Block label="Price:">
             <Chip
               size="small"
-              label={`$${filters.priceRange[0]} - ${filters.priceRange[1]}`}
+              label={`₹${filters.priceRange[0]} - ${filters.priceRange[1]}`}
               onDelete={handleRemovePrice}
             />
           </Block>

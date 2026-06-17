@@ -3,8 +3,8 @@ import { Outlet } from 'react-router-dom';
 // auth
 import { GuestGuard } from 'src/auth/guard';
 // layouts
-import CompactLayout from 'src/layouts/compact';
 import AuthClassicLayout from 'src/layouts/auth/classic';
+import CompactLayout from 'src/layouts/compact';
 // components
 import { SplashScreen } from 'src/components/loading-screen';
 
@@ -20,6 +20,10 @@ const AmplifyForgotPasswordPage = lazy(() => import('src/pages/auth/amplify/forg
 // JWT
 const JwtLoginPage = lazy(() => import('src/pages/auth/jwt/login'));
 const JwtRegisterPage = lazy(() => import('src/pages/auth/jwt/register'));
+const JwtForgotPasswordPage = lazy(() => import('src/pages/auth/jwt/forgot-password'));
+
+// Google OAuth
+const GoogleCallbackPage = lazy(() => import('src/pages/auth/google-callback'));
 
 // FIREBASE
 const FirebaseLoginPage = lazy(() => import('src/pages/auth/firebase/login'));
@@ -100,6 +104,28 @@ const authJwt = {
         </AuthClassicLayout>
       ),
     },
+    {
+      path: 'forgot-password',
+      element: (
+        <AuthClassicLayout>
+          <JwtForgotPasswordPage />
+        </AuthClassicLayout>
+      ),
+    },
+  ],
+};
+
+const authGoogle = {
+  path: 'google',
+  children: [
+    {
+      path: 'callback',
+      element: (
+        <Suspense fallback={<SplashScreen />}>
+          <GoogleCallbackPage />
+        </Suspense>
+      ),
+    },
   ],
 };
 
@@ -171,6 +197,6 @@ const authAuth0 = {
 export const authRoutes = [
   {
     path: 'auth',
-    children: [authAmplify, authJwt, authFirebase, authAuth0],
+    children: [authAmplify, authJwt, authFirebase, authAuth0, authGoogle],
   },
 ];

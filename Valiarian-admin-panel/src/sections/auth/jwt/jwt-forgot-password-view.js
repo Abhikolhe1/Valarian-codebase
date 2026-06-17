@@ -12,8 +12,6 @@ import { useRouter } from 'src/routes/hook';
 import { RouterLink } from 'src/routes/components';
 // auth
 import { useAuthContext } from 'src/auth/hooks';
-// assets
-import { PasswordIcon } from 'src/assets/icons';
 // components
 import Iconify from 'src/components/iconify';
 import FormProvider, { RHFTextField } from 'src/components/hook-form';
@@ -27,6 +25,10 @@ export default function JwtForgotPasswordView() {
   const [errorMsg, setErrorMsg] = useState('');
 
   const router = useRouter();
+  const searchParams = new URLSearchParams(window.location.search);
+  const loginType = searchParams.get('loginType') === 'admin' ? 'admin' : 'super_admin';
+  const loginPath = loginType === 'admin' ? paths.auth.jwt.adminLogin : paths.auth.jwt.login;
+  const accountLabel = loginType === 'admin' ? 'admin' : 'super admin';
 
   const ForgotPasswordSchema = Yup.object().shape({
     email: Yup.string().required('Email is required').email('Email must be a valid email address'),
@@ -48,11 +50,14 @@ export default function JwtForgotPasswordView() {
 
   const onSubmit = handleSubmit(async (data) => {
     try {
-      await forgotPassword?.(data.email);
+      await forgotPassword?.(data.email, loginType);
 
-      const searchParams = new URLSearchParams({ email: data.email }).toString();
+      const nextSearchParams = new URLSearchParams({
+        email: data.email,
+        loginType,
+      }).toString();
 
-      const href = `${paths.auth.jwt.newPassword}?${searchParams}`;
+      const href = `${paths.auth.jwt.newPassword}?${nextSearchParams}`;
       router.push(href);
     } catch (error) {
       console.error(error);
@@ -87,7 +92,7 @@ export default function JwtForgotPasswordView() {
 
       <Link
         component={RouterLink}
-        href={paths.auth.jwt.login}
+        href={loginPath}
         color="inherit"
         variant="subtitle2"
         sx={{
@@ -116,8 +121,8 @@ export default function JwtForgotPasswordView() {
         </Typography>
 
         <Typography variant="body2" sx={{ color: 'text.secondary', textAlign: 'left' }}>
-          Please enter the email address associated with your account and We will email you a link
-          to reset your password.
+          Please enter the email address associated with your {accountLabel} account and we will
+          send you an OTP to reset your password.
         </Typography>
       </Stack>
     </>

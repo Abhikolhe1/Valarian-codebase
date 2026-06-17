@@ -183,62 +183,60 @@ function FabricItem({ fabric, index: fabricIndex, smoothIndex, isMobile, totalFa
   };
 
   if (isMobile) {
-    // Mobile: Vertical stacking with alternating image/content positions
     return (
       <Box
         component={m.div}
         style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          width: '100%',
           opacity,
           y: translateY,
         }}
         sx={{
-          width: '100%',
-          mb: { xs: 8, sm: 10 },
+          px: 2,
         }}
       >
-        {isEvenIndex ? (
-          // Even index: Media top, content below
-          <>
-            <Box
-              sx={{
-                width: '100%',
-                mb: 4,
-                borderRadius: 2,
-                overflow: 'hidden',
-                aspectRatio: '4/3',
-                position: 'relative',
-              }}
-            >
-              {renderMedia()}
-            </Box>
-            <Stack spacing={2}>
-              <Typography variant="h4" component="h3">
-                {fabric.name}
-              </Typography>
-              <Typography variant="body1" color="text.secondary">
-                {fabric.description}
-              </Typography>
-              {fabric.tags && fabric.tags.length > 0 && (
-                <Stack direction="row" spacing={1} flexWrap="wrap">
-                  {fabric.tags.map((tag) => (
-                    <Box
-                      key={tag}
-                      sx={{
-                        px: 1.5,
-                        py: 0.5,
-                        bgcolor: 'background.neutral',
-                        borderRadius: 1,
-                      }}
-                    >
-                      <Typography variant="caption" color="text.secondary">
-                        {tag}
-                      </Typography>
-                    </Box>
-                  ))}
-                </Stack>
-              )}
+        <Box
+          sx={{
+            width: '100%',
+            borderRadius: 2,
+            overflow: 'hidden',
+            aspectRatio: '4/3',
+            mb: 3,
+          }}
+        >
+          {renderMedia()}
+        </Box>
+        <Stack spacing={2}>
+          <Typography variant="h4" component="h3">
+            {fabric.name}
+          </Typography>
+          <Typography variant="body1" color="text.secondary">
+            {fabric.description}
+          </Typography>
+          {fabric.tags && fabric.tags.length > 0 && (
+            <Stack direction="row" spacing={1} flexWrap="wrap">
+              {fabric.tags.map((tag) => (
+                <Box
+                  key={tag}
+                  sx={{
+                    px: 1.5,
+                    py: 0.5,
+                    bgcolor: 'background.neutral',
+                    borderRadius: 1,
+                  }}
+                >
+                  <Typography variant="caption" color="text.secondary">
+                    {tag}
+                  </Typography>
+                </Box>
+              ))}
             </Stack>
-          </>
+          )}
+        </Stack>
+        {/* </>
         ) : (
           // Odd index: Content top, image below
           <>
@@ -281,7 +279,7 @@ function FabricItem({ fabric, index: fabricIndex, smoothIndex, isMobile, totalFa
               {renderMedia()}
             </Box>
           </>
-        )}
+        )} */}
       </Box>
     );
   }
@@ -415,7 +413,7 @@ FabricItem.propTypes = {
 
 // ----------------------------------------------------------------------
 
-export default function HomeFabricSection({ fabrics = FABRICS, ...other }) {
+export default function HomeFabricSection({ fabrics: propFabrics, cmsData, ...other }) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
@@ -423,6 +421,13 @@ export default function HomeFabricSection({ fabrics = FABRICS, ...other }) {
   const wrapperRef = useRef(null);
   const containerRef = useRef(null);
   const spacerRef = useRef(null);
+
+  // Use CMS data for title and subtitle
+  const title = cmsData?.content?.title || 'Premium Fabrics';
+  const subtitle = cmsData?.content?.subtitle || 'Discover the exceptional materials that make our clothing extraordinary';
+
+  // Use prop fabrics if provided, otherwise use FABRICS
+  const fabrics = cmsData?.content?.fabrics || propFabrics || FABRICS;
 
   // Calculate scroll progress - track the wrapper
   const { scrollYProgress } = useScroll({
@@ -446,49 +451,60 @@ export default function HomeFabricSection({ fabrics = FABRICS, ...other }) {
   });
 
   if (isMobile) {
-    // Mobile: No sticky, just stack vertically with animations
     return (
       <Box
         ref={wrapperRef}
         component="section"
         sx={{
-          py: { xs: 8, md: 10 },
-          bgcolor: 'background.default',
           position: 'relative',
+          bgcolor: 'background.default',
+          minHeight: `${Math.max(fabrics.length, 2) * 100}vh`,
         }}
-        {...other}
       >
-        <Container maxWidth="lg">
-          {/* Header */}
-          <Stack spacing={2} sx={{ mb: { xs: 6, sm: 8 }, textAlign: 'center' }}>
-            <Typography variant="h2" component="h1">
-              Premium Fabrics
-            </Typography>
-            <Typography variant="body1" color="text.secondary" sx={{ maxWidth: 600, mx: 'auto' }}>
-              Discover the exceptional materials that make our clothing extraordinary
-            </Typography>
-          </Stack>
 
-          {/* Fabric Items */}
-          <Box
-            ref={containerRef}
-            sx={{
-              position: 'relative',
-              minHeight: '200vh', // Create scrollable space
-            }}
-          >
-            {fabrics.map((fabric, index) => (
-              <FabricItem
-                key={fabric.id}
-                fabric={fabric}
-                index={index}
-                smoothIndex={smoothIndex}
-                isMobile={isMobile}
-                totalFabrics={fabrics.length}
-              />
-            ))}
-          </Box>
-        </Container>
+
+        {/* Sticky Container */}
+        <Box
+          sx={{
+            position: 'sticky',
+            top: 0,
+            width: '100%',
+            height: '90vh',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'flex-start',
+            overflow: 'hidden',
+            px: 2,
+            pt: 8,
+          }}
+        >
+          <Container maxWidth="lg">
+
+
+            <Stack spacing={2} sx={{ mb: 3, textAlign: 'center' }}>
+              <Typography variant="h5">{title}</Typography>
+              <Typography variant="body2" color="text.secondary">
+                {subtitle}
+              </Typography>
+            </Stack>
+
+
+            <Box sx={{ position: 'relative', width: '100%' }}>
+              {fabrics.map((fabric, index) => (
+                <FabricItem
+                  key={fabric.id}
+                  fabric={fabric}
+                  index={index}
+                  smoothIndex={smoothIndex}
+                  isMobile={isMobile}
+                  totalFabrics={fabrics.length}
+                />
+              ))}
+            </Box>
+
+          </Container>
+        </Box>
       </Box>
     );
   }
@@ -530,10 +546,10 @@ export default function HomeFabricSection({ fabrics = FABRICS, ...other }) {
           <Container maxWidth="lg" sx={{ mb: 8 }}>
             <Stack spacing={2} sx={{ textAlign: 'center' }}>
               <Typography variant="h2" component="h1">
-                Premium Fabrics
+                {title}
               </Typography>
               <Typography variant="body1" color="text.secondary" sx={{ maxWidth: 600, mx: 'auto' }}>
-                Discover the exceptional materials that make our clothing extraordinary
+                {subtitle}
               </Typography>
             </Stack>
           </Container>
@@ -574,4 +590,20 @@ HomeFabricSection.propTypes = {
       tags: PropTypes.arrayOf(PropTypes.string),
     })
   ),
+  cmsData: PropTypes.shape({
+    content: PropTypes.shape({
+      title: PropTypes.string,
+      subtitle: PropTypes.string,
+      description: PropTypes.string,
+      fabrics: PropTypes.arrayOf(
+        PropTypes.shape({
+          name: PropTypes.string,
+          description: PropTypes.string,
+          image: PropTypes.string,
+          video: PropTypes.string,
+          tags: PropTypes.arrayOf(PropTypes.string),
+        })
+      ),
+    }),
+  }),
 };

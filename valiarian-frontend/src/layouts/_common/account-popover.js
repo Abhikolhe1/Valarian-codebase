@@ -1,39 +1,38 @@
 import { m } from 'framer-motion';
 // @mui
-import { alpha } from '@mui/material/styles';
-import Box from '@mui/material/Box';
-import Stack from '@mui/material/Stack';
 import Avatar from '@mui/material/Avatar';
+import Box from '@mui/material/Box';
+import Button from '@mui/material/Button';
 import Divider from '@mui/material/Divider';
-import MenuItem from '@mui/material/MenuItem';
 import IconButton from '@mui/material/IconButton';
+import MenuItem from '@mui/material/MenuItem';
+import Stack from '@mui/material/Stack';
+import { alpha } from '@mui/material/styles';
 import Typography from '@mui/material/Typography';
 // routes
-import { paths } from 'src/routes/paths';
 import { useRouter } from 'src/routes/hook';
+import { paths } from 'src/routes/paths';
 // hooks
-import { useMockedUser } from 'src/hooks/use-mocked-user';
 // auth
 import { useAuthContext } from 'src/auth/hooks';
 // components
 import { varHover } from 'src/components/animate';
-import { useSnackbar } from 'src/components/snackbar';
 import CustomPopover, { usePopover } from 'src/components/custom-popover';
+import Iconify from 'src/components/iconify';
+import { useSnackbar } from 'src/components/snackbar';
 
 // ----------------------------------------------------------------------
 
 const OPTIONS = [
   {
-    label: 'Home',
-    linkTo: '/',
-  },
-  {
     label: 'Profile',
     linkTo: paths.dashboard.user.profile,
+    icon: 'carbon:user-avatar',
   },
   {
-    label: 'Settings',
+    label: 'Address',
     linkTo: paths.dashboard.user.account,
+    icon: 'carbon:location',
   },
 ];
 
@@ -42,7 +41,7 @@ const OPTIONS = [
 export default function AccountPopover() {
   const router = useRouter();
 
-  const { user } = useMockedUser();
+  const { user, authenticated } = useAuthContext();
 
   const { logout } = useAuthContext();
 
@@ -66,6 +65,26 @@ export default function AccountPopover() {
     router.push(path);
   };
 
+  const handleLogin = () => {
+    router.push(paths.auth.jwt.login);
+  };
+
+  // If not authenticated, show login button
+  if (!authenticated) {
+    return (
+      <Button
+        variant="contained"
+        color="primary"
+        onClick={handleLogin}
+        startIcon={<Iconify icon="carbon:login" />}
+        sx={{ ml: 1 }}
+      >
+        Login
+      </Button>
+    );
+  }
+
+  // If authenticated, show profile menu
   return (
     <>
       <IconButton
@@ -86,23 +105,25 @@ export default function AccountPopover() {
       >
         <Avatar
           src={user?.photoURL}
-          alt={user?.displayName}
+          alt={user?.displayName || user?.fullName}
           sx={{
             width: 36,
             height: 36,
             border: (theme) => `solid 2px ${theme.palette.background.default}`,
           }}
-        />
+        >
+          {!user?.photoURL && (user?.displayName?.[0] || user?.fullName?.[0] || 'U')}
+        </Avatar>
       </IconButton>
 
       <CustomPopover open={popover.open} onClose={popover.onClose} sx={{ width: 200, p: 0 }}>
         <Box sx={{ p: 2, pb: 1.5 }}>
           <Typography variant="subtitle2" noWrap>
-            {user?.displayName}
+            {user?.displayName || user?.fullName || 'User'}
           </Typography>
 
           <Typography variant="body2" sx={{ color: 'text.secondary' }} noWrap>
-            {user?.email}
+            {user?.email || user?.phone || ''}
           </Typography>
         </Box>
 
@@ -111,6 +132,7 @@ export default function AccountPopover() {
         <Stack sx={{ p: 1 }}>
           {OPTIONS.map((option) => (
             <MenuItem key={option.label} onClick={() => handleClickItem(option.linkTo)}>
+              <Iconify icon={option.icon} sx={{ mr: 2 }} />
               {option.label}
             </MenuItem>
           ))}
@@ -122,6 +144,7 @@ export default function AccountPopover() {
           onClick={handleLogout}
           sx={{ m: 1, fontWeight: 'fontWeightBold', color: 'error.main' }}
         >
+          <Iconify icon="carbon:logout" sx={{ mr: 2 }} />
           Logout
         </MenuItem>
       </CustomPopover>

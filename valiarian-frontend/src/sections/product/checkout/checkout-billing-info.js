@@ -1,10 +1,10 @@
 import PropTypes from 'prop-types';
 // @mui
 import Box from '@mui/material/Box';
-import Card from '@mui/material/Card';
-import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
+import Card from '@mui/material/Card';
 import CardHeader from '@mui/material/CardHeader';
+import Stack from '@mui/material/Stack';
 // components
 import Iconify from 'src/components/iconify';
 
@@ -16,14 +16,14 @@ export default function CheckoutBillingInfo({ billing, onBackStep }) {
       <CardHeader
         title="Address"
         action={
-          <Button size="small" startIcon={<Iconify icon="solar:pen-bold" />} onClick={onBackStep}>
+          <Button variant='outlined' color='secondary' size="small" startIcon={<Iconify icon="solar:pen-bold" />} onClick={onBackStep}>
             Edit
           </Button>
         }
       />
       <Stack spacing={1} sx={{ p: 3 }}>
         <Box sx={{ typography: 'subtitle2' }}>
-          {`${billing?.name} `}
+          {`${billing?.fullName || billing?.name || 'Address'} `}
           <Box component="span" sx={{ color: 'text.secondary', typography: 'body2' }}>
             ({billing?.addressType})
           </Box>
@@ -31,7 +31,9 @@ export default function CheckoutBillingInfo({ billing, onBackStep }) {
 
         <Box sx={{ color: 'text.secondary', typography: 'body2' }}>{billing?.fullAddress}</Box>
 
-        <Box sx={{ color: 'text.secondary', typography: 'body2' }}>{billing?.phoneNumber}</Box>
+        <Box sx={{ color: 'text.secondary', typography: 'body2' }}>
+          {billing?.phone || billing?.phoneNumber || '-'}
+        </Box>
       </Stack>
     </Card>
   );

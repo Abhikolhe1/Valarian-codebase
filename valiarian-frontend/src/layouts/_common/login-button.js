@@ -3,14 +3,26 @@ import PropTypes from 'prop-types';
 import Button from '@mui/material/Button';
 // routes
 import { RouterLink } from 'src/routes/components';
-// config
-import { PATH_AFTER_LOGIN } from 'src/config-global';
+import { paths } from 'src/routes/paths';
+// utils
+import { buildAuthRouteWithReturnTo, setStoredReturnPath } from 'src/utils/auth-redirect';
 
 // ----------------------------------------------------------------------
 
 export default function LoginButton({ sx }) {
+  const currentPath =
+    typeof window !== 'undefined' ? `${window.location.pathname}${window.location.search}` : '/';
+
+  const loginPath = buildAuthRouteWithReturnTo(paths.auth.jwt.login, currentPath);
+
   return (
-    <Button component={RouterLink} href={PATH_AFTER_LOGIN} variant="outlined" sx={{ mr: 1, ...sx }}>
+    <Button
+      component={RouterLink}
+      href={loginPath}
+      variant="outlined"
+      sx={{ mr: 1, ...sx }}
+      onClick={() => setStoredReturnPath(currentPath)}
+    >
       Login
     </Button>
   );

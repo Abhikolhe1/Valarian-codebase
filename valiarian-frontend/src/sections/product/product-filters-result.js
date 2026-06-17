@@ -8,51 +8,72 @@ import Button from '@mui/material/Button';
 import Stack from '@mui/material/Stack';
 // components
 import Iconify from 'src/components/iconify';
+import { useRouter } from 'src/routes/hook';
+import { paths } from 'src/routes/paths';
+import { useTheme } from '@emotion/react';
+import { useMediaQuery } from '@mui/system';
 
 // ----------------------------------------------------------------------
 
 export default function ProductFiltersResult({
   filters,
+  searchQuery,
   onFilters,
+  onClearSearch,
   //
   canReset,
   onResetFilters,
   //
   results,
+  categories = [],
   ...other
 }) {
+  // const theme = useTheme();
+const isMobile = useMediaQuery((theme)=>theme.breakpoints.down('md'));
   const handleRemoveGender = (inputValue) => {
     const newValue = filters.gender.filter((item) => item !== inputValue);
     onFilters('gender', newValue);
   };
+  const router = useRouter();
 
   const handleRemoveCategory = () => {
-    onFilters('category', 'all');
+    onFilters('category', 'products');
+    router.push(paths.product.root)
   };
-
   const handleRemoveColor = (inputValue) => {
     const newValue = filters.colors.filter((item) => item !== inputValue);
     onFilters('colors', newValue);
   };
 
   const handleRemovePrice = () => {
-    onFilters('priceRange', [0, 200]);
+    onFilters('priceRange', [0, 200000]);
   };
 
   const handleRemoveRating = () => {
     onFilters('rating', '');
   };
 
+  const categoryLabel =
+    filters.category === 'products' || filters.category === 'all'
+      ? 'Products'
+      : categories.find((c) => c.id === filters.category)?.name || filters.category;
+
   return (
     <Stack spacing={1.5} {...other}>
-      <Box sx={{ typography: 'body2' }}>
+      { isMobile  && <Box sx={{ typography: 'body2' }}>
         <strong>{results}</strong>
         <Box component="span" sx={{ color: 'text.secondary', ml: 0.25 }}>
           results found
         </Box>
-      </Box>
+      </Box> }
 
       <Stack flexGrow={1} spacing={1} direction="row" flexWrap="wrap" alignItems="center">
+        {!!searchQuery && (
+          <Block label="Search:">
+            <Chip size="small" label={searchQuery} onDelete={onClearSearch} />
+          </Block>
+        )}
+
         {!!filters.gender.length && (
           <Block label="Gender:">
             {filters.gender.map((item) => (
@@ -66,9 +87,9 @@ export default function ProductFiltersResult({
           </Block>
         )}
 
-        {filters.category !== 'all' && (
+        {filters.category !== 'all' && filters.category !== 'products' && (
           <Block label="Category:">
-            <Chip size="small" label={filters.category} onDelete={handleRemoveCategory} />
+            <Chip size="small" label={categoryLabel} onDelete={handleRemoveCategory} />
           </Block>
         )}
 
@@ -96,11 +117,11 @@ export default function ProductFiltersResult({
           </Block>
         )}
 
-        {(filters.priceRange[0] !== 0 || filters.priceRange[1] !== 200) && (
+        {(filters.priceRange[0] !== 0 || filters.priceRange[1] !== 200000) && (
           <Block label="Price:">
             <Chip
               size="small"
-              label={`$${filters.priceRange[0]} - ${filters.priceRange[1]}`}
+              label={`₹${filters.priceRange[0]} - ${filters.priceRange[1]}`}
               onDelete={handleRemovePrice}
             />
           </Block>
@@ -111,8 +132,15 @@ export default function ProductFiltersResult({
             <Chip size="small" label={filters.rating} onDelete={handleRemoveRating} />
           </Block>
         )}
-
-        {canReset && (
+        {(!isMobile) &&
+        <Box sx={{ typography: 'body2' }}>
+          <strong>{results}</strong>
+          <Box component="span" sx={{ color: 'text.secondary', ml: 0.25 }}>
+            results found
+          </Box>
+        </Box>
+        }
+        {/* {canReset && (
           <Button
             color="error"
             onClick={onResetFilters}
@@ -120,7 +148,7 @@ export default function ProductFiltersResult({
           >
             Clear
           </Button>
-        )}
+        )} */}
       </Stack>
     </Stack>
   );
@@ -129,8 +157,11 @@ export default function ProductFiltersResult({
 ProductFiltersResult.propTypes = {
   canReset: PropTypes.bool,
   filters: PropTypes.object,
+  searchQuery: PropTypes.string,
+  onClearSearch: PropTypes.func,
   onFilters: PropTypes.func,
   results: PropTypes.number,
+  categories: PropTypes.array,
   onResetFilters: PropTypes.func,
 };
 

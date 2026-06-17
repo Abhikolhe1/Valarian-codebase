@@ -272,7 +272,7 @@ BankingQuickTransfer.propTypes = {
 function InputAmount({ autoWidth, amount, onBlur, onChange, sx, ...other }) {
   return (
     <Stack direction="row" justifyContent="center" spacing={1} sx={sx}>
-      <Typography variant="h5">$</Typography>
+      <Typography variant="h5">₹</Typography>
 
       <Input
         disableUnderline

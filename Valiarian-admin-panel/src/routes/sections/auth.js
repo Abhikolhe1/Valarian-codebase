@@ -19,6 +19,7 @@ const AmplifyForgotPasswordPage = lazy(() => import('src/pages/auth/amplify/forg
 
 // JWT
 const JwtLoginPage = lazy(() => import('src/pages/auth/jwt/login'));
+const JwtAdminLoginPage = lazy(() => import('src/pages/auth/jwt/admin-login'));
 const JwtRegisterPage = lazy(() => import('src/pages/auth/jwt/register'));
 const JwtNewPasswordPage = lazy(() => import('src/pages/auth/jwt/new-password'));
 const JwtForgotPasswordPage = lazy(() => import('src/pages/auth/jwt/forgot-password'));
@@ -91,6 +92,14 @@ const authJwt = {
       element: (
         <AuthClassicLayout>
           <JwtLoginPage />
+        </AuthClassicLayout>
+      ),
+    },
+    {
+      path: 'admin-login',
+      element: (
+        <AuthClassicLayout>
+          <JwtAdminLoginPage />
         </AuthClassicLayout>
       ),
     },

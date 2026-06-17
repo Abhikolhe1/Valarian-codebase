@@ -7,9 +7,10 @@ import Stack from '@mui/material/Stack';
 // ----------------------------------------------------------------------
 
 export default function ColorPreview({ colors, limit = 3, sx }) {
-  const renderColors = colors.slice(0, limit);
+  const safeColors = Array.isArray(colors) ? colors.filter(Boolean) : [];
+  const renderColors = safeColors.slice(0, limit);
 
-  const remainingColor = colors.length - limit;
+  const remainingColor = safeColors.length - limit;
 
   return (
     <Stack component="span" direction="row" alignItems="center" justifyContent="flex-end" sx={sx}>
@@ -28,7 +29,7 @@ export default function ColorPreview({ colors, limit = 3, sx }) {
         />
       ))}
 
-      {colors.length > limit && (
+      {safeColors.length > limit && (
         <Box component="span" sx={{ typography: 'subtitle2' }}>{`+${remainingColor}`}</Box>
       )}
     </Stack>

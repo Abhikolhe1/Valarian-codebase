@@ -29,7 +29,7 @@ export default function RHFCode({ name, ...other }) {
 
           {error && (
             <FormHelperText sx={{ px: 2 }} error>
-              {error.message}
+              {error?.error?.message}
             </FormHelperText>
           )}
         </div>

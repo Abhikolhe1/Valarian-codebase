@@ -50,39 +50,62 @@ export class RegistrationSessions extends Entity {
   roleValue?: string;
 
   @property({
+    type: 'string',
+    required: false,
+  })
+  fullName?: string;
+
+  @property({
+    type: 'string',
+    required: false,
+  })
+  password?: string;
+
+  @property({
     type: 'date',
     required: true,
   })
   expiresAt: Date;
 
+  
+
+  
+
+  
+
+  
+
+  
+
+  
   @property({
     type: 'boolean',
     default: true,
   })
-  isActive?: boolean;
+  isActive: boolean;
 
   @property({
     type: 'boolean',
     default: false,
   })
-  isDeleted?: boolean;
+  isDeleted: boolean;
 
   @property({
     type: 'date',
     defaultFn: 'now',
   })
-  createdAt?: Date;
+  createdAt: Date;
 
   @property({
     type: 'date',
     defaultFn: 'now',
   })
-  updatedAt?: Date;
+  updatedAt: Date;
 
   @property({
     type: 'date',
   })
-  deletedAt?: Date;
+  deletedAt: Date;
 
   constructor(data?: Partial<RegistrationSessions>) {
     super(data);

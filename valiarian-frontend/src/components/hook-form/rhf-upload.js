@@ -20,7 +20,7 @@ export function RHFUploadAvatar({ name, ...other }) {
 
           {!!error && (
             <FormHelperText error sx={{ px: 2, textAlign: 'center' }}>
-              {error.message}
+              {error?.error?.message}
             </FormHelperText>
           )}
         </div>

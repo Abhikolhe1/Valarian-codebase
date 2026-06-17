@@ -1,69 +1,90 @@
-import { useEffect, useCallback } from 'react';
+import { useEffect } from 'react';
 // @mui
+import Button from '@mui/material/Button';
 import Container from '@mui/material/Container';
-import Grid from '@mui/material/Unstable_Grid2';
 import Typography from '@mui/material/Typography';
-// redux
-import { useDispatch } from 'src/redux/store';
-import { getCart } from 'src/redux/slices/checkout';
+import Grid from '@mui/material/Unstable_Grid2';
+// api
+import { prefetchAddresses } from 'src/api/addresses';
+// routes
+import { RouterLink } from 'src/routes/components';
+import { paths } from 'src/routes/paths';
+// auth
+import { useAuthContext } from 'src/auth/hooks';
 // _mock
 import { PRODUCT_CHECKOUT_STEPS } from 'src/_mock/_product';
 // components
+import EmptyContent from 'src/components/empty-content';
+import Iconify from 'src/components/iconify';
 import { useSettingsContext } from 'src/components/settings';
 //
 import { useCheckout } from '../../hooks';
-import CheckoutCart from '../checkout-cart';
-import CheckoutSteps from '../checkout-steps';
-import CheckoutPayment from '../checkout-payment';
-import CheckoutOrderComplete from '../checkout-order-complete';
+import CheckoutAuthGate from '../checkout-auth-gate';
 import CheckoutBillingAddress from '../checkout-billing-address';
+import CheckoutCart from '../checkout-cart';
+import CheckoutOrderComplete from '../checkout-order-complete';
+import CheckoutPayment from '../checkout-payment';
+import CheckoutSteps from '../checkout-steps';
 
 // ----------------------------------------------------------------------
 
-function useInitial(cart) {
-  const dispatch = useDispatch();
-
-  const getCartCallback = useCallback(() => {
-    if (cart.length) {
-      dispatch(getCart(cart));
-    }
-  }, [cart, dispatch]);
-
-  useEffect(() => {
-    getCartCallback();
-  }, [getCartCallback]);
-
-  return null;
-}
-
 export default function CheckoutView() {
   const settings = useSettingsContext();
-
+  const { authenticated, user } = useAuthContext();
   const {
-    checkout,
+    checkoutSession,
     completed,
     onResetAll,
     onGotoStep,
     onNextStep,
     onBackStep,
     onDeleteCart,
-    onResetBilling,
     onCreateBilling,
-    onApplyDiscount,
+    onApplyCoupon,
+    onRemoveCoupon,
     onApplyShipping,
     onIncreaseQuantity,
     onDecreaseQuantity,
+    couponLoading,
+    couponError,
   } = useCheckout();
 
-  const { cart, billing, activeStep } = checkout;
-
-  useInitial(cart);
+  const { cart, billing, activeStep } = checkoutSession;
 
   useEffect(() => {
-    if (activeStep === 1) {
-      onResetBilling();
+    if (authenticated && user?.id && cart.length) {
+      prefetchAddresses(user.id).catch(() => {
+        // Step-level UI handles address errors and fallbacks.
+      });
     }
-  }, [activeStep, onResetBilling]);
+  }, [authenticated, cart.length, user?.id]);
+
+  useEffect(() => {
+    if (!cart.length && activeStep !== 0) {
+      onGotoStep(0);
+      return;
+    }
+
+    if (!authenticated && activeStep > 1) {
+      onGotoStep(1);
+      return;
+    }
+
+    if (authenticated && activeStep > 1 && !billing) {
+      onGotoStep(1);
+      return;
+    }
+
+    if (authenticated && activeStep === 2) {
+      onGotoStep(3);
+    }
+  }, [activeStep, authenticated, billing, cart.length, onGotoStep]);
+
+  const isEmpty = !cart.length && !completed;
+  const checkoutSteps = authenticated
+    ? PRODUCT_CHECKOUT_STEPS.filter((step) => step !== 'Authentication')
+    : ['Cart', 'Authentication', 'Billing & address', 'Payment'];
+  const displayActiveStep = authenticated && activeStep > 1 ? activeStep - 1 : activeStep;
 
   return (
     <Container maxWidth={settings.themeStretch ? false : 'lg'} sx={{ mb: 10 }}>
@@ -71,44 +92,93 @@ export default function CheckoutView() {
         Checkout
       </Typography>
 
-      <Grid container justifyContent={completed ? 'center' : 'flex-start'}>
-        <Grid xs={12} md={8}>
-          <CheckoutSteps activeStep={activeStep} steps={PRODUCT_CHECKOUT_STEPS} />
-        </Grid>
-      </Grid>
-
-      {completed ? (
-        <CheckoutOrderComplete open={completed} onReset={onResetAll} onDownloadPDF={() => {}} />
+      {isEmpty ? (
+        <EmptyContent
+          title="Cart is Empty!"
+          description="Look like you have no items in your shopping cart."
+          imgUrl="/assets/icons/empty/ic_cart.svg"
+          action={
+            <Button
+              component={RouterLink}
+              href={paths.product.root}
+              color='secondary'
+              variant="contained"
+              startIcon={<Iconify icon="eva:arrow-ios-back-fill" />}
+              sx={{ mt: 3 }}
+            >
+              Go to Products
+            </Button>
+          }
+          sx={{ py: 10 }}
+        />
       ) : (
         <>
-          {activeStep === 0 && (
-            <CheckoutCart
-              checkout={checkout}
-              onNextStep={onNextStep}
-              onDeleteCart={onDeleteCart}
-              onApplyDiscount={onApplyDiscount}
-              onIncreaseQuantity={onIncreaseQuantity}
-              onDecreaseQuantity={onDecreaseQuantity}
-            />
+          <Grid container justifyContent={completed ? 'center' : 'flex-start'}>
+            <Grid xs={12} md={8}>
+              <CheckoutSteps activeStep={displayActiveStep} steps={checkoutSteps} />
+            </Grid>
+          </Grid>
+
+          {!completed && activeStep > 0 && (
+            <Button
+              size="small"
+              color="inherit"
+              onClick={onBackStep}
+              startIcon={<Iconify icon="eva:arrow-ios-back-fill" />}
+              sx={{ display: { xs: 'inline-flex', md: 'none' }, mt: 2, mb: 3 }}
+            >
+              Back
+            </Button>
           )}
 
-          {activeStep === 1 && (
-            <CheckoutBillingAddress
-              checkout={checkout}
-              onBackStep={onBackStep}
-              onCreateBilling={onCreateBilling}
-            />
-          )}
+          {completed ? (
+            <CheckoutOrderComplete open={completed} onReset={onResetAll} onDownloadPDF={() => { }} />
+          ) : (
+            <>
+              {activeStep === 0 && (
+                <CheckoutCart
+                  checkout={checkoutSession}
+                  onNextStep={onNextStep}
+                  onDeleteCart={onDeleteCart}
+                  onApplyCoupon={onApplyCoupon}
+                  onRemoveCoupon={onRemoveCoupon}
+                  onIncreaseQuantity={onIncreaseQuantity}
+                  onDecreaseQuantity={onDecreaseQuantity}
+                  couponLoading={couponLoading}
+                  couponError={couponError}
+                />
+              )}
 
-          {activeStep === 2 && billing && (
-            <CheckoutPayment
-              checkout={checkout}
-              onNextStep={onNextStep}
-              onBackStep={onBackStep}
-              onGotoStep={onGotoStep}
-              onApplyShipping={onApplyShipping}
-              onReset={onResetAll}
-            />
+              {activeStep === 1 && !authenticated && (
+                <CheckoutAuthGate
+                  onNextStep={onNextStep}
+                  onBackStep={onBackStep}
+                />
+              )}
+
+              {activeStep === 1 && authenticated && (
+                <CheckoutBillingAddress
+                  checkout={checkoutSession}
+                  onBackStep={onBackStep}
+                  onCreateBilling={onCreateBilling}
+                />
+              )}
+
+              {activeStep === 3 && billing && authenticated && (
+                <CheckoutPayment
+                  checkout={checkoutSession}
+                  onNextStep={onNextStep}
+                  onBackStep={onBackStep}
+                  onGotoStep={onGotoStep}
+                  onApplyShipping={onApplyShipping}
+                  onApplyCoupon={onApplyCoupon}
+                  onRemoveCoupon={onRemoveCoupon}
+                  couponLoading={couponLoading}
+                  couponError={couponError}
+                  onReset={onResetAll}
+                />
+              )}
+            </>
           )}
         </>
       )}

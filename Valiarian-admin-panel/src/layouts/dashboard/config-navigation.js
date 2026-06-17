@@ -4,8 +4,6 @@ import { paths } from 'src/routes/paths';
 // locales
 import { useLocales } from 'src/locales';
 // components
-import Label from 'src/components/label';
-import Iconify from 'src/components/iconify';
 import SvgColor from 'src/components/svg-color';
 
 // ----------------------------------------------------------------------
@@ -59,7 +57,12 @@ export function useNavData() {
         items: [
           // { title: t('app'), path: paths.dashboard.root, icon: ICONS.dashboard },
           // { title: t('ecommerce'), path: paths.dashboard.general.ecommerce, icon: ICONS.ecommerce },
-          { title: t('Dashboard'), path: paths.dashboard.general.analytics, icon: ICONS.dashboard },
+          {
+            title: t('Dashboard'),
+            path: paths.dashboard.general.analytics,
+            icon: ICONS.dashboard,
+            roles: ['super_admin'],
+          },
           // {
           //   title: t('pending appointments'),
           //   path: paths.dashboard.pendingAppointments.list,
@@ -92,42 +95,116 @@ export function useNavData() {
       {
         subheader: t('management'),
         items: [
-          // USER
+          // CMS
+          {
+            title: t('CMS'),
+            path: paths.dashboard.cms.root,
+            icon: ICONS.file,
+            roles: ['super_admin'],
+            children: [
+              { title: t('Pages'), path: paths.dashboard.cms.pages.list },
+              { title: t('About Us'), path: paths.dashboard.cms.about.root },
+              { title: t('Coming Soon'), path: paths.dashboard.cms.comingSoon.root },
+              { title: t('Premium'), path: paths.dashboard.cms.premium.root },
+              { title: t('Media Library'), path: paths.dashboard.cms.media.list },
+              { title: t('Navigation'), path: paths.dashboard.cms.navigation.root },
+              { title: t('Settings'), path: paths.dashboard.cms.settings.root },
+            ],
+          },
+          {
+            title: t('Users'),
+            path: paths.dashboard.user.list,
+            icon: ICONS.user,
+            roles: ['super_admin', 'admin'],
+            // children: [{ title: t('List'), path: paths.dashboard.user.list }],
+          },
+          // PRODUCT
+          {
+            title: t('Products'),
+            path: paths.dashboard.product.root,
+            icon: ICONS.product,
+            roles: ['super_admin'],
+            children: [
+              { title: t('List'), path: paths.dashboard.product.root },
+              { title: t('Create'), path: paths.dashboard.product.new },
+            ],
+          },
+          // CATEGORY
           // {
-          //   title: t('user'),
-          //   path: paths.dashboard.user.root,
-          //   icon: ICONS.user,
+          //   title: t('Categories'),
+          //   path: paths.dashboard.category.root,
+          //   icon: ICONS.label,
+          //   roles: ['super_admin'],
           //   children: [
-          //     { title: t('profile'), path: paths.dashboard.user.root },
-          //     { title: t('cards'), path: paths.dashboard.user.cards },
-          //     { title: t('list'), path: paths.dashboard.user.list },
-          //     { title: t('create'), path: paths.dashboard.user.new },
-          //     { title: t('edit'), path: paths.dashboard.user.demo.edit },
-          //     { title: t('account'), path: paths.dashboard.user.account },
+          //     { title: t('Category List'), path: paths.dashboard.category.list },
+          //     { title: t('Create Category'), path: paths.dashboard.category.new },
+          //     { title: t('Parent Category List'), path: paths.dashboard.parentCategory.list },
+          //     { title: t('Create Parent Category'), path: paths.dashboard.parentCategory.new },
           //   ],
           // },
-          // // PRODUCT
-          // {
-          //   title: t('product'),
-          //   path: paths.dashboard.product.root,
-          //   icon: ICONS.product,
-          //   children: [
-          //     { title: t('list'), path: paths.dashboard.product.root },
-          //     { title: t('details'), path: paths.dashboard.product.demo.details },
-          //     { title: t('create'), path: paths.dashboard.product.new },
-          //     { title: t('edit'), path: paths.dashboard.product.demo.edit },
-          //   ],
-          // },
-          // // ORDER
-          // {
-          //   title: t('order'),
-          //   path: paths.dashboard.order.root,
-          //   icon: ICONS.order,
-          //   children: [
-          //     { title: t('list'), path: paths.dashboard.order.root },
-          //     { title: t('details'), path: paths.dashboard.order.demo.details },
-          //   ],
-          // },
+          {
+            title: t('Categories'),
+            path: paths.dashboard.category.root,
+            icon: ICONS.label,
+            roles: ['super_admin'],
+            children: [
+              { title: t('Category List'), path: paths.dashboard.category.list },
+              { title: t('Create Category'), path: paths.dashboard.category.new },
+            ],
+          },
+
+          {
+            title: t('Parent Categories'),
+            path: paths.dashboard.parentCategory.root,
+            icon: ICONS.label,
+            roles: ['super_admin'],
+            children: [
+              { title: t('Parent Category List'), path: paths.dashboard.parentCategory.list },
+              { title: t('Create Parent Category'), path: paths.dashboard.parentCategory.new },
+            ],
+          },
+
+          // ORDER
+          {
+            title: t('Orders'),
+            path: paths.dashboard.order.root,
+            icon: ICONS.order,
+            roles: ['super_admin', 'admin'],
+            children: [
+              { title: t('List'), path: paths.dashboard.order.root },
+              { title: t('Return Requests'), path: paths.dashboard.order.returns },
+            ],
+          },
+          {
+            title: t('Premium Orders'),
+            path: paths.dashboard.premiumOrder.root,
+            icon: ICONS.order,
+            roles: ['super_admin', 'admin'],
+            children: [{ title: t('List'), path: paths.dashboard.premiumOrder.root }],
+          },
+          {
+            title: t('Coupons'),
+            path: paths.dashboard.coupon.root,
+            icon: ICONS.label,
+            roles: ['super_admin', 'admin'],
+            children: [{ title: t('List'), path: paths.dashboard.coupon.root }],
+          },
+          {
+            title: t('Contact Requests'),
+            path: paths.dashboard.cms.contactSubmissions.list,
+            icon: ICONS.mail,
+            roles: ['super_admin', 'admin'],
+          },
+          {
+            title: t('Admins'),
+            path: paths.dashboard.admins.root,
+            icon: ICONS.user,
+            roles: ['super_admin'],
+            children: [
+              { title: t('Admin List'), path: paths.dashboard.admins.list },
+              { title: t('Create Admin'), path: paths.dashboard.admins.new },
+            ],
+          },
           // // INVOICE
           // {
           //   title: t('invoice'),

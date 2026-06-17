@@ -6,7 +6,7 @@ import Container from '@mui/material/Container';
 // routes
 import { paths } from 'src/routes/paths';
 // _mock
-import { _userAbout, _userPlans, _userPayment, _userInvoices, _userAddressBook } from 'src/_mock';
+import { _userAbout, _userPlans, _userPayment, _userInvoices } from 'src/_mock';
 // components
 import Iconify from 'src/components/iconify';
 import { useSettingsContext } from 'src/components/settings';
@@ -78,6 +78,12 @@ export default function AccountView() {
         onChange={handleChangeTab}
         sx={{
           mb: { xs: 3, md: 5 },
+          [`& .MuiTabs-indicator`]: {
+            borderRadius: 0,
+          },
+          [`& .MuiTab-root`]: {
+            borderRadius: 0,
+          }
         }}
       >
         {TABS.map((tab) => (
@@ -92,7 +98,6 @@ export default function AccountView() {
           plans={_userPlans}
           cards={_userPayment}
           invoices={_userInvoices}
-          addressBook={_userAddressBook}
         />
       )}
 

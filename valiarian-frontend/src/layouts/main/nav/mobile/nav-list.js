@@ -2,8 +2,8 @@ import PropTypes from 'prop-types';
 // @mui
 import Collapse from '@mui/material/Collapse';
 import { listClasses } from '@mui/material/List';
-import { listItemTextClasses } from '@mui/material/ListItemText';
 import { listItemButtonClasses } from '@mui/material/ListItemButton';
+import { listItemTextClasses } from '@mui/material/ListItemText';
 // hooks
 import { useBoolean } from 'src/hooks/use-boolean';
 // components
@@ -14,26 +14,36 @@ import NavItem from './nav-item';
 
 // ----------------------------------------------------------------------
 
-export default function NavList({ item }) {
+export default function NavList({ item, onOpenCategories }) {
   const pathname = usePathname();
 
-  const { path, children } = item;
+  const { path, children, title, onClick } = item;
 
   const externalLink = path.includes('http');
 
   const nav = useBoolean();
+
+  const handleToggle = () => {
+    if (title === 'Categories' && onOpenCategories) {
+      onOpenCategories();
+    } else if (onClick && !children) {
+      onClick();
+    } else {
+      nav.onToggle();
+    }
+  };
 
   return (
     <>
       <NavItem
         item={item}
         open={nav.value}
-        onClick={nav.onToggle}
+        onClick={handleToggle}
         active={pathname === path}
         externalLink={externalLink}
       />
 
-      {!!children && (
+      {!!children && title !== 'Categories' && (
         <Collapse in={nav.value} unmountOnExit>
           <NavSectionVertical
             data={children}
@@ -63,4 +73,5 @@ export default function NavList({ item }) {
 
 NavList.propTypes = {
   item: PropTypes.object,
+  onOpenCategories: PropTypes.func,
 };

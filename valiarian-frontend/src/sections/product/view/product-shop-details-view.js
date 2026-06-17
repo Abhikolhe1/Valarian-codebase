@@ -1,7 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useLayoutEffect, useMemo, useState } from 'react';
 // @mui
 import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
 import Container from '@mui/material/Container';
 import { alpha } from '@mui/material/styles';
@@ -11,12 +10,10 @@ import Typography from '@mui/material/Typography';
 import Grid from '@mui/material/Unstable_Grid2';
 // routes
 import { useGetProduct } from 'src/api/product';
-import { RouterLink } from 'src/routes/components';
-import { useParams } from 'src/routes/hook';
+import { useParams, useSearchParams } from 'src/routes/hook';
 import { paths } from 'src/routes/paths';
 // components
 import CustomBreadcrumbs from 'src/components/custom-breadcrumbs';
-import EmptyContent from 'src/components/empty-content';
 import Iconify from 'src/components/iconify';
 import { useSettingsContext } from 'src/components/settings';
 //
@@ -57,7 +54,9 @@ const getDummyProductById = (productId) => {
     ...base,
     available: base.available || 100,
     inventoryType: 'in_stock',
-    description: base.description || `${base.name}. Premium quality product with exceptional comfort and style. Perfect for everyday wear.`,
+    description:
+      base.description ||
+      `${base.name}. Premium quality product with exceptional comfort and style. Perfect for everyday wear.`,
     subDescription: base.subDescription || 'Experience premium quality and comfort.',
     images: base.images || [
       base.coverUrl,
@@ -65,7 +64,13 @@ const getDummyProductById = (productId) => {
       '/assets/images/home/social-media/social-3.jpeg',
     ],
     reviews: base.reviews || [],
-    ratings: base.ratings || { 5: Math.floor(base.totalRatings * 0.7), 4: Math.floor(base.totalRatings * 0.2), 3: Math.floor(base.totalRatings * 0.08), 2: Math.floor(base.totalRatings * 0.02), 1: 0 },
+    ratings: base.ratings || {
+      5: Math.floor(base.totalRatings * 0.7),
+      4: Math.floor(base.totalRatings * 0.2),
+      3: Math.floor(base.totalRatings * 0.08),
+      2: Math.floor(base.totalRatings * 0.02),
+      1: 0,
+    },
     totalReviews: base.totalReviews || Math.floor(base.totalRatings * 0.4),
   });
 
@@ -293,59 +298,39 @@ const getDummyProductById = (productId) => {
 
 export default function ProductShopDetailsView() {
   const params = useParams();
+  const searchParams = useSearchParams();
 
   const { id } = params;
+  const initialVariantId = searchParams.get('variantId') || '';
 
   const settings = useSettingsContext();
 
-  const { checkout, onAddCart, onGotoStep } = useCheckout();
+  const { checkout, onAddCart, onBuyNow, onGotoStep } = useCheckout();
 
   const [currentTab, setCurrentTab] = useState('description');
+  const [selectedVariant, setSelectedVariant] = useState(null);
 
-  const [selectedColor, setSelectedColor] = useState('');
+  const { product: apiProduct, productLoading } = useGetProduct(`${id}`);
 
-  const { product: apiProduct, productLoading, productError } = useGetProduct(`${id}`);
-
-  // Use dummy product if API doesn't return data - memoized to prevent recalculation
+  // Use dummy product if API doesn't return data
   const dummyProduct = useMemo(() => getDummyProductById(id), [id]);
+  const product = apiProduct || dummyProduct;
 
-  // Memoize the final product to prevent unnecessary re-renders
-  const product = useMemo(() => apiProduct || dummyProduct, [apiProduct, dummyProduct]);
+  // Scroll to top when component mounts or product ID changes
+  // Using useLayoutEffect to ensure scroll happens before paint
+  useLayoutEffect(() => {
+    window.scrollTo(0, 0);
+  }, [id]);
 
   const handleChangeTab = useCallback((event, newValue) => {
     setCurrentTab(newValue);
   }, []);
 
-  const handleColorChange = useCallback((newColor) => {
-    setSelectedColor(newColor);
+  const handleVariantChange = useCallback((variant) => {
+    setSelectedVariant(variant);
   }, []);
 
-  // Initialize selected color when product loads - only run when product ID changes
-  useEffect(() => {
-    if (product?.colors?.length > 0) {
-      setSelectedColor(product.colors[0]);
-    }
-  }, [product?.id, product?.colors]);
-
   const renderSkeleton = <ProductDetailsSkeleton />;
-
-  const renderError = (
-    <EmptyContent
-      filled
-      title={`${productError?.message}`}
-      action={
-        <Button
-          component={RouterLink}
-          href={paths.product.root}
-          startIcon={<Iconify icon="eva:arrow-ios-back-fill" width={16} />}
-          sx={{ mt: 3 }}
-        >
-          Back to List
-        </Button>
-      }
-      sx={{ py: 10 }}
-    />
-  );
 
   const renderProduct = product && (
     <>
@@ -353,30 +338,28 @@ export default function ProductShopDetailsView() {
         links={[
           { name: 'Home', href: '/' },
           {
-            name: 'Shop',
+            name: 'Products',
             href: paths.product.root,
           },
           { name: product?.name },
         ]}
-        sx={{ mb: 5, mt: 0, pt: 0 }}
+        sx={{ my: 5, pt: 0 }}
       />
 
       <Grid container spacing={{ xs: 3, md: 5, lg: 8 }}>
         <Grid xs={12} md={6} lg={7}>
-          <ProductDetailsCarousel
-            key={selectedColor}
-            product={product}
-            selectedColor={selectedColor}
-          />
+          <ProductDetailsCarousel product={product} selectedVariant={selectedVariant} />
         </Grid>
 
         <Grid xs={12} md={6} lg={5}>
           <ProductDetailsSummary
             product={product}
             cart={checkout.cart}
+            initialVariantId={initialVariantId}
             onAddCart={onAddCart}
+            onBuyNow={onBuyNow}
             onGotoStep={onGotoStep}
-            onColorChange={handleColorChange}
+            onVariantChange={handleVariantChange}
           />
         </Grid>
       </Grid>
@@ -406,6 +389,7 @@ export default function ProductShopDetailsView() {
       </Box>
 
       <Card>
+        .
         <Tabs
           value={currentTab}
           onChange={handleChangeTab}
@@ -421,25 +405,16 @@ export default function ProductShopDetailsView() {
             },
             {
               value: 'reviews',
-              label: `Reviews (${product?.reviews?.length || 0})`,
+              label: 'Reviews',
             },
           ].map((tab) => (
             <Tab key={tab.value} value={tab.value} label={tab.label} />
           ))}
         </Tabs>
-
         {currentTab === 'description' && (
           <ProductDetailsDescription description={product?.description} />
         )}
-
-        {currentTab === 'reviews' && (
-          <ProductDetailsReview
-            ratings={product?.ratings || {}}
-            reviews={product?.reviews || []}
-            totalRatings={product?.totalRatings || 0}
-            totalReviews={product?.totalReviews || 0}
-          />
-        )}
+        {currentTab === 'reviews' && <ProductDetailsReview productId={apiProduct?.id} />}
       </Card>
     </>
   );
@@ -454,10 +429,10 @@ export default function ProductShopDetailsView() {
     >
       <CartIcon totalItems={checkout.totalItems} />
 
-      {/* Show skeleton only if loading and no dummy product available yet */}
-      {productLoading && !dummyProduct && renderSkeleton}
+      {productLoading && renderSkeleton}
 
-      {/* Show product immediately if dummy product is available, don't wait for API */}
+      {/* {productError && renderError} */}
+
       {product && renderProduct}
     </Container>
   );

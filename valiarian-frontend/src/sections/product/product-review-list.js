@@ -1,33 +1,35 @@
 import PropTypes from 'prop-types';
-// @mui
-import Pagination, { paginationClasses } from '@mui/material/Pagination';
-//
+import Box from '@mui/material/Box';
+import Divider from '@mui/material/Divider';
 import ProductReviewItem from './product-review-item';
 
-// ----------------------------------------------------------------------
-
-export default function ProductReviewList({ reviews }) {
+export default function ProductReviewList({
+  reviews,
+  onEditReview,
+  onDeleteReview,
+  deletingReviewId,
+}) {
   return (
-    <>
-      {reviews.map((review) => (
-        <ProductReviewItem key={review.id} review={review} />
-      ))}
+    <Box sx={{ px: { xs: 2, md: 3 }, py: 3 }}>
+      {reviews.map((review, index) => (
+        <Box key={review.id}>
+          <ProductReviewItem
+            review={review}
+            onEditReview={onEditReview}
+            onDeleteReview={onDeleteReview}
+            deletingReviewId={deletingReviewId}
+          />
 
-      <Pagination
-        count={10}
-        sx={{
-          mx: 'auto',
-          [`& .${paginationClasses.ul}`]: {
-            my: 5,
-            mx: 'auto',
-            justifyContent: 'center',
-          },
-        }}
-      />
-    </>
+          {index < reviews.length - 1 && <Divider sx={{ my: 3 }} />}
+        </Box>
+      ))}
+    </Box>
   );
 }
 
 ProductReviewList.propTypes = {
+  deletingReviewId: PropTypes.string,
+  onDeleteReview: PropTypes.func,
+  onEditReview: PropTypes.func,
   reviews: PropTypes.array,
 };

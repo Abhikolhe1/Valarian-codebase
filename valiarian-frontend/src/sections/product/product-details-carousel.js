@@ -61,28 +61,15 @@ const StyledThumbnailsContainer = styled('div')(({ length, theme }) => ({
 
 // ----------------------------------------------------------------------
 
-export default function ProductDetailsCarousel({ product, selectedColor }) {
+export default function ProductDetailsCarousel({ product, selectedVariant }) {
   const theme = useTheme();
 
-  // Filter images based on selected color
-  // Assuming product has a colorImages structure like:
-  // colorImages: { '#FF0000': [img1, img2], '#00FF00': [img3, img4] }
-  // OR images array with all images (fallback)
-  const getImagesForColor = () => {
-    console.log('🎨 Selected Color:', selectedColor);
-    console.log('📦 Product colorImages:', product.colorImages);
+  // Use variant images if available, otherwise fallback to product images
+  const images = selectedVariant?.images?.length > 0
+    ? selectedVariant.images
+    : (product.images || []);
 
-    // If product has colorImages mapping
-    if (product.colorImages && selectedColor && product.colorImages[selectedColor]) {
-      console.log('✅ Found images for color:', product.colorImages[selectedColor]);
-      return product.colorImages[selectedColor];
-    }
-    // Fallback to all images if no color-specific images
-    console.log('⚠️ Using fallback images:', product.images);
-    return product.images || [];
-  };
-
-  const slides = getImagesForColor().map((img) => ({
+  const slides = images.map((img) => ({
     src: img,
   }));
 
@@ -98,7 +85,7 @@ export default function ProductDetailsCarousel({ product, selectedColor }) {
     rtl: false,
     centerMode: true,
     swipeToSlide: true,
-    focusOnSelect: true,
+    focusOnSelect: false,
     variableWidth: true,
     centerPadding: '0px',
     slidesToShow: slides.length > 3 ? 3 : slides.length,
@@ -109,25 +96,19 @@ export default function ProductDetailsCarousel({ product, selectedColor }) {
     carouselThumb.onSetNav();
   }, [carouselLarge, carouselThumb]);
 
-  // Reset carousel and reinitialize when color/slides change
-  useEffect(() => {
-    if (selectedColor && slides.length > 0) {
-      // Force carousel to go to first slide
-      if (carouselLarge.carouselRef.current) {
-        carouselLarge.carouselRef.current.slickGoTo(0);
-      }
-      if (carouselThumb.carouselRef.current) {
-        carouselThumb.carouselRef.current.slickGoTo(0);
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedColor, slides.length]);
-
   useEffect(() => {
     if (lightbox.open) {
       carouselLarge.onTogo(lightbox.selected);
     }
   }, [carouselLarge, lightbox.open, lightbox.selected]);
+
+  // Reset carousel to first slide when variant changes
+  useEffect(() => {
+    if (selectedVariant) {
+      carouselLarge.onTogo(0);
+      carouselThumb.onTogo(0);
+    }
+  }, [selectedVariant, carouselLarge, carouselThumb]);
 
   const renderLargeImg = (
     <Box
@@ -178,6 +159,10 @@ export default function ProductDetailsCarousel({ product, selectedColor }) {
               alt={item.src}
               src={item.src}
               variant="rounded"
+              onClick={() => {
+                carouselLarge.onTogo(index);
+                carouselThumb.onTogo(index);
+              }}
               sx={{
                 width: THUMB_SIZE,
                 height: THUMB_SIZE,
@@ -220,5 +205,5 @@ export default function ProductDetailsCarousel({ product, selectedColor }) {
 
 ProductDetailsCarousel.propTypes = {
   product: PropTypes.object,
-  selectedColor: PropTypes.string,
+  selectedVariant: PropTypes.object,
 };

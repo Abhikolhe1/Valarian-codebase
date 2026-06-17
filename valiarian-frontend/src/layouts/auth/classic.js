@@ -1,16 +1,16 @@
 import PropTypes from 'prop-types';
 // @mui
-import { alpha, useTheme } from '@mui/material/styles';
 import Box from '@mui/material/Box';
 import Link from '@mui/material/Link';
 import Stack from '@mui/material/Stack';
+import { alpha, useTheme } from '@mui/material/styles';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 // auth
 import { useAuthContext } from 'src/auth/hooks';
 // routes
-import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
+import { paths } from 'src/routes/paths';
 // hooks
 import { useResponsive } from 'src/hooks/use-responsive';
 // theme
@@ -57,9 +57,12 @@ export default function AuthClassicLayout({ children, image, title }) {
   const renderLogo = (
     <Logo
       sx={{
-        zIndex: 9,
         position: 'absolute',
+        left: { xs: '50%', md: 'auto' },
+        transform: { xs: 'translateX(-50%)', md: 'translateX(-1%)' },
         m: { xs: 2, md: 5 },
+        mt: { xs: 4, md: 5 },
+        zIndex: 9,
       }}
     />
   );

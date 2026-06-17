@@ -7,16 +7,19 @@ import Fade from '@mui/material/Fade';
 import Paper from '@mui/material/Paper';
 import Portal from '@mui/material/Portal';
 import Stack from '@mui/material/Stack';
-import { alpha, styled, useTheme } from '@mui/material/styles';
+import { alpha, styled } from '@mui/material/styles';
 import Typography from '@mui/material/Typography';
 // routes
 import { RouterLink } from 'src/routes/components';
 import { paths } from 'src/routes/paths';
 import { usePathname } from 'src/routes/hook';
-// utils
-import { paramCase } from 'src/utils/change-case';
 // theme
 import { bgBlur } from 'src/theme/css';
+// api
+import { useGetCategories, useGetCategoryTree } from 'src/api/category';
+// components
+import Skeleton from '@mui/material/Skeleton';
+import { useSiteSettings } from 'src/contexts/SiteSettingsContext';
 
 // ----------------------------------------------------------------------
 
@@ -89,16 +92,16 @@ const SubCategoryItem = styled(Box)(({ theme, active }) => ({
   transition: theme.transitions.create(['background-color', 'color'], {
     duration: theme.transitions.duration.shorter,
   }),
-  color: active ? theme.palette.primary.main : theme.palette.text.secondary,
-  backgroundColor: active ? alpha(theme.palette.primary.main, 0.08) : 'transparent',
+  color: active ? theme.palette.secondary.main : theme.palette.text.secondary,
+  backgroundColor: active ? alpha(theme.palette.secondary.main, 0.08) : 'transparent',
   fontWeight: active ? 600 : 400,
   fontSize: '0.875rem',
   display: 'flex',
   alignItems: 'center',
   position: 'relative',
   '&:hover': {
-    backgroundColor: alpha(theme.palette.primary.main, active ? 0.12 : 0.04),
-    color: theme.palette.primary.main,
+    backgroundColor: alpha(theme.palette.secondary.main, active ? 0.12 : 0.04),
+    // color: theme.palette.primary.main,
   },
   '&::before': active
     ? {
@@ -108,7 +111,7 @@ const SubCategoryItem = styled(Box)(({ theme, active }) => ({
         width: 6,
         height: 6,
         borderRadius: '50%',
-        backgroundColor: theme.palette.primary.main,
+        backgroundColor: theme.palette.secondary.main,
       }
     : {},
 }));
@@ -157,129 +160,75 @@ const PreviewImage = styled('img')(() => ({
 
 // Default placeholder images
 const PLACEHOLDER_IMAGE =
-  'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRUHOpowQpT8ZqJLNRZ1LIcQlmsAd1aPqugpg&s';
-
-// Example category structure matching the image design
-const DEFAULT_CATEGORY_GROUPS = [
-  {
-    group: 'POLOS',
-    subcategories: [
-      {
-        name: 'Short Sleeves',
-        slug: 'short-sleeves',
-        path: paths.product.category('Short Sleeves'),
-        image: '/assets/images/home/social-media/social-4.jpeg',
-      },
-      {
-        name: 'Full Sleeves',
-        slug: 'full-sleeves',
-        path: paths.product.category('Full Sleeves'),
-        image: PLACEHOLDER_IMAGE,
-      },
-      {
-        name: 'Jersey',
-        slug: 'jersey',
-        path: paths.product.category('Jersey'),
-        image: PLACEHOLDER_IMAGE,
-      },
-      {
-        name: 'Cotton',
-        slug: 'cotton',
-        path: paths.product.category('Cotton'),
-        image: PLACEHOLDER_IMAGE,
-      },
-      {
-        name: 'Wool',
-        slug: 'wool',
-        path: paths.product.category('Wool'),
-        image: PLACEHOLDER_IMAGE,
-      },
-    ],
-  },
-  {
-    group: 'DENIMS',
-    subcategories: [
-      {
-        name: 'Straight',
-        slug: 'straight',
-        path: paths.product.category('Straight'),
-        image: PLACEHOLDER_IMAGE,
-      },
-      {
-        name: 'Slim',
-        slug: 'slim',
-        path: paths.product.category('Slim'),
-        image: PLACEHOLDER_IMAGE,
-      },
-      {
-        name: 'Relaxed',
-        slug: 'relaxed',
-        path: paths.product.category('Relaxed'),
-        image: PLACEHOLDER_IMAGE,
-      },
-      {
-        name: 'Skinny',
-        slug: 'skinny',
-        path: paths.product.category('Skinny'),
-        image: PLACEHOLDER_IMAGE,
-      },
-    ],
-  },
-  {
-    group: 'JACKETS',
-    subcategories: [
-      {
-        name: 'Bomber',
-        slug: 'bomber',
-        path: paths.product.category('Bomber'),
-        image: PLACEHOLDER_IMAGE,
-      },
-      {
-        name: 'Denim',
-        slug: 'denim',
-        path: paths.product.category('Denim'),
-        image: PLACEHOLDER_IMAGE,
-      },
-      {
-        name: 'Leather',
-        slug: 'leather',
-        path: paths.product.category('Leather'),
-        image: PLACEHOLDER_IMAGE,
-      },
-      {
-        name: 'Puffer',
-        slug: 'puffer',
-        path: paths.product.category('Puffer'),
-        image: PLACEHOLDER_IMAGE,
-      },
-      {
-        name: 'Overcoat',
-        slug: 'overcoat',
-        path: paths.product.category('Overcoat'),
-        image: PLACEHOLDER_IMAGE,
-      },
-    ],
-  },
-];
+  (typeof window !== 'undefined' &&
+    window.siteSettings?.header?.categoryMegaMenuPlaceholderImage) ||
+  '';
+console.log('PLACEHOLDER_IMAGE:', PLACEHOLDER_IMAGE);
+// ... rest of styled components remain same until DEFAULT_CATEGORY_GROUPS ...
 
 const DEFAULT_IMAGE = PLACEHOLDER_IMAGE;
-
+console.log('DEFAULT_IMAGE:', DEFAULT_IMAGE);
 // ----------------------------------------------------------------------
+
+function resolveCategoryImage(category) {
+  return (
+    category?.image ||
+    category?.coverImage ||
+    category?.thumbnailUrl ||
+    category?.thumbnail ||
+    category?.media?.url ||
+    category?.media?.thumbnailUrl ||
+    ''
+  );
+}
 
 export default function CategoryMegaMenu({
   open,
   onClose,
   anchorEl,
-  categoryGroups = DEFAULT_CATEGORY_GROUPS,
   defaultImage = DEFAULT_IMAGE,
   isTransparent = false,
 }) {
-  const theme = useTheme();
+  const { settings } = useSiteSettings();
+  const { categories = [] } = useGetCategories(open);
+  const { categoryTree = [], treeLoading } = useGetCategoryTree(open);
+  const fallbackImage = settings?.header?.categoryMegaMenuPlaceholderImage || defaultImage;
+
   const pathname = usePathname();
   const [hoveredSubcategory, setHoveredSubcategory] = useState(null);
   const menuRef = useRef(null);
   const timeoutRef = useRef(null);
   const anchorRef = useRef(anchorEl);
+
+  const categoryImageMap = categories.reduce((acc, category) => {
+    const keyCandidates = [category?.id, category?.slug, category?.name]
+      .filter(Boolean)
+      .map((value) => String(value).toLowerCase());
+
+    const image = resolveCategoryImage(category);
+
+    keyCandidates.forEach((key) => {
+      acc[key] = image;
+    });
+
+    return acc;
+  }, {});
+
+  // Transform backend tree to expected frontend shape
+  const categoryGroups = categoryTree.map((parent) => ({
+    group: parent.name,
+    subcategories: parent.children.map((child) => ({
+      id: child.id,
+      name: child.name,
+      slug: child.slug,
+      path: paths.product.category(child.slug),
+      image:
+        categoryImageMap[String(child?.id || '').toLowerCase()] ||
+        categoryImageMap[String(child?.slug || '').toLowerCase()] ||
+        categoryImageMap[String(child?.name || '').toLowerCase()] ||
+        resolveCategoryImage(child),
+    })),
+  }));
 
   // Keep anchor ref updated
   useEffect(() => {
@@ -352,9 +301,9 @@ export default function CategoryMegaMenu({
 
   // Preload images
   useEffect(() => {
-    if (open) {
+    if (open && categoryGroups.length > 0) {
       const imagesToPreload = [
-        defaultImage,
+        fallbackImage,
         ...categoryGroups.flatMap((group) => group.subcategories.map((sub) => sub.image)),
       ].filter(Boolean);
 
@@ -367,7 +316,7 @@ export default function CategoryMegaMenu({
         }
       });
     }
-  }, [open, defaultImage, categoryGroups]);
+  }, [open, fallbackImage, categoryGroups]);
 
   const handleSubcategoryHover = useCallback((subcategory, groupName) => {
     if (timeoutRef.current) {
@@ -382,30 +331,33 @@ export default function CategoryMegaMenu({
     }, 100);
   }, []);
 
-  const handleSubcategoryClick = useCallback((e) => {
-    // Close the dialog immediately when category is clicked
-    e.stopPropagation();
-    onClose();
-  }, [onClose]);
+  const handleSubcategoryClick = useCallback(
+    (e) => {
+      // Close the dialog immediately when category is clicked
+      e.stopPropagation();
+      onClose();
+    },
+    [onClose]
+  );
 
   // Get current preview data
   const previewData = hoveredSubcategory || {
     name: categoryGroups[0]?.subcategories[0]?.name || '',
     groupName: categoryGroups[0]?.group || '',
-    image: defaultImage,
+    image: fallbackImage,
   };
 
   // 🔹 derive title
   const previewTitle = hoveredSubcategory
     ? `${hoveredSubcategory.name.toUpperCase()} ${hoveredSubcategory.groupName}`
-    : `${previewData.groupName} ${previewData.name ? previewData.name.toUpperCase() : ''}`;
+    : '';
 
   // 🔹 title animation state
   const [displayTitle, setDisplayTitle] = useState(previewTitle);
   const [titleVisible, setTitleVisible] = useState(true);
 
   // 🔹 image animation state
-  const [displayImage, setDisplayImage] = useState(hoveredSubcategory?.image || defaultImage);
+  const [displayImage, setDisplayImage] = useState(hoveredSubcategory?.image || fallbackImage);
   const [imageVisible, setImageVisible] = useState(true);
 
   useEffect(() => {
@@ -425,13 +377,78 @@ export default function CategoryMegaMenu({
     setImageVisible(false);
 
     const timeout = setTimeout(() => {
-      const newImage = hoveredSubcategory?.image || defaultImage;
+      const newImage = hoveredSubcategory?.image || fallbackImage;
       setDisplayImage(newImage);
       setImageVisible(true);
     }, 150);
 
     return () => clearTimeout(timeout);
-  }, [hoveredSubcategory, defaultImage, open]);
+  }, [hoveredSubcategory, fallbackImage, open]);
+
+  const renderCategoryListContent = () => {
+    if (treeLoading) {
+      return [...Array(6)].map((_, i) => (
+        <Box key={i} sx={{ mb: 2 }}>
+          <Skeleton width="60%" height={24} sx={{ mb: 1 }} />
+          <Skeleton width="80%" height={20} />
+          <Skeleton width="70%" height={20} />
+        </Box>
+      ));
+    }
+
+    if (categoryGroups.length > 0) {
+      return categoryGroups.map((group) => (
+        <CategoryGroup key={group.group}>
+          <CategoryGroupTitle>{group.group}</CategoryGroupTitle>
+          <Stack spacing={0.25}>
+            {group.subcategories.map((subcategory) => (
+              <SubCategoryItem
+                key={subcategory.name}
+                component={RouterLink}
+                href={subcategory.path}
+                active={
+                  hoveredSubcategory?.name === subcategory.name &&
+                  hoveredSubcategory?.groupName === group.group
+                    ? 1
+                    : 0
+                }
+                onMouseEnter={() => handleSubcategoryHover(subcategory, group.group)}
+                onMouseLeave={handleSubcategoryLeave}
+                onClick={handleSubcategoryClick}
+              >
+                <Typography
+                  variant="body2"
+                  sx={{
+                    pl:
+                      hoveredSubcategory?.name === subcategory.name &&
+                      hoveredSubcategory?.groupName === group.group
+                        ? 2
+                        : 0,
+                  }}
+                >
+                  {subcategory.name}
+                </Typography>
+              </SubCategoryItem>
+            ))}
+          </Stack>
+        </CategoryGroup>
+      ));
+    }
+
+    return (
+      <Typography
+        variant="body2"
+        sx={{
+          gridColumn: 'span 3',
+          textAlign: 'center',
+          py: 5,
+          color: 'text.secondary',
+        }}
+      >
+        No categories found
+      </Typography>
+    );
+  };
 
   if (!open) return null;
 
@@ -455,74 +472,69 @@ export default function CategoryMegaMenu({
               }}
             >
               {/* Left Column - Category Groups */}
-              <CategoryList spacing={1}>
-                {categoryGroups.map((group) => (
-                  <CategoryGroup key={group.group}>
-                    <CategoryGroupTitle>{group.group}</CategoryGroupTitle>
-                    <Stack spacing={0.25}>
-                      {group.subcategories.map((subcategory) => (
-                        <SubCategoryItem
-                          key={subcategory.name}
-                          component={RouterLink}
-                          href={subcategory.path}
-                          active={
-                            hoveredSubcategory?.name === subcategory.name &&
-                            hoveredSubcategory?.groupName === group.group
-                              ? 1
-                              : 0
-                          }
-                          onMouseEnter={() => handleSubcategoryHover(subcategory, group.group)}
-                          onMouseLeave={handleSubcategoryLeave}
-                          onClick={handleSubcategoryClick}
-                        >
-                          <Typography
-                            variant="body2"
-                            sx={{
-                              pl:
-                                hoveredSubcategory?.name === subcategory.name &&
-                                hoveredSubcategory?.groupName === group.group
-                                  ? 2
-                                  : 0,
-                            }}
-                          >
-                            {subcategory.name}
-                          </Typography>
-                        </SubCategoryItem>
-                      ))}
-                    </Stack>
-                  </CategoryGroup>
-                ))}
-              </CategoryList>
+              <CategoryList spacing={1}>{renderCategoryListContent()}</CategoryList>
 
               {/* Right Column - Image Preview */}
               <ImagePreview>
-                <Fade in={titleVisible} timeout={200}>
-                  <PreviewTitle>{displayTitle}</PreviewTitle>
-                </Fade>
+                {!treeLoading && (
+                  <>
+                    {hoveredSubcategory && displayTitle && (
+                      <Fade in={titleVisible} timeout={200}>
+                        <PreviewTitle>{displayTitle}</PreviewTitle>
+                      </Fade>
+                    )}
 
-                {/* Image with Fade animation */}
-                <Fade in={imageVisible} timeout={300}>
-                  <Box
-                    sx={{
-                      position: 'absolute',
-                      top: 0,
-                      left: 0,
-                      width: '100%',
-                      height: '100%',
-                    }}
-                  >
-                    <PreviewImage
-                      src={displayImage}
-                      alt={hoveredSubcategory?.name || 'Default category'}
-                      onError={(e) => {
-                        e.target.style.display = 'none';
-                      }}
-                    />
-                  </Box>
-                </Fade>
+                    {/* Image with Fade animation */}
+                    <Fade in={imageVisible} timeout={300}>
+                      <Box
+                        sx={{
+                          position: 'absolute',
+                          top: 0,
+                          left: 0,
+                          width: '100%',
+                          height: '100%',
+                        }}
+                      >
+                        {displayImage ? (
+                          <PreviewImage
+                            key={displayImage}
+                            src={displayImage}
+                            alt={hoveredSubcategory?.name || 'Default category'}
+                            onError={() => {
+                              if (displayImage !== fallbackImage && fallbackImage) {
+                                setDisplayImage(fallbackImage);
+                                return;
+                              }
+
+                              setDisplayImage('');
+                            }}
+                          />
+                        ) : (
+                          <Box
+                            sx={{
+                              position: 'absolute',
+                              inset: 0,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              color: 'text.secondary',
+                              bgcolor: 'grey.100',
+                              px: 3,
+                              textAlign: 'center',
+                            }}
+                          >
+                            <Typography variant="body2">
+                              No category image available
+                            </Typography>
+                          </Box>
+                        )}
+                      </Box>
+                    </Fade>
+                  </>
+                )}
 
                 {/* Fallback */}
-                {!hoveredSubcategory && !imageVisible && (
+                {!treeLoading && !hoveredSubcategory && !imageVisible && (
                   <Box
                     sx={{
                       position: 'absolute',
@@ -538,6 +550,8 @@ export default function CategoryMegaMenu({
                     <Typography variant="body2">Hover over a category</Typography>
                   </Box>
                 )}
+
+                {treeLoading && <Skeleton variant="rectangular" width="100%" height="100%" />}
               </ImagePreview>
             </Stack>
           </StyledMegaMenu>
@@ -551,19 +565,6 @@ CategoryMegaMenu.propTypes = {
   open: PropTypes.bool,
   onClose: PropTypes.func,
   anchorEl: PropTypes.object,
-  categoryGroups: PropTypes.arrayOf(
-    PropTypes.shape({
-      group: PropTypes.string.isRequired,
-      subcategories: PropTypes.arrayOf(
-        PropTypes.shape({
-          name: PropTypes.string.isRequired,
-          slug: PropTypes.string,
-          path: PropTypes.string.isRequired,
-          image: PropTypes.string.isRequired,
-        })
-      ).isRequired,
-    })
-  ),
   defaultImage: PropTypes.string,
   isTransparent: PropTypes.bool,
 };

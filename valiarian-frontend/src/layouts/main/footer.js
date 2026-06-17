@@ -1,77 +1,132 @@
 // @mui
-import { alpha } from '@mui/material/styles';
+import { Grid } from '@mui/material';
 import Box from '@mui/material/Box';
+import Container from '@mui/material/Container';
+import Divider from '@mui/material/Divider';
+import IconButton from '@mui/material/IconButton';
 import Link from '@mui/material/Link';
 import Stack from '@mui/material/Stack';
-import Divider from '@mui/material/Divider';
-import Container from '@mui/material/Container';
-import IconButton from '@mui/material/IconButton';
+import { alpha } from '@mui/material/styles';
 import Typography from '@mui/material/Typography';
 // routes
-import { paths } from 'src/routes/paths';
-import { usePathname } from 'src/routes/hook';
 import { RouterLink } from 'src/routes/components';
-// _mock
-import { _socials } from 'src/_mock';
 // components
-import Logo from 'src/components/logo';
 import Iconify from 'src/components/iconify';
-import { Grid } from '@mui/material';
-
-// ----------------------------------------------------------------------
-
-const LINKS = [
-  {
-    headline: 'Valiarian',
-    children: [
-      { name: 'Products', href: paths.about },
-      { name: 'Our Story', href: paths.contact },
-      { name: 'FAQs', href: paths.faqs },
-    ],
-  },
-  {
-    headline: 'Legal',
-    children: [
-      { name: 'Terms and Condition', href: '#' },
-      { name: 'Privacy Policy', href: '#' },
-    ],
-  },
-  {
-    headline: 'Contact',
-    children: [{ name: 'support@valiarian.in', href: '#' }],
-  },
-];
-
-// ----------------------------------------------------------------------
+// contexts
+import { useSiteSettings } from 'src/contexts/SiteSettingsContext';
+// hooks
+import { useFooterNavigation } from './hooks/use-footer-navigation';
 
 export default function Footer() {
-  const pathname = usePathname();
+  const { navigation: footerLinks } = useFooterNavigation();
+  const { settings } = useSiteSettings();
+  const legalDocuments = settings?.legalDocuments || {};
 
-  const isHome = pathname === '/';
+  const isExternalLink = (href) =>
+    typeof href === 'string' &&
+    (href.startsWith('http://') ||
+      href.startsWith('https://') ||
+      href.startsWith('blob:') ||
+      /\.(pdf|doc|docx)$/i.test(href));
 
-  const simpleFooter = (
-    <Box
-      component="footer"
-      sx={{
-        py: 5,
-        textAlign: 'center',
-        position: 'relative',
-        bgcolor: 'background.default',
-      }}
-    >
-      <Container>
-        <Logo sx={{ mb: 1, mx: 'auto' }} />
+  const normalizeHref = (href) => {
+    if (!href || typeof href !== 'string') {
+      return '';
+    }
 
-        <Typography variant="caption" component="div">
-          © All rights reserved
-          <br /> made by
-          <Link href="https://valiarian.cc/"> valiarian.cc </Link>
-        </Typography>
-      </Container>
-    </Box>
-  );
+    const trimmedHref = href.trim();
 
-  const mainFooter = (
+    if (!trimmedHref) {
+      return '';
+    }
+
+    if (
+      trimmedHref.startsWith('http://') ||
+      trimmedHref.startsWith('https://') ||
+      trimmedHref.startsWith('/')
+    ) {
+      return trimmedHref;
+    }
+
+    return `/${trimmedHref}`;
+  };
+
+  const resolveFooterLink = (listHeadline, link) => {
+    if (listHeadline?.toLowerCase() !== 'legal') {
+      return {
+        href: normalizeHref(link.href),
+        target: link.target,
+        rel: link.rel,
+      };
+    }
+
+    const linkName = link.name?.toLowerCase();
+    const termsHref = normalizeHref(legalDocuments.termsAndConditionsUrl);
+    const privacyHref = normalizeHref(legalDocuments.privacyPolicyUrl);
+
+    if (linkName?.includes('terms')) {
+      return {
+        href: termsHref || '#',
+        target: termsHref ? '_blank' : undefined,
+        rel: termsHref ? 'noopener noreferrer' : undefined,
+      };
+    }
+
+    if (linkName?.includes('privacy')) {
+      return {
+        href: privacyHref || '#',
+        target: privacyHref ? '_blank' : undefined,
+        rel: privacyHref ? 'noopener noreferrer' : undefined,
+      };
+    }
+
+    return {
+      href: normalizeHref(link.href),
+      target: link.target,
+      rel: link.rel,
+    };
+  };
+
+  const socialLinks = [
+    {
+      name: 'Facebook',
+      icon: 'eva:facebook-fill',
+      color: '#1877F2',
+      url: settings.socialMedia?.facebook,
+    },
+    {
+      name: 'Instagram',
+      icon: 'ant-design:instagram-filled',
+      color: '#E02D69',
+      url: settings.socialMedia?.instagram,
+    },
+    {
+      name: 'Twitter',
+      icon: 'eva:twitter-fill',
+      color: '#00AAEC',
+      url: settings.socialMedia?.twitter,
+    },
+    {
+      name: 'LinkedIn',
+      icon: 'eva:linkedin-fill',
+      color: '#007EBB',
+      url: settings.socialMedia?.linkedin,
+    },
+    {
+      name: 'YouTube',
+      icon: 'eva:youtube-fill',
+      color: '#FF0000',
+      url: settings.socialMedia?.youtube,
+    },
+    {
+      name: 'Pinterest',
+      icon: 'ant-design:pinterest-filled',
+      color: '#E60023',
+      url: settings.socialMedia?.pinterest,
+    },
+  ].filter((social) => social.url);
+
+  return (
     <Box
       component="footer"
       sx={{
@@ -90,34 +145,41 @@ export default function Footer() {
         }}
       >
         <Grid container direction="row">
-        <Grid item xs={12} md={6}>
-          <Stack direction="row" alignItems="center" spacing={1.5} mb={2}>
-            <Box
-              component="img"
-              src="/logo/footer-logo.png"
-              alt="Valiarian"
-              sx={{
-                width: 32,
-                height: 32,
-                objectFit: 'contain',
-              }}
-            />
-
-            <Typography
-              sx={{
-                fontFamily: '"Playfair Display", serif',
-                fontWeight: 900,
-                fontSize: '25px',
-                letterSpacing: '0.18em',
-                textTransform: 'uppercase',
-                lineHeight: 1,
-                color: 'text.primary',
-           
-              }}
+          <Grid item xs={12} md={6}>
+            <Stack
+              direction="row"
+              alignItems="center"
+              justifyContent={{ xs: 'center', md: 'flex-start' }}
+              spacing={1.5}
+              mb={2}
+              sx={{ textAlign: { xs: 'center', md: 'left' } }}
             >
-              VALIARIAN
-            </Typography>
-          </Stack>
+              <Box
+                component="img"
+                src={settings.general?.logo || '/logo/footer-logo.png'}
+                alt={settings.general?.siteName || 'Valiarian'}
+                sx={{
+                  width: 32,
+                  height: 32,
+                  objectFit: 'contain',
+                }}
+              />
+
+              <Typography
+                sx={{
+                  fontFamily: '"Playfair Display", serif',
+                  fontWeight: 900,
+                  fontSize: '25px',
+                  letterSpacing: '0.18em',
+                  textTransform: 'uppercase',
+                  lineHeight: 1,
+                  color: 'text.primary',
+                }}
+              >
+                {settings.general?.siteName || 'VALIARIAN'}
+              </Typography>
+            </Stack>
+
             <Typography
               variant="body2"
               sx={{
@@ -125,8 +187,8 @@ export default function Footer() {
                 mx: { xs: 'auto', md: 'unset' },
               }}
             >
-              The starting point for your next project with Valiarian UI Kit, built on the newest
-              version of Material-UI ©, ready to be customized to your style.
+              {settings.general?.siteDescription ||
+                'The starting point for your next project with Valiarian UI Kit, built on the newest version of Material-UI, ready to be customized to your style.'}
             </Typography>
 
             <Stack
@@ -137,9 +199,13 @@ export default function Footer() {
                 mb: { xs: 5, md: 0 },
               }}
             >
-              {_socials.map((social) => (
+              {socialLinks.map((social) => (
                 <IconButton
                   key={social.name}
+                  component="a"
+                  href={social.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
                   sx={{
                     '&:hover': {
                       bgcolor: alpha(social.color, 0.08),
@@ -150,58 +216,51 @@ export default function Footer() {
                 </IconButton>
               ))}
             </Stack>
+          </Grid>
+
+          <Grid item xs={12} md={6}>
+            <Stack spacing={5} direction={{ xs: 'column', md: 'row' }}>
+              {footerLinks.map((list) => (
+                <Stack
+                  key={list.headline}
+                  spacing={2}
+                  alignItems={{ xs: 'center', md: 'flex-start' }}
+                  sx={{ width: 1 }}
+                >
+                  <Typography component="div" variant="overline">
+                    {list.headline}
+                  </Typography>
+
+                  {list.children.map((link) => (
+                    (() => {
+                      const resolvedLink = resolveFooterLink(list.headline, link);
+
+                      return (
+                        <Link
+                          key={link.name}
+                          component={isExternalLink(resolvedLink.href) ? 'a' : RouterLink}
+                          href={resolvedLink.href}
+                          target={resolvedLink.target}
+                          rel={resolvedLink.rel}
+                          color="inherit"
+                          variant="body2"
+                        >
+                          {link.name}
+                        </Link>
+                      );
+                    })()
+                  ))}
+                </Stack>
+              ))}
+            </Stack>
+          </Grid>
         </Grid>
 
-
-        <Grid item xs={12} md={6}>
-          <Stack spacing={5} direction={{ xs: 'column', md: 'row' }}>
-            {LINKS.map((list) => (
-              <Stack
-                key={list.headline}
-                spacing={2}
-                alignItems={{ xs: 'center', md: 'flex-start' }}
-                sx={{ width: 1 }}
-              >
-                <Typography component="div" variant="overline">
-                  {list.headline}
-                </Typography>
-
-                {list.children.map((link) => (
-                  <Link
-                    key={link.name}
-                    component={RouterLink}
-                    href={link.href}
-                    color="inherit"
-                    variant="body2"
-                  >
-                    {link.name}
-                  </Link>
-                ))}
-              </Stack>
-            ))}
-          </Stack>
-        </Grid>
-        </Grid>
-
-        <Grid
-          container
-          justifyContent={{
-            xs: 'center',
-            md: 'space-between',
-          }}
-        >
-          {/* <Grid xs={8} md={3} >
-          
-          </Grid> */}
-
-        </Grid>
-
-        <Typography variant="body2" sx={{ mt: 2 }}>
-          © 2026. All rights reserved
+        <Typography variant="body2" sx={{ mt: 10, textAlign: 'center' }}>
+          Copyright {new Date().getFullYear()} {settings.general?.siteName || 'Valiarian'}. All
+          rights reserved
         </Typography>
       </Container>
     </Box>
   );
-
-  return mainFooter;
 }

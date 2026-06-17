@@ -15,6 +15,11 @@ const loginPaths = {
   firebase: paths.auth.firebase.login,
 };
 
+const ADMIN_LOGIN_MATCHERS = [
+  paths.dashboard.order.root,
+  paths.dashboard.cms.contactSubmissions.root,
+];
+
 // ----------------------------------------------------------------------
 
 export default function AuthGuard({ children }) {
@@ -28,7 +33,12 @@ export default function AuthGuard({ children }) {
     if (!authenticated) {
       const searchParams = new URLSearchParams({ returnTo: window.location.pathname }).toString();
 
-      const loginPath = loginPaths[method];
+      const shouldUseAdminLogin = ADMIN_LOGIN_MATCHERS.some((path) =>
+        window.location.pathname.startsWith(path)
+      );
+
+      const loginPath =
+        method === 'jwt' && shouldUseAdminLogin ? paths.auth.jwt.adminLogin : loginPaths[method];
 
       const href = `${loginPath}?${searchParams}`;
 

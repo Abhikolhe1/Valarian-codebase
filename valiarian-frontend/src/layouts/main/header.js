@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 // @mui
 import AppBar from '@mui/material/AppBar';
 import Box from '@mui/material/Box';
@@ -14,21 +14,28 @@ import { useBoolean } from 'src/hooks/use-boolean';
 import { useMarqueeVisibility } from 'src/hooks/use-marquee-visibility';
 import { useOffSetTop } from 'src/hooks/use-off-set-top';
 import { useResponsive } from 'src/hooks/use-responsive';
-import { usePathname } from 'src/routes/hook';
+import { usePathname, useRouter } from 'src/routes/hook';
 // theme
 import { bgBlur } from 'src/theme/css';
 // routes
 import { RouterLink } from 'src/routes/components';
 import { paths } from 'src/routes/paths';
+// redux
+import { useSelector } from 'src/redux/store';
+// auth
+import { useAuthContext } from 'src/auth/hooks';
 // components
+import { Badge } from '@mui/material';
+import { prefetchCategoryMenuData } from 'src/api/category';
 import CategoryMegaMenu from 'src/components/category-mega-menu';
 import Iconify from 'src/components/iconify';
 import Logo from 'src/components/logo';
 //
 import HeaderShadow from '../_common/header-shadow';
 import { HEADER } from '../config-layout';
-import { navConfig } from './config-navigation';
+import { useHeaderNavigation } from './hooks/use-header-navigation';
 import NavMobile from './nav/mobile';
+import UserDropdownMenu from './user-dropdown-menu';
 
 // ----------------------------------------------------------------------
 
@@ -218,10 +225,21 @@ const StyledMobileSearchInput = styled('input')(({ theme }) => ({
 
 export default function Header() {
   const theme = useTheme();
+  const router = useRouter();
   const pathname = usePathname();
   const mdUp = useResponsive('up', 'md');
   const offsetTop = useOffSetTop(HEADER.H_DESKTOP);
   const marqueeVisible = useMarqueeVisibility();
+
+  // Redux - Get cart count and favorites
+  const cartCount = useSelector((state) => state.checkout.totalItems);
+  const favoritesCount = useSelector((state) => state.favorites.items.length);
+
+  // Auth
+  const { authenticated, user } = useAuthContext();
+
+  // Fetch header navigation from CMS
+  const { navigation: headerNavigation } = useHeaderNavigation();
 
   const isHome = pathname === '/';
   const [showLogo, setShowLogo] = useState(!isHome);
@@ -234,8 +252,13 @@ export default function Header() {
   const categoryMenuOpen = useBoolean();
   const categoryMenuAnchorRef = useRef(null);
 
+  // User dropdown menu state
+  const [userMenuAnchor, setUserMenuAnchor] = useState(null);
+  const userMenuOpen = Boolean(userMenuAnchor);
+
   // Marquee height: 36px desktop, 32px mobile
   const marqueeHeight = mdUp ? 36 : 32;
+  const desktopOffsetTop = mdUp && offsetTop;
 
   // Show header logo and background after scroll threshold (when animated logo fades out)
   useEffect(() => {
@@ -285,10 +308,91 @@ export default function Header() {
     setSearchQuery(event.target.value);
   };
 
+  const handleSearchSubmit = useCallback(() => {
+    const normalizedQuery = searchQuery.trim();
+
+    if (!normalizedQuery) {
+      return;
+    }
+
+    router.push(`${paths.product.root}?search=${encodeURIComponent(normalizedQuery)}`);
+    setSearchExpanded(false);
+    setSearchQuery('');
+  }, [router, searchQuery]);
+
   const handleSearchKeyDown = (event) => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      handleSearchSubmit();
+      return;
+    }
+
     if (event.key === 'Escape') {
       handleSearchClose();
     }
+  };
+
+  // Favorites handler
+  const handleFavoritesClick = () => {
+    if (!authenticated) {
+      // Redirect to login if not authenticated
+      router.push(paths.auth.jwt.login);
+    } else {
+      // Navigate to favorites page
+      router.push('/favorites');
+    }
+  };
+
+  // User menu handlers
+  const handleUserMenuOpen = (event) => {
+    if (!authenticated) {
+      // Redirect to login if not authenticated
+      router.push(paths.auth.jwt.login);
+    } else {
+      setUserMenuAnchor(event.currentTarget);
+    }
+  };
+
+  const handleUserMenuClose = () => {
+    setUserMenuAnchor(null);
+  };
+
+  const prefetchCheckout = () => {
+    import('src/pages/product/checkout');
+  };
+
+  const prefetchPremium = () => {
+    import('src/pages/premium');
+  };
+
+  const prefetchAbout = () => {
+    import('src/pages/about-us');
+  };
+
+  const prefetchContact = () => {
+    import('src/pages/contact-us');
+  };
+
+  const getNavPrefetchHandler = (path) => {
+    if (path === paths.premium) {
+      return prefetchPremium;
+    }
+
+    if (path === paths.about) {
+      return prefetchAbout;
+    }
+
+    if (path === paths.contact) {
+      return prefetchContact;
+    }
+
+    return undefined;
+  };
+
+  const handleCategoryMenuIntent = () => {
+    prefetchCategoryMenuData().catch(() => {
+      // The menu already shows its own loading state when needed.
+    });
   };
 
   // Mobile: Handle search overlay
@@ -302,6 +406,12 @@ export default function Header() {
   };
 
   const handleMobileSearchKeyDown = (event) => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      handleSearchSubmit();
+      return;
+    }
+
     if (event.key === 'Escape') {
       handleMobileSearchClose();
     }
@@ -311,9 +421,12 @@ export default function Header() {
     <AppBar
       data-header="main"
       sx={{
+        zIndex: theme.zIndex.appBar + 2,
+        isolation: 'isolate',
+        pointerEvents: 'auto',
         backgroundColor: `rgba(255, 255, 255, ${headerBgOpacity})`,
         color: theme.palette.text.primary,
-        boxShadow: offsetTop && headerBgOpacity > 0 ? theme.shadows[4] : 'none',
+        boxShadow: desktopOffsetTop && headerBgOpacity > 0 ? theme.shadows[4] : 'none',
         top: marqueeVisible ? marqueeHeight : 0,
         transition: theme.transitions.create(['backgroundColor', 'boxShadow', 'top'], {
           duration: theme.transitions.duration.standard,
@@ -323,6 +436,9 @@ export default function Header() {
       <Toolbar
         disableGutters
         sx={{
+          position: 'relative',
+          zIndex: 1,
+          pointerEvents: 'auto',
           height: {
             xs: HEADER.H_MOBILE,
             md: HEADER.H_DESKTOP,
@@ -331,7 +447,7 @@ export default function Header() {
             easing: theme.transitions.easing.easeInOut,
             duration: theme.transitions.duration.shorter,
           }),
-          ...(offsetTop && {
+          ...(desktopOffsetTop && {
             ...bgBlur({
               color: theme.palette.background.default,
             }),
@@ -341,7 +457,16 @@ export default function Header() {
           }),
         }}
       >
-        <Container sx={{ height: 1, display: 'flex', alignItems: 'center', position: 'relative' }}>
+        <Container
+          sx={{
+            height: 1,
+            display: 'flex',
+            alignItems: 'center',
+            position: 'relative',
+            zIndex: 2,
+            pointerEvents: 'auto',
+          }}
+        >
           {/* Left: Expandable Search - Desktop only inline expansion */}
           {mdUp && (
             <>
@@ -402,6 +527,7 @@ export default function Header() {
               onClick={handleMobileSearchClick}
               expanded={false}
               isTransparent={headerBgOpacity === 0}
+              sx={{ position: 'relative', zIndex: 3 }}
             >
               <Iconify icon="eva:search-fill" width={20} />
             </StyledSearchIconButton>
@@ -413,6 +539,9 @@ export default function Header() {
               position: 'absolute',
               left: '50%',
               transform: 'translateX(-50%)',
+              width: 'max-content',
+              maxWidth: 'calc(100% - 140px)',
+              zIndex: 2,
               opacity: showLogo ? 1 : 0,
               transition: theme.transitions.create('opacity', {
                 duration: theme.transitions.duration.short,
@@ -425,109 +554,173 @@ export default function Header() {
           {/* Spacer between search and center logo */}
           <Box sx={{ flexGrow: 1 }} />
 
-          <Stack direction="row" spacing={{ xs: 1, md: 3 }} alignItems="center">
+          <Stack
+            direction="row"
+            spacing={{ xs: 1, md: 3 }}
+            alignItems="center"
+            sx={{ position: 'relative', zIndex: 3 }}
+          >
             {/* Navigation Links */}
             {mdUp && (
               <Stack direction="row" spacing={3} sx={{ mr: 2 }}>
-                <Box
-                  ref={categoryMenuAnchorRef}
-                  onClick={categoryMenuOpen.onToggle}
-                  sx={{
-                    position: 'relative',
-                  }}
-                >
-                  <StyledNavLink
-                    component="div"
-                    active={pathname === paths.product.root ? 1 : 0}
-                    isTransparent={headerBgOpacity === 0 ? 1 : 0}
-                    sx={{
-                      cursor: 'pointer',
-                      userSelect: 'none',
-                    }}
-                  >
-                    Category
-                  </StyledNavLink>
-                  <CategoryMegaMenu
-                    open={categoryMenuOpen.value}
-                    onClose={categoryMenuOpen.onFalse}
-                    anchorEl={categoryMenuAnchorRef.current}
-                    isTransparent={headerBgOpacity === 0}
-                  />
-                </Box>
-                <StyledNavLink
-                  component={RouterLink}
-                  href={paths.premium}
-                  active={pathname === paths.premium ? 1 : 0}
-                  isTransparent={headerBgOpacity === 0 ? 1 : 0}
-                >
-                  Premium
-                </StyledNavLink>
-                <StyledNavLink
-                  component={RouterLink}
-                  href={paths.about}
-                  active={pathname === paths.about ? 1 : 0}
-                  isTransparent={headerBgOpacity === 0 ? 1 : 0}
-                >
-                  About Us
-                </StyledNavLink>
+                {headerNavigation.map((item) => {
+                  // Special handling for Category menu (if it exists)
+                  if (item.title === 'Category') {
+                    return (
+                      <Box
+                        key={item.title}
+                        ref={categoryMenuAnchorRef}
+                        onClick={categoryMenuOpen.onToggle}
+                        onMouseEnter={handleCategoryMenuIntent}
+                        onFocus={handleCategoryMenuIntent}
+                        sx={{
+                          position: 'relative',
+                        }}
+                      >
+                        <StyledNavLink
+                          component="div"
+                          active={pathname === paths.product.root ? 1 : 0}
+                          isTransparent={headerBgOpacity === 0 ? 1 : 0}
+                          sx={{
+                            cursor: 'pointer',
+                            userSelect: 'none',
+                          }}
+                        >
+                          {item.title}
+                        </StyledNavLink>
+                        <CategoryMegaMenu
+                          open={categoryMenuOpen.value}
+                          onClose={categoryMenuOpen.onFalse}
+                          anchorEl={categoryMenuAnchorRef.current}
+                          isTransparent={headerBgOpacity === 0}
+                        />
+                      </Box>
+                    );
+                  }
+
+                  // Regular navigation links
+                  return (
+                    <StyledNavLink
+                      key={item.title}
+                      component={RouterLink}
+                      href={item.path}
+                      active={pathname === item.path ? 1 : 0}
+                      isTransparent={headerBgOpacity === 0 ? 1 : 0}
+                      target={item.openInNewTab ? '_blank' : undefined}
+                      rel={item.openInNewTab ? 'noopener noreferrer' : undefined}
+                      onMouseEnter={getNavPrefetchHandler(item.path)}
+                      onFocus={getNavPrefetchHandler(item.path)}
+                    >
+                      {item.title}
+                    </StyledNavLink>
+                  );
+                })}
               </Stack>
             )}
 
             {/* Action Icons */}
             <Stack direction="row" spacing={0.5}>
-              {/* Heart Icon - Hidden on Mobile */}
-              <IconButton
-                size="small"
+              {/* Favorites Icon with Badge - Hidden on Mobile */}
+              <Badge
+                badgeContent={favoritesCount}
+                color="error"
                 sx={{
-                  color: headerBgOpacity > 0 ? 'text.primary' : 'common.white',
                   display: { xs: 'none', md: 'inline-flex' },
-                  transition: theme.transitions.create('color', {
-                    duration: theme.transitions.duration.standard,
-                  }),
-                  '&:hover': {
-                    backgroundColor: headerBgOpacity > 0 ? 'action.hover' : 'rgba(255, 255, 255, 0.1)',
+                  '& .MuiBadge-badge': {
+                    right: 2,
+                    top: 2,
                   },
                 }}
               >
-                <Iconify icon="eva:heart-fill" width={20} />
-              </IconButton>
+                <IconButton
+                  size="small"
+                  onClick={handleFavoritesClick}
+                  sx={{
+                    color: headerBgOpacity > 0 ? 'text.primary' : 'common.white',
+                    transition: theme.transitions.create('color', {
+                      duration: theme.transitions.duration.standard,
+                    }),
+                    '&:hover': {
+                      backgroundColor: headerBgOpacity > 0 ? 'action.hover' : 'rgba(255, 255, 255, 0.1)',
+                    },
+                  }}
+                >
+                  <Iconify icon="eva:heart-fill" width={20} />
+                </IconButton>
+              </Badge>
 
-              <IconButton
-                size="small"
+              {/* Cart Icon with Badge */}
+              <Badge
+                badgeContent={cartCount}
+                color="error"
                 sx={{
-                  color: headerBgOpacity > 0 ? 'text.primary' : 'common.white',
-                  transition: theme.transitions.create('color', {
-                    duration: theme.transitions.duration.standard,
-                  }),
-                  '&:hover': {
-                    backgroundColor: headerBgOpacity > 0 ? 'action.hover' : 'rgba(255, 255, 255, 0.1)',
+                  '& .MuiBadge-badge': {
+                    right: 2,
+                    top: 2,
                   },
                 }}
               >
-                <Iconify icon="eva:shopping-cart-fill" width={20} />
-              </IconButton>
+                <IconButton
+                  size="small"
+                  onClick={() => router.push(paths.product.checkout)}
+                  onMouseEnter={prefetchCheckout}
+                  onFocus={prefetchCheckout}
+                  sx={{
+                    color: headerBgOpacity > 0 ? 'text.primary' : 'common.white',
+                    transition: theme.transitions.create('color', {
+                      duration: theme.transitions.duration.standard,
+                    }),
+                    '&:hover': {
+                      backgroundColor: headerBgOpacity > 0 ? 'action.hover' : 'rgba(255, 255, 255, 0.1)',
+                    },
+                  }}
+                >
+                  <Iconify icon="eva:shopping-cart-fill" width={20} />
+                </IconButton>
+              </Badge>
 
-              <IconButton
-                size="small"
-                sx={{
-                  color: headerBgOpacity > 0 ? 'text.primary' : 'common.white',
-                  display: { xs: 'none', md: 'inline-flex' }, // Hidden on mobile, shown on desktop
-                  transition: theme.transitions.create('color', {
-                    duration: theme.transitions.duration.standard,
-                  }),
-                  '&:hover': {
-                    backgroundColor: headerBgOpacity > 0 ? 'action.hover' : 'rgba(255, 255, 255, 0.1)',
-                  },
-                }}
-              >
-                <Iconify icon="eva:person-fill" width={20} />
-              </IconButton>
+              {/* User Profile Icon - Conditional */}
+              {authenticated ? (
+                <IconButton
+                  size="small"
+                  onClick={handleUserMenuOpen}
+                  sx={{
+                    color: headerBgOpacity > 0 ? 'text.primary' : 'common.white',
+                    display: { xs: 'none', md: 'inline-flex' },
+                    transition: theme.transitions.create('color', {
+                      duration: theme.transitions.duration.standard,
+                    }),
+                    '&:hover': {
+                      backgroundColor: headerBgOpacity > 0 ? 'action.hover' : 'rgba(255, 255, 255, 0.1)',
+                    },
+                  }}
+                >
+                  <Iconify icon="eva:person-fill" width={20} />
+                </IconButton>
+              ) : (
+                <IconButton
+                  size="small"
+                  onClick={() => router.push(paths.auth.jwt.login)}
+                  sx={{
+                    color: headerBgOpacity > 0 ? 'text.primary' : 'common.white',
+                    display: { xs: 'none', md: 'inline-flex' },
+                    transition: theme.transitions.create('color', {
+                      duration: theme.transitions.duration.standard,
+                    }),
+                    '&:hover': {
+                      backgroundColor: headerBgOpacity > 0 ? 'action.hover' : 'rgba(255, 255, 255, 0.1)',
+                    },
+                  }}
+                  title="Login"
+                >
+                  <Iconify icon="eva:log-in-fill" width={20} />
+                </IconButton>
+              )}
 
               {/* Mobile Menu */}
               {!mdUp && (
                 <NavMobile
-                  offsetTop={offsetTop && headerBgOpacity > 0}
-                  data={navConfig}
+                  offsetTop={desktopOffsetTop && headerBgOpacity > 0}
                   isTransparent={headerBgOpacity === 0}
                 />
               )}
@@ -536,7 +729,7 @@ export default function Header() {
         </Container>
       </Toolbar>
 
-      {offsetTop && headerBgOpacity > 0 && <HeaderShadow />}
+      {desktopOffsetTop && headerBgOpacity > 0 && <HeaderShadow />}
 
       {/* Mobile Search Overlay */}
       {!mdUp && searchExpanded && (
@@ -569,6 +762,16 @@ export default function Header() {
             </IconButton>
           </StyledMobileSearchOverlay>
         </ClickAwayListener>
+      )}
+
+      {/* User Dropdown Menu */}
+      {authenticated && user && (
+        <UserDropdownMenu
+          anchorEl={userMenuAnchor}
+          open={userMenuOpen}
+          onClose={handleUserMenuClose}
+          user={user}
+        />
       )}
     </AppBar>
   );

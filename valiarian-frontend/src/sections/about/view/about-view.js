@@ -1,24 +1,39 @@
-//
+import CircularProgress from '@mui/material/CircularProgress';
+import Stack from '@mui/material/Stack';
+import { useGetAboutPage } from 'src/api/about-page';
 import AboutHero from '../about-hero';
-import AboutWhat from '../about-what';
+import AboutStorySection from '../about-story';
 import AboutTeam from '../about-team';
-import AboutVision from '../about-vision';
-import AboutTestimonials from '../about-testimonials';
-
-// ----------------------------------------------------------------------
+import AboutThoughtCarousel from '../about-thought';
+import { AboutValues } from '../about-values';
 
 export default function AboutView() {
+  const { aboutPage, aboutPageLoading } = useGetAboutPage();
+
+  if (aboutPageLoading && !aboutPage) {
+    return (
+      <Stack alignItems="center" justifyContent="center" sx={{ minHeight: '50vh' }}>
+        <CircularProgress color="inherit" />
+      </Stack>
+    );
+  }
+
   return (
     <>
-      <AboutHero />
+      <AboutHero content={aboutPage?.hero} />
 
-      <AboutWhat />
+      <AboutStorySection
+        stories={aboutPage?.stories?.map((story) => ({
+          ...story,
+          name: story?.title || story?.name,
+        }))}
+      />
 
-      <AboutVision />
+      <AboutThoughtCarousel items={aboutPage?.thoughts?.items} />
 
-      <AboutTeam />
+      <AboutValues content={aboutPage?.values} />
 
-      <AboutTestimonials />
+      <AboutTeam content={aboutPage?.team} />
     </>
   );
 }

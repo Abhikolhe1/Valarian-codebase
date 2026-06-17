@@ -35,34 +35,45 @@ export class Permissions extends Entity {
   })
   description?: string;
 
+  
+
+  
+
+  
+
+  
+
+  
+
+  
   @property({
     type: 'boolean',
     default: true,
   })
-  isActive?: boolean;
+  isActive: boolean;
 
   @property({
     type: 'boolean',
     default: false,
   })
-  isDeleted?: boolean;
+  isDeleted: boolean;
 
   @property({
     type: 'date',
     defaultFn: 'now',
   })
-  createdAt?: Date;
+  createdAt: Date;
 
   @property({
     type: 'date',
     defaultFn: 'now',
   })
-  updatedAt?: Date;
+  updatedAt: Date;
 
   @property({
     type: 'date',
   })
-  deletedAt?: Date;
+  deletedAt: Date;
 
   constructor(data?: Partial<Permissions>) {
     super(data);

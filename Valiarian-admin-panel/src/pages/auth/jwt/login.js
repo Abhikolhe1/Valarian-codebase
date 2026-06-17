@@ -8,10 +8,10 @@ export default function LoginPage() {
   return (
     <>
       <Helmet>
-        <title> Jwt: Login</title>
+        <title> Super Admin Login</title>
       </Helmet>
 
-      <JwtLoginView />
+      <JwtLoginView loginType="super_admin" />
     </>
   );
 }

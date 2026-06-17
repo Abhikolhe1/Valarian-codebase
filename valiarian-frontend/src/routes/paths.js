@@ -21,7 +21,16 @@ export const paths = {
   maintenance: '/maintenance',
   pricing: '/pricing',
   premium: '/premium',
-  payment: '/payment',
+  premiumPreorder: {
+    checkout: '/premium/preorder',
+  },
+  payment: {
+    root: '/payment',
+    success: '/payment/success',
+    failed: '/payment/failed',
+    cancelled: '/payment/cancelled',
+    pending: '/payment/pending',
+  },
   about: '/about-us',
   contact: '/contact-us',
   faqs: '/faqs',
@@ -36,6 +45,15 @@ export const paths = {
   freeUI: 'https://mui.com/store/items/minimal-dashboard-free/',
   figma:
     'https://www.figma.com/file/kAYnYYdib0aQPNKZpgJT6J/%5BPreview%5D-Minimal-Web.v5.0.0?type=design&node-id=0%3A1&t=Al4jScQq97Aly0Mn-1',
+  favorites: '/favorites',
+  profile: '/profile',
+  order: {
+    history: '/orders/history',
+    confirmation: (id) => `/orders/confirmation/${id}`,
+    details: (id) => `/orders/${id}`,
+    premiumDetails: (id) => `/orders/premium/${id}`,
+    tracking: (id) => `/orders/${id}/tracking`,
+  },
   product: {
     root: `/products`,
     checkout: `/products/checkout`,
@@ -64,6 +82,7 @@ export const paths = {
     jwt: {
       login: `${ROOTS.AUTH}/jwt/login`,
       register: `${ROOTS.AUTH}/jwt/register`,
+      forgotPassword: `${ROOTS.AUTH}/jwt/forgot-password`,
     },
     firebase: {
       login: `${ROOTS.AUTH}/firebase/login`,

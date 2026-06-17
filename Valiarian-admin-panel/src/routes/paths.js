@@ -1,6 +1,6 @@
 // utils
-import { paramCase } from 'src/utils/change-case';
 import { _id, _postTitles } from 'src/_mock/assets';
+import { paramCase } from 'src/utils/change-case';
 
 // ----------------------------------------------------------------------
 
@@ -61,6 +61,7 @@ export const paths = {
     },
     jwt: {
       login: `${ROOTS.AUTH}/jwt/login`,
+      adminLogin: `${ROOTS.AUTH}/jwt/admin-login`,
       register: `${ROOTS.AUTH}/jwt/register`,
       forgotPassword: `${ROOTS.AUTH}/jwt/forgot-password`,
       newPassword: `${ROOTS.AUTH}/jwt/new-password`,
@@ -121,6 +122,12 @@ export const paths = {
         edit: `${ROOTS.DASHBOARD}/user/${MOCK_ID}/edit`,
       },
     },
+    admins: {
+      root: `${ROOTS.DASHBOARD}/admins`,
+      list: `${ROOTS.DASHBOARD}/admins/list`,
+      new: `${ROOTS.DASHBOARD}/admins/new`,
+      edit: (id) => `${ROOTS.DASHBOARD}/admins/${id}/edit`,
+    },
     product: {
       root: `${ROOTS.DASHBOARD}/product`,
       new: `${ROOTS.DASHBOARD}/product/new`,
@@ -130,6 +137,18 @@ export const paths = {
         details: `${ROOTS.DASHBOARD}/product/${MOCK_ID}`,
         edit: `${ROOTS.DASHBOARD}/product/${MOCK_ID}/edit`,
       },
+    },
+    category: {
+      root: `${ROOTS.DASHBOARD}/category`,
+      new: `${ROOTS.DASHBOARD}/category/new`,
+      list: `${ROOTS.DASHBOARD}/category/list`,
+      edit: (id) => `${ROOTS.DASHBOARD}/category/${id}/edit`,
+    },
+    parentCategory: {
+      root: `${ROOTS.DASHBOARD}/parent-category`,
+      new: `${ROOTS.DASHBOARD}/parent-category/new`,
+      list: `${ROOTS.DASHBOARD}/parent-category/list`,
+      edit: (id) => `${ROOTS.DASHBOARD}/parent-category/${id}/edit`,
     },
     invoice: {
       root: `${ROOTS.DASHBOARD}/invoice`,
@@ -153,10 +172,19 @@ export const paths = {
     },
     order: {
       root: `${ROOTS.DASHBOARD}/order`,
+      returns: `${ROOTS.DASHBOARD}/order/returns`,
       details: (id) => `${ROOTS.DASHBOARD}/order/${id}`,
       demo: {
         details: `${ROOTS.DASHBOARD}/order/${MOCK_ID}`,
       },
+    },
+    premiumOrder: {
+      root: `${ROOTS.DASHBOARD}/premium-orders`,
+      details: (id) => `${ROOTS.DASHBOARD}/premium-orders/${id}`,
+    },
+    coupon: {
+      root: `${ROOTS.DASHBOARD}/coupons`,
+      list: `${ROOTS.DASHBOARD}/coupons/list`,
     },
     job: {
       root: `${ROOTS.DASHBOARD}/job`,
@@ -176,6 +204,42 @@ export const paths = {
       demo: {
         details: `${ROOTS.DASHBOARD}/tour/${MOCK_ID}`,
         edit: `${ROOTS.DASHBOARD}/tour/${MOCK_ID}/edit`,
+      },
+    },
+    cms: {
+      root: `${ROOTS.DASHBOARD}/cms`,
+      about: {
+        root: `${ROOTS.DASHBOARD}/cms/about-us`,
+      },
+      comingSoon: {
+        root: `${ROOTS.DASHBOARD}/cms/coming-soon`,
+      },
+      premium: {
+        root: `${ROOTS.DASHBOARD}/cms/premium`,
+      },
+      pages: {
+        root: `${ROOTS.DASHBOARD}/cms/pages`,
+        list: `${ROOTS.DASHBOARD}/cms/pages/list`,
+        new: `${ROOTS.DASHBOARD}/cms/pages/new`,
+        details: (id) => `${ROOTS.DASHBOARD}/cms/pages/${id}`,
+        edit: (id) => `${ROOTS.DASHBOARD}/cms/pages/${id}/edit`,
+      },
+      media: {
+        root: `${ROOTS.DASHBOARD}/cms/media`,
+        list: `${ROOTS.DASHBOARD}/cms/media/list`,
+      },
+      navigation: {
+        root: `${ROOTS.DASHBOARD}/cms/navigation`,
+      },
+      settings: {
+        root: `${ROOTS.DASHBOARD}/cms/settings`,
+      },
+      contactSubmissions: {
+        root: `${ROOTS.DASHBOARD}/cms/contactSubmissions`,
+        list: `${ROOTS.DASHBOARD}/cms/contactSubmissions/list`,
+        // edit: (id) => `${ROOTS.DASHBOARD}/cms/contactSubmissions/${id}/edit`,
+        edit: (id) => `${ROOTS.DASHBOARD}/cms/contactSubmissions/${id}/edit`,
+        // edit: (id) => `${ROOTS.DASHBOARD}/user/${id}/edit`,
       },
     },
   },

@@ -33,7 +33,7 @@ export default function FaqsForm() {
       </m.div>
 
       <m.div variants={varFade().inUp}>
-        <Button size="large" variant="contained">
+        <Button size="large" variant="contained" color='secondary'>
           Submit Now
         </Button>
       </m.div>

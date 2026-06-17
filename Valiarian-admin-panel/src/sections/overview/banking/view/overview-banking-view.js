@@ -172,7 +172,7 @@ export default function OverviewBankingView() {
             />
 
             <BankingInviteFriends
-              price="$50"
+              price="₹50"
               title={`Invite friends \n and earn`}
               description="Praesent egestas tristique nibh. Duis lobortis massa imperdiet quam."
               img="/assets/illustrations/characters/character_11.png"

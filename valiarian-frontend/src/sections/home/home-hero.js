@@ -1,18 +1,15 @@
-import PropTypes from 'prop-types';
 import { m } from 'framer-motion';
+import PropTypes from 'prop-types';
 // @mui
-import { styled, alpha } from '@mui/material/styles';
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
-import Button from '@mui/material/Button';
+import { alpha, styled } from '@mui/material/styles';
 import Typography from '@mui/material/Typography';
 // routes
 import { paths } from 'src/routes/paths';
 // layouts
 import { HEADER } from 'src/layouts/config-layout';
 // components
-import Iconify from 'src/components/iconify';
-import { RouterLink } from 'src/routes/components';
 import { MotionContainer, varFade } from 'src/components/animate';
 import LogoAnimated from 'src/components/logo/logo-animated';
 import TransparentCard from 'src/components/transparent-card';
@@ -122,9 +119,24 @@ const ContentPosition = styled(Box)(({ theme }) => ({
 
 // ----------------------------------------------------------------------
 
-export default function HomeHero({ imageSrc, videoSrc, ...other }) {
-  const hasVideo = Boolean(videoSrc);
-  const hasImage = Boolean(imageSrc);
+export default function HomeHero({ imageSrc, videoSrc, cmsData, ...other }) {
+  const resolvedVideo = cmsData?.content?.backgroundVideo || videoSrc;
+  const resolvedImage = cmsData?.content?.backgroundImage || imageSrc;
+  const hasVideo = Boolean(resolvedVideo);
+  const hasImage = Boolean(resolvedImage);
+
+  // Use CMS data if available, otherwise use defaults
+  const title = cmsData?.content?.title || cmsData?.content?.heading || 'Premium Cotton Polos.';
+  const ctaText =
+    cmsData?.content?.ctaText ||
+    cmsData?.content?.primaryButtonText ||
+    cmsData?.content?.ctaButtons?.[0]?.text ||
+    'Explore Collection';
+  const ctaLink =
+    cmsData?.content?.ctaLink ||
+    cmsData?.content?.primaryButtonLink ||
+    cmsData?.content?.ctaButtons?.[0]?.url ||
+    paths.product.root;
 
   const renderMedia = () => {
     if (hasVideo) {
@@ -139,8 +151,8 @@ export default function HomeHero({ imageSrc, videoSrc, ...other }) {
             e.target.style.display = 'none';
           }}
         >
-          <source src={videoSrc} type="video/mp4" />
-          <source src={videoSrc} type="video/webm" />
+          <source src={resolvedVideo} type="video/mp4" />
+          <source src={resolvedVideo} type="video/webm" />
           Your browser does not support the video tag.
         </StyledVideo>
       );
@@ -149,7 +161,7 @@ export default function HomeHero({ imageSrc, videoSrc, ...other }) {
     if (hasImage) {
       return (
         <StyledImage
-          src={imageSrc}
+          src={resolvedImage}
           alt="Premium Cotton Polos"
           onError={(e) => {
             e.target.style.display = 'none';
@@ -236,9 +248,9 @@ export default function HomeHero({ imageSrc, videoSrc, ...other }) {
         <ContentPosition>
           <m.div variants={varFade().in}>
             <TransparentCard
-              title="Premium Cotton Polos."
-              buttonLabel="Explore Collection"
-              buttonHref={paths.product.root}
+              title={title}
+              buttonLabel={ctaText}
+              buttonHref={ctaLink}
             />
           </m.div>
         </ContentPosition>
@@ -250,4 +262,5 @@ export default function HomeHero({ imageSrc, videoSrc, ...other }) {
 HomeHero.propTypes = {
   imageSrc: PropTypes.string,
   videoSrc: PropTypes.string,
+  cmsData: PropTypes.object,
 };

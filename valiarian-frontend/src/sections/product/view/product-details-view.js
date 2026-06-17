@@ -13,7 +13,7 @@ import Grid from '@mui/material/Unstable_Grid2';
 import { PRODUCT_PUBLISH_OPTIONS } from 'src/_mock';
 // routes
 import { RouterLink } from 'src/routes/components';
-import { useParams } from 'src/routes/hook';
+import { useParams, useSearchParams } from 'src/routes/hook';
 import { paths } from 'src/routes/paths';
 // api
 import { useGetProduct } from 'src/api/product';
@@ -54,10 +54,13 @@ const SUMMARY = [
 
 export default function ProductDetailsView() {
   const params = useParams();
+  const searchParams = useSearchParams();
 
   const { id } = params;
+  const initialVariantId = searchParams.get('variantId') || '';
 
   const { product, productLoading, productError } = useGetProduct(`${id}`);
+  console.log("product",product);
 
   const settings = useSettingsContext();
 
@@ -65,17 +68,13 @@ export default function ProductDetailsView() {
 
   const [publish, setPublish] = useState('');
 
-  const [selectedColor, setSelectedColor] = useState('');
+  const [selectedVariant, setSelectedVariant] = useState(null);
 
-  const { checkout, onAddCart, onGotoStep } = useCheckout();
+  const { checkout, onAddCart, onBuyNow, onGotoStep } = useCheckout();
 
   useEffect(() => {
     if (product) {
       setPublish(product?.publish);
-      // Set initial color when product loads
-      if (product.colors && product.colors.length > 0) {
-        setSelectedColor(product.colors[0]);
-      }
     }
   }, [product]);
 
@@ -87,8 +86,8 @@ export default function ProductDetailsView() {
     setCurrentTab(newValue);
   }, []);
 
-  const handleColorChange = useCallback((newColor) => {
-    setSelectedColor(newColor);
+  const handleVariantChange = useCallback((variant) => {
+    setSelectedVariant(variant);
   }, []);
 
   const renderSkeleton = <ProductDetailsSkeleton />;
@@ -124,11 +123,7 @@ export default function ProductDetailsView() {
 
       <Grid container spacing={{ xs: 3, md: 5, lg: 8 }}>
         <Grid xs={12} md={6} lg={7}>
-          <ProductDetailsCarousel
-            key={selectedColor}
-            product={product}
-            selectedColor={selectedColor}
-          />
+          <ProductDetailsCarousel product={product} selectedVariant={selectedVariant} />
         </Grid>
 
         <Grid xs={12} md={6} lg={5}>
@@ -136,9 +131,11 @@ export default function ProductDetailsView() {
             disabledActions
             product={product}
             cart={checkout.cart}
+            initialVariantId={initialVariantId}
             onAddCart={onAddCart}
+            onBuyNow={onBuyNow}
             onGotoStep={onGotoStep}
-            onColorChange={handleColorChange}
+            onVariantChange={handleVariantChange}
           />
         </Grid>
       </Grid>
@@ -183,7 +180,7 @@ export default function ProductDetailsView() {
             },
             {
               value: 'reviews',
-              label: `Reviews (${product.reviews.length})`,
+              label: 'Reviews',
             },
           ].map((tab) => (
             <Tab key={tab.value} value={tab.value} label={tab.label} />
@@ -195,12 +192,7 @@ export default function ProductDetailsView() {
         )}
 
         {currentTab === 'reviews' && (
-          <ProductDetailsReview
-            ratings={product.ratings}
-            reviews={product.reviews}
-            totalRatings={product.totalRatings}
-            totalReviews={product.totalReviews}
-          />
+          <ProductDetailsReview productId={product?.id} />
         )}
       </Card>
     </>

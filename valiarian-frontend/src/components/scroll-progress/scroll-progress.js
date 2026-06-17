@@ -28,6 +28,7 @@ export default function ScrollProgress({
         height: size,
         zIndex: 1999,
         position: 'fixed',
+        pointerEvents: 'none',
         transformOrigin: '0%',
         bgcolor: 'text.primary',
         ...(color !== 'inherit' && {

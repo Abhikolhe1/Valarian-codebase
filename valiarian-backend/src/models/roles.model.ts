@@ -47,40 +47,51 @@ export class Roles extends Entity {
   })
   description?: string;
 
-  @property({
-    type: 'boolean',
-    default: true,
-  })
-  isActive?: boolean;
+  
 
-  @property({
-    type: 'boolean',
-    default: false,
-  })
-  isDeleted?: boolean;
+  
 
-  @property({
-    type: 'date',
-    defaultFn: 'now',
-  })
-  createdAt?: Date;
+  
 
-  @property({
-    type: 'date',
-    defaultFn: 'now',
-  })
-  updatedAt?: Date;
+  
 
-  @property({
-    type: 'date',
-  })
-  deletedAt?: Date;
+  
 
   @hasMany(() => Permissions, {through: {model: () => RolePermissions}})
   permissions: Permissions[];
 
   @hasMany(() => Users, {through: {model: () => UserRoles}})
   users: Users[];
+
+  
+  @property({
+    type: 'boolean',
+    default: true,
+  })
+  isActive: boolean;
+
+  @property({
+    type: 'boolean',
+    default: false,
+  })
+  isDeleted: boolean;
+
+  @property({
+    type: 'date',
+    defaultFn: 'now',
+  })
+  createdAt: Date;
+
+  @property({
+    type: 'date',
+    defaultFn: 'now',
+  })
+  updatedAt: Date;
+
+  @property({
+    type: 'date',
+  })
+  deletedAt: Date;
 
   constructor(data?: Partial<Roles>) {
     super(data);

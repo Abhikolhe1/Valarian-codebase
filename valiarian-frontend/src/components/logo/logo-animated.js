@@ -28,7 +28,7 @@ const StyledLogo = styled(Box)(({ theme }) => ({
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
-  pointerEvents: 'auto',
+  pointerEvents: 'none',
   cursor: 'pointer',
   whiteSpace: 'nowrap',
 }));
