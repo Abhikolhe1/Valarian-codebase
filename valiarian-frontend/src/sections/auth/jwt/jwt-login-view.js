@@ -1,5 +1,5 @@
 import { yupResolver } from '@hookform/resolvers/yup';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import * as Yup from 'yup';
 // @mui
@@ -39,9 +39,19 @@ export default function JwtLoginView() {
   const [otp, setOtp] = useState(['', '', '', '']);
   const [otpError, setOtpError] = useState('');
   const [isVerifying, setIsVerifying] = useState(false);
+  const [resendTimer, setResendTimer] = useState(0);
 
   // Refs for OTP inputs
   const otpRefs = [useRef(null), useRef(null), useRef(null), useRef(null)];
+
+  // Countdown for the "Resend OTP" cooldown
+  useEffect(() => {
+    if (resendTimer <= 0) return undefined;
+
+    const timerId = setTimeout(() => setResendTimer((value) => value - 1), 1000);
+
+    return () => clearTimeout(timerId);
+  }, [resendTimer]);
 
   const IdentifierSchema = Yup.object().shape({
     phone: Yup.string()
@@ -73,6 +83,7 @@ export default function JwtLoginView() {
 
       setOtpId(result.otpId);
       setOtpSent(true);
+      setResendTimer(60);
 
       // Focus first OTP input
       setTimeout(() => {
@@ -158,6 +169,8 @@ export default function JwtLoginView() {
   };
 
   const handleResendOtp = async () => {
+    if (resendTimer > 0) return;
+
     try {
       setOtpError('');
       setOtp(['', '', '', '']);
@@ -166,6 +179,7 @@ export default function JwtLoginView() {
       const result = await sendOtp(phone, 'phone');
 
       setOtpId(result.otpId);
+      setResendTimer(60);
       otpRefs[0].current?.focus();
     } catch (error) {
       console.error(error);
@@ -179,6 +193,7 @@ export default function JwtLoginView() {
     setOtpError('');
     setPhone('');
     setOtpId('');
+    setResendTimer(0);
   };
 
   const renderHead = (
@@ -186,11 +201,6 @@ export default function JwtLoginView() {
       <Box sx={{ display: "flex", justifyContent: { xs: "center", md: "flex-start" } }}>
         <Typography variant="h4" >Sign in to Valiarian</Typography>
       </Box>
-      {otpSent && (
-        <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-          Enter the 4-digit OTP sent to +91 {phone}
-        </Typography>
-      )}
     </Stack>
   );
 
@@ -210,53 +220,41 @@ export default function JwtLoginView() {
         </Typography>
       </Divider>
 
-      <Box>
-
-        {!otpSent && (
-          <Typography variant="body2" sx={{ color: 'text.secondary', mb: 1 }}>
-            Enter your mobile number to continue
-          </Typography>
-        )}
-        <RHFTextField
-          name="phone"
-          label="Mobile Number"
-          placeholder="Enter 10-digit mobile number"
-          inputProps={{
-            maxLength: 10,
-          }}
-          InputProps={{
-            endAdornment: (
-              <LoadingButton
-                color="secondary"
-                variant="contained"
-                onClick={handleSubmit(onSubmitIdentifier)}
-                loading={isSubmitting}
-                disabled={otpSent}
-                sx={{
-                  minWidth: 100,
-                  height: 40,
-                }}
-              >
-                {otpSent ? 'Sent' : 'Send OTP'}
-              </LoadingButton>
-            ),
-          }}
-        />
-        {!otpSent && (
+      {!otpSent && (
+        <Box>
+          <RHFTextField
+            name="phone"
+            label="Mobile Number"
+            placeholder="Enter 10-digit mobile number"
+            inputProps={{
+              maxLength: 10,
+            }}
+            InputProps={{
+              endAdornment: (
+                <LoadingButton
+                  color="secondary"
+                  variant="contained"
+                  onClick={handleSubmit(onSubmitIdentifier)}
+                  loading={isSubmitting}
+                  sx={{
+                    minWidth: 100,
+                    height: 40,
+                  }}
+                >
+                  Send OTP
+                </LoadingButton>
+              ),
+            }}
+          />
           <Typography variant="caption" sx={{ color: 'text.secondary', mt: 0.5, display: 'block' }}>
             We&apos;ll send you an OTP to verify
           </Typography>
-        )}
-      </Box>
-
+        </Box>
+      )}
 
       {otpSent && (
         <>
           {!!otpError && <Alert severity="error">{otpError}</Alert>}
-
-          <Alert severity="info">
-            For testing, use OTP: <strong>1234</strong>
-          </Alert>
 
           <Box>
             <Typography variant="subtitle2" sx={{ mb: 2, textAlign: 'center' }}>
@@ -308,15 +306,21 @@ export default function JwtLoginView() {
             <Typography variant="body2" sx={{ color: 'text.secondary' }}>
               Didn&apos;t receive OTP?
             </Typography>
-            <Link
-              component="button"
-              type="button"
-              variant="subtitle2"
-              onClick={handleResendOtp}
-              sx={{ cursor: 'pointer' }}
-            >
-              Resend OTP
-            </Link>
+            {resendTimer > 0 ? (
+              <Typography variant="subtitle2" sx={{ color: 'text.disabled' }}>
+                Resend OTP in {resendTimer}s
+              </Typography>
+            ) : (
+              <Link
+                component="button"
+                type="button"
+                variant="subtitle2"
+                onClick={handleResendOtp}
+                sx={{ cursor: 'pointer' }}
+              >
+                Resend OTP
+              </Link>
+            )}
           </Stack>
 
           <Link
