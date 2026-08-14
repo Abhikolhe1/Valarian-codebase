@@ -109,7 +109,7 @@ export function AuthProvider({ children }) {
   }, [initialize]);
 
   // LOGIN
-  const login = useCallback(async (email, password, rememberMe, loginType = 'super_admin') => {
+  const login = useCallback(async (email, password, rememberMe) => {
     const data = {
       email,
       password,
@@ -118,10 +118,9 @@ export function AuthProvider({ children }) {
 
     console.log('Attempting login with:', { email, rememberMe });
 
-    const loginEndpoint =
-      loginType === 'admin' ? endpoints.auth.adminLogin : endpoints.auth.superAdminLogin;
-
-    const response = await axios.post(loginEndpoint, data);
+    // The role (super_admin / admin) is resolved server-side from the account
+    // and carried in the issued token.
+    const response = await axios.post(endpoints.auth.login, data);
 
     console.log('Login response:', response.data);
 
@@ -167,19 +166,17 @@ export function AuthProvider({ children }) {
   }, []);
 
   // FORGOT PASSWORD
-  const forgotPassword = useCallback(async (email, role = 'super_admin') => {
+  const forgotPassword = useCallback(async (email) => {
     await axios.post(endpoints.auth.forgotPasswordSendOtp, {
       email,
-      role,
     });
   }, []);
 
-  const newPassword = useCallback(async (email, otp, password, role = 'super_admin') => {
+  const newPassword = useCallback(async (email, otp, password) => {
     await axios.post(endpoints.auth.forgotPasswordVerifyOtp, {
       email,
       otp,
       newPassword: password,
-      role,
     });
   }, []);
 

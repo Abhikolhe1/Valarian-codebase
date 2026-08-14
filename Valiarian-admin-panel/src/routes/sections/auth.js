@@ -1,5 +1,7 @@
 import { lazy, Suspense } from 'react';
-import { Outlet } from 'react-router-dom';
+import { Navigate, Outlet } from 'react-router-dom';
+// routes
+import { paths } from 'src/routes/paths';
 // auth
 import { GuestGuard } from 'src/auth/guard';
 // layouts
@@ -19,7 +21,6 @@ const AmplifyForgotPasswordPage = lazy(() => import('src/pages/auth/amplify/forg
 
 // JWT
 const JwtLoginPage = lazy(() => import('src/pages/auth/jwt/login'));
-const JwtAdminLoginPage = lazy(() => import('src/pages/auth/jwt/admin-login'));
 const JwtRegisterPage = lazy(() => import('src/pages/auth/jwt/register'));
 const JwtNewPasswordPage = lazy(() => import('src/pages/auth/jwt/new-password'));
 const JwtForgotPasswordPage = lazy(() => import('src/pages/auth/jwt/forgot-password'));
@@ -95,13 +96,11 @@ const authJwt = {
         </AuthClassicLayout>
       ),
     },
+    // Legacy separate admin login: the role now comes from the token, so send
+    // any old bookmarks to the single login page.
     {
       path: 'admin-login',
-      element: (
-        <AuthClassicLayout>
-          <JwtAdminLoginPage />
-        </AuthClassicLayout>
-      ),
+      element: <Navigate to={paths.auth.jwt.login} replace />,
     },
     {
       path: 'register',

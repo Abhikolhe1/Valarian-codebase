@@ -72,6 +72,34 @@ export class AuthController {
     return this.request.socket.remoteAddress || '127.0.0.1';
   }
 
+  // Resolves which panel role a user should be signed in as.
+  // Super admin wins when a user happens to hold both roles.
+  private async resolvePanelRole(userId: string): Promise<'super_admin' | 'admin' | null> {
+    const userRoles = await this.userRolesRepository.find({
+      where: {usersId: userId},
+    });
+
+    if (!userRoles.length) {
+      return null;
+    }
+
+    const roles = await this.rolesRepository.find({
+      where: {id: {inq: userRoles.map(item => item.rolesId)}},
+    });
+
+    const roleValues = roles.map(role => role.value);
+
+    if (roleValues.includes('super_admin')) {
+      return 'super_admin';
+    }
+
+    if (roleValues.includes('admin')) {
+      return 'admin';
+    }
+
+    return null;
+  }
+
   private async revokeUserRefreshTokens(userId: string): Promise<void> {
     await this.refreshTokenRepository.updateAll(
       {
@@ -226,14 +254,17 @@ export class AuthController {
     };
   }
 
-  @post('/api/auth/super-admin-login')
-  async superAdminLogin(
+  // Single entry point for the admin panel: the role (super_admin / admin) is
+  // derived from the account itself and carried in the issued token, instead
+  // of the user picking a role-specific login form.
+  @post('/api/auth/login')
+  async login(
     @requestBody({
       content: {
         'application/json': {
           schema: {
             type: 'object',
-            required: ['email', 'password', 'rememberMe'],
+            required: ['email', 'password'],
             properties: {
               email: {type: 'string'},
               password: {type: 'string'},
@@ -243,7 +274,7 @@ export class AuthController {
         }
       }
     })
-    body: {email: string; password: string; rememberMe: boolean}
+    body: {email: string; password: string; rememberMe?: boolean}
   ): Promise<{success: boolean; message: string; accessToken: string; user: object}> {
     // Rate limiting: 5 login attempts per 15 minutes per IP
     const clientIp = this.getClientIp();
@@ -264,11 +295,16 @@ export class AuthController {
 
     const user = await this.userService.verifyCredentials(body);
 
-    const {roles, permissions} = await this.rbacService.getUserRoleAndPermissionsByRole(user.id!, 'super_admin');
+    const panelRole = await this.resolvePanelRole(user.id!);
 
-    if (!roles.includes('super_admin')) {
-      throw new HttpErrors.Forbidden('Access denied. Only super_admin can login here.');
+    if (!panelRole) {
+      throw new HttpErrors.Forbidden('Access denied. This account cannot access the admin panel.');
     }
+
+    const {roles, permissions} = await this.rbacService.getUserRoleAndPermissionsByRole(
+      user.id!,
+      panelRole,
+    );
 
     // Reset login attempts on successful login
     this.rateLimiterService.resetLoginAttempts(clientIp);
@@ -304,7 +340,7 @@ export class AuthController {
         userId: user.id,
         token: refreshToken,
         deviceInfo: formattedDeviceInfo,
-        ipAddress: this.getClientIp(),
+        ipAddress: clientIp,
         expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
         isRevoked: false,
       });
@@ -323,78 +359,7 @@ export class AuthController {
 
     return {
       success: true,
-      message: "Super Admin login successful",
-      accessToken: token,
-      user: profile
-    };
-  }
-
-  @post('/api/auth/admin-login')
-  async adminLogin(
-    @requestBody({
-      content: {
-        'application/json': {
-          schema: {
-            type: 'object',
-            required: ['email', 'password', 'rememberMe'],
-            properties: {
-              email: {type: 'string'},
-              password: {type: 'string'},
-              rememberMe: {type: 'boolean'}
-            }
-          }
-        }
-      }
-    })
-    body: {email: string; password: string; rememberMe: boolean}
-  ): Promise<{success: boolean; message: string; accessToken: string; user: object}> {
-    const clientIp = this.getClientIp();
-    this.rateLimiterService.checkLoginAttempt(clientIp);
-
-    const userData = await this.usersRepository.findOne({
-      where: {
-        and: [
-          {email: body.email},
-          {isDeleted: false}
-        ]
-      }
-    });
-
-    if (!userData) {
-      throw new HttpErrors.BadRequest('User not exist');
-    }
-
-    const user = await this.userService.verifyCredentials(body);
-
-    const {roles, permissions} = await this.rbacService.getUserRoleAndPermissionsByRole(user.id!, 'admin');
-
-    if (!roles.includes('admin')) {
-      throw new HttpErrors.Forbidden('Access denied. Only admin can login here.');
-    }
-
-    this.rateLimiterService.resetLoginAttempts(clientIp);
-
-    const userProfile: UserProfile & {
-      roles: string[];
-      permissions: string[];
-      phoneNumber: string;
-      fullName: string;
-    } = {
-      [securityId]: user.id!,
-      id: user.id!,
-      email: user.email,
-      phoneNumber: user.phone || '',
-      fullName: user.fullName || '',
-      roles,
-      permissions,
-    };
-
-    const token = await this.jwtService.generateToken(userProfile);
-    const profile = await this.rbacService.returnSuperAdminProfile(user.id, roles, permissions);
-
-    return {
-      success: true,
-      message: 'Admin login successful',
+      message: panelRole === 'super_admin' ? 'Super Admin login successful' : 'Admin login successful',
       accessToken: token,
       user: profile
     };
@@ -1776,7 +1741,7 @@ export class AuthController {
         'application/json': {
           schema: {
             type: 'object',
-            required: ['email', 'role'],
+            required: ['email'],
             properties: {
               email: {type: 'string'},
               role: {type: 'string'},
@@ -1787,7 +1752,7 @@ export class AuthController {
     })
     body: {
       email: string;
-      role: string;
+      role?: string;
     }
   ): Promise<{success: boolean; message: string}> {
     // Validate and sanitize email
@@ -1813,8 +1778,16 @@ export class AuthController {
       throw new HttpErrors.BadRequest("User is not active");
     }
 
+    // `role` is optional: the admin panel no longer knows the login type up
+    // front, so fall back to whatever panel role the account holds.
+    const roleValue = body.role ?? (await this.resolvePanelRole(user.id!));
+
+    if (!roleValue) {
+      throw new HttpErrors.Unauthorized('Unauthorized access');
+    }
+
     const role = await this.rolesRepository.findOne({
-      where: {value: body.role}
+      where: {value: roleValue}
     });
 
     if (!role) {
@@ -1875,7 +1848,7 @@ export class AuthController {
         'application/json': {
           schema: {
             type: 'object',
-            required: ['email', 'role', 'otp', 'newPassword'],
+            required: ['email', 'otp', 'newPassword'],
             properties: {
               email: {type: 'string'},
               otp: {type: 'string'},
@@ -1889,7 +1862,7 @@ export class AuthController {
     body: {
       email: string;
       otp: string;
-      role: string;
+      role?: string;
       newPassword: string;
     }
   ): Promise<{success: boolean; message: string}> {
@@ -1916,8 +1889,14 @@ export class AuthController {
       throw new HttpErrors.BadRequest("User is not active");
     }
 
+    const roleValue = body.role ?? (await this.resolvePanelRole(user.id!));
+
+    if (!roleValue) {
+      throw new HttpErrors.Unauthorized('Unauthorized access');
+    }
+
     const role = await this.rolesRepository.findOne({
-      where: {value: body.role}
+      where: {value: roleValue}
     });
 
     if (!role) {

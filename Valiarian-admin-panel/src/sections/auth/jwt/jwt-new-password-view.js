@@ -30,9 +30,6 @@ export default function JwtNewPasswordView() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const email = searchParams.get('email');
-  const loginType = searchParams.get('loginType') === 'admin' ? 'admin' : 'super_admin';
-  const loginPath = loginType === 'admin' ? paths.auth.jwt.adminLogin : paths.auth.jwt.login;
-  const accountLabel = loginType === 'admin' ? 'admin' : 'super admin';
 
   const password = useBoolean();
   const { countdown, counting, startCountdown } = useCountdownSeconds(60);
@@ -92,8 +89,8 @@ export default function JwtNewPasswordView() {
     }
 
     try {
-      await newPassword?.(data.email, enteredOtp, data.password, loginType);
-      router.push(loginPath);
+      await newPassword?.(data.email, enteredOtp, data.password);
+      router.push(paths.auth.jwt.login);
     } catch (error) {
       console.error(error);
       const message =
@@ -114,13 +111,13 @@ export default function JwtNewPasswordView() {
   const handleResendCode = useCallback(async () => {
     try {
       startCountdown();
-      await forgotPassword?.(values.email, loginType);
+      await forgotPassword?.(values.email);
       setOtp(Array(4).fill(''));
       otpRefs.current[0]?.focus();
     } catch (error) {
       console.error(error);
     }
-  }, [forgotPassword, loginType, startCountdown, values.email]);
+  }, [forgotPassword, startCountdown, values.email]);
 
   const renderOtpBoxes = (
     <Grid container spacing={2} sx={{ mt: 1, mb: 2 }}>
@@ -209,7 +206,7 @@ export default function JwtNewPasswordView() {
 
       <Link
         component={RouterLink}
-        href={loginPath}
+        href={paths.auth.jwt.login}
         variant="subtitle2"
         sx={{ display: 'inline-flex', alignItems: 'center' }}
       >
@@ -233,7 +230,7 @@ export default function JwtNewPasswordView() {
         </Typography>
 
         <Typography variant="body2" sx={{ color: 'text.secondary', textAlign: 'left' }}>
-          We have sent a verification code to your {accountLabel} email.
+          We have sent a verification code to your email.
           <br />
           Please enter the code below.
         </Typography>

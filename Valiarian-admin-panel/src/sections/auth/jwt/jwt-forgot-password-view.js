@@ -25,10 +25,6 @@ export default function JwtForgotPasswordView() {
   const [errorMsg, setErrorMsg] = useState('');
 
   const router = useRouter();
-  const searchParams = new URLSearchParams(window.location.search);
-  const loginType = searchParams.get('loginType') === 'admin' ? 'admin' : 'super_admin';
-  const loginPath = loginType === 'admin' ? paths.auth.jwt.adminLogin : paths.auth.jwt.login;
-  const accountLabel = loginType === 'admin' ? 'admin' : 'super admin';
 
   const ForgotPasswordSchema = Yup.object().shape({
     email: Yup.string().required('Email is required').email('Email must be a valid email address'),
@@ -50,11 +46,10 @@ export default function JwtForgotPasswordView() {
 
   const onSubmit = handleSubmit(async (data) => {
     try {
-      await forgotPassword?.(data.email, loginType);
+      await forgotPassword?.(data.email);
 
       const nextSearchParams = new URLSearchParams({
         email: data.email,
-        loginType,
       }).toString();
 
       const href = `${paths.auth.jwt.newPassword}?${nextSearchParams}`;
@@ -92,7 +87,7 @@ export default function JwtForgotPasswordView() {
 
       <Link
         component={RouterLink}
-        href={loginPath}
+        href={paths.auth.jwt.login}
         color="inherit"
         variant="subtitle2"
         sx={{
@@ -121,8 +116,8 @@ export default function JwtForgotPasswordView() {
         </Typography>
 
         <Typography variant="body2" sx={{ color: 'text.secondary', textAlign: 'left' }}>
-          Please enter the email address associated with your {accountLabel} account and we will
-          send you an OTP to reset your password.
+          Please enter the email address associated with your account and we will send you an OTP
+          to reset your password.
         </Typography>
       </Stack>
     </>

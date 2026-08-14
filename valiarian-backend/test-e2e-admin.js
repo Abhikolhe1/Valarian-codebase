@@ -9,7 +9,7 @@ async function runTest() {
 
   try {
     console.log('1. Logging in as admin...');
-    const adminLogin = await axios.post(`${API_BASE}/api/auth/super-admin-login`, {
+    const adminLogin = await axios.post(`${API_BASE}/api/auth/login`, {
       email: ADMIN_EMAIL,
       password: ADMIN_PASSWORD,
       rememberMe: true
