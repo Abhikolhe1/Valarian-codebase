@@ -25,6 +25,7 @@ import { useSettingsContext } from 'src/components/settings';
 //
 import CartIcon from '../common/cart-icon';
 import { useCheckout } from '../hooks';
+import ProductCategoryFilter from '../product-category-filter';
 import ProductFiltersResult from '../product-filters-result';
 import ProductList from '../product-list';
 import ProductSort from '../product-sort';
@@ -77,7 +78,9 @@ export default function ProductShopView() {
     category: normalizedCategoryFromQuery,
   }));
 
-  const { categories = [] } = useGetCategories(openFilters.value);
+  // The filter drawer is disabled, so this was never enabled and categories
+  // never loaded. The category dropdown needs them on first render.
+  const { categories = [] } = useGetCategories();
 
   const activeCategory = useMemo(() => {
     if (filters.category === 'all' || filters.category === 'products') return null;
@@ -142,6 +145,14 @@ export default function ProductShopView() {
 
   const handleFilterCategory = useCallback(
     (event, newValue) => {
+      handleFilters('category', newValue);
+      router.replace(buildShopUrl(newValue, activeSearchQuery));
+    },
+    [activeSearchQuery, handleFilters, router]
+  );
+
+  const handleSelectCategory = useCallback(
+    (newValue) => {
       handleFilters('category', newValue);
       router.replace(buildShopUrl(newValue, activeSearchQuery));
     },
@@ -255,6 +266,12 @@ export default function ProductShopView() {
           genderOptions={PRODUCT_GENDER_OPTIONS}
           categories={categories}
         /> */}
+
+        <ProductCategoryFilter
+          category={filters.category}
+          onCategory={handleSelectCategory}
+          categories={categories}
+        />
 
         <ProductSort sort={sortBy} onSort={handleSortBy} sortOptions={PRODUCT_SORT_OPTIONS} />
       </Stack>
