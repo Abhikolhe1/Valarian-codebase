@@ -131,6 +131,7 @@ export const endpoints = {
   orders: {
     create: '/api/orders/create',
     user: (userId) => `/api/orders/user/${userId}`,
+    history: '/api/order-history',
     details: (orderId) => `/api/orders/${orderId}`,
     tracking: (orderId) => `/api/orders/${orderId}/tracking`,
     return: (orderId) => `/api/orders/${orderId}/return`,

@@ -15,7 +15,14 @@ import {SecurityBindings, UserProfile} from '@loopback/security';
 import {v4 as uuidv4} from 'uuid';
 import {authorize} from '../authorization';
 import {ValiarianDataSource} from '../datasources';
-import {Coupon, Invoice, Order, OrderItemEntity, Payment} from '../models';
+import {
+  Coupon,
+  Invoice,
+  Order,
+  OrderItemEntity,
+  Payment,
+  PremiumPreorder,
+} from '../models';
 import {
   CouponRepository,
   InvoiceRepository,
@@ -23,6 +30,7 @@ import {
   OrderRepository,
   OrderStatusHistoryRepository,
   PaymentRepository,
+  PremiumPreorderRepository,
   ProductRepository,
   ProductVariantRepository,
 } from '../repositories';
@@ -118,6 +126,8 @@ export class OrderController {
     public orderStatusHistoryRepository: OrderStatusHistoryRepository,
     @repository(OrderItemRepository)
     public orderItemRepository: OrderItemRepository,
+    @repository(PremiumPreorderRepository)
+    public premiumPreorderRepository: PremiumPreorderRepository,
     @repository(PaymentRepository)
     public paymentRepository: PaymentRepository,
     @repository(InvoiceRepository)
@@ -2034,6 +2044,121 @@ export class OrderController {
       }
       throw new HttpErrors.InternalServerError(
         `Failed to fetch orders: ${error.message}`,
+      );
+    }
+  }
+
+  @get('/api/order-history')
+  @authenticate('jwt')
+  @authorize({roles: ['user']})
+  async getOrderHistory(
+    @inject(SecurityBindings.USER) currentUser: UserProfile,
+    @param.query.number('page') page = 1,
+    @param.query.number('limit') limit = 10,
+  ): Promise<{
+    success: boolean;
+    entries: Array<{
+      type: 'standard' | 'premium';
+      order?: Order;
+      preorder?: PremiumPreorder;
+    }>;
+    pagination: {
+      total: number;
+      page: number;
+      limit: number;
+      totalPages: number;
+      hasMore: boolean;
+    };
+  }> {
+    try {
+      const userId = currentUser.id;
+      const safeLimit = Math.min(Math.max(Number(limit) || 10, 1), 100);
+      const safePage = Math.max(Number(page) || 1, 1);
+      const skip = (safePage - 1) * safeLimit;
+
+      // Orders and preorders are separate tables shown as one date-sorted list,
+      // so the page has to be selected across both before either is hydrated.
+      const notDeleted = 'COALESCE(isdeleted, false) = false';
+      const pageRows = (await this.dataSource.execute(
+        `SELECT id::text AS id, type FROM (
+           SELECT id, 'standard' AS type, createdat FROM public.orders
+             WHERE userid = $1 AND ${notDeleted}
+           UNION ALL
+           SELECT id, 'premium' AS type, createdat FROM public.premium_preorders
+             WHERE userid = $1 AND ${notDeleted}
+         ) merged
+         ORDER BY createdat DESC
+         LIMIT $2 OFFSET $3`,
+        [userId, safeLimit, skip],
+      )) as Array<{id: string; type: 'standard' | 'premium'}>;
+
+      const countRows = (await this.dataSource.execute(
+        `SELECT (
+           (SELECT COUNT(*) FROM public.orders
+              WHERE userid = $1 AND ${notDeleted}) +
+           (SELECT COUNT(*) FROM public.premium_preorders
+              WHERE userid = $1 AND ${notDeleted})
+         )::int AS total`,
+        [userId],
+      )) as Array<{total: number}>;
+
+      const total = countRows?.[0]?.total ?? 0;
+      const orderIds = pageRows
+        .filter(row => row.type === 'standard')
+        .map(row => row.id);
+      const preorderIds = pageRows
+        .filter(row => row.type === 'premium')
+        .map(row => row.id);
+
+      const [orders, preorders, itemsByOrderId] = await Promise.all([
+        orderIds.length
+          ? this.orderRepository.find({where: {id: {inq: orderIds}}})
+          : Promise.resolve([]),
+        preorderIds.length
+          ? this.premiumPreorderRepository.find({
+              where: {id: {inq: preorderIds}},
+              include: [{relation: 'product'}],
+            })
+          : Promise.resolve([]),
+        this.loadOrderItemsForOrders(orderIds),
+      ]);
+
+      const orderById = new Map(
+        orders.map(order => [
+          order.id,
+          {...order, items: itemsByOrderId.get(order.id) ?? []} as Order,
+        ]),
+      );
+      const preorderById = new Map(
+        preorders.map(preorder => [preorder.id, preorder]),
+      );
+
+      const entries = pageRows
+        .map(row =>
+          row.type === 'standard'
+            ? {type: row.type, order: orderById.get(row.id)}
+            : {type: row.type, preorder: preorderById.get(row.id)},
+        )
+        .filter(entry => entry.order ?? entry.preorder);
+
+      return {
+        success: true,
+        entries,
+        pagination: {
+          total,
+          page: safePage,
+          limit: safeLimit,
+          totalPages: Math.ceil(total / safeLimit),
+          hasMore: skip + pageRows.length < total,
+        },
+      };
+    } catch (error) {
+      console.error('Error fetching order history:', error);
+      if (error instanceof HttpErrors.HttpError) {
+        throw error;
+      }
+      throw new HttpErrors.InternalServerError(
+        `Failed to fetch order history: ${error.message}`,
       );
     }
   }

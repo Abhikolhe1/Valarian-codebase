@@ -3,6 +3,7 @@ import PropTypes from 'prop-types';
 import { useEffect, useState } from 'react';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
+import LoadingButton from '@mui/lab/LoadingButton';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
 import Chip from '@mui/material/Chip';
@@ -60,6 +61,8 @@ const shouldPollPremiumPreorderStatus = (status, paymentStatus) =>
 const getErrorMessage = (err) =>
   err?.response?.data?.message || err?.data?.message || err?.message || 'Failed to load orders';
 
+const ORDERS_PAGE_SIZE = 10;
+
 const normalizeStandardOrder = (order) => ({
   id: order.id,
   type: 'standard',
@@ -114,14 +117,40 @@ const normalizePremiumPreorder = (preorder) => {
   };
 };
 
+const normalizeHistoryEntry = (entry) =>
+  entry.type === 'premium'
+    ? normalizePremiumPreorder(entry.preorder)
+    : normalizeStandardOrder(entry.order);
+
+const fetchOrderHistoryPage = async (page, limit) => {
+  const response = await axios
+    .get(`${endpoints.orders.history}?page=${page}&limit=${limit}`)
+    .catch((err) => {
+      if ([404].includes(err?.response?.status || err?.status || err?.statusCode)) {
+        return { data: { entries: [], pagination: { hasMore: false, total: 0 } } };
+      }
+      throw err;
+    });
+
+  return {
+    orders: (response.data.entries || []).map(normalizeHistoryEntry),
+    hasMore: Boolean(response.data.pagination?.hasMore),
+    total: response.data.pagination?.total ?? 0,
+  };
+};
+
 export default function OrderHistoryView() {
   const settings = useSettingsContext();
   const router = useRouter();
   const { authenticated, user } = useAuthContext();
 
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [orders, setOrders] = useState([]);
   const [error, setError] = useState(null);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
+  const [total, setTotal] = useState(0);
 
   useEffect(() => {
     if (!authenticated) {
@@ -137,31 +166,17 @@ export default function OrderHistoryView() {
         setLoading(true);
         setError(null);
 
-        const [ordersResponse, preordersResponse] = await Promise.all([
-          axios.get(endpoints.orders.user(user.id)).catch((err) => {
-            if ([404].includes(err?.response?.status || err?.status || err?.statusCode)) {
-              return { data: { orders: [] } };
-            }
-            throw err;
-          }),
-          axios.get(endpoints.premiumPreorders.user(user.id)).catch((err) => {
-            if ([404].includes(err?.response?.status || err?.status || err?.statusCode)) {
-              return { data: { preorders: [] } };
-            }
-            throw err;
-          }),
-        ]);
+        const firstPage = await fetchOrderHistoryPage(1, ORDERS_PAGE_SIZE);
 
-        const mergedOrders = [
-          ...(ordersResponse.data.orders || []).map(normalizeStandardOrder),
-          ...(preordersResponse.data.preorders || []).map(normalizePremiumPreorder),
-        ].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-
-        setOrders(mergedOrders);
+        setOrders(firstPage.orders);
+        setHasMore(firstPage.hasMore);
+        setTotal(firstPage.total);
+        setPage(1);
       } catch (err) {
         console.error('Error loading orders:', err);
         setError(getErrorMessage(err));
         setOrders([]);
+        setHasMore(false);
       } finally {
         setLoading(false);
       }
@@ -169,6 +184,34 @@ export default function OrderHistoryView() {
 
     loadOrders();
   }, [authenticated, user?.id]);
+
+  const handleShowMore = async () => {
+    if (loadingMore || !hasMore) return;
+
+    const nextPage = page + 1;
+
+    try {
+      setLoadingMore(true);
+      setError(null);
+
+      const { orders: nextOrders, hasMore: more, total: nextTotal } =
+        await fetchOrderHistoryPage(nextPage, ORDERS_PAGE_SIZE);
+
+      // Guard against an order shifting pages between calls.
+      setOrders((current) => {
+        const seen = new Set(current.map((order) => `${order.type}-${order.id}`));
+        return [...current, ...nextOrders.filter((o) => !seen.has(`${o.type}-${o.id}`))];
+      });
+      setHasMore(more);
+      setTotal(nextTotal);
+      setPage(nextPage);
+    } catch (err) {
+      console.error('Error loading more orders:', err);
+      setError(getErrorMessage(err));
+    } finally {
+      setLoadingMore(false);
+    }
+  };
 
   useEffect(() => {
     if (!authenticated || !user?.id) {
@@ -183,24 +226,19 @@ export default function OrderHistoryView() {
 
     const interval = setInterval(async () => {
       try {
-        const [ordersResponse, preordersResponse] = await Promise.all([
-          axios.get(endpoints.orders.user(user.id)),
-          axios.get(endpoints.premiumPreorders.user(user.id)),
-        ]);
+        // Refresh only what is on screen, as one call rather than page by page.
+        const loaded = await fetchOrderHistoryPage(1, page * ORDERS_PAGE_SIZE);
 
-        const mergedOrders = [
-          ...(ordersResponse.data.orders || []).map(normalizeStandardOrder),
-          ...(preordersResponse.data.preorders || []).map(normalizePremiumPreorder),
-        ].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-
-        setOrders(mergedOrders);
+        setOrders(loaded.orders);
+        setHasMore(loaded.hasMore);
+        setTotal(loaded.total);
       } catch (err) {
         console.error('Error refreshing orders:', err);
       }
     }, 30000);
 
     return () => clearInterval(interval);
-  }, [authenticated, orders, user?.id]);
+  }, [authenticated, orders, page, user?.id]);
 
   if (!authenticated) {
     return null;
@@ -258,6 +296,25 @@ export default function OrderHistoryView() {
           {orders.map((order) => (
             <OrderCard key={`${order.type}-${order.id}`} order={order} />
           ))}
+
+          {hasMore && (
+            <Stack alignItems="center" spacing={1} sx={{ pt: 1 }}>
+              <LoadingButton
+                variant="outlined"
+                color="inherit"
+                size="large"
+                loading={loadingMore}
+                onClick={handleShowMore}
+                endIcon={<Iconify icon="eva:arrow-ios-downward-fill" />}
+              >
+                Show more
+              </LoadingButton>
+
+              <Typography variant="caption" color="text.secondary">
+                Showing {orders.length} of {total}
+              </Typography>
+            </Stack>
+          )}
         </Stack>
       )}
     </Container>
