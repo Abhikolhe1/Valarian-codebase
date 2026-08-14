@@ -14,13 +14,9 @@ const checkoutPersistConfig = {
   whitelist: ['cart', 'subTotal', 'total', 'discount', 'appliedCoupon', 'shipping', 'totalItems', 'paymentSession'],
 };
 
-const favoritesPersistConfig = {
-  key: 'favorites',
-  storage,
-  keyPrefix: 'redux-',
-};
-
+// Favorites are owned by the backend and are per-user, so they are not persisted.
+// They are hydrated from the API on auth change by <FavoritesInitializer />.
 export const rootReducer = combineReducers({
   checkout: persistReducer(checkoutPersistConfig, checkoutReducer),
-  favorites: persistReducer(favoritesPersistConfig, favoritesReducer),
+  favorites: favoritesReducer,
 });

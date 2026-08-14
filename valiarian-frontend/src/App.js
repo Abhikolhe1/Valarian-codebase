@@ -39,6 +39,7 @@ import { useScrollToTop } from 'src/hooks/use-scroll-to-top';
 import MotionLazy from 'src/components/animate/motion-lazy';
 import CartInitializer from 'src/components/cart-initializer';
 import ErrorBoundary from 'src/components/error-boundary';
+import FavoritesInitializer from 'src/components/favorites-initializer';
 import ProgressBar from 'src/components/progress-bar';
 import { SettingsDrawer, SettingsProvider } from 'src/components/settings';
 import SnackbarProvider from 'src/components/snackbar/snackbar-provider';
@@ -92,7 +93,9 @@ export default function App() {
                         <SettingsDrawer />
                         <ProgressBar />
                         <CartInitializer>
-                          <Router />
+                          <FavoritesInitializer>
+                            <Router />
+                          </FavoritesInitializer>
                         </CartInitializer>
                       </ErrorBoundary>
                     </SnackbarProvider>
