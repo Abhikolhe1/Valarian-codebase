@@ -1,4 +1,4 @@
-import { useRef, useEffect, useState } from 'react';
+import { useRef, useEffect } from 'react';
 // @mui
 import { styled, alpha } from '@mui/material/styles';
 import Box from '@mui/material/Box';
@@ -49,17 +49,14 @@ const StyledMarqueeWrapper = styled(Box)({
   overflow: 'hidden',
 });
 
-const StyledMarqueeTrack = styled(Box)(({ theme, offset }) => ({
+const StyledMarqueeTrack = styled(Box)({
   display: 'inline-flex',
   alignItems: 'center',
   whiteSpace: 'nowrap',
   willChange: 'transform',
-  transform: `translateX(${offset}px)`,
+  transform: 'translateX(0px)',
   transition: 'none',
-  [theme.breakpoints.down('sm')]: {
-    // Same behavior on mobile
-  },
-}));
+});
 
 const StyledMarqueeItem = styled(Typography)(({ theme }) => ({
   display: 'inline-block',
@@ -95,10 +92,9 @@ export default function OfferMarquee() {
   const isVisible = useMarqueeVisibility();
   const { settings } = useSiteSettings();
   const trackRef = useRef(null);
-  const [offset, setOffset] = useState(0);
   const setWidthRef = useRef(0);
   const animationFrameRef = useRef(null);
-  const [isReady, setIsReady] = useState(false);
+  const offsetRef = useRef(0);
   const offers = (settings?.offers?.marquee || [])
     .map((item) => String(item?.text || '').trim())
     .filter(Boolean);
@@ -108,10 +104,11 @@ export default function OfferMarquee() {
   // Using 3 sets ensures we always have content ready when looping
   const seamlessOffers = [...activeOffers, ...activeOffers, ...activeOffers];
 
-  // Calculate the exact width of one set of offers
+  // Calculate the exact width of one set of offers.
+  // Intentionally independent of `isVisible`: the marquee keeps running even while
+  // the bar is hidden, so hiding/showing it must never tear down the measurement.
   useEffect(() => {
-    if (!isVisible || !trackRef.current) {
-      setIsReady(false);
+    if (!trackRef.current) {
       return undefined;
     }
 
@@ -124,24 +121,25 @@ export default function OfferMarquee() {
       const items = track.children;
       if (items.length === 0) return;
 
-      // Calculate width of one set (OFFERS.length items)
+      // Calculate width of one set (activeOffers.length items)
       let oneSetWidth = 0;
       const itemsPerSet = activeOffers.length;
-      
+
       for (let i = 0; i < itemsPerSet; i += 1) {
         if (items[i]) {
           oneSetWidth += items[i].offsetWidth;
         }
       }
 
-      // Only update if width changed significantly (more than 1px difference)
-      // This prevents unnecessary updates that cause stuttering
+      // Ignore sub-pixel jitter from the ResizeObserver, which would otherwise
+      // shift the loop point mid-scroll and cause a visible stutter.
       if (oneSetWidth > 0 && Math.abs(setWidthRef.current - oneSetWidth) > 1) {
         setWidthRef.current = oneSetWidth;
-        setIsReady(true);
-      } else if (oneSetWidth > 0 && setWidthRef.current === 0) {
-        setWidthRef.current = oneSetWidth;
-        setIsReady(true);
+
+        // Keep the offset inside the new set so the loop point stays seamless.
+        if (Math.abs(offsetRef.current) >= oneSetWidth) {
+          offsetRef.current %= oneSetWidth;
+        }
       }
     };
 
@@ -171,39 +169,40 @@ export default function OfferMarquee() {
       clearTimeout(debounceTimeout);
       resizeObserver.disconnect();
     };
-  }, [activeOffers.length, isVisible]);
+  }, [activeOffers.length]);
 
-  // Continuous animation loop - truly seamless infinite scroll
+  // Continuous animation loop - truly seamless infinite scroll.
+  // Runs for the whole lifetime of the component so scrolling away and back
+  // never interrupts it; the width is read from the ref each frame, so the loop
+  // simply idles at offset 0 until the first measurement lands.
   useEffect(() => {
-    if (!isVisible || !isReady || setWidthRef.current === 0) {
-      setOffset(0);
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
-        animationFrameRef.current = null;
-      }
-      return undefined;
-    }
-
     const speed = 60; // pixels per second (adjust for speed)
     let lastTime = performance.now();
-    let currentOffset = 0; // Always start from 0 when animation begins
 
     const animate = (currentTime) => {
       const deltaTime = Math.min((currentTime - lastTime) / 1000, 0.016); // Cap at 60fps, convert to seconds
       lastTime = currentTime;
 
-      // Move the offset continuously based on time
-      currentOffset -= speed * deltaTime;
-
-      // When we've scrolled exactly one set width, reset seamlessly
-      // This creates a perfect loop because the content is duplicated 3 times
-      // When we reset, we're showing the second set which is identical to the first
       const currentSetWidth = setWidthRef.current;
-      if (currentSetWidth > 0 && Math.abs(currentOffset) >= currentSetWidth) {
-        currentOffset += currentSetWidth; // Reset by adding back one set width
+
+      if (currentSetWidth > 0) {
+        // Move the offset continuously based on time
+        offsetRef.current -= speed * deltaTime;
+
+        // When we've scrolled exactly one set width, reset seamlessly.
+        // This creates a perfect loop because the content is duplicated 3 times:
+        // when we reset, we're showing the second set which is identical to the first.
+        if (Math.abs(offsetRef.current) >= currentSetWidth) {
+          offsetRef.current += currentSetWidth; // Reset by adding back one set width
+        }
+
+        // Write straight to the DOM instead of through state: a re-render per
+        // frame would rebuild every offer item 60 times a second.
+        if (trackRef.current) {
+          trackRef.current.style.transform = `translateX(${offsetRef.current}px)`;
+        }
       }
 
-      setOffset(currentOffset);
       animationFrameRef.current = requestAnimationFrame(animate);
     };
 
@@ -215,12 +214,12 @@ export default function OfferMarquee() {
         animationFrameRef.current = null;
       }
     };
-  }, [isVisible, isReady]);
+  }, []);
 
   return (
     <StyledMarqueeContainer visible={isVisible}>
       <StyledMarqueeWrapper>
-        <StyledMarqueeTrack ref={trackRef} offset={offset}>
+        <StyledMarqueeTrack ref={trackRef}>
           {seamlessOffers.map((offer, index) => (
             <Box 
               key={`marquee-offer-${index}`} 
