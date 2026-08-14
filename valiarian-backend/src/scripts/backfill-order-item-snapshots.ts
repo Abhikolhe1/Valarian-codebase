@@ -43,7 +43,7 @@ export async function backfillOrderItemSnapshots() {
         )
     FROM public.orders o
     CROSS JOIN LATERAL jsonb_array_elements(o.items) AS jsonitem
-    WHERE oi.orderid = o.id
+    WHERE oi.orderid = o.id::text
       AND jsonitem->>'id' = oi.id::text
       AND (oi.slug IS NULL OR oi.originalprice IS NULL);
   `;
@@ -58,7 +58,7 @@ export async function backfillOrderItemSnapshots() {
     )
     SELECT
       COALESCE(NULLIF(jsonitem->>'id', '')::uuid, gen_random_uuid()),
-      o.id,
+      o.id::text,
       jsonitem->>'productId',
       NULLIF(jsonitem->>'variantId', ''),
       COALESCE(NULLIF(jsonitem->>'quantity', '')::integer, 1),
@@ -100,31 +100,35 @@ export async function backfillOrderItemSnapshots() {
     CROSS JOIN LATERAL jsonb_array_elements(o.items) AS jsonitem
     WHERE jsonb_typeof(o.items) = 'array'
       AND NOT EXISTS (
-        SELECT 1 FROM public.order_items existing WHERE existing.orderid = o.id
+        SELECT 1 FROM public.order_items existing WHERE existing.orderid = o.id::text
       )
     ON CONFLICT (id) DO NOTHING;
   `;
 
+  const countOrphanedOrders = async (): Promise<number> => {
+    const result = (await dataSource.execute(`
+      SELECT COUNT(*)::int AS count
+      FROM public.orders o
+      WHERE NOT EXISTS (
+        SELECT 1 FROM public.order_items oi WHERE oi.orderid = o.id::text
+      );
+    `)) as Array<{count: number}>;
+
+    return result?.[0]?.count ?? 0;
+  };
+
   await dataSource.execute(ensureColumnsSql);
   await dataSource.execute(backfillSql);
   await dataSource.execute(backfillFromJsonSql);
-  const materialised = await dataSource.execute(materialiseLegacyItemsSql);
+
+  const orphanedBefore = await countOrphanedOrders();
+  await dataSource.execute(materialiseLegacyItemsSql);
+  const orphanCount = await countOrphanedOrders();
 
   console.log('Order item snapshots backfilled.', {
-    legacyRowsMaterialised: Array.isArray(materialised)
-      ? materialised.length
-      : materialised,
+    ordersMissingItemsBefore: orphanedBefore,
+    ordersMaterialised: orphanedBefore - orphanCount,
   });
-
-  const orphanCheck = (await dataSource.execute(`
-    SELECT COUNT(*)::int AS count
-    FROM public.orders o
-    WHERE NOT EXISTS (
-      SELECT 1 FROM public.order_items oi WHERE oi.orderid = o.id
-    );
-  `)) as Array<{count: number}>;
-
-  const orphanCount = orphanCheck?.[0]?.count ?? 0;
 
   if (orphanCount > 0) {
     console.warn(
