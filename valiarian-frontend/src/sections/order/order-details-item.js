@@ -102,7 +102,7 @@ export default function OrderDetailsItems({
         }}
       >
         {items.map((item) => {
-          const productHref = `${paths.product.details(item.slug || item.productId || item.id)}${
+          const productHref = `${paths.product.details(item.productId || item.slug || item.id)}${
             item.variantId ? `?variantId=${encodeURIComponent(item.variantId)}` : ''
           }`;
           return (

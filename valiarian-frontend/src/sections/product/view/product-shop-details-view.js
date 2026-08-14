@@ -13,9 +13,12 @@ import { useGetProduct } from 'src/api/product';
 import { useParams, useSearchParams } from 'src/routes/hook';
 import { paths } from 'src/routes/paths';
 // components
+import Button from '@mui/material/Button';
 import CustomBreadcrumbs from 'src/components/custom-breadcrumbs';
+import EmptyContent from 'src/components/empty-content';
 import Iconify from 'src/components/iconify';
 import { useSettingsContext } from 'src/components/settings';
+import { RouterLink } from 'src/routes/components';
 //
 import CartIcon from '../common/cart-icon';
 import { useCheckout } from '../hooks';
@@ -332,6 +335,25 @@ export default function ProductShopDetailsView() {
 
   const renderSkeleton = <ProductDetailsSkeleton />;
 
+  const renderUnavailable = (
+    <EmptyContent
+      filled
+      title="This product is no longer available"
+      description="It may have been removed or is not currently on sale."
+      action={
+        <Button
+          component={RouterLink}
+          href={paths.product.root}
+          startIcon={<Iconify icon="eva:arrow-ios-back-fill" width={16} />}
+          sx={{ mt: 3 }}
+        >
+          Browse products
+        </Button>
+      }
+      sx={{ py: 10 }}
+    />
+  );
+
   const renderProduct = product && (
     <>
       <CustomBreadcrumbs
@@ -431,9 +453,9 @@ export default function ProductShopDetailsView() {
 
       {productLoading && renderSkeleton}
 
-      {/* {productError && renderError} */}
+      {!productLoading && !product && renderUnavailable}
 
-      {product && renderProduct}
+      {!productLoading && product && renderProduct}
     </Container>
   );
 }

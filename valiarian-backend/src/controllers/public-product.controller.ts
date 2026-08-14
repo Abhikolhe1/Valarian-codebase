@@ -401,27 +401,26 @@ export class PublicProductController {
     }
   }
 
-  @get('/api/public/products/{slug}')
+  @get('/api/public/products/{identifier}')
   @response(200, {
-    description: 'Product model instance by slug',
+    description: 'Product model instance by slug or id',
     content: {
       'application/json': {
         schema: getModelSchemaRef(Product),
       },
     },
   })
-  async findBySlug(@param.path.string('slug') slug: string): Promise<Product> {
-    const product = await this.productRepository.findBySlug(slug);
+  async findBySlugOrId(
+    @param.path.string('identifier') identifier: string,
+  ): Promise<Product> {
+    const product =
+      (await this.productRepository.findBySlug(identifier)) ??
+      (await this.productRepository.findById(identifier).catch(() => null));
 
-    if (!product) {
-      throw new HttpErrors.NotFound(`Product with slug "${slug}" not found`);
+    if (!product || product.status !== 'published') {
+      throw new HttpErrors.NotFound('This product is no longer available');
     }
 
-    if (product.status !== 'published') {
-      throw new HttpErrors.NotFound(`Product with slug "${slug}" not found`);
-    }
-
-    // Increment view count
     await this.productRepository.incrementViewCount(product.id);
 
     return product;

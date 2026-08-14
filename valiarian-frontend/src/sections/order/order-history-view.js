@@ -308,7 +308,7 @@ function OrderCard({ order }) {
             </Typography>
             <Stack spacing={2} sx={{ mt: 2 }}>
               {items.slice(0, 3).map((item, index) => {
-                const productHref = `${paths.product.details(item.slug || item.productId || item.id)}${
+                const productHref = `${paths.product.details(item.productId || item.slug || item.id)}${
                   item.variantId ? `?variantId=${encodeURIComponent(item.variantId)}` : ''
                 }`;
 
