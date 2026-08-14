@@ -302,6 +302,28 @@ export class OrderItemEntity extends Entity {
   image?: string;
 
   @property({
+    type: 'string',
+    postgresql: {
+      columnName: 'slug',
+    },
+  })
+  slug?: string;
+
+  @property({
+    type: 'number',
+    jsonSchema: {
+      minimum: 0,
+    },
+    postgresql: {
+      columnName: 'originalprice',
+      dataType: 'decimal',
+      precision: 10,
+      scale: 2,
+    },
+  })
+  originalPrice?: number;
+
+  @property({
     type: 'number',
     jsonSchema: {
       minimum: 0,

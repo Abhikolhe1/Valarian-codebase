@@ -254,39 +254,94 @@ export class OrderController {
     };
   }
 
-  private async enrichOrderItems(items: Order['items'] = []): Promise<Order['items']> {
-    const sourceItems = Array.isArray(items) ? items : [];
+  private mapOrderItemEntity(
+    item: OrderItemEntity & {barcode?: any},
+  ): Order['items'][number] {
+    const variantSnapshot = item.variantSnapshot ?? {};
+    const barcode = item.barcode;
 
-    return Promise.all(
-      sourceItems.map(async item => {
-        const product = await this.productRepository.findById(item.productId).catch(() => null);
-
-        if (!product) {
-          return item;
-        }
-
-        const matchedVariant = item.variantId
-          ? (product.variants || []).find(variant => variant.id === item.variantId)
-          : null;
-        const variantImage = matchedVariant?.images?.[0];
-
-        return {
-          ...item,
-          slug: product.slug || item.slug,
-          image: variantImage || item.image || product.coverImage || product.images?.[0] || '',
-          sku: matchedVariant?.sku || item.sku || product.sku || '',
-          color: matchedVariant?.color || item.color,
-          colorName: matchedVariant?.colorName || item.colorName,
-          size: matchedVariant?.size || item.size,
-        };
-      })
-    );
+    return {
+      id: item.id,
+      orderItemId: item.id,
+      productId: item.productId,
+      variantId: item.variantId,
+      name: item.productNameSnapshot || item.name || '',
+      image: item.image || '',
+      sku: variantSnapshot.sku || item.sku || '',
+      slug: item.slug || '',
+      color: variantSnapshot.color,
+      colorName: variantSnapshot.colorName,
+      size: variantSnapshot.size,
+      quantity: item.quantity,
+      originalPrice: item.originalPrice,
+      price: item.priceSnapshot ?? item.price,
+      basePrice: item.basePrice,
+      gstRate: item.gstRate,
+      cgstRate: item.cgstRate,
+      sgstRate: item.sgstRate,
+      igstRate: item.igstRate,
+      cgstAmount: item.cgstAmount,
+      sgstAmount: item.sgstAmount,
+      igstAmount: item.igstAmount,
+      totalAmount: item.totalAmount,
+      subtotal: item.subtotal ?? 0,
+      productNameSnapshot: item.productNameSnapshot,
+      variantSnapshot: item.variantSnapshot,
+      priceSnapshot: item.priceSnapshot,
+      barcodeId: item.barcodeId,
+      barcodeCode: barcode?.code,
+      barcodeImageUrl: barcode?.barcodeImageUrl,
+      barcodeStatus: barcode?.status,
+    };
   }
 
-  private async enrichOrder(order: Order): Promise<Order> {
+  private async loadOrderItems(
+    orderId: string,
+    options?: object,
+  ): Promise<Order['items']> {
+    const rows = await this.orderItemRepository.find(
+      {
+        where: {orderId},
+        include: [{relation: 'barcode'}],
+        order: ['createdAt ASC'],
+      },
+      options,
+    );
+
+    return rows.map(row => this.mapOrderItemEntity(row));
+  }
+
+  private async loadOrderItemsForOrders(
+    orderIds: string[],
+  ): Promise<Map<string, Order['items']>> {
+    const grouped = new Map<string, Order['items']>();
+
+    if (!orderIds.length) {
+      return grouped;
+    }
+
+    const rows = await this.orderItemRepository.find({
+      where: {orderId: {inq: orderIds}},
+      include: [{relation: 'barcode'}],
+      order: ['createdAt ASC'],
+    });
+
+    for (const row of rows) {
+      const items = grouped.get(row.orderId) ?? [];
+      items.push(this.mapOrderItemEntity(row));
+      grouped.set(row.orderId, items);
+    }
+
+    return grouped;
+  }
+
+  private async withOrderItems(
+    order: Order,
+    options?: object,
+  ): Promise<Order> {
     return {
       ...order,
-      items: await this.enrichOrderItems(order.items),
+      items: await this.loadOrderItems(order.id, options),
     } as Order;
   }
 
@@ -309,32 +364,6 @@ export class OrderController {
         size: item.size,
       },
     };
-  }
-
-  private attachBarcodesToOrderItems(
-    orderItems: Order['items'],
-    barcodeEntries: Array<{id: string; orderItemId: string; code: string; barcodeImageUrl?: string; status: string}>,
-  ): Order['items'] {
-    const barcodeMap = new Map(
-      barcodeEntries.map(entry => [entry.orderItemId, entry]),
-    );
-
-    return orderItems.map(item => {
-      const barcode = barcodeMap.get(item.id);
-
-      if (!barcode) {
-        return item;
-      }
-
-      return {
-        ...item,
-        orderItemId: item.id,
-        barcodeId: barcode.id,
-        barcodeCode: barcode.code,
-        barcodeImageUrl: barcode.barcodeImageUrl,
-        barcodeStatus: barcode.status,
-      };
-    });
   }
 
   private mapOrderStatusToBarcodeStatus(
@@ -667,12 +696,13 @@ export class OrderController {
     try {
       const fromEmail = process.env.EMAIL_FROM || process.env.EMAIL_USER;
       const recipientEmail = order.billingAddress.email || currentUser.email;
+      const orderItems = await this.loadOrderItems(order.id);
       const emailHtml = await this.emailTemplateService.renderTemplate(
         'order-confirmation',
         {
           customerName: order.billingAddress.fullName,
           orderNumber: order.orderNumber,
-          items: order.items.map(item => ({
+          items: orderItems.map(item => ({
             name: item.name,
             quantity: item.quantity,
             price: formatCurrencyValue(item.price),
@@ -845,7 +875,8 @@ export class OrderController {
 
     const fromEmail = this.getOrderMailSender();
     const customerName = order.billingAddress?.fullName || 'Customer';
-    const items = order.items.map(item => ({
+    const orderItems = await this.loadOrderItems(order.id);
+    const items = orderItems.map(item => ({
       name: item.name,
       quantity: item.quantity,
       price: formatCurrencyValue(item.price),
@@ -981,6 +1012,7 @@ export class OrderController {
         return;
       }
 
+      const orderItems = await this.loadOrderItems(order.id);
       const emailHtml = await this.emailTemplateService.renderTemplate(
         'admin-new-order-notification',
         {
@@ -991,7 +1023,7 @@ export class OrderController {
           orderStatus: order.status,
           paymentMethod: order.paymentMethod,
           paymentStatus: order.paymentStatus,
-          items: order.items.map(item => ({
+          items: orderItems.map(item => ({
             name: item.name,
             quantity: item.quantity,
             price: formatCurrencyValue(item.price),
@@ -1070,6 +1102,8 @@ export class OrderController {
       priceSnapshot: item.priceSnapshot ?? item.price,
       sku: item.sku,
       image: item.image,
+      slug: item.slug,
+      originalPrice: item.originalPrice,
       subtotal: item.subtotal,
     }));
   }
@@ -1089,8 +1123,9 @@ export class OrderController {
       return existingInvoice;
     }
 
-    const invoicePayload =
-      this.invoiceGeneratorService.buildInvoiceRecord(order);
+    const invoicePayload = this.invoiceGeneratorService.buildInvoiceRecord(
+      await this.withOrderItems(order, options),
+    );
 
     return this.invoiceRepository.create(
       {
@@ -1129,7 +1164,7 @@ export class OrderController {
     orderId: string,
     options?: object,
   ): Promise<Order> {
-    return this.orderRepository.findById(
+    const order = await this.orderRepository.findById(
       orderId,
       {
         include: [
@@ -1146,6 +1181,13 @@ export class OrderController {
       },
       options,
     );
+
+    return {
+      ...order,
+      items: (order.orderItems ?? []).map(item =>
+        this.mapOrderItemEntity(item as OrderItemEntity),
+      ),
+    } as Order;
   }
 
   private async verifyExistingPayment(
@@ -1355,7 +1397,10 @@ export class OrderController {
         {transaction},
       );
 
-      await this.decrementOrderStock(order.items, {transaction});
+      await this.decrementOrderStock(
+        await this.loadOrderItems(order.id, {transaction}),
+        {transaction},
+      );
 
       await this.orderRepository.updateById(
         order.id,
@@ -1743,14 +1788,12 @@ export class OrderController {
         {transaction},
       );
 
-      const createdBarcodes = [];
       for (const createdOrderItem of createdOrderItems) {
         const barcode = await this.barcodeService.createBarcodeForOrderItem(
           createdOrderItem as OrderItemEntity,
           order,
           {transaction},
         );
-        createdBarcodes.push(barcode);
         await this.orderItemRepository.updateById(
           createdOrderItem.id,
           {
@@ -1759,21 +1802,6 @@ export class OrderController {
           {transaction},
         );
       }
-
-      const orderItemsWithBarcodes = this.attachBarcodesToOrderItems(
-        orderItems,
-        createdBarcodes,
-      );
-      order.items = orderItemsWithBarcodes;
-
-      await this.orderRepository.updateById(
-        order.id,
-        {
-          items: orderItemsWithBarcodes,
-          updatedAt: new Date(),
-        },
-        {transaction},
-      );
 
       let paymentRecord: Payment | null = null;
 
@@ -1805,7 +1833,9 @@ export class OrderController {
       );
 
       let invoice: Invoice | ReturnType<typeof buildInvoiceFromOrder> =
-        buildInvoiceFromOrder(order);
+        buildInvoiceFromOrder(
+          await this.withOrderItems(order, {transaction}),
+        );
 
       if (order.status === 'confirmed') {
         console.log(
@@ -1818,7 +1848,7 @@ export class OrderController {
             status: order.status,
           },
         );
-        await this.decrementOrderStock(order.items, {transaction});
+        await this.decrementOrderStock(orderItems, {transaction});
       }
 
       await transaction.commit();
@@ -1976,11 +2006,20 @@ export class OrderController {
       ]);
 
       const totalPages = Math.ceil(total.count / limit);
-      const enrichedOrders = await Promise.all(orders.map(order => this.enrichOrder(order)));
+      const itemsByOrderId = await this.loadOrderItemsForOrders(
+        orders.map(order => order.id),
+      );
+      const ordersWithItems = orders.map(
+        order =>
+          ({
+            ...order,
+            items: itemsByOrderId.get(order.id) ?? [],
+          }) as Order,
+      );
 
       return {
         success: true,
-        orders: enrichedOrders,
+        orders: ordersWithItems,
         pagination: {
           total: total.count,
           page,
@@ -2028,13 +2067,13 @@ export class OrderController {
         include: [{relation: 'changedByUser'}],
       });
 
-      const enrichedOrder = await this.enrichOrder(order);
+      const orderWithItems = await this.withOrderItems(order);
 
       return {
         success: true,
-        order: enrichedOrder,
+        order: orderWithItems,
         statusHistory,
-        invoice: buildInvoiceFromOrder(enrichedOrder),
+        invoice: buildInvoiceFromOrder(orderWithItems),
       };
     } catch (error) {
       console.error('Error fetching order details:', error);
@@ -2068,7 +2107,7 @@ export class OrderController {
       return {
         success: true,
         orderId: order.id,
-        invoice: buildInvoiceFromOrder(order),
+        invoice: buildInvoiceFromOrder(await this.withOrderItems(order)),
       };
     } catch (error) {
       console.error('Error fetching order invoice:', error);
@@ -2202,8 +2241,10 @@ export class OrderController {
         }
       }
 
+      const cancelledOrderItems = await this.loadOrderItems(order.id);
+
       if (order.status === 'confirmed') {
-        await this.incrementOrderStock(order.items);
+        await this.incrementOrderStock(cancelledOrderItems);
       }
 
       try {
@@ -2216,7 +2257,7 @@ export class OrderController {
             orderDate: order.createdAt
               ? order.createdAt.toLocaleDateString()
               : new Date().toLocaleDateString(),
-            items: order.items.map(item => ({
+            items: cancelledOrderItems.map(item => ({
               name: item.name,
               quantity: item.quantity,
               price: formatCurrencyValue(item.price),
@@ -2378,7 +2419,7 @@ export class OrderController {
               ? order.createdAt.toLocaleDateString()
               : new Date().toLocaleDateString(),
             deliveryDate: order.deliveredAt?.toLocaleDateString(),
-            items: order.items.map(item => ({
+            items: (await this.loadOrderItems(order.id)).map(item => ({
               name: item.name,
               quantity: item.quantity,
               price: formatCurrencyValue(item.price),
@@ -2493,10 +2534,17 @@ export class OrderController {
       );
 
       const totalPages = Math.ceil(total.count / limit);
+      const itemsByOrderId = await this.loadOrderItemsForOrders(
+        orders.map(order => order.id),
+      );
+      const ordersWithItems = orders.map(order => ({
+        ...order,
+        items: itemsByOrderId.get(order.id) ?? [],
+      }));
 
       return {
         success: true,
-        orders,
+        orders: ordersWithItems,
         counts: {
           all: total.count,
           ...statuses.reduce<Record<string, number>>(
@@ -2562,7 +2610,14 @@ export class OrderController {
 
       console.log(`[Admin] Status history entries: ${statusHistory.length}`);
 
-      return {success: true, order, statusHistory};
+      const orderWithItems = {
+        ...order,
+        items: (order.orderItems ?? []).map(item =>
+          this.mapOrderItemEntity(item as OrderItemEntity),
+        ),
+      };
+
+      return {success: true, order: orderWithItems, statusHistory};
     } catch (error) {
       console.error('Error fetching admin order details:', error);
 
@@ -2766,11 +2821,11 @@ export class OrderController {
         request.status === 'cancelled' &&
         order.status !== 'pending'
       ) {
-        await this.incrementOrderStock(order.items);
+        await this.incrementOrderStock(await this.loadOrderItems(order.id));
         console.log(`[Admin] Stock restored for cancelled order`);
       }
       if (statusChanged && request.status === 'parcel_received') {
-        await this.incrementOrderStock(order.items);
+        await this.incrementOrderStock(await this.loadOrderItems(order.id));
         console.log(`[Admin] Stock restored for received parcel`);
       }
       console.log(`[Admin] ✅ Order updated in database`);
@@ -2860,6 +2915,7 @@ export class OrderController {
 
       const newReturnStatus =
         request.action === 'approve' ? 'approved' : 'rejected';
+      const returnOrderItems = await this.loadOrderItems(order.id);
 
       await this.orderRepository.updateById(order.id, {
         status: request.action === 'reject' ? 'delivered' : order.status,
@@ -2896,7 +2952,7 @@ export class OrderController {
               orderNumber: order.orderNumber,
               returnRequestId: order.id,
               approvedDate: new Date().toLocaleDateString(),
-              items: order.items.map(item => ({
+              items: returnOrderItems.map(item => ({
                 name: item.name,
                 quantity: item.quantity,
               })),
@@ -2926,7 +2982,7 @@ export class OrderController {
               rejectionReason:
                 request.comment ||
                 'Return request does not meet our return policy criteria.',
-              items: order.items.map(item => ({
+              items: returnOrderItems.map(item => ({
                 name: item.name,
                 quantity: item.quantity,
               })),
@@ -3300,7 +3356,10 @@ export class OrderController {
           );
         }
 
-        await this.decrementOrderStock(order.items, {transaction});
+        await this.decrementOrderStock(
+          await this.loadOrderItems(order.id, {transaction}),
+          {transaction},
+        );
 
         await this.orderRepository.updateById(
           order.id,
@@ -3332,7 +3391,7 @@ export class OrderController {
             {
               customerName: updatedOrder.billingAddress.fullName,
               orderNumber: updatedOrder.orderNumber,
-              items: updatedOrder.items.map(item => ({
+              items: (await this.loadOrderItems(updatedOrder.id)).map(item => ({
                 name: item.name,
                 quantity: item.quantity,
                 price: formatCurrencyValue(item.price),

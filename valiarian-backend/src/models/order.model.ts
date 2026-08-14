@@ -347,6 +347,12 @@ export class Order extends Entity {
   })
   shippingAddress: OrderAddress;
 
+  /**
+   * @deprecated Write-once archive of the items at checkout. Nothing reads this
+   * column any more - `order_items` (the `orderItems` relation) is the source of
+   * truth for what an order contains, and API responses build `items` from it.
+   * Kept only so historical rows stay recoverable; never mutate it after create.
+   */
   @property({
     type: 'array',
     itemType: 'object',

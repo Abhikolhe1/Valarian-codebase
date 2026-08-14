@@ -2,6 +2,7 @@ import {inject, lifeCycleObserver, LifeCycleObserver} from '@loopback/core';
 import {repository} from '@loopback/repository';
 import {Order} from '../models';
 import {
+  OrderItemRepository,
   OrderRepository,
   OrderStatusHistoryRepository,
   PaymentRepository,
@@ -25,6 +26,8 @@ export class PendingOrderCleanupService implements LifeCycleObserver {
     private paymentRepository: PaymentRepository,
     @repository(OrderStatusHistoryRepository)
     private orderStatusHistoryRepository: OrderStatusHistoryRepository,
+    @repository(OrderItemRepository)
+    private orderItemRepository: OrderItemRepository,
     @inject('services.razorpay')
     private razorpayService: RazorpayService,
     @inject('services.email')
@@ -323,6 +326,11 @@ export class PendingOrderCleanupService implements LifeCycleObserver {
     }
 
     try {
+      const orderItems = await this.orderItemRepository.find({
+        where: {orderId: order.id},
+        order: ['createdAt ASC'],
+      });
+
       const emailHtml = await this.emailTemplateService.renderTemplate(
         'cancellation-confirmation',
         {
@@ -332,10 +340,10 @@ export class PendingOrderCleanupService implements LifeCycleObserver {
           orderDate: order.createdAt
             ? order.createdAt.toLocaleDateString()
             : new Date().toLocaleDateString(),
-          items: order.items.map(item => ({
-            name: item.name,
+          items: orderItems.map(item => ({
+            name: item.productNameSnapshot || item.name,
             quantity: item.quantity,
-            price: Number(item.price || 0).toFixed(2),
+            price: Number(item.priceSnapshot ?? item.price ?? 0).toFixed(2),
           })),
           total: Number(order.total || 0).toFixed(2),
           refundAmount: refunded ? Number(order.total || 0).toFixed(2) : null,
