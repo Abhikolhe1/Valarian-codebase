@@ -1,0 +1,6 @@
+# Shell scripts must always have LF line endings in the repo, regardless of
+# the checkout platform's core.autocrlf setting — these run on a Linux
+# server, and a CRLF shebang or `set -euo pipefail\r` breaks bash outright.
+*.sh text eol=lf
+
+.github/workflows/*.yml text eol=lf
