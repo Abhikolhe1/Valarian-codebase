@@ -62,6 +62,7 @@ jobs:
           npm ci
           npm run lint || echo "::warning::backend lint reported problems (non-blocking, see CI workflow notes)"
           npm run build
+          node ./dist/migrate
           npm test
 
       - name: Frontend - install, lint, build

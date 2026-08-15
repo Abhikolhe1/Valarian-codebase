@@ -69,6 +69,14 @@ jobs:
       - name: Build
         run: npm run build
 
+      # The CI Postgres container starts completely empty (no tables). Real
+      # UAT/production databases already have their schema from cumulative
+      # history and NEVER get automigrate here — this is exclusively for the
+      # disposable CI-only database above, safe because there's no real data
+      # to lose.
+      - name: Set up test database schema
+        run: node ./dist/migrate
+
       - name: Test
         run: npm test
 
