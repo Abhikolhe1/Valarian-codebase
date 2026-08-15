@@ -56,6 +56,8 @@ jobs:
           NODE_ENV: test
           JWT_SECRET: ci-test-only-not-a-real-secret
           JWT_EXPIRES_IN: 1h
+          RAZORPAY_KEY_ID: rzp_test_ci_dummy
+          RAZORPAY_KEY_SECRET: ci-test-only-not-a-real-secret
         run: |
           npm ci
           npm run lint || echo "::warning::backend lint reported problems (non-blocking, see CI workflow notes)"

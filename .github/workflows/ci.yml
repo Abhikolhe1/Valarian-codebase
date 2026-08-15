@@ -43,6 +43,11 @@ jobs:
       NODE_ENV: test
       JWT_SECRET: ci-test-only-not-a-real-secret
       JWT_EXPIRES_IN: 1h
+      # RazorpayService throws at construction time if these are unset (it
+      # only checks presence, never calls the real Razorpay API during
+      # boot/tests) — dummy values so the app can boot in CI.
+      RAZORPAY_KEY_ID: rzp_test_ci_dummy
+      RAZORPAY_KEY_SECRET: ci-test-only-not-a-real-secret
     steps:
       - uses: actions/checkout@v4
 
