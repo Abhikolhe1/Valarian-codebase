@@ -1,0 +1,73 @@
+name: Deploy UAT
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: [main]
+
+concurrency:
+  group: valiarian-uat-deployment
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Deploy to UAT
+    runs-on: ubuntu-latest
+    if: >
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push'
+    steps:
+      - name: Set deployment SHA
+        run: echo "DEPLOY_SHA=${{ github.event.workflow_run.head_sha }}" >> "$GITHUB_ENV"
+
+      - name: Log deployment start
+        run: echo "[DEPLOY] Connecting to UAT to deploy commit ${DEPLOY_SHA}"
+
+      - name: Configure SSH
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "${{ secrets.UAT_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          printf '%s\n' "${{ secrets.UAT_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Sync repository on server to exact commit
+        run: |
+          echo "[GIT] Deploying commit ${DEPLOY_SHA}"
+          ssh -i ~/.ssh/deploy_key -p "${{ secrets.UAT_SSH_PORT }}" \
+            -o UserKnownHostsFile=~/.ssh/known_hosts -o StrictHostKeyChecking=yes \
+            "${{ secrets.UAT_USER }}@${{ secrets.UAT_HOST }}" \
+            "set -euo pipefail && cd /var/www/valiarian-uat/Valarian-codebase && git fetch origin && git reset --hard ${DEPLOY_SHA}"
+
+      - name: Run UAT deployment script
+        run: |
+          ssh -i ~/.ssh/deploy_key -p "${{ secrets.UAT_SSH_PORT }}" \
+            -o UserKnownHostsFile=~/.ssh/known_hosts -o StrictHostKeyChecking=yes \
+            "${{ secrets.UAT_USER }}@${{ secrets.UAT_HOST }}" \
+            "bash /var/www/valiarian-uat/Valarian-codebase/scripts/deploy-uat.sh ${DEPLOY_SHA}"
+
+      - name: Clean up SSH key
+        if: always()
+        run: rm -f ~/.ssh/deploy_key
+
+      - name: Job summary
+        if: always()
+        run: |
+          {
+            echo "## UAT Deployment"
+            echo ""
+            echo "| Field | Value |"
+            echo "|---|---|"
+            echo "| Environment | UAT |"
+            echo "| Commit | \`${DEPLOY_SHA}\` |"
+            echo "| Triggering CI run | ${{ github.event.workflow_run.html_url }} |"
+            echo "| Result | ${{ job.status }} |"
+            echo ""
+            echo "Frontend: https://uat.valiarian.com"
+            echo ""
+            echo "Backend health: https://uatapi.valiarian.com/health"
+            echo ""
+            echo "Admin: https://uatadmin.valiarian.com"
+          } >> "$GITHUB_STEP_SUMMARY"
