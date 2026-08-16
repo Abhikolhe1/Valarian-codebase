@@ -589,9 +589,11 @@ export default function ProductDetailsSummary({
           onDecrease={() => setValue('quantity', values.quantity - 1)}
         />
 
-        <Typography variant="caption" component="div" sx={{ textAlign: 'right' }}>
-          Available: {available}
-        </Typography>
+        {available > 0 && available <= 10 && (
+          <Typography variant="caption" component="div" sx={{ textAlign: 'right', color: 'warning.main' }}>
+            Only {available} left in stock
+          </Typography>
+        )}
       </Stack>
     </Stack>
   );
