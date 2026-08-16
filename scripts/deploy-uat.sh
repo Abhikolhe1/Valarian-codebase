@@ -48,6 +48,11 @@ deploy_backend() {
 
   log BACKEND "Building (staged, not yet live)"
   rm -rf "${BACKEND_DIR}/dist.new"
+  # TypeScript's incremental build cache is keyed on source signatures, not
+  # outDir. Since --outDir points somewhere new every deploy, a stale
+  # tsconfig.tsbuildinfo makes tsc believe dist.new is already up to date
+  # and silently emit nothing (exit 0, zero files) — always start clean.
+  rm -f "${BACKEND_DIR}"/*.tsbuildinfo
   ( cd "$BACKEND_DIR" && npx lb-tsc --outDir dist.new )
   [ -f "${BACKEND_DIR}/dist.new/index.js" ] || { log BACKEND "build did not produce dist.new/index.js"; rm -rf "${BACKEND_DIR}/dist.new"; return 1; }
 
