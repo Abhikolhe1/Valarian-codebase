@@ -477,11 +477,12 @@ export default function CategoryMegaMenu({
               <ImagePreview>
                 {!treeLoading && (
                   <>
+                    {/* Name/category label overlay disabled for now — re-enable by uncommenting
                     {hoveredSubcategory && displayTitle && (
                       <Fade in={titleVisible} timeout={200}>
                         <PreviewTitle>{displayTitle}</PreviewTitle>
                       </Fade>
-                    )}
+                    )} */}
 
                     {/* Image with Fade animation */}
                     <Fade in={imageVisible} timeout={300}>

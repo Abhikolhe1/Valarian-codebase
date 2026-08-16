@@ -165,7 +165,7 @@ export class ProductRepository extends TimeStampRepositoryMixin<
    */
   async findBySlug(slug: string): Promise<Product | null> {
     const products = await this.find({
-      where: {slug},
+      where: {slug, isDeleted: false},
       limit: 1,
     });
     return products.length > 0 ? products[0] : null;
@@ -270,7 +270,11 @@ export class ProductRepository extends TimeStampRepositoryMixin<
       order = ['createdAt DESC'],
     } = options;
 
-    const andConditions: Where<Product>[] = [];
+    const andConditions: Where<Product>[] = [
+      // Soft-deleted products never appear in any search/listing result,
+      // for admin or storefront callers alike.
+      {isDeleted: false} as any,
+    ];
 
     if (search) {
       andConditions.push({

@@ -1,6 +1,6 @@
 import { yupResolver } from '@hookform/resolvers/yup';
 import PropTypes from 'prop-types';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import * as Yup from 'yup';
 // @mui
@@ -31,13 +31,18 @@ import FormProvider, {
   RHFEditor,
   RHFSwitch,
   RHFTextField,
-  RHFUpload,
 } from 'src/components/hook-form';
 import { useSnackbar } from 'src/components/snackbar';
 import { useRouter } from 'src/routes/hook';
 import useSWR, { mutate } from 'swr';
 import axiosInstance, { endpoints } from 'src/utils/axios';
+import CMSMediaPickerField from '../cms/cms-media-picker-field';
 import ProductVariantManager from './product-variant-manager';
+
+const PRODUCT_IMAGE_MAX_SIZE = 10 * 1024 * 1024; // 10MB, matches backend MAX_IMAGE_SIZE
+const PRODUCT_IMAGE_ACCEPT = {
+  'image/*': ['.jpg', '.jpeg', '.png', '.webp', '.svg'],
+};
 
 // ----------------------------------------------------------------------
 
@@ -88,10 +93,10 @@ export default function ProductNewEditForm({ currentProduct }) {
       .nullable()
       .transform((value, originalValue) => originalValue === '' ? null : value)
       .typeError('Sale price must be a number')
-      .test('sale-price-less-than-price', 'Sale price must be less than regular price', (value, context) => {
+      .test('sale-price-less-than-price', 'Sale price must be less than or equal to regular price', (value, context) => {
         const { price } = context.parent;
         if (value && price) {
-          return value < price;
+          return value <= price;
         }
         return true;
       }),
@@ -203,7 +208,7 @@ export default function ProductNewEditForm({ currentProduct }) {
     watch,
     setValue,
     handleSubmit,
-    formState: { isSubmitting },
+    formState: { isSubmitting, errors },
   } = methods;
 
   const values = watch();
@@ -375,12 +380,12 @@ export default function ProductNewEditForm({ currentProduct }) {
         enqueueSnackbar(error.message || 'Something went wrong!', { variant: 'error' });
       }
     },
-    (errors) => {
+    (validationErrors) => {
       // Handle validation errors
-      console.error('Validation errors:', errors);
+      console.error('Validation errors:', validationErrors);
 
       // Show first error message
-      const firstError = Object.values(errors)[0];
+      const firstError = Object.values(validationErrors)[0];
       if (firstError?.message) {
         enqueueSnackbar(firstError.message, { variant: 'error' });
       } else {
@@ -388,7 +393,7 @@ export default function ProductNewEditForm({ currentProduct }) {
       }
 
       // Find which tab has the error and switch to it
-      const errorFields = Object.keys(errors);
+      const errorFields = Object.keys(validationErrors);
       if (errorFields.some(field => ['name', 'slug', 'description', 'shortDescription', 'sku'].includes(field))) {
         setCurrentTab('basic');
       } else if (errorFields.some(field => ['price', 'salePrice', 'saleStartDate', 'saleEndDate', 'currency'].includes(field))) {
@@ -428,47 +433,6 @@ export default function ProductNewEditForm({ currentProduct }) {
     }
   };
 
-  const handleDropCoverImage = useCallback(
-    (acceptedFiles) => {
-      const file = acceptedFiles[0];
-      if (file) {
-        setValue('coverImage', Object.assign(file, { preview: URL.createObjectURL(file) }), {
-          shouldValidate: true,
-        });
-      }
-    },
-    [setValue]
-  );
-
-  const handleDropImages = useCallback(
-    (acceptedFiles) => {
-      const files = values.images || [];
-      const newFiles = acceptedFiles.map((file) =>
-        Object.assign(file, { preview: URL.createObjectURL(file) })
-      );
-      setValue('images', [...files, ...newFiles], { shouldValidate: true });
-    },
-    [setValue, values.images]
-  );
-
-  const handleRemoveFile = useCallback(
-    (inputFile) => {
-      const filtered = values.images?.filter((file) => file !== inputFile);
-      setValue('images', filtered);
-    },
-    [setValue, values.images]
-  );
-
-  const handleRemoveAllFiles = useCallback(() => {
-    setValue('images', []);
-  }, [setValue]);
-
-  const handleReorderImages = useCallback(
-    (reorderedFiles) => {
-      setValue('images', reorderedFiles, { shouldValidate: true });
-    },
-    [setValue]
-  );
 
   const renderDetails = (
     <Grid container spacing={3}>
@@ -530,25 +494,30 @@ export default function ProductNewEditForm({ currentProduct }) {
           <Stack spacing={3} sx={{ p: 3 }}>
             <Stack spacing={1.5}>
               <Typography variant="subtitle2">Cover Image</Typography>
-              <RHFUpload
-                name="coverImage"
-                maxSize={3145728}
-                onDrop={handleDropCoverImage}
-                onDelete={() => setValue('coverImage', null)}
+              <CMSMediaPickerField
+                value={values.coverImage}
+                onChange={(url) => setValue('coverImage', url, { shouldValidate: true })}
+                accept={PRODUCT_IMAGE_ACCEPT}
+                maxSize={PRODUCT_IMAGE_MAX_SIZE}
+                helperText={
+                  errors.coverImage?.message || 'Select from the media library or upload a new image. Max size: 10MB.'
+                }
+                error={!!errors.coverImage}
               />
             </Stack>
 
             <Stack spacing={1.5}>
               <Typography variant="subtitle2">Additional Images</Typography>
-              <RHFUpload
+              <CMSMediaPickerField
                 multiple
-                thumbnail
-                name="images"
-                maxSize={3145728}
-                onDrop={handleDropImages}
-                onRemove={handleRemoveFile}
-                onRemoveAll={handleRemoveAllFiles}
-                onReorder={handleReorderImages}
+                value={values.images}
+                onChange={(urls) => setValue('images', urls, { shouldValidate: true })}
+                accept={PRODUCT_IMAGE_ACCEPT}
+                maxSize={PRODUCT_IMAGE_MAX_SIZE}
+                helperText={
+                  errors.images?.message || 'Select from the media library or upload new images. Max size: 10MB each.'
+                }
+                error={!!errors.images}
               />
             </Stack>
           </Stack>

@@ -450,7 +450,7 @@ export class OrderController {
 
       const product = await this.productRepository.findById(item.productId);
 
-      if (!product) {
+      if (!product || product.isDeleted) {
         throw new HttpErrors.NotFound(`Product ${item.productId} not found`);
       }
 

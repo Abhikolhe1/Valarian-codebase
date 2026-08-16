@@ -19,12 +19,15 @@ import { useBoolean } from 'src/hooks/use-boolean';
 import { useGetMedia, useGetMediaFolders } from 'src/api/cms-media';
 // utils
 import axiosInstance, { endpoints } from 'src/utils/axios';
+import { fData } from 'src/utils/format-number';
 // components
+import { ConfirmDialog } from 'src/components/custom-dialog';
 import Iconify from 'src/components/iconify';
 import Lightbox, { useLightBox } from 'src/components/lightbox';
 import { useSnackbar } from 'src/components/snackbar';
 import { Upload } from 'src/components/upload';
 //
+import CMSMediaBulkDialog from './cms-media-bulk-dialog';
 import CMSMediaCard from './cms-media-card';
 import CMSMediaToolbar from './cms-media-toolbar';
 
@@ -40,6 +43,7 @@ export default function CMSMediaPicker({
     'image/*': ['.jpg', '.jpeg', '.png', '.webp', '.svg'],
     'video/*': ['.mp4', '.webm'],
   },
+  maxSize,
 }) {
   const { enqueueSnackbar } = useSnackbar();
 
@@ -54,6 +58,8 @@ export default function CMSMediaPicker({
   });
 
   const uploadDialog = useBoolean();
+  const deleteConfirm = useBoolean();
+  const bulkDialog = useBoolean();
 
   // Use hooks to get media and folders
   const { media, mediaLoading, mediaMutate } = useGetMedia(filters, open);
@@ -103,6 +109,46 @@ export default function CMSMediaPicker({
       setSelected(media.map((m) => m.id));
     }
   }, [media, selected]);
+
+  const handleDeleteSelected = useCallback(async () => {
+    try {
+      await axiosInstance.post(`${endpoints.cms.media.list}/bulk-delete`, {
+        mediaIds: selected,
+      });
+
+      enqueueSnackbar(`Successfully deleted ${selected.length} file(s)`, {
+        variant: 'success',
+      });
+      setSelected([]);
+      mediaMutate();
+      deleteConfirm.onFalse();
+    } catch (error) {
+      console.error('Delete error:', error);
+      enqueueSnackbar('Failed to delete media', { variant: 'error' });
+    }
+  }, [selected, enqueueSnackbar, deleteConfirm, mediaMutate]);
+
+  const handleMoveToFolder = useCallback(
+    async (targetFolder) => {
+      try {
+        await axiosInstance.post(`${endpoints.cms.media.list}/bulk-move`, {
+          mediaIds: selected,
+          folder: targetFolder,
+        });
+
+        enqueueSnackbar(`Successfully moved ${selected.length} file(s)`, {
+          variant: 'success',
+        });
+        setSelected([]);
+        mediaMutate();
+      } catch (error) {
+        console.error('Move error:', error);
+        enqueueSnackbar('Failed to move files', { variant: 'error' });
+        throw error;
+      }
+    },
+    [selected, enqueueSnackbar, mediaMutate]
+  );
 
   const handleUpload = useCallback(
     async (files) => {
@@ -200,7 +246,9 @@ export default function CMSMediaPicker({
                 onFilters={handleFilters}
                 selectedCount={selected.length}
                 totalCount={media.length}
-                onSelectAll={multiple ? handleSelectAll : undefined}
+                onSelectAll={handleSelectAll}
+                onDeleteSelected={deleteConfirm.onTrue}
+                onMoveSelected={bulkDialog.onTrue}
                 currentFolder={filters.folder}
                 folders={folders}
               />
@@ -254,6 +302,17 @@ export default function CMSMediaPicker({
                 onDrop={handleUpload}
                 disabled={uploading}
                 accept={accept}
+                maxSize={maxSize}
+                helperText={
+                  maxSize && (
+                    <Typography
+                      variant="caption"
+                      sx={{ mt: 2, mx: 'auto', display: 'block', textAlign: 'center', color: 'text.secondary' }}
+                    >
+                      Max file size: {fData(maxSize)}
+                    </Typography>
+                  )
+                }
               />
 
               {uploading && (
@@ -294,6 +353,33 @@ export default function CMSMediaPicker({
         close={lightbox.onClose}
         onGetCurrentIndex={(index) => lightbox.setSelected(index)}
       />
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDialog
+        open={deleteConfirm.value}
+        onClose={deleteConfirm.onFalse}
+        title="Delete Media"
+        content={
+          <>
+            Are you sure you want to delete <strong>{selected.length}</strong> file(s)? This
+            action cannot be undone.
+          </>
+        }
+        action={
+          <Button variant="contained" color="error" onClick={handleDeleteSelected}>
+            Delete
+          </Button>
+        }
+      />
+
+      {/* Move to Folder Dialog */}
+      <CMSMediaBulkDialog
+        open={bulkDialog.value}
+        onClose={bulkDialog.onFalse}
+        selectedCount={selected.length}
+        folders={folders}
+        onMoveToFolder={handleMoveToFolder}
+      />
     </>
   );
 }
@@ -305,4 +391,5 @@ CMSMediaPicker.propTypes = {
   multiple: PropTypes.bool,
   selectedMedia: PropTypes.array,
   accept: PropTypes.object,
+  maxSize: PropTypes.number,
 };
