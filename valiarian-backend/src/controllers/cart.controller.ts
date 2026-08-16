@@ -60,7 +60,7 @@ export class CartController {
       let subtotal = 0;
       const items = await Promise.all(cartItems.map(async (item: any) => {
         const product = await this.productsRepository.findById(item.productId);
-        if (!product) {
+        if (!product || product.isDeleted) {
           throw new HttpErrors.NotFound('Product not found');
         }
         let variant = null;
@@ -150,7 +150,7 @@ export class CartController {
       }
 
       const product = await this.productsRepository.findById(productId);
-      if (!product) {
+      if (!product || product.isDeleted) {
         throw new HttpErrors.NotFound('Product not found');
       }
 

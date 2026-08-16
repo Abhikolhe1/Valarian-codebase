@@ -21,6 +21,7 @@ import CustomBreadcrumbs from 'src/components/custom-breadcrumbs';
 import Iconify from 'src/components/iconify';
 import Scrollbar from 'src/components/scrollbar';
 import { useSettingsContext } from 'src/components/settings';
+import { useSnackbar } from 'src/components/snackbar';
 import {
   emptyRows,
   TableEmptyRows,
@@ -49,6 +50,7 @@ export default function CategoryListView({ isParentCategory = false }) {
   const router = useRouter();
   const table = useTable();
   const settings = useSettingsContext();
+  const { enqueueSnackbar } = useSnackbar();
 
   const { categories, categoriesLoading, categoriesEmpty, mutate } = useGetCategories(
     !isParentCategory
@@ -93,12 +95,17 @@ export default function CategoryListView({ isParentCategory = false }) {
           await axios.delete(`${endpoints.category.list}/${id}`);
         }
 
+        enqueueSnackbar('Delete success!');
         handleMutate();
       } catch (error) {
         console.error('Error deleting category:', error);
+        enqueueSnackbar(
+          error?.error?.message || error?.message || 'Failed to delete. Please try again.',
+          { variant: 'error' }
+        );
       }
     },
-    [handleMutate, isParentCategory]
+    [handleMutate, isParentCategory, enqueueSnackbar]
   );
 
   const handleEditRow = useCallback(

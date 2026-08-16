@@ -525,11 +525,14 @@ export class ProductController {
     @param.path.string('id') id: string,
   ): Promise<void> {
     const existingProduct = await this.productRepository.findById(id);
-    if (!existingProduct) {
+    if (!existingProduct || existingProduct.isDeleted) {
       throw new HttpErrors.NotFound(`Product with id "${id}" not found`);
     }
 
-    await this.productRepository.deleteById(id);
+    await this.productRepository.updateById(id, {
+      isDeleted: true,
+      deletedAt: new Date(),
+    });
   }
 
   @authenticate('jwt')

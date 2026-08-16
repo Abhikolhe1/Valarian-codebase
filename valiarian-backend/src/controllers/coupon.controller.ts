@@ -64,7 +64,7 @@ export class CouponController {
 
       const product = await this.productRepository.findById(item.productId).catch(() => null);
 
-      if (!product || product.status !== 'published') {
+      if (!product || product.isDeleted || product.status !== 'published') {
         continue;
       }
 

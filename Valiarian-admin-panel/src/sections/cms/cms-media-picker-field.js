@@ -26,6 +26,7 @@ export default function CMSMediaPickerField({
   error,
   accept,
   compact = true,
+  maxSize,
 }) {
   const pickerOpen = useBoolean();
 
@@ -433,6 +434,7 @@ export default function CMSMediaPickerField({
         multiple={multiple}
         selectedMedia={[]}
         accept={accept}
+        maxSize={maxSize}
       />
     </Stack>
   );
@@ -445,6 +447,7 @@ CMSMediaPickerField.propTypes = {
   multiple: PropTypes.bool,
   helperText: PropTypes.string,
   error: PropTypes.bool,
+  maxSize: PropTypes.number,
   accept: PropTypes.object,
   compact: PropTypes.bool,
 };
