@@ -17,6 +17,7 @@ import Select from '@mui/material/Select';
 import Stack from '@mui/material/Stack';
 import Tab from '@mui/material/Tab';
 import Tabs from '@mui/material/Tabs';
+import TablePagination from '@mui/material/TablePagination';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 // hooks
@@ -61,6 +62,8 @@ export default function CMSMediaPicker({
     search: '',
     folder: '',
     mimeType: '',
+    page: 1,
+    pageSize: 24,
   });
   const [uploadFolder, setUploadFolder] = useState('/');
   const [newUploadFolder, setNewUploadFolder] = useState('');
@@ -85,8 +88,20 @@ export default function CMSMediaPicker({
   );
 
   // Use hooks to get media and folders
-  const { media, mediaLoading } = useGetMedia(filters, open);
+  const { media, mediaTotal, mediaLoading } = useGetMedia(filters, open);
   const { folders, foldersMutate } = useGetMediaFolders();
+
+  // If a delete/move (or anything else) shrinks the result set below the
+  // page you're currently viewing, land on the new last page instead of
+  // showing an empty grid stuck on a page that no longer exists.
+  useEffect(() => {
+    if (mediaTotal > 0) {
+      const maxPage = Math.max(1, Math.ceil(mediaTotal / filters.pageSize));
+      if (filters.page > maxPage) {
+        setFilters((prev) => ({ ...prev, page: maxPage }));
+      }
+    }
+  }, [mediaTotal, filters.pageSize, filters.page]);
 
   // Prepare slides for lightbox
   const slides = media
@@ -109,7 +124,19 @@ export default function CMSMediaPicker({
     setFilters((prev) => ({
       ...prev,
       [name]: value,
+      // A filter change invalidates whatever page you were on — always land
+      // back on page 1 rather than risk showing an empty out-of-range page.
+      page: 1,
     }));
+  }, []);
+
+  const handlePageChange = useCallback((event, newPage) => {
+    // MUI TablePagination is 0-indexed; the API is 1-indexed.
+    setFilters((prev) => ({ ...prev, page: newPage + 1 }));
+  }, []);
+
+  const handlePageSizeChange = useCallback((event) => {
+    setFilters((prev) => ({ ...prev, pageSize: parseInt(event.target.value, 10), page: 1 }));
   }, []);
 
   const handleSelectMedia = useCallback(
@@ -238,7 +265,7 @@ export default function CMSMediaPicker({
         foldersMutate();
         // Jump the library view to the folder we just uploaded into, so the
         // new file(s) are immediately visible instead of looking "missing".
-        setFilters((prev) => ({ ...prev, folder: targetFolder === '/' ? '' : targetFolder }));
+        setFilters((prev) => ({ ...prev, folder: targetFolder === '/' ? '' : targetFolder, page: 1 }));
         setNewUploadFolder('');
         setCurrentTab('library');
       } catch (error) {
@@ -346,6 +373,18 @@ export default function CMSMediaPicker({
                         </Grid>
                       ))}
                     </Grid>
+                  )}
+
+                  {mediaTotal > 0 && (
+                    <TablePagination
+                      component="div"
+                      count={mediaTotal}
+                      page={filters.page - 1}
+                      rowsPerPage={filters.pageSize}
+                      onPageChange={handlePageChange}
+                      onRowsPerPageChange={handlePageSizeChange}
+                      rowsPerPageOptions={[12, 24, 48, 96]}
+                    />
                   )}
                 </Box>
               )}

@@ -39,13 +39,16 @@ export function useGetMedia(params, shouldFetch = true) {
   const memoizedValue = useMemo(
     () => ({
       media: data?.data || [],
+      mediaTotal: data?.total || 0,
+      mediaPage: data?.page || 1,
+      mediaPageSize: data?.pageSize || 20,
       mediaLoading: isLoading,
       mediaError: error,
       mediaValidating: isValidating,
       mediaEmpty: !isLoading && !data?.data?.length,
       mediaMutate: mutate,
     }),
-    [data?.data, error, isLoading, isValidating, mutate]
+    [data?.data, data?.total, data?.page, data?.pageSize, error, isLoading, isValidating, mutate]
   );
 
   return memoizedValue;

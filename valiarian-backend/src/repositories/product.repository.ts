@@ -11,6 +11,7 @@ import {TimeStampRepositoryMixin} from '../mixins/timestamp-repository-mixin';
 import {Category, Product, ProductRelations, ProductVariant} from '../models';
 import {CategoryRepository} from './category.repository';
 import {ProductVariantRepository} from './product-variant.repository';
+import {resolveDefaultVariant} from '../utils/variant.utils';
 
 export interface ProductSearchOptions {
   search?: string;
@@ -90,13 +91,83 @@ export class ProductRepository extends TimeStampRepositoryMixin<
     const variants = await variantRepo.find({where: {productId}}, options);
     const totalStock = variants.reduce((sum, v) => sum + (v.stockQuantity || 0), 0);
 
-    await this.updateById(productId, {
+    const updateData: Partial<Product> = {
       stockQuantity: totalStock,
       inStock: totalStock > 0,
       updatedAt: new Date(),
-    }, options);
+    };
+
+    // The storefront reads stock/isDefault from the embedded `variants` JSON
+    // on the product, not from this normalized table — this table update
+    // alone would leave that embedded copy stale. Bring it back in sync
+    // wherever a matching entry exists.
+    if (variants.length > 0) {
+      const product = await this.findById(productId, undefined, options);
+      const embeddedVariants = Array.isArray(product.variants) ? product.variants : [];
+
+      if (embeddedVariants.length > 0) {
+        const normalizedById = new Map(variants.map(variant => [variant.id, variant]));
+        updateData.variants = embeddedVariants.map(embedded => {
+          const normalized = normalizedById.get(embedded.id);
+          if (!normalized) return embedded;
+          return {
+            ...embedded,
+            stockQuantity: normalized.stockQuantity,
+            inStock: normalized.stockQuantity > 0,
+          };
+        }) as ProductVariant[];
+      }
+    }
+
+    await this.updateById(productId, updateData, options);
+
+    // Now that the embedded variants reflect the real stock, re-evaluate
+    // whether the default variant needs to move to one that still has stock.
+    await this.recomputeDefaultVariantIfNeeded(productId, options);
 
     return this.findById(productId, undefined, options);
+  }
+
+  /**
+   * A product's default variant (the one the storefront card reads stock
+   * status from) should never be out of stock while another variant has
+   * stock. Called after a variant's stock is decremented — if the current
+   * default just hit 0 and a better alternative exists, switch the default
+   * to whichever variant now has the most stock.
+   */
+  private async recomputeDefaultVariantIfNeeded(
+    productId: string,
+    options?: {transaction?: any},
+  ): Promise<void> {
+    const product = await this.findById(productId, undefined, options);
+    const variants = Array.isArray(product.variants) ? product.variants : [];
+
+    if (variants.length === 0) {
+      return;
+    }
+
+    const currentDefault = variants.find(variant => variant.isDefault);
+
+    if (!currentDefault || Number(currentDefault.stockQuantity || 0) > 0) {
+      return;
+    }
+
+    const resolvedDefault = resolveDefaultVariant(variants, currentDefault);
+
+    if (!resolvedDefault || resolvedDefault.id === currentDefault.id) {
+      return;
+    }
+
+    const updatedVariants = variants.map(variant => ({
+      ...variant,
+      isDefault: variant.id === resolvedDefault.id,
+    }));
+
+    await this.updateById(
+      productId,
+      {variants: updatedVariants, updatedAt: new Date()},
+      options,
+    );
   }
 
   /**
@@ -472,10 +543,15 @@ export class ProductRepository extends TimeStampRepositoryMixin<
       )
       UPDATE public.products
       SET variants = jsonb_set(
-            COALESCE(variants, '[]'::jsonb),
-            ARRAY[(SELECT idx::text FROM matched), 'stockQuantity'],
-            to_jsonb((SELECT stock_qty - $3 FROM matched)),
-            false
+            jsonb_set(
+              COALESCE(variants, '[]'::jsonb),
+              ARRAY[(SELECT idx::text FROM matched), 'stockQuantity'],
+              to_jsonb((SELECT stock_qty - $3 FROM matched)),
+              true
+            ),
+            ARRAY[(SELECT idx::text FROM matched), 'inStock'],
+            to_jsonb((SELECT (stock_qty - $3) > 0 FROM matched)),
+            true
           ),
           stockquantity = GREATEST(COALESCE(stockquantity, 0) - $3, 0),
           instock = GREATEST(COALESCE(stockquantity, 0) - $3, 0) > 0,
@@ -497,15 +573,18 @@ export class ProductRepository extends TimeStampRepositoryMixin<
 
     const reservedEmbedded = this.hasSuccessfulAtomicUpdate(embeddedResult);
 
-    if (!reservedEmbedded) {
-      console.warn('[Inventory] Atomic variant reservation failed', {
-        productId,
-        variantId,
-        requestedQty: quantity,
-      });
+    if (reservedEmbedded) {
+      await this.recomputeDefaultVariantIfNeeded(productId, options);
+      return true;
     }
 
-    return reservedEmbedded;
+    console.warn('[Inventory] Atomic variant reservation failed', {
+      productId,
+      variantId,
+      requestedQty: quantity,
+    });
+
+    return false;
   }
 
   async releaseVariantStockAtomic(
@@ -550,10 +629,15 @@ export class ProductRepository extends TimeStampRepositoryMixin<
       )
       UPDATE public.products
       SET variants = jsonb_set(
-            COALESCE(variants, '[]'::jsonb),
-            ARRAY[(SELECT idx::text FROM matched), 'stockQuantity'],
-            to_jsonb((SELECT stock_qty + $3 FROM matched)),
-            false
+            jsonb_set(
+              COALESCE(variants, '[]'::jsonb),
+              ARRAY[(SELECT idx::text FROM matched), 'stockQuantity'],
+              to_jsonb((SELECT stock_qty + $3 FROM matched)),
+              true
+            ),
+            ARRAY[(SELECT idx::text FROM matched), 'inStock'],
+            to_jsonb((SELECT (stock_qty + $3) > 0 FROM matched)),
+            true
           ),
           stockquantity = COALESCE(stockquantity, 0) + $3,
           instock = (COALESCE(stockquantity, 0) + $3) > 0,
