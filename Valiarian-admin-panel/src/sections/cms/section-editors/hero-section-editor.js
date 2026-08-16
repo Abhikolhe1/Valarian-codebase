@@ -35,6 +35,8 @@ export default function HeroSectionEditor({ section, onSave, onCancel }) {
     name: section?.name || 'Hero Section',
     backgroundImage: section?.content?.backgroundImage || '',
     backgroundVideo: section?.content?.backgroundVideo || '',
+    backgroundImageMobile: section?.content?.backgroundImageMobile || '',
+    backgroundVideoMobile: section?.content?.backgroundVideoMobile || '',
     overlayOpacity: section?.content?.overlayOpacity || 0.5,
     title: section?.content?.title || section?.content?.heading || '',
     subheading: section?.content?.subheading || '',
@@ -74,6 +76,8 @@ export default function HeroSectionEditor({ section, onSave, onCancel }) {
       content: {
         backgroundImage: data.backgroundImage,
         backgroundVideo: data.backgroundVideo,
+        backgroundImageMobile: data.backgroundImageMobile,
+        backgroundVideoMobile: data.backgroundVideoMobile,
         overlayOpacity: parseFloat(data.overlayOpacity),
         title: data.title,
         heading: data.title,
@@ -178,6 +182,40 @@ export default function HeroSectionEditor({ section, onSave, onCancel }) {
                 type="number"
                 inputProps={{ min: 0, max: 1, step: 0.1 }}
                 helperText="0 = transparent, 1 = solid"
+              />
+            </Stack>
+          </CardContent>
+        </Card>
+
+        {/* Mobile Background */}
+        <Card>
+          <CardContent>
+            <Typography variant="h6" gutterBottom>
+              Mobile Background (Optional)
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              Shown instead of the background above on phone/small-tablet
+              screens. Leave blank to keep using the same background on
+              mobile.
+            </Typography>
+            <Stack spacing={2}>
+              <CMSMediaPickerField
+                label="Background Image (Mobile)"
+                value={values.backgroundImageMobile}
+                onChange={(url) => setValue('backgroundImageMobile', url)}
+                helperText="Select an image from media library"
+                accept={{
+                  'image/*': ['.jpg', '.jpeg', '.png', '.webp', '.svg'],
+                }}
+              />
+              <CMSMediaPickerField
+                label="Background Video (Mobile, Optional)"
+                value={values.backgroundVideoMobile}
+                onChange={(url) => setValue('backgroundVideoMobile', url)}
+                helperText="Select a video from media library"
+                accept={{
+                  'video/*': ['.mp4', '.webm'],
+                }}
               />
             </Stack>
           </CardContent>

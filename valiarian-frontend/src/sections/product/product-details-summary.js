@@ -607,7 +607,7 @@ export default function ProductDetailsSummary({
         <Button
           fullWidth
           size="large"
-          color="secondary"
+          color="primary"
           variant="outlined"
           startIcon={<Iconify icon="solar:cart-check-bold" width={24} />}
           onClick={handleGoToCart}
@@ -620,7 +620,7 @@ export default function ProductDetailsSummary({
           fullWidth
           disabled={isMaxQuantity || disabledActions || !variantInStock || available < 1}
           size="large"
-          color="secondary"
+          color="primary"
           variant="outlined"
           startIcon={<Iconify icon="solar:cart-plus-bold" width={24} />}
           onClick={handleAddCart}
@@ -635,7 +635,7 @@ export default function ProductDetailsSummary({
         size="large"
         type="submit"
         variant="contained"
-        color="secondary"
+        color="primary"
         disabled={disabledActions || !variantInStock || available < 1}
       >
         Buy Now
