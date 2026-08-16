@@ -20,6 +20,7 @@ import {CategoryRepository, ProductRepository} from '../repositories';
 import {EmailService} from '../services/email.service';
 import {SlugService} from '../services/slug.service';
 import SITE_SETTINGS from '../utils/config';
+import {resolveDefaultVariant} from '../utils/variant.utils';
 
 export class ProductController {
   constructor(
@@ -72,15 +73,20 @@ export class ProductController {
       } as ProductVariant;
     });
 
-    const defaultVariant = [...normalizedVariants]
-      .reverse()
-      .find(variant => variant.isDefault);
-    const variantsWithDefault = normalizedVariants.map((variant, index) => ({
+    const nominalDefault =
+      [...normalizedVariants].reverse().find(variant => variant.isDefault) ||
+      normalizedVariants[0];
+
+    // A product's default variant should never be out of stock while another
+    // variant has stock — the storefront product card shows the default
+    // variant's own stock status, so an out-of-stock default would hide an
+    // otherwise-available product. Prefer whichever variant has the most
+    // stock instead, but only when a real alternative exists.
+    const defaultVariant = resolveDefaultVariant(normalizedVariants, nominalDefault);
+
+    const variantsWithDefault = normalizedVariants.map((variant) => ({
       ...variant,
-      isDefault:
-        defaultVariant
-          ? variant.id === defaultVariant.id
-          : index === 0,
+      isDefault: defaultVariant ? variant.id === defaultVariant.id : false,
     })) as ProductVariant[];
 
     const stockQuantity = variantsWithDefault.reduce(
