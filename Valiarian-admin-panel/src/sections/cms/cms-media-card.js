@@ -156,43 +156,47 @@ export default function CMSMediaCard({ media, selected, onSelect, onDelete, onEd
           transition: (theme) => theme.transitions.create(['opacity']),
         }}
       >
-        <Tooltip title="Edit">
-          <IconButton
-            size="small"
-            onClick={(e) => {
-              e.stopPropagation();
-              onEdit();
-            }}
-            sx={{
-              bgcolor: (theme) => alpha(theme.palette.grey[900], 0.72),
-              color: 'common.white',
-              '&:hover': {
-                bgcolor: (theme) => alpha(theme.palette.grey[900], 0.88),
-              },
-            }}
-          >
-            <Iconify icon="solar:pen-bold" width={18} />
-          </IconButton>
-        </Tooltip>
+        {onEdit && (
+          <Tooltip title="Edit">
+            <IconButton
+              size="small"
+              onClick={(e) => {
+                e.stopPropagation();
+                onEdit();
+              }}
+              sx={{
+                bgcolor: (theme) => alpha(theme.palette.grey[900], 0.72),
+                color: 'common.white',
+                '&:hover': {
+                  bgcolor: (theme) => alpha(theme.palette.grey[900], 0.88),
+                },
+              }}
+            >
+              <Iconify icon="solar:pen-bold" width={18} />
+            </IconButton>
+          </Tooltip>
+        )}
 
-        <Tooltip title="Delete">
-          <IconButton
-            size="small"
-            onClick={(e) => {
-              e.stopPropagation();
-              onDelete();
-            }}
-            sx={{
-              bgcolor: (theme) => alpha(theme.palette.grey[900], 0.72),
-              color: 'common.white',
-              '&:hover': {
-                bgcolor: (theme) => alpha(theme.palette.grey[900], 0.88),
-              },
-            }}
-          >
-            <Iconify icon="solar:trash-bin-trash-bold" width={18} />
-          </IconButton>
-        </Tooltip>
+        {onDelete && (
+          <Tooltip title="Delete">
+            <IconButton
+              size="small"
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete();
+              }}
+              sx={{
+                bgcolor: (theme) => alpha(theme.palette.grey[900], 0.72),
+                color: 'common.white',
+                '&:hover': {
+                  bgcolor: (theme) => alpha(theme.palette.grey[900], 0.88),
+                },
+              }}
+            >
+              <Iconify icon="solar:trash-bin-trash-bold" width={18} />
+            </IconButton>
+          </Tooltip>
+        )}
       </Stack>
 
       {/* Preview */}
