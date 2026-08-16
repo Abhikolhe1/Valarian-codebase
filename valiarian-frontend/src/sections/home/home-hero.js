@@ -3,8 +3,9 @@ import PropTypes from 'prop-types';
 // @mui
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
-import { alpha, styled } from '@mui/material/styles';
+import { alpha, styled, useTheme } from '@mui/material/styles';
 import Typography from '@mui/material/Typography';
+import useMediaQuery from '@mui/material/useMediaQuery';
 // routes
 import { paths } from 'src/routes/paths';
 // layouts
@@ -120,8 +121,21 @@ const ContentPosition = styled(Box)(({ theme }) => ({
 // ----------------------------------------------------------------------
 
 export default function HomeHero({ imageSrc, videoSrc, cmsData, ...other }) {
-  const resolvedVideo = cmsData?.content?.backgroundVideo || videoSrc;
-  const resolvedImage = cmsData?.content?.backgroundImage || imageSrc;
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+
+  const desktopVideo = cmsData?.content?.backgroundVideo || videoSrc;
+  const desktopImage = cmsData?.content?.backgroundImage || imageSrc;
+
+  // Mobile-specific media is optional — falls back to the desktop media
+  // whenever it isn't set, so existing heroes keep working unchanged.
+  const resolvedVideo = isMobile
+    ? cmsData?.content?.backgroundVideoMobile || desktopVideo
+    : desktopVideo;
+  const resolvedImage = isMobile
+    ? cmsData?.content?.backgroundImageMobile || desktopImage
+    : desktopImage;
+
   const hasVideo = Boolean(resolvedVideo);
   const hasImage = Boolean(resolvedImage);
 
@@ -141,7 +155,11 @@ export default function HomeHero({ imageSrc, videoSrc, cmsData, ...other }) {
   const renderMedia = () => {
     if (hasVideo) {
       return (
+        // `key` forces a remount (and fresh <video> load) when the resolved
+        // source changes, e.g. when crossing the mobile/desktop breakpoint —
+        // browsers don't reliably pick up a changed <source> otherwise.
         <StyledVideo
+          key={resolvedVideo}
           autoPlay
           loop
           muted
@@ -161,6 +179,7 @@ export default function HomeHero({ imageSrc, videoSrc, cmsData, ...other }) {
     if (hasImage) {
       return (
         <StyledImage
+          key={resolvedImage}
           src={resolvedImage}
           alt="Premium Cotton Polos"
           onError={(e) => {

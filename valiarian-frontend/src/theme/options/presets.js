@@ -6,7 +6,21 @@ import { palette as themePalette } from 'src/theme/palette';
 // ----------------------------------------------------------------------
 
 export function presets(presetsColor) {
+  // 'default' (and no explicit selection) means "don't override" — this lets
+  // the CMS-driven primary color from theme/index.js's baseOption survive.
+  // The storefront never exposes the preset-picker drawer to customers (only
+  // the internal dashboard layout does), so every real visitor was
+  // previously locked into a hardcoded primary color here regardless of the
+  // CMS theme setting.
+  if (!presetsColor || presetsColor === 'default') {
+    return {};
+  }
+
   const primary = primaryPresets.find((i) => i.name === presetsColor);
+
+  if (!primary) {
+    return {};
+  }
 
   const theme = {
     palette: {

@@ -25,7 +25,6 @@ const PRODUCTS = [
     image: '/assets/images/home/scroll-animation/tshirt1-removebg-preview.png',
     buttonText: 'Shop Now',
     buttonLink: paths.product.root,
-    accent: '#D97706',
     imageFit: 'contain',
   },
   {
@@ -36,7 +35,6 @@ const PRODUCTS = [
     image: '/assets/images/home/scroll-animation/tshirt2-removebg-preview.png',
     buttonText: 'Explore',
     buttonLink: paths.product.root,
-    accent: '#B91C1C',
     imageFit: 'contain',
   },
   {
@@ -47,7 +45,6 @@ const PRODUCTS = [
     image: '/assets/images/home/scroll-animation/tshirt3-removebg-preview.png',
     buttonText: 'Discover',
     buttonLink: paths.product.root,
-    accent: '#0F766E',
     imageFit: 'contain',
   },
   {
@@ -58,7 +55,6 @@ const PRODUCTS = [
     image: '/assets/images/home/scroll-animation/tshirt2-removebg-preview.png',
     buttonText: 'View Collection',
     buttonLink: paths.product.root,
-    accent: '#1D4ED8',
     imageFit: 'contain',
   },
 ];
@@ -88,7 +84,7 @@ function mapProgressToIndex(progress, itemCount) {
   return segmentIndex + transitionProgress;
 }
 
-function normalizeProducts(products) {
+function normalizeProducts(products, theme) {
   return products.map((product, index) => ({
     id: product.id ?? index + 1,
     title: product.title,
@@ -96,7 +92,7 @@ function normalizeProducts(products) {
     image: product.image,
     buttonText: product.buttonText || 'Explore',
     buttonLink: product.buttonLink || paths.product.root,
-    accent: product.accent || PRODUCTS[index % PRODUCTS.length].accent,
+    accent: theme?.palette?.secondary?.main || product.accent || PRODUCTS[index % PRODUCTS.length].accent,
     imageFit: product.imageFit || 'contain',
     eyebrow: product.eyebrow || `Story ${String(index + 1).padStart(2, '0')}`,
   }));
@@ -110,7 +106,7 @@ export default function HomeScrollAnimated({ products: propProducts, cmsData, ..
   const [currentProductIndex, setCurrentProductIndex] = useState(0);
 
   const rawProducts = cmsData?.content?.products || propProducts || PRODUCTS;
-  const products = useMemo(() => normalizeProducts(rawProducts), [rawProducts]);
+  const products = useMemo(() => normalizeProducts(rawProducts, theme), [rawProducts, theme]);
   const productCount = products.length;
   const backgroundColor = cmsData?.settings?.backgroundColor || theme.palette.background.default;
 

@@ -92,16 +92,15 @@ const SubCategoryItem = styled(Box)(({ theme, active }) => ({
   transition: theme.transitions.create(['background-color', 'color'], {
     duration: theme.transitions.duration.shorter,
   }),
-  color: active ? theme.palette.secondary.main : theme.palette.text.secondary,
-  backgroundColor: active ? alpha(theme.palette.secondary.main, 0.08) : 'transparent',
+  color: active ? theme.palette.primary.main : theme.palette.text.secondary,
+  backgroundColor: active ? alpha(theme.palette.primary.main, 0.08) : 'transparent',
   fontWeight: active ? 600 : 400,
   fontSize: '0.875rem',
   display: 'flex',
   alignItems: 'center',
   position: 'relative',
   '&:hover': {
-    backgroundColor: alpha(theme.palette.secondary.main, active ? 0.12 : 0.04),
-    // color: theme.palette.primary.main,
+    backgroundColor: alpha(theme.palette.primary.main, active ? 0.12 : 0.04),
   },
   '&::before': active
     ? {
@@ -111,7 +110,7 @@ const SubCategoryItem = styled(Box)(({ theme, active }) => ({
         width: 6,
         height: 6,
         borderRadius: '50%',
-        backgroundColor: theme.palette.secondary.main,
+        backgroundColor: theme.palette.primary.main,
       }
     : {},
 }));

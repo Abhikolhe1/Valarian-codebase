@@ -25,7 +25,7 @@ export default function CMSMediaPickerField({
   helperText,
   error,
   accept,
-  compact = false,
+  compact = true,
 }) {
   const pickerOpen = useBoolean();
 
@@ -75,8 +75,8 @@ export default function CMSMediaPickerField({
           <Stack direction="row" alignItems="center" spacing={1.5}>
             <Box
               sx={{
-                width: 40,
-                height: 40,
+                width: 48,
+                height: 48,
                 borderRadius: 1,
                 bgcolor: 'background.neutral',
                 display: 'flex',
@@ -84,9 +84,31 @@ export default function CMSMediaPickerField({
                 justifyContent: 'center',
                 color: 'text.secondary',
                 flexShrink: 0,
+                overflow: 'hidden',
               }}
             >
-              <Iconify icon={value ? 'solar:file-text-bold' : 'solar:gallery-add-bold-duotone'} width={22} />
+              {isImage && (
+                <Box
+                  component="img"
+                  src={value}
+                  alt={fileName}
+                  sx={{ width: 1, height: 1, objectFit: 'cover' }}
+                />
+              )}
+
+              {isVideo && (
+                <Box
+                  component="video"
+                  src={value}
+                  muted
+                  preload="metadata"
+                  sx={{ width: 1, height: 1, objectFit: 'cover' }}
+                />
+              )}
+
+              {!isImage && !isVideo && (
+                <Iconify icon={value ? 'solar:file-text-bold' : 'solar:gallery-add-bold-duotone'} width={22} />
+              )}
             </Box>
 
             <Box sx={{ flexGrow: 1, minWidth: 0 }}>
