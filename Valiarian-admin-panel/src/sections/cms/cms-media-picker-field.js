@@ -1,3 +1,4 @@
+import { DragDropContext, Draggable, Droppable } from '@hello-pangea/dnd';
 import PropTypes from 'prop-types';
 import { useCallback } from 'react';
 // @mui
@@ -33,15 +34,31 @@ export default function CMSMediaPickerField({
   const handleSelect = useCallback(
     (selectedMedia) => {
       if (multiple) {
-        // For multiple selection, return array of media objects or URLs
-        const mediaUrls = selectedMedia.map((item) => item.url);
-        onChange(mediaUrls);
+        // Append newly picked media to whatever is already selected instead
+        // of replacing it, so re-opening the picker to add more images
+        // doesn't wipe out the ones already added.
+        const existing = Array.isArray(value) ? value : [];
+        const newUrls = selectedMedia.map((item) => item.url);
+        const merged = [...existing, ...newUrls.filter((url) => !existing.includes(url))];
+        onChange(merged);
       } else {
         // For single selection, return media URL
         onChange(selectedMedia?.url || '');
       }
     },
-    [multiple, onChange]
+    [multiple, value, onChange]
+  );
+
+  const handleReorder = useCallback(
+    (result) => {
+      if (!result.destination || !Array.isArray(value)) return;
+
+      const items = Array.from(value);
+      const [reordered] = items.splice(result.source.index, 1);
+      items.splice(result.destination.index, 0, reordered);
+      onChange(items);
+    },
+    [value, onChange]
   );
 
   const handleRemove = useCallback(
@@ -296,112 +313,179 @@ export default function CMSMediaPickerField({
 
     return (
       <Stack spacing={2}>
-        <Stack direction="row" spacing={2} flexWrap="wrap" useFlexGap>
-          {values.map((item, index) => {
-            const isImage = item.match(/\.(jpg|jpeg|png|gif|webp|svg)$/i);
-            const isVideo = item.match(/\.(mp4|webm)$/i);
-
-            return (
-              <Card
-                key={index}
-                sx={{
-                  position: 'relative',
-                  width: 120,
-                  '&:hover .actions': {
-                    opacity: 1,
-                  },
-                }}
+        <DragDropContext onDragEnd={handleReorder}>
+          <Droppable droppableId="additional-images" direction="horizontal">
+            {(droppableProvided) => (
+              <Stack
+                ref={droppableProvided.innerRef}
+                {...droppableProvided.droppableProps}
+                direction="row"
+                spacing={2}
+                flexWrap="wrap"
+                useFlexGap
               >
-                {isImage && (
-                  <Image
-                    src={item}
-                    alt={`Media ${index + 1}`}
-                    ratio="1/1"
-                    sx={{ borderRadius: 1 }}
-                  />
-                )}
+                {values.map((item, index) => {
+                  const isImage = item.match(/\.(jpg|jpeg|png|gif|webp|svg)$/i);
+                  const isVideo = item.match(/\.(mp4|webm)$/i);
 
-                {isVideo && (
-                  <Box
-                    component="video"
-                    src={item}
-                    sx={{
-                      width: '100%',
-                      aspectRatio: '1/1',
-                      objectFit: 'cover',
-                      borderRadius: 1,
-                      bgcolor: 'background.neutral',
-                    }}
-                  />
-                )}
+                  return (
+                    <Draggable key={item} draggableId={item} index={index}>
+                      {(draggableProvided, draggableSnapshot) => (
+                        <Card
+                          ref={draggableProvided.innerRef}
+                          {...draggableProvided.draggableProps}
+                          {...draggableProvided.dragHandleProps}
+                          sx={{
+                            position: 'relative',
+                            width: 120,
+                            cursor: 'grab',
+                            '&:active': {
+                              cursor: 'grabbing',
+                            },
+                            '&:hover .actions': {
+                              opacity: 1,
+                            },
+                            ...(draggableSnapshot.isDragging && {
+                              boxShadow: (theme) => theme.customShadows.z20,
+                              border: (theme) => `2px solid ${theme.palette.primary.main}`,
+                            }),
+                          }}
+                        >
+                          {isImage && (
+                            <Image
+                              src={item}
+                              alt={`Media ${index + 1}`}
+                              ratio="1/1"
+                              sx={{ borderRadius: 1 }}
+                            />
+                          )}
 
-                {!isImage && !isVideo && (
-                  <Box
-                    sx={{
-                      position: 'relative',
-                      paddingTop: '100%',
-                      borderRadius: 1,
-                      bgcolor: 'background.neutral',
-                    }}
-                  >
-                    <Iconify
-                      icon="solar:file-bold-duotone"
-                      width={32}
-                      sx={{
-                        position: 'absolute',
-                        top: '50%',
-                        left: '50%',
-                        transform: 'translate(-50%, -50%)',
-                        color: 'text.disabled',
-                      }}
-                    />
-                  </Box>
-                )}
+                          {isVideo && (
+                            <Box
+                              component="video"
+                              src={item}
+                              sx={{
+                                width: '100%',
+                                aspectRatio: '1/1',
+                                objectFit: 'cover',
+                                borderRadius: 1,
+                                bgcolor: 'background.neutral',
+                              }}
+                            />
+                          )}
 
-                <IconButton
-                  className="actions"
-                  size="small"
-                  onClick={() => handleRemove(index)}
+                          {!isImage && !isVideo && (
+                            <Box
+                              sx={{
+                                position: 'relative',
+                                paddingTop: '100%',
+                                borderRadius: 1,
+                                bgcolor: 'background.neutral',
+                              }}
+                            >
+                              <Iconify
+                                icon="solar:file-bold-duotone"
+                                width={32}
+                                sx={{
+                                  position: 'absolute',
+                                  top: '50%',
+                                  left: '50%',
+                                  transform: 'translate(-50%, -50%)',
+                                  color: 'text.disabled',
+                                }}
+                              />
+                            </Box>
+                          )}
+
+                          {/* Drag Handle Icon */}
+                          <Box
+                            sx={{
+                              position: 'absolute',
+                              top: 4,
+                              left: 4,
+                              zIndex: 9,
+                              color: 'common.white',
+                              bgcolor: (theme) => alpha(theme.palette.grey[900], 0.48),
+                              borderRadius: 0.5,
+                              p: 0.25,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                            }}
+                          >
+                            <Iconify icon="nimbus:drag-dots" width={14} />
+                          </Box>
+
+                          {/* Order Badge */}
+                          <Box
+                            sx={{
+                              position: 'absolute',
+                              bottom: 4,
+                              left: 4,
+                              zIndex: 9,
+                              color: 'common.white',
+                              bgcolor: (theme) => alpha(theme.palette.grey[900], 0.72),
+                              borderRadius: 0.5,
+                              px: 0.75,
+                              py: 0.25,
+                              fontSize: 10,
+                              fontWeight: 600,
+                            }}
+                          >
+                            {index + 1}
+                          </Box>
+
+                          <IconButton
+                            className="actions"
+                            size="small"
+                            onClick={() => handleRemove(index)}
+                            sx={{
+                              position: 'absolute',
+                              top: 4,
+                              right: 4,
+                              opacity: 0,
+                              transition: (theme) => theme.transitions.create(['opacity']),
+                              bgcolor: (theme) => alpha(theme.palette.grey[900], 0.72),
+                              color: 'common.white',
+                              '&:hover': {
+                                bgcolor: (theme) => alpha(theme.palette.grey[900], 0.88),
+                              },
+                            }}
+                          >
+                            <Iconify icon="solar:trash-bin-trash-bold" width={16} />
+                          </IconButton>
+                        </Card>
+                      )}
+                    </Draggable>
+                  );
+                })}
+
+                {droppableProvided.placeholder}
+
+                <Box
+                  onClick={pickerOpen.onTrue}
                   sx={{
-                    position: 'absolute',
-                    top: 4,
-                    right: 4,
-                    opacity: 0,
-                    transition: (theme) => theme.transitions.create(['opacity']),
-                    bgcolor: (theme) => alpha(theme.palette.grey[900], 0.72),
-                    color: 'common.white',
+                    width: 120,
+                    height: 120,
+                    borderRadius: 1,
+                    border: (theme) => `1px dashed ${alpha(theme.palette.grey[500], 0.32)}`,
+                    bgcolor: 'background.neutral',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    transition: (theme) => theme.transitions.create(['border-color']),
                     '&:hover': {
-                      bgcolor: (theme) => alpha(theme.palette.grey[900], 0.88),
+                      borderColor: 'primary.main',
                     },
                   }}
                 >
-                  <Iconify icon="solar:trash-bin-trash-bold" width={16} />
-                </IconButton>
-              </Card>
-            );
-          })}
-
-          <Box
-            onClick={pickerOpen.onTrue}
-            sx={{
-              width: 120,
-              height: 120,
-              borderRadius: 1,
-              border: (theme) => `1px dashed ${alpha(theme.palette.grey[500], 0.32)}`,
-              bgcolor: 'background.neutral',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              transition: (theme) => theme.transitions.create(['border-color']),
-              '&:hover': {
-                borderColor: 'primary.main',
-              },
-            }}
-          >
-            <Iconify icon="eva:plus-fill" width={32} sx={{ color: 'text.disabled' }} />
-          </Box>
-        </Stack>
+                  <Iconify icon="eva:plus-fill" width={32} sx={{ color: 'text.disabled' }} />
+                </Box>
+              </Stack>
+            )}
+          </Droppable>
+        </DragDropContext>
       </Stack>
     );
   };
