@@ -1,13 +1,19 @@
 import { useCallback, useEffect, useState } from 'react';
+import { mutate as mutateGlobal } from 'swr';
 // @mui
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
 import Container from '@mui/material/Container';
+import FormControl from '@mui/material/FormControl';
 import Grid from '@mui/material/Grid';
+import InputLabel from '@mui/material/InputLabel';
 import LinearProgress from '@mui/material/LinearProgress';
+import MenuItem from '@mui/material/MenuItem';
+import Select from '@mui/material/Select';
 import Stack from '@mui/material/Stack';
+import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 // routes
 import { paths } from 'src/routes/paths';
@@ -28,7 +34,6 @@ import { Upload } from 'src/components/upload';
 import Lightbox, { useLightBox } from 'src/components/lightbox';
 import CMSMediaBulkDialog from '../cms-media-bulk-dialog';
 import CMSMediaCard from '../cms-media-card';
-import CMSMediaFolderDialog from '../cms-media-folder-dialog';
 import CMSMediaMetadataDialog from '../cms-media-metadata-dialog';
 import CMSMediaToolbar from '../cms-media-toolbar';
 
@@ -47,10 +52,27 @@ export default function CMSMediaLibraryView() {
     folder: '',
     mimeType: '',
   });
+  const [uploadFolder, setUploadFolder] = useState('/');
+  const [newUploadFolder, setNewUploadFolder] = useState('');
 
   // Use hooks to get media and folders
-  const { media: mediaData, mediaLoading, mediaMutate } = useGetMedia(filters);
-  const { folders } = useGetMediaFolders();
+  const { media: mediaData, mediaLoading } = useGetMedia(filters);
+  const { folders, foldersMutate } = useGetMediaFolders();
+
+  // useGetMedia's SWR key varies per filter combination (folder/search/type),
+  // so each folder ever viewed gets its own cache entry. Its own bound
+  // mutate() only refreshes whichever combination is currently active, which
+  // leaves e.g. a move's destination folder still serving stale cached data
+  // if you'd viewed it before. Invalidate every cached variation instead.
+  const invalidateAllMediaLists = useCallback(
+    () =>
+      mutateGlobal(
+        (key) =>
+          key === endpoints.cms.media.list ||
+          (Array.isArray(key) && key[0] === endpoints.cms.media.list)
+      ),
+    []
+  );
 
   const [media, setMedia] = useState([]);
 
@@ -64,7 +86,6 @@ export default function CMSMediaLibraryView() {
   const deleteConfirm = useBoolean();
   const uploadDialog = useBoolean();
   const metadataDialog = useBoolean();
-  const folderDialog = useBoolean();
   const bulkDialog = useBoolean();
 
   // Prepare slides for lightbox
@@ -103,6 +124,14 @@ export default function CMSMediaLibraryView() {
     async (files) => {
       if (!files || files.length === 0) return;
 
+      const targetFolder =
+        (uploadFolder === '__new__' ? newUploadFolder.trim() : uploadFolder) || '/';
+
+      if (uploadFolder === '__new__' && !newUploadFolder.trim()) {
+        enqueueSnackbar('Please enter a folder name', { variant: 'warning' });
+        return;
+      }
+
       try {
         setUploading(true);
         setUploadProgress(0);
@@ -114,7 +143,7 @@ export default function CMSMediaLibraryView() {
         const uploadPromises = files.map(async (file) => {
           const formData = new FormData();
           formData.append('file', file);
-          formData.append('folder', filters.folder || '/');
+          formData.append('folder', targetFolder);
 
           await axiosInstance.post(endpoints.cms.media.upload, formData, {
             headers: {
@@ -130,8 +159,12 @@ export default function CMSMediaLibraryView() {
         await Promise.all(uploadPromises);
 
         enqueueSnackbar(`Successfully uploaded ${totalFiles} file(s)`, { variant: 'success' });
-        // Trigger SWR revalidation
-        mediaMutate();
+        // Trigger SWR revalidation — media list and the distinct folders list
+        invalidateAllMediaLists();
+        foldersMutate();
+        // Jump the browse view to the folder we just uploaded into.
+        setFilters((prev) => ({ ...prev, folder: targetFolder === '/' ? '' : targetFolder }));
+        setNewUploadFolder('');
         uploadDialog.onFalse();
       } catch (error) {
         console.error('Upload error:', error);
@@ -141,7 +174,7 @@ export default function CMSMediaLibraryView() {
         setUploadProgress(0);
       }
     },
-    [filters.folder, enqueueSnackbar, uploadDialog, mediaMutate]
+    [uploadFolder, newUploadFolder, enqueueSnackbar, uploadDialog, invalidateAllMediaLists, foldersMutate]
   );
 
   const handleDeleteSelected = useCallback(async () => {
@@ -155,13 +188,14 @@ export default function CMSMediaLibraryView() {
       });
       setSelectedMedia([]);
       // Trigger SWR revalidation
-      mediaMutate();
+      invalidateAllMediaLists();
+      foldersMutate();
       deleteConfirm.onFalse();
     } catch (error) {
       console.error('Delete error:', error);
       enqueueSnackbar('Failed to delete media', { variant: 'error' });
     }
-  }, [selectedMedia, enqueueSnackbar, deleteConfirm, mediaMutate]);
+  }, [selectedMedia, enqueueSnackbar, deleteConfirm, invalidateAllMediaLists, foldersMutate]);
 
   const handleDeleteSingle = useCallback(
     async (mediaId) => {
@@ -170,13 +204,14 @@ export default function CMSMediaLibraryView() {
 
         enqueueSnackbar('Media deleted successfully', { variant: 'success' });
         // Trigger SWR revalidation
-        mediaMutate();
+        invalidateAllMediaLists();
+        foldersMutate();
       } catch (error) {
         console.error('Delete error:', error);
         enqueueSnackbar('Failed to delete media', { variant: 'error' });
       }
     },
-    [enqueueSnackbar, mediaMutate]
+    [enqueueSnackbar, invalidateAllMediaLists, foldersMutate]
   );
 
   const handleEditMedia = useCallback((mediaItem) => {
@@ -194,11 +229,6 @@ export default function CMSMediaLibraryView() {
     }
   }, [lightbox]);
 
-  const handleCreateFolder = useCallback(async (folderName) => {
-    // For now, folders are created implicitly when uploading to them
-    // SWR will automatically revalidate folders when needed
-  }, []);
-
   const handleMoveToFolder = useCallback(async (targetFolder) => {
     try {
       await axiosInstance.post(`${endpoints.cms.media.list}/bulk-move`, {
@@ -211,13 +241,14 @@ export default function CMSMediaLibraryView() {
       });
       setSelectedMedia([]);
       // Trigger SWR revalidation
-      mediaMutate();
+      invalidateAllMediaLists();
+      foldersMutate();
     } catch (error) {
       console.error('Move error:', error);
       enqueueSnackbar('Failed to move files', { variant: 'error' });
       throw error;
     }
-  }, [selectedMedia, enqueueSnackbar, mediaMutate]);
+  }, [selectedMedia, enqueueSnackbar, invalidateAllMediaLists, foldersMutate]);
 
   return (
     <>
@@ -250,7 +281,6 @@ export default function CMSMediaLibraryView() {
             onSelectAll={handleSelectAll}
             onDeleteSelected={deleteConfirm.onTrue}
             onMoveSelected={bulkDialog.onTrue}
-            onCreateFolder={folderDialog.onTrue}
             currentFolder={filters.folder}
             folders={folders}
           />
@@ -319,6 +349,35 @@ export default function CMSMediaLibraryView() {
         title="Upload Files"
         content={
           <Box sx={{ pt: 2 }}>
+            <FormControl fullWidth sx={{ mb: 2 }}>
+              <InputLabel>Upload to Folder</InputLabel>
+              <Select
+                value={uploadFolder}
+                onChange={(e) => setUploadFolder(e.target.value)}
+                label="Upload to Folder"
+              >
+                <MenuItem value="/">Root</MenuItem>
+                {folders.map((folder) => (
+                  <MenuItem key={folder} value={folder}>
+                    {folder}
+                  </MenuItem>
+                ))}
+                <MenuItem value="__new__">+ Create New Folder</MenuItem>
+              </Select>
+            </FormControl>
+
+            {uploadFolder === '__new__' && (
+              <TextField
+                fullWidth
+                autoFocus
+                label="New Folder Name"
+                placeholder="e.g. crown-line-polo"
+                value={newUploadFolder}
+                onChange={(e) => setNewUploadFolder(e.target.value)}
+                sx={{ mb: 2 }}
+              />
+            )}
+
             <Upload
               multiple
               files={[]}
@@ -362,13 +421,6 @@ export default function CMSMediaLibraryView() {
         onClose={metadataDialog.onFalse}
         media={currentMedia}
         onUpdate={handleUpdateMedia}
-      />
-
-      {/* Folder Creation Dialog */}
-      <CMSMediaFolderDialog
-        open={folderDialog.value}
-        onClose={folderDialog.onFalse}
-        onCreateFolder={handleCreateFolder}
       />
 
       {/* Bulk Operations Dialog */}

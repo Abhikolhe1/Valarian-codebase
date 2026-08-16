@@ -1,5 +1,6 @@
 import PropTypes from 'prop-types';
 import { useCallback, useEffect, useState } from 'react';
+import { mutate as mutateGlobal } from 'swr';
 // @mui
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
@@ -7,11 +8,16 @@ import Dialog from '@mui/material/Dialog';
 import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 import DialogTitle from '@mui/material/DialogTitle';
+import FormControl from '@mui/material/FormControl';
 import Grid from '@mui/material/Grid';
+import InputLabel from '@mui/material/InputLabel';
 import LinearProgress from '@mui/material/LinearProgress';
+import MenuItem from '@mui/material/MenuItem';
+import Select from '@mui/material/Select';
 import Stack from '@mui/material/Stack';
 import Tab from '@mui/material/Tab';
 import Tabs from '@mui/material/Tabs';
+import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 // hooks
 import { useBoolean } from 'src/hooks/use-boolean';
@@ -56,14 +62,31 @@ export default function CMSMediaPicker({
     folder: '',
     mimeType: '',
   });
+  const [uploadFolder, setUploadFolder] = useState('/');
+  const [newUploadFolder, setNewUploadFolder] = useState('');
 
   const uploadDialog = useBoolean();
   const deleteConfirm = useBoolean();
   const bulkDialog = useBoolean();
 
+  // useGetMedia's SWR key varies per filter combination (folder/search/type),
+  // so each folder ever viewed gets its own cache entry. The hook's own bound
+  // mutate() only refreshes whichever combination is currently active, which
+  // leaves e.g. a move's destination folder still serving stale cached data
+  // if you'd viewed it before. Invalidate every cached variation instead.
+  const invalidateAllMediaLists = useCallback(
+    () =>
+      mutateGlobal(
+        (key) =>
+          key === endpoints.cms.media.list ||
+          (Array.isArray(key) && key[0] === endpoints.cms.media.list)
+      ),
+    []
+  );
+
   // Use hooks to get media and folders
-  const { media, mediaLoading, mediaMutate } = useGetMedia(filters, open);
-  const { folders } = useGetMediaFolders();
+  const { media, mediaLoading } = useGetMedia(filters, open);
+  const { folders, foldersMutate } = useGetMediaFolders();
 
   // Prepare slides for lightbox
   const slides = media
@@ -110,6 +133,23 @@ export default function CMSMediaPicker({
     }
   }, [media, selected]);
 
+  const handleDeleteSingle = useCallback(
+    async (mediaId) => {
+      try {
+        await axiosInstance.delete(endpoints.cms.media.details(mediaId));
+
+        enqueueSnackbar('Media deleted successfully', { variant: 'success' });
+        setSelected((prev) => prev.filter((id) => id !== mediaId));
+        invalidateAllMediaLists();
+        foldersMutate();
+      } catch (error) {
+        console.error('Delete error:', error);
+        enqueueSnackbar('Failed to delete media', { variant: 'error' });
+      }
+    },
+    [enqueueSnackbar, invalidateAllMediaLists, foldersMutate]
+  );
+
   const handleDeleteSelected = useCallback(async () => {
     try {
       await axiosInstance.post(`${endpoints.cms.media.list}/bulk-delete`, {
@@ -120,13 +160,14 @@ export default function CMSMediaPicker({
         variant: 'success',
       });
       setSelected([]);
-      mediaMutate();
+      invalidateAllMediaLists();
+      foldersMutate();
       deleteConfirm.onFalse();
     } catch (error) {
       console.error('Delete error:', error);
       enqueueSnackbar('Failed to delete media', { variant: 'error' });
     }
-  }, [selected, enqueueSnackbar, deleteConfirm, mediaMutate]);
+  }, [selected, enqueueSnackbar, deleteConfirm, invalidateAllMediaLists, foldersMutate]);
 
   const handleMoveToFolder = useCallback(
     async (targetFolder) => {
@@ -140,19 +181,28 @@ export default function CMSMediaPicker({
           variant: 'success',
         });
         setSelected([]);
-        mediaMutate();
+        invalidateAllMediaLists();
+        foldersMutate();
       } catch (error) {
         console.error('Move error:', error);
         enqueueSnackbar('Failed to move files', { variant: 'error' });
         throw error;
       }
     },
-    [selected, enqueueSnackbar, mediaMutate]
+    [selected, enqueueSnackbar, invalidateAllMediaLists, foldersMutate]
   );
 
   const handleUpload = useCallback(
     async (files) => {
       if (!files || files.length === 0) return;
+
+      const targetFolder =
+        (uploadFolder === '__new__' ? newUploadFolder.trim() : uploadFolder) || '/';
+
+      if (uploadFolder === '__new__' && !newUploadFolder.trim()) {
+        enqueueSnackbar('Please enter a folder name', { variant: 'warning' });
+        return;
+      }
 
       try {
         setUploading(true);
@@ -165,7 +215,7 @@ export default function CMSMediaPicker({
         const uploadPromises = files.map(async (file) => {
           const formData = new FormData();
           formData.append('file', file);
-          formData.append('folder', filters.folder || '/');
+          formData.append('folder', targetFolder);
 
           await axiosInstance.post(endpoints.cms.media.upload, formData, {
             headers: {
@@ -181,8 +231,15 @@ export default function CMSMediaPicker({
         await Promise.all(uploadPromises);
 
         enqueueSnackbar(`Successfully uploaded ${totalFiles} file(s)`, { variant: 'success' });
-        // Trigger SWR revalidation
-        mediaMutate();
+        // Trigger SWR revalidation — both the media list and the distinct
+        // folders list, since a fresh/new folder name only becomes visible
+        // in filters/move/upload dropdowns once this second key revalidates.
+        invalidateAllMediaLists();
+        foldersMutate();
+        // Jump the library view to the folder we just uploaded into, so the
+        // new file(s) are immediately visible instead of looking "missing".
+        setFilters((prev) => ({ ...prev, folder: targetFolder === '/' ? '' : targetFolder }));
+        setNewUploadFolder('');
         setCurrentTab('library');
       } catch (error) {
         console.error('Upload error:', error);
@@ -192,7 +249,7 @@ export default function CMSMediaPicker({
         setUploadProgress(0);
       }
     },
-    [filters.folder, enqueueSnackbar, mediaMutate]
+    [uploadFolder, newUploadFolder, enqueueSnackbar, invalidateAllMediaLists, foldersMutate]
   );
 
   const handlePreviewMedia = useCallback(
@@ -283,6 +340,7 @@ export default function CMSMediaPicker({
                             media={item}
                             selected={selected.includes(item.id)}
                             onSelect={() => handleSelectMedia(item.id)}
+                            onDelete={() => handleDeleteSingle(item.id)}
                             onPreview={() => handlePreviewMedia(item)}
                           />
                         </Grid>
@@ -296,6 +354,35 @@ export default function CMSMediaPicker({
 
           {currentTab === 'upload' && (
             <Box sx={{ p: 3 }}>
+              <FormControl fullWidth sx={{ mb: 2 }}>
+                <InputLabel>Upload to Folder</InputLabel>
+                <Select
+                  value={uploadFolder}
+                  onChange={(e) => setUploadFolder(e.target.value)}
+                  label="Upload to Folder"
+                >
+                  <MenuItem value="/">Root</MenuItem>
+                  {folders.map((folder) => (
+                    <MenuItem key={folder} value={folder}>
+                      {folder}
+                    </MenuItem>
+                  ))}
+                  <MenuItem value="__new__">+ Create New Folder</MenuItem>
+                </Select>
+              </FormControl>
+
+              {uploadFolder === '__new__' && (
+                <TextField
+                  fullWidth
+                  autoFocus
+                  label="New Folder Name"
+                  placeholder="Enter folder name"
+                  value={newUploadFolder}
+                  onChange={(e) => setNewUploadFolder(e.target.value)}
+                  sx={{ mb: 2 }}
+                />
+              )}
+
               <Upload
                 multiple={multiple}
                 files={[]}

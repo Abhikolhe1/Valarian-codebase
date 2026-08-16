@@ -175,11 +175,13 @@ export default function CMSMediaToolbar({
       </FormControl>
 
       {/* Create Folder Button */}
-      <Tooltip title="Create folder">
-        <IconButton onClick={onCreateFolder} color="primary">
-          <Iconify icon="solar:folder-with-files-bold" />
-        </IconButton>
-      </Tooltip>
+      {onCreateFolder && (
+        <Tooltip title="Create folder">
+          <IconButton onClick={onCreateFolder} color="primary">
+            <Iconify icon="solar:folder-with-files-bold" />
+          </IconButton>
+        </Tooltip>
+      )}
     </Stack>
   );
 }
