@@ -33,5 +33,14 @@ export * from './section.repository';
 export * from './site-settings.repository';
 export * from './user-roles.repository';
 export * from './users.repository';
-
 export * from './address.repository';
+
+// ── Delivery Integration (delivery-bluedart-integration) ─────────────────────
+export * from './shipment.repository';
+export * from './shipment-event.repository';
+export * from './shipment-item.repository';
+export * from './shipment-label.repository';
+export * from './warehouse.repository';
+export * from './ndr.repository';
+export * from './archived-shipment-event.repository';
+export * from './return-request-item.repository';
