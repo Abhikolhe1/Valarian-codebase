@@ -1,0 +1,68 @@
+name: Production Visibility
+
+on:
+  workflow_dispatch:
+    inputs:
+      visibility:
+        description: 'Choose what visitors see at valiarian.com'
+        required: true
+        type: choice
+        default: coming-soon
+        options:
+          - coming-soon
+          - live-website
+
+concurrency:
+  group: valiarian-production-visibility
+  cancel-in-progress: false
+
+jobs:
+  update:
+    name: Set storefront to ${{ inputs.visibility }}
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Configure SSH
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "${{ secrets.PROD_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          printf '%s\n' "${{ secrets.PROD_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Update production visibility
+        env:
+          VISIBILITY: ${{ inputs.visibility }}
+        run: |
+          ssh -i ~/.ssh/deploy_key -p "${{ secrets.PROD_SSH_PORT }}" \
+            -o UserKnownHostsFile=~/.ssh/known_hosts -o StrictHostKeyChecking=yes \
+            "${{ secrets.PROD_USER }}@${{ secrets.PROD_HOST }}" \
+            "set -euo pipefail; \
+             if [ '${VISIBILITY}' = 'coming-soon' ]; then \
+               test -f /var/www/maintenance/maintenance.html; \
+               touch /var/www/maintenance/frontend.flag; \
+             else \
+               test -f /var/www/html/index.html; \
+               rm -f /var/www/maintenance/frontend.flag; \
+             fi"
+
+      - name: Verify selected mode
+        env:
+          VISIBILITY: ${{ inputs.visibility }}
+        run: |
+          status="$(curl --silent --output /dev/null --write-out '%{http_code}' https://valiarian.com/)"
+          if [ "${VISIBILITY}" = 'coming-soon' ]; then
+            test "$status" = '503'
+          else
+            case "$status" in 2*) ;; *) exit 1 ;; esac
+          fi
+          echo "valiarian.com is now in ${VISIBILITY} mode (HTTP ${status})"
+
+      - name: Clean up SSH key
+        if: always()
+        run: rm -f ~/.ssh/deploy_key
+
+      - name: Job summary
+        if: always()
+        run: echo "valiarian.com visibility: **${{ inputs.visibility }}**" >> "$GITHUB_STEP_SUMMARY"

@@ -77,9 +77,15 @@ if grep -q 'localhost:3001' "$NGINX_ADMIN_CONFIG"; then
   systemctl reload nginx
 fi
 
-rm -f /var/www/maintenance/frontend.flag
 pm2 save
-bash "${SCRIPT_DIR}/health-check.sh" https://valiarian.com/ 10 3
+# Visibility is controlled separately by the Production Visibility workflow.
+# A deployment must never expose a storefront that was intentionally hidden.
+if [ -f /var/www/maintenance/frontend.flag ]; then
+  [ -f /var/www/maintenance/maintenance.html ]
+  log FRONTEND "Coming-soon mode remains enabled"
+else
+  bash "${SCRIPT_DIR}/health-check.sh" https://valiarian.com/ 10 3
+fi
 bash "${SCRIPT_DIR}/health-check.sh" https://api.valiarian.com/health 10 3
 bash "${SCRIPT_DIR}/health-check.sh" https://admin.valiarian.com/ 10 3
 log DEPLOY "Production deployment successful: ${DEPLOY_SHA}"
