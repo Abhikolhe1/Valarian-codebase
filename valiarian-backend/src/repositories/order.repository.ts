@@ -10,11 +10,12 @@ import {
 } from '@loopback/repository';
 import {ValiarianDataSource} from '../datasources';
 import {TimeStampRepositoryMixin} from '../mixins/timestamp-repository-mixin';
-import {Invoice, Order, OrderItemEntity, OrderRelations, Payment, Users} from '../models';
+import {Invoice, Order, OrderItemEntity, OrderRelations, Payment, Users, Shipment} from '../models';
 import {InvoiceRepository} from './invoice.repository';
 import {OrderItemRepository} from './order-item.repository';
 import {PaymentRepository} from './payment.repository';
 import {UsersRepository} from './users.repository';
+import {ShipmentRepository} from './shipment.repository';
 
 export interface OrderSearchOptions {
   search?: string;
@@ -54,6 +55,11 @@ export class OrderRepository extends TimeStampRepositoryMixin<
 
   public readonly invoice: HasOneRepositoryFactory<Invoice, typeof Order.prototype.id>;
 
+  public readonly shipments: HasManyRepositoryFactory<
+    Shipment,
+    typeof Order.prototype.id
+  >;
+
   constructor(
     @inject('datasources.valiarian') dataSource: ValiarianDataSource,
     @repository.getter('UsersRepository')
@@ -64,6 +70,8 @@ export class OrderRepository extends TimeStampRepositoryMixin<
     protected paymentRepositoryGetter: Getter<PaymentRepository>,
     @repository.getter('InvoiceRepository')
     protected invoiceRepositoryGetter: Getter<InvoiceRepository>,
+    @repository.getter('ShipmentRepository')
+    protected shipmentRepositoryGetter: Getter<ShipmentRepository>,
   ) {
     super(Order, dataSource);
     this.user = this.createBelongsToAccessorFor('user', usersRepositoryGetter);
@@ -73,10 +81,15 @@ export class OrderRepository extends TimeStampRepositoryMixin<
     );
     this.payment = this.createHasOneRepositoryFactoryFor('payment', paymentRepositoryGetter);
     this.invoice = this.createHasOneRepositoryFactoryFor('invoice', invoiceRepositoryGetter);
+    this.shipments = this.createHasManyRepositoryFactoryFor(
+      'shipments',
+      shipmentRepositoryGetter,
+    );
     this.registerInclusionResolver('user', this.user.inclusionResolver);
     this.registerInclusionResolver('orderItems', this.orderItems.inclusionResolver);
     this.registerInclusionResolver('payment', this.payment.inclusionResolver);
     this.registerInclusionResolver('invoice', this.invoice.inclusionResolver);
+    this.registerInclusionResolver('shipments', this.shipments.inclusionResolver);
   }
 
   async generateOrderNumber(prefix = 'ORD'): Promise<string> {

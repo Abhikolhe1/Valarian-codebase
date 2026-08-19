@@ -21,6 +21,7 @@ import {EmailService} from './services/email.service';
 import {GoogleOAuthService} from './services/google-oauth.service';
 import {BcryptHasher} from './services/hash.password.bcrypt';
 import {InvoiceGeneratorService} from './services/invoice-generator.service';
+import {InvoicePrintService} from './services/invoice-print.service';
 import {JWTService} from './services/jwt-service';
 import {MediaService} from './services/media.service';
 import {OtpNotificationService} from './services/otp-notification.service';
@@ -36,6 +37,18 @@ import {LocalStorageService} from './services/storage.service';
 import {TokenBlacklistService} from './services/token-blacklist.service';
 import {UserProfileService} from './services/user-profile.service';
 import {MyUserService} from './services/user-service';
+
+// ── Shipping Services & Cron Jobs ──────────────────────────────────────────
+import {ShippingService} from './services/shipping.service';
+import {InventoryLifecycleService} from './services/inventory-lifecycle.service';
+import {WarehouseService} from './services/warehouse.service';
+import {NdrService} from './services/ndr.service';
+import {ShippingAuditService} from './services/shipping-audit.service';
+import {ShippingMonitorService} from './services/shipping-monitor.service';
+import {TrackingSyncCronJob} from './services/tracking-sync.cron';
+import {NdrFollowUpCronJob} from './services/ndr-followup.cron';
+import {EventRetentionCronJob} from './services/event-retention.cron';
+
 export {ApplicationConfig};
 
 export class ValiarianBackendApplication extends BootMixin(
@@ -66,6 +79,9 @@ export class ValiarianBackendApplication extends BootMixin(
     registerAuthenticationStrategy(this, JWTStrategy);
     this.lifeCycleObserver(PendingOrderCleanupService);
     this.lifeCycleObserver(PremiumPreorderExpiryService);
+    this.lifeCycleObserver(TrackingSyncCronJob);
+    this.lifeCycleObserver(NdrFollowUpCronJob);
+    this.lifeCycleObserver(EventRetentionCronJob);
 
     this.projectRoot = __dirname;
     // Customize @loopback/boot Booter Conventions here
@@ -101,9 +117,18 @@ export class ValiarianBackendApplication extends BootMixin(
     this.bind('services.email').toClass(EmailService);
     this.bind('services.email.template').toClass(EmailTemplateService);
     this.bind('services.invoice.generator').toClass(InvoiceGeneratorService);
+    this.bind('services.invoice.print').toClass(InvoicePrintService);
     this.bind('services.otp.notification').toClass(OtpNotificationService);
     this.bind('services.storage').toClass(LocalStorageService);
     this.bind('services.barcode').toClass(BarcodeService);
+
+    // Bind shipping services
+    this.bind('services.shipping').toClass(ShippingService);
+    this.bind('services.inventory-lifecycle').toClass(InventoryLifecycleService);
+    this.bind('services.warehouse').toClass(WarehouseService);
+    this.bind('services.ndr').toClass(NdrService);
+    this.bind('services.shipping-audit').toClass(ShippingAuditService);
+    this.bind('services.shipping-monitor').toClass(ShippingMonitorService);
 
     if (process.env.PENDING_ORDER_CLEANUP_HOURS !== undefined) {
       this.bind('services.pending.order.cleanup.hours').to(
