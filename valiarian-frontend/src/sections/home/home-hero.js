@@ -2,9 +2,7 @@ import { m } from 'framer-motion';
 import PropTypes from 'prop-types';
 // @mui
 import Box from '@mui/material/Box';
-import Stack from '@mui/material/Stack';
 import { alpha, styled, useTheme } from '@mui/material/styles';
-import Typography from '@mui/material/Typography';
 import useMediaQuery from '@mui/material/useMediaQuery';
 // routes
 import { paths } from 'src/routes/paths';
@@ -67,54 +65,18 @@ const StyledVideo = styled('video')({
   display: 'block',
 });
 
-const StyledContent = styled(Box)(({ theme }) => ({
-  position: 'absolute',
-  bottom: 50,
-  left: 0,
-  zIndex: 10,
-  padding: theme.spacing(4),
-  display: 'flex',
-  alignItems: 'flex-end',
-  justifyContent: 'flex-start', // Align to left
-  [theme.breakpoints.down('md')]: {
-    padding: theme.spacing(3),
-  },
-}));
-
-const StyledContentWrapper = styled(Stack)(({ theme }) => ({
-  maxWidth: '520px',
-  textAlign: 'left',
-  alignItems: 'flex-start',
-  [theme.breakpoints.down('sm')]: {
-    maxWidth: '100%',
-  },
-}));
-
-const StyledHeading = styled(Typography)(({ theme }) => ({
-  color: theme.palette.common.white,
-  fontWeight: 500,
-  fontSize: '2.5rem',
-  letterSpacing: '0.05em',
-  lineHeight: 1.2,
-  marginBottom: 0,
-
-  [theme.breakpoints.up('md')]: {
-    fontSize: '3.5rem',
-  },
-  [theme.breakpoints.up('lg')]: {
-    fontSize: '4rem',
-  },
-}));
-
 const ContentPosition = styled(Box)(({ theme }) => ({
   position: 'absolute',
-  left: theme.spacing(4),
-  bottom: '8vh',
+  left: '50%',
+  bottom: '7vh',
   zIndex: 10,
+  width: 'calc(100% - 32px)',
+  transform: 'translateX(-50%)',
+  display: 'flex',
+  justifyContent: 'center',
 
   [theme.breakpoints.down('md')]: {
-    left: theme.spacing(2),
-    bottom: '5vh',
+    bottom: theme.spacing(4),
   },
 }));
 
@@ -213,56 +175,6 @@ export default function HomeHero({ imageSrc, videoSrc, cmsData, ...other }) {
         {renderMedia()}
       </StyledMediaContainer>
 
-      {/* <Box
-        component={MotionContainer}
-        sx={{
-          position: 'absolute',
-          zIndex: 10,
-          height: '100%',
-          width: '100%',
-        }}
-      >
-        <StyledContent>
-          <TransparentCard variant="default">
-            <StyledContentWrapper spacing={3}>
-              <m.div variants={varFade().in}>
-                <StyledHeading variant="h1">
-                  Premium Cotton Polos.
-                </StyledHeading>
-              </m.div>
-
-              <m.div variants={varFade().in}>
-                <Stack
-                  direction={{ xs: 'column', sm: 'row' }}
-                  spacing={2}
-                  sx={{ flexWrap: 'wrap' }}
-                >
-                  <Button
-                    component={RouterLink}
-                    href={paths.product.root}
-                    size="large"
-                    variant="outlined"
-                    sx={{
-                      minWidth: { xs: '100%', sm: 180 },
-                      py: 1.5,
-                      fontSize: '1rem',
-                      fontWeight: 600,
-                      borderColor: 'common.white',
-                      color: 'common.white',
-                      '&:hover': {
-                        borderColor: 'common.white',
-                        backgroundColor: alpha('#FFFFFF', 0.1),
-                      },
-                    }}
-                  >
-                    Explore Collection
-                  </Button>
-                </Stack>
-              </m.div>
-            </StyledContentWrapper>
-          </TransparentCard>
-        </StyledContent>
-      </Box> */}
       <MotionContainer>
         <ContentPosition>
           <m.div variants={varFade().in}>
