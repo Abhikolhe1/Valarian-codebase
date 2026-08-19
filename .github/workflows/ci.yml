@@ -5,7 +5,7 @@ on:
   pull_request:
     branches: [main, uat]
   push:
-    branches: [main]
+    branches: [main, uat]
 
 concurrency:
   group: valiarian-ci-${{ github.ref }}
