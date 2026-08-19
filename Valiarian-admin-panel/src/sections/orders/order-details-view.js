@@ -121,7 +121,7 @@ export default function OrderDetailsView() {
   const [printDialogOpen, setPrintDialogOpen] = useState(false);
   const [printHtml, setPrintHtml] = useState('');
   const [printReady, setPrintReady] = useState(false);
-  const [printMode, setPrintMode] = useState('full');
+  const [printTitle, setPrintTitle] = useState('Print');
   const [scanResult, setScanResult] = useState(null);
   const [scanning, setScanning] = useState(false);
   const [liveScanOpen, setLiveScanOpen] = useState(false);
@@ -347,11 +347,26 @@ export default function OrderDetailsView() {
         responseType: 'text',
       });
       setPrintHtml(response.data || '');
-      setPrintMode(mode);
+      setPrintTitle(mode === 'barcode' ? 'Print Barcodes' : 'Print Labels');
       setPrintDialogOpen(true);
     } catch (printError) {
       console.error('Error fetching print labels:', printError);
       enqueueSnackbar(printError.response?.data?.message || 'Failed to load print preview', {
+        variant: 'error',
+      });
+    }
+  };
+
+  const handlePrintDocument = async (documentPath, title) => {
+    setPrintReady(false);
+    try {
+      const response = await axios.get(documentPath, { responseType: 'text' });
+      setPrintHtml(response.data || '');
+      setPrintTitle(title);
+      setPrintDialogOpen(true);
+    } catch (printError) {
+      console.error('Error fetching print document:', printError);
+      enqueueSnackbar(printError.response?.data?.message || `Failed to load ${title}`, {
         variant: 'error',
       });
     }
@@ -637,6 +652,31 @@ export default function OrderDetailsView() {
           { name: 'Orders', href: paths.dashboard.order.root },
           { name: order.orderNumber },
         ]}
+        action={
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+            <Button
+              variant="outlined"
+              startIcon={<Iconify icon="solar:bill-list-bold" />}
+              onClick={() =>
+                handlePrintDocument(`/api/admin/orders/${id}/invoice/print`, 'Tax Invoice')
+              }
+            >
+              Invoice
+            </Button>
+            <Button
+              variant="contained"
+              startIcon={<Iconify icon="solar:printer-minimalistic-bold" />}
+              onClick={() =>
+                handlePrintDocument(
+                  `/api/admin/orders/${id}/shipping-label/print`,
+                  'Shipping Label'
+                )
+              }
+            >
+              Print Shipping Label
+            </Button>
+          </Stack>
+        }
         sx={{ mb: { xs: 3, md: 5 } }}
       />
 
@@ -1449,13 +1489,13 @@ export default function OrderDetailsView() {
         maxWidth="lg"
         fullWidth
       >
-        <DialogTitle>{printMode === 'barcode' ? 'Print Barcodes' : 'Print Labels'}</DialogTitle>
+        <DialogTitle>{printTitle}</DialogTitle>
         <DialogContent sx={{ p: 0 }}>
           {printHtml ? (
             <Box
               component="iframe"
               srcDoc={printHtml}
-              title="Print Labels Preview"
+              title={`${printTitle} preview`}
               ref={printFrameRef}
               onLoad={() => setPrintReady(true)}
               sx={{ width: '100%', height: { xs: 520, md: 700 }, border: 0 }}

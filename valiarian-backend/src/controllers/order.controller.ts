@@ -9,6 +9,7 @@ import {
   post,
   Request,
   requestBody,
+  Response,
   RestBindings,
 } from '@loopback/rest';
 import {SecurityBindings, UserProfile} from '@loopback/security';
@@ -40,6 +41,7 @@ import {InventoryLifecycleService} from '../services/inventory-lifecycle.service
 import {EmailTemplateService} from '../services/email-template.service';
 import {EmailService} from '../services/email.service';
 import {InvoiceGeneratorService} from '../services/invoice-generator.service';
+import {InvoicePrintService} from '../services/invoice-print.service';
 import {RazorpayService} from '../services/razorpay.service';
 import {BarcodeService} from '../services/barcode.service';
 import {
@@ -156,6 +158,8 @@ export class OrderController {
     public emailTemplateService: EmailTemplateService,
     @inject('services.invoice.generator')
     public invoiceGeneratorService: InvoiceGeneratorService,
+    @inject('services.invoice.print')
+    public invoicePrintService: InvoicePrintService,
     @inject('services.barcode')
     public barcodeService: BarcodeService,
     @repository(ShipmentRepository)
@@ -2319,6 +2323,86 @@ export class OrderController {
         `Failed to fetch invoice: ${error.message}`,
       );
     }
+  }
+
+  private sendHtml(response: Response, html: string): Response {
+    response.setHeader('Content-Type', 'text/html; charset=utf-8');
+    response.setHeader('Cache-Control', 'no-store');
+    response.send(html);
+    return response;
+  }
+
+  private async buildOrderBarcodeDataUri(
+    orderNumber: string,
+  ): Promise<string | undefined> {
+    try {
+      const buffer = await this.barcodeService.renderBarcodeBuffer(orderNumber);
+      return `data:image/png;base64,${buffer.toString('base64')}`;
+    } catch (error) {
+      console.error('Error rendering order barcode:', error);
+      return undefined;
+    }
+  }
+
+  @get('/api/orders/{orderId}/invoice/print')
+  @authenticate('jwt')
+  @authorize({roles: ['user']})
+  async getCustomerInvoiceHtml(
+    @param.path.string('orderId') orderId: string,
+    @inject(RestBindings.Http.RESPONSE) response: Response,
+    @inject(SecurityBindings.USER) currentUser: UserProfile,
+    @param.query.boolean('autoPrint') autoPrint = false,
+  ): Promise<Response> {
+    const order = await this.orderRepository.findById(orderId);
+
+    if (order.userId !== currentUser.id) {
+      throw new HttpErrors.Forbidden('Access denied');
+    }
+
+    const withItems = await this.withOrderItems(order);
+    const invoice = buildInvoiceFromOrder(withItems);
+
+    return this.sendHtml(
+      response,
+      this.invoicePrintService.buildInvoiceHtml(withItems, invoice, autoPrint),
+    );
+  }
+
+  @get('/api/admin/orders/{orderId}/invoice/print')
+  @authenticate('jwt')
+  @authorize({roles: ['super_admin', 'admin']})
+  async getAdminInvoiceHtml(
+    @param.path.string('orderId') orderId: string,
+    @inject(RestBindings.Http.RESPONSE) response: Response,
+  ): Promise<Response> {
+    const order = await this.orderRepository.findById(orderId);
+    const withItems = await this.withOrderItems(order);
+    const invoice = buildInvoiceFromOrder(withItems);
+
+    return this.sendHtml(
+      response,
+      this.invoicePrintService.buildInvoiceHtml(withItems, invoice),
+    );
+  }
+
+  @get('/api/admin/orders/{orderId}/shipping-label/print')
+  @authenticate('jwt')
+  @authorize({roles: ['super_admin', 'admin']})
+  async getAdminShippingLabelHtml(
+    @param.path.string('orderId') orderId: string,
+    @inject(RestBindings.Http.RESPONSE) response: Response,
+  ): Promise<Response> {
+    const order = await this.orderRepository.findById(orderId);
+    const withItems = await this.withOrderItems(order);
+    const invoice = buildInvoiceFromOrder(withItems);
+
+    return this.sendHtml(
+      response,
+      this.invoicePrintService.buildShippingLabelHtml(withItems, invoice, {
+        awbNumber: order.trackingNumber,
+        barcodeDataUri: await this.buildOrderBarcodeDataUri(order.orderNumber),
+      }),
+    );
   }
 
   @get('/api/orders/{orderId}/tracking')

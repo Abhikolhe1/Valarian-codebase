@@ -24,6 +24,7 @@ export default function OrderDetailsToolbar({
   onCancel,
   onReturn,
   onTrack,
+  onInvoice,
 }) {
   return (
     <Stack
@@ -31,8 +32,6 @@ export default function OrderDetailsToolbar({
       direction={{ xs: 'column', sm: 'row', md: 'row' }}
       sx={{
         mb: { xs: 3, md: 5 },
-      }}
-      sx={{
         mt: { xs: 7, md: 5 },
       }}
     >
@@ -63,6 +62,17 @@ export default function OrderDetailsToolbar({
         justifyContent="flex-end"
         sx={{ mt: { xs: 1, md: 0 } }}
       >
+        {onInvoice && (
+          <Button
+            color="inherit"
+            variant="outlined"
+            startIcon={<Iconify icon="solar:bill-list-bold" />}
+            onClick={onInvoice}
+          >
+            Download Invoice
+          </Button>
+        )}
+
         {onTrack && (
           <Button
             color="inherit"
@@ -104,6 +114,7 @@ OrderDetailsToolbar.propTypes = {
   backLink: PropTypes.string,
   createdAt: PropTypes.oneOfType([PropTypes.instanceOf(Date), PropTypes.string]),
   onCancel: PropTypes.func,
+  onInvoice: PropTypes.func,
   onReturn: PropTypes.func,
   onTrack: PropTypes.func,
   orderNumber: PropTypes.string,
