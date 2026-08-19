@@ -1,7 +1,8 @@
-import {belongsTo, Entity, model, property} from '@loopback/repository';
+import {belongsTo, Entity, hasMany, model, property} from '@loopback/repository';
 import {Barcode} from './barcode.model';
 import {Order} from './order.model';
 import {OrderItemEntity} from './order-item.model';
+import {ReturnRequestItem} from './return-request-item.model';
 import {Users} from './users.model';
 
 export interface ReturnRequestEvidenceImages {
@@ -161,6 +162,44 @@ export class ReturnRequest extends Entity {
   })
   deletedAt?: Date;
 
+  // Reverse Pickup (added by delivery-bluedart-integration)
+  @property({type: 'string', postgresql: {columnName: 'reversepickupawb'}})
+  reversePickupAwb?: string;
+
+  @property({type: 'date', postgresql: {columnName: 'reversepickuprequestedat'}})
+  reversePickupRequestedAt?: Date;
+
+  @property({type: 'date', postgresql: {columnName: 'reversepickupcompletedat'}})
+  reversePickupCompletedAt?: Date;
+
+  // Inventory Inspection Summary (from Component 27 — Partial Return Inventory)
+  @property({
+    type: 'number',
+    default: 0,
+    postgresql: {columnName: 'totalreturnedquantity', dataType: 'integer'},
+  })
+  totalReturnedQuantity?: number;
+
+  @property({
+    type: 'number',
+    default: 0,
+    postgresql: {columnName: 'totalrestockedquantity', dataType: 'integer'},
+  })
+  totalRestockedQuantity?: number;
+
+  @property({
+    type: 'number',
+    default: 0,
+    postgresql: {columnName: 'totaldamagedquantity', dataType: 'integer'},
+  })
+  totalDamagedQuantity?: number;
+
+  @property({type: 'date', postgresql: {columnName: 'inventoryinspectioncompletedat'}})
+  inventoryInspectionCompletedAt?: Date;
+
+  @hasMany(() => ReturnRequestItem, {keyTo: 'returnRequestId'})
+  returnItems?: ReturnRequestItem[];
+
   constructor(data?: Partial<ReturnRequest>) {
     super(data);
   }
@@ -171,6 +210,7 @@ export interface ReturnRequestRelations {
   orderItem?: OrderItemEntity;
   order?: Order;
   requester?: Users;
+  returnItems?: ReturnRequestItem[];
 }
 
 export type ReturnRequestWithRelations = ReturnRequest & ReturnRequestRelations;

@@ -75,6 +75,14 @@ export class ProductVariant extends Entity {
   stockQuantity: number;
 
   @property({
+    type: 'number',
+    required: true,
+    default: 0,
+    jsonSchema: {minimum: 0},
+  })
+  reservedQuantity: number; // Units reserved for confirmed orders not yet shipped
+
+  @property({
     type: 'boolean',
     default: true,
   })
@@ -114,6 +122,20 @@ export class ProductVariant extends Entity {
     type: 'date',
   })
   deletedAt: Date;
+
+  @property({
+    type: 'object',
+    postgresql: {
+      columnName: 'shippingdimensions',
+      dataType: 'jsonb',
+    },
+  })
+  shippingDimensions?: {
+    weightGrams?: number;
+    lengthCm?: number;
+    breadthCm?: number;
+    heightCm?: number;
+  }; // Used by ShippingDimensionsUtils for AWB auto-calculation
 
   constructor(data?: Partial<ProductVariant>) {
     super(data);
@@ -203,5 +225,20 @@ Object.assign(ProductVariant.definition.properties.deletedAt ?? {}, {
   type: 'date',
   postgresql: {
     columnName: 'deletedat',
+  },
+});
+Object.assign(ProductVariant.definition.properties.reservedQuantity ?? {}, {
+  type: 'number',
+  postgresql: {
+    columnName: 'reservedquantity',
+    dataType: 'integer',
+  },
+});
+
+Object.assign(ProductVariant.definition.properties.shippingDimensions ?? {}, {
+  type: 'object',
+  postgresql: {
+    columnName: 'shippingdimensions',
+    dataType: 'jsonb',
   },
 });

@@ -315,6 +315,28 @@ export class Product extends Entity {
   })
   deletedAt?: Date;
 
+  @property({
+    type: 'number',
+    required: true,
+    default: 0,
+    jsonSchema: {minimum: 0},
+  })
+  reservedQuantity: number;
+
+  @property({
+    type: 'object',
+    postgresql: {
+      columnName: 'shippingdimensions',
+      dataType: 'jsonb',
+    },
+  })
+  shippingDimensions?: {
+    weightGrams?: number;
+    lengthCm?: number;
+    breadthCm?: number;
+    heightCm?: number;
+  };
+
   constructor(data?: Partial<Product>) {
     super(data);
   }
@@ -331,5 +353,21 @@ Object.assign(Product.definition.properties.categoryId ?? {}, {
   postgresql: {
     columnName: 'category_id',
     dataType: 'uuid',
+  },
+});
+
+Object.assign(Product.definition.properties.reservedQuantity ?? {}, {
+  type: 'number',
+  postgresql: {
+    columnName: 'reservedquantity',
+    dataType: 'integer',
+  },
+});
+
+Object.assign(Product.definition.properties.shippingDimensions ?? {}, {
+  type: 'object',
+  postgresql: {
+    columnName: 'shippingdimensions',
+    dataType: 'jsonb',
   },
 });

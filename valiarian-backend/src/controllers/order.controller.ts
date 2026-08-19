@@ -33,7 +33,10 @@ import {
   PremiumPreorderRepository,
   ProductRepository,
   ProductVariantRepository,
+  ShipmentRepository,
 } from '../repositories';
+import {ShippingService} from '../services/shipping.service';
+import {InventoryLifecycleService} from '../services/inventory-lifecycle.service';
 import {EmailTemplateService} from '../services/email-template.service';
 import {EmailService} from '../services/email.service';
 import {InvoiceGeneratorService} from '../services/invoice-generator.service';
@@ -116,6 +119,13 @@ interface VerifyPaymentRequest {
   razorpay_signature?: string;
 }
 
+/**
+ * Shipment states in which the courier can still void an AWB. Mirrors the rule
+ * enforced by ShipmentController.cancelShipment so the customer and admin
+ * cancellation paths agree on what "not yet collected" means.
+ */
+const COURIER_CANCELLABLE_SHIPMENT_STATES = ['created', 'pickup_pending'];
+
 export class OrderController {
   constructor(
     @repository(OrderRepository)
@@ -148,6 +158,12 @@ export class OrderController {
     public invoiceGeneratorService: InvoiceGeneratorService,
     @inject('services.barcode')
     public barcodeService: BarcodeService,
+    @repository(ShipmentRepository)
+    public shipmentRepository: ShipmentRepository,
+    @inject('services.shipping')
+    public shippingService: ShippingService,
+    @inject('services.inventory-lifecycle')
+    public inventoryLifecycleService: InventoryLifecycleService,
   ) {}
 
   private async countCouponUsage(couponId: string, userId?: string): Promise<number> {
@@ -1632,6 +1648,45 @@ export class OrderController {
     }
   }
 
+  /**
+   * Serviceability gate for order placement. Applies to prepaid and COD alike;
+   * COD additionally requires the pincode to support cash collection.
+   *
+   * Returns a customer-facing reason to reject, or null to allow. A provider
+   * outage returns null (fail open) so that Blue Dart being unreachable cannot
+   * stop checkout — the AWB-generation check remains the hard gate.
+   */
+  private async checkDestinationServiceability(
+    request: CreateOrderRequest,
+  ): Promise<string | null> {
+    const pincode = (request.shippingAddress?.zipCode ?? '').trim();
+
+    if (!/^\d{6}$/.test(pincode) || pincode === '000000') {
+      return 'Please enter a valid 6-digit delivery pincode.';
+    }
+
+    let serviceability;
+    try {
+      serviceability = await this.shippingService.checkServiceability({pincode});
+    } catch (error) {
+      console.error(
+        `[OrderController] Serviceability unavailable for pincode ${pincode}; allowing order. Reason:`,
+        error.message || error,
+      );
+      return null;
+    }
+
+    if (!serviceability.isServiceable) {
+      return `We do not deliver to pincode ${pincode} yet. Please try a different delivery address.`;
+    }
+
+    if (request.paymentMethod === 'cod' && !serviceability.isCodAvailable) {
+      return `Cash on delivery is not available for pincode ${pincode}. Please choose online payment instead.`;
+    }
+
+    return null;
+  }
+
   @post('/api/orders/prepare-payment')
   @authenticate('jwt')
   @authorize({roles: ['user']})
@@ -1657,6 +1712,12 @@ export class OrderController {
         throw new HttpErrors.BadRequest(
           'Prepare payment is only available for Razorpay orders',
         );
+      }
+
+      const unserviceableReason =
+        await this.checkDestinationServiceability(request);
+      if (unserviceableReason) {
+        throw new HttpErrors.UnprocessableEntity(unserviceableReason);
       }
 
       const {subtotal, discount, shipping, tax, total} =
@@ -1714,6 +1775,21 @@ export class OrderController {
     let transactionCompleted = false;
     try {
       const userId = currentUser.id;
+
+      const unserviceableReason =
+        await this.checkDestinationServiceability(request);
+      if (unserviceableReason) {
+        // Money already moved on this path; rejecting here would strand a
+        // captured payment with no order, so record it and let packing catch it.
+        if (request.paymentMethod === 'razorpay' && request.paymentDetails) {
+          console.error(
+            `[OrderController] Order accepted despite serviceability failure because payment was already captured. Reason: ${unserviceableReason}`,
+          );
+        } else {
+          throw new HttpErrors.UnprocessableEntity(unserviceableReason);
+        }
+      }
+
       const {orderItems, subtotal, discount, couponApplication, shipping, tax, total} =
         await this.buildOrderDraft(request, userId);
 
@@ -2261,6 +2337,14 @@ export class OrderController {
       estimatedDelivery?: Date;
       shippingAddress: any;
       events: any[];
+      shipment?: {
+        awbNumber: string;
+        status: string;
+        currentLocation?: string;
+        courierEvents: any[];
+        isCod: boolean;
+        isReverse: boolean;
+      };
     };
   }> {
     try {
@@ -2286,6 +2370,71 @@ export class OrderController {
         timestamp: history.createdAt,
       }));
 
+      // Fetch primary forward active shipment
+      let shipment = await this.shipmentRepository.findOne({
+        where: {orderId, isReverse: false, status: {neq: 'cancelled'}},
+        include: [{relation: 'events'}],
+      });
+
+      if (shipment) {
+        const cacheTtlMinutes = Number(process.env.TRACKING_CACHE_TTL_MINUTES || '15');
+        const isStale =
+          !shipment.trackingLastSyncedAt ||
+          Date.now() - new Date(shipment.trackingLastSyncedAt).getTime() > cacheTtlMinutes * 60 * 1000;
+
+        if (isStale) {
+          try {
+            const tracking = await this.shippingService.trackShipment(shipment.awbNumber);
+            await this.shipmentRepository.updateById(shipment.id, {
+              status: tracking.currentStatus,
+              currentLocation: tracking.currentLocation,
+              deliveredAt: tracking.deliveredAt,
+              trackingLastSyncedAt: new Date(),
+              rawTrackingData: tracking.rawResponse as object,
+              updatedAt: new Date(),
+            });
+
+            // Upsert events
+            for (const ev of tracking.events) {
+              const existingEvent = await this.orderRepository.dataSource.execute(
+                `SELECT id FROM public.shipment_events WHERE shipmentid = $1 AND courierrawcode = $2 AND timestamp = $3 LIMIT 1`,
+                [shipment.id, ev.courierRawCode, ev.timestamp],
+              );
+
+              if (existingEvent.length === 0) {
+                await this.orderRepository.dataSource.execute(
+                  `INSERT INTO public.shipment_events (id, shipmentid, internalstatus, courierrawcode, courierdescription, description, location, timestamp, createdat) VALUES (uuid_generate_v4(), $1, $2, $3, $4, $5, $6, $7, NOW())`,
+                  [shipment.id, ev.internalStatus, ev.courierRawCode, ev.courierDescription, ev.description, ev.location, ev.timestamp],
+                );
+              }
+            }
+
+            // Reload shipment
+            shipment = await this.shipmentRepository.findById(shipment.id, {
+              include: [{relation: 'events'}],
+            });
+          } catch (syncErr) {
+            console.error('[OrderController] Failed to auto-sync tracking for customer request:', syncErr.message || syncErr);
+          }
+        }
+      }
+
+      const shipmentDetails = shipment
+        ? {
+            awbNumber: shipment.awbNumber,
+            status: shipment.status,
+            currentLocation: shipment.currentLocation,
+            isCod: shipment.isCod,
+            isReverse: shipment.isReverse,
+            courierEvents: (shipment.events || []).map(e => ({
+              description: e.description,
+              location: e.location,
+              timestamp: e.timestamp,
+              internalStatus: e.internalStatus,
+            })),
+          }
+        : undefined;
+
       return {
         success: true,
         tracking: {
@@ -2296,6 +2445,7 @@ export class OrderController {
           estimatedDelivery: order.estimatedDelivery,
           shippingAddress: order.shippingAddress,
           events,
+          shipment: shipmentDetails,
         },
       };
     } catch (error) {
@@ -2328,10 +2478,61 @@ export class OrderController {
         throw new HttpErrors.Forbidden('Access denied');
       }
 
-      if (!['pending', 'confirmed'].includes(order.status)) {
+      const cancellableStatuses = ['pending', 'confirmed', 'packed', 'shipped'];
+      if (!cancellableStatuses.includes(order.status)) {
         throw new HttpErrors.BadRequest(
-          `Cannot cancel order with status '${order.status}'. Only pending or confirmed orders can be cancelled.`,
+          `Cannot cancel order with status '${order.status}'. Allowed: ${cancellableStatuses.join(', ')}`,
         );
+      }
+
+      // Check for active shipments
+      const activeShipment = await this.shipmentRepository.findOne({
+        where: {orderId: order.id, status: {neq: 'cancelled'}},
+      });
+
+      if (activeShipment) {
+        // Order status turns 'shipped' when the AWB is generated, which is before
+        // the courier physically collects the parcel. Only the shipment status
+        // tells us whether it has actually left, so the gate reads that instead.
+        if (!COURIER_CANCELLABLE_SHIPMENT_STATES.includes(activeShipment.status)) {
+          throw new HttpErrors.Conflict(
+            'This order has already been collected by our courier and can no longer be cancelled. You can refuse the delivery when it arrives, or request a return once it has been delivered.',
+          );
+        }
+
+        // Our shipment status can be up to one tracking-sync interval stale, so
+        // the courier's answer — not the row above — decides the outcome.
+        let cancelRes;
+        try {
+          cancelRes = await this.shippingService.cancelShipment(activeShipment.awbNumber);
+        } catch (err) {
+          await this.shipmentRepository.updateById(activeShipment.id, {
+            status: 'cancel_pending',
+            cancellationReason: 'Network error during cancellation: ' + err.message,
+            updatedAt: new Date(),
+          });
+          throw new HttpErrors.BadGateway(
+            'We could not reach our courier to cancel this shipment. Your order has not been cancelled and you have not been charged any cancellation fee. Please try again in a few minutes.',
+          );
+        }
+
+        if (!cancelRes.success) {
+          await this.shipmentRepository.updateById(activeShipment.id, {
+            status: 'cancel_pending',
+            cancellationReason: 'Courier rejected cancellation: ' + cancelRes.message,
+            updatedAt: new Date(),
+          });
+          throw new HttpErrors.Conflict(
+            'Our courier could not cancel this shipment because it has already been collected. Your order has not been cancelled. You can refuse the delivery when it arrives, or request a return once it has been delivered.',
+          );
+        }
+
+        await this.shipmentRepository.updateById(activeShipment.id, {
+          status: 'cancelled',
+          cancelledAt: new Date(),
+          cancellationReason: 'Order cancelled by customer',
+          updatedAt: new Date(),
+        });
       }
 
       await this.orderRepository.updateById(order.id, {
@@ -2368,8 +2569,10 @@ export class OrderController {
 
       const cancelledOrderItems = await this.loadOrderItems(order.id);
 
-      if (order.status === 'confirmed') {
-        await this.incrementOrderStock(cancelledOrderItems);
+      if (activeShipment) {
+        await this.inventoryLifecycleService.restoreOnVoidedShipment(order.id, currentUser.id, currentUser.email);
+      } else if (order.status === 'confirmed' || order.status === 'packed') {
+        await this.inventoryLifecycleService.releaseReservationOnCancellation(order.id, currentUser.id, currentUser.email);
       }
 
       try {

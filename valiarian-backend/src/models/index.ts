@@ -35,3 +35,12 @@ export * from './section.model';
 export * from './site-settings.model';
 export * from './user-roles.model';
 export * from './users.model';
+// ── Delivery Integration (delivery-bluedart-integration) ─────────────────────
+export * from './shipment.model';
+export * from './shipment-event.model';
+export * from './shipment-item.model';
+export * from './shipment-label.model';
+export * from './warehouse.model';
+export * from './ndr.model';
+export * from './archived-shipment-event.model';
+export * from './return-request-item.model';
