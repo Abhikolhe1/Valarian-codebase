@@ -2,7 +2,7 @@ import { m } from 'framer-motion';
 import PropTypes from 'prop-types';
 // @mui
 import Box from '@mui/material/Box';
-import { alpha, styled, useTheme } from '@mui/material/styles';
+import { styled, useTheme } from '@mui/material/styles';
 import useMediaQuery from '@mui/material/useMediaQuery';
 // routes
 import { paths } from 'src/routes/paths';
@@ -27,27 +27,14 @@ const StyledRoot = styled('div')(({ theme }) => ({
   },
 }));
 
-const StyledMediaContainer = styled(Box)(({ theme }) => ({
+const StyledMediaContainer = styled(Box)({
   position: 'absolute',
   top: 0,
   left: 0,
   width: '100%',
   height: '100%',
   overflow: 'hidden',
-  '&::after': {
-    content: '""',
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    width: '100%',
-    height: '100%',
-    backgroundColor: alpha(theme.palette.grey[900], 0.3),
-    zIndex: 1,
-    [theme.breakpoints.up('md')]: {
-      backgroundColor: alpha(theme.palette.grey[900], 0.2),
-    },
-  },
-}));
+});
 
 const StyledImage = styled('img')({
   width: '100%',
