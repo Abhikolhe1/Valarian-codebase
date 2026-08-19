@@ -2,16 +2,18 @@ import { m } from 'framer-motion';
 import PropTypes from 'prop-types';
 // @mui
 import Box from '@mui/material/Box';
+import Button from '@mui/material/Button';
+import Typography from '@mui/material/Typography';
 import { styled, useTheme } from '@mui/material/styles';
 import useMediaQuery from '@mui/material/useMediaQuery';
 // routes
 import { paths } from 'src/routes/paths';
+import { RouterLink } from 'src/routes/components';
 // layouts
 import { HEADER } from 'src/layouts/config-layout';
 // components
 import { MotionContainer, varFade } from 'src/components/animate';
 import LogoAnimated from 'src/components/logo/logo-animated';
-import TransparentCard from 'src/components/transparent-card';
 
 // ----------------------------------------------------------------------
 
@@ -88,7 +90,6 @@ export default function HomeHero({ imageSrc, videoSrc, cmsData, ...other }) {
   const hasVideo = Boolean(resolvedVideo);
   const hasImage = Boolean(resolvedImage);
 
-  // Use CMS data if available, otherwise use defaults
   const title = cmsData?.content?.title || cmsData?.content?.heading || 'Premium Cotton Polos.';
   const ctaText =
     cmsData?.content?.ctaText ||
@@ -165,11 +166,51 @@ export default function HomeHero({ imageSrc, videoSrc, cmsData, ...other }) {
       <MotionContainer>
         <ContentPosition>
           <m.div variants={varFade().in}>
-            <TransparentCard
-              title={title}
-              buttonLabel={ctaText}
-              buttonHref={ctaLink}
-            />
+            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+              <Typography
+                component="h1"
+                variant="h4"
+                sx={{
+                  color: 'common.white',
+                  fontWeight: 700,
+                  lineHeight: 1.25,
+                  letterSpacing: '0.025em',
+                  textAlign: 'center',
+                  textTransform: 'uppercase',
+                  textShadow: '0 1px 12px rgba(0, 0, 0, 0.35)',
+                  fontSize: { xs: '1.15rem', sm: '1.4rem', md: '1.65rem' },
+                }}
+              >
+                {title}
+              </Typography>
+
+              {ctaText && ctaLink && (
+                <Button
+                  component={RouterLink}
+                  href={ctaLink}
+                  variant="text"
+                  sx={{
+                    minWidth: 0,
+                    p: 0,
+                    borderRadius: 0,
+                    fontSize: { xs: '0.95rem', md: '1.05rem' },
+                    fontWeight: 700,
+                    lineHeight: 1.5,
+                    color: 'common.white',
+                    textDecoration: 'underline',
+                    textUnderlineOffset: '3px',
+                    textTransform: 'none',
+                    textShadow: '0 1px 8px rgba(0, 0, 0, 0.35)',
+                    '&:hover': {
+                      backgroundColor: 'transparent',
+                      opacity: 0.8,
+                    },
+                  }}
+                >
+                  {ctaText}
+                </Button>
+              )}
+            </Box>
           </m.div>
         </ContentPosition>
       </MotionContainer>
