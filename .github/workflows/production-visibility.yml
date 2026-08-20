@@ -65,4 +65,5 @@ jobs:
 
       - name: Job summary
         if: always()
-        run: echo "valiarian.com visibility: **${{ inputs.visibility }}**" >> "$GITHUB_STEP_SUMMARY"
+        run: |
+          echo "valiarian.com visibility: **${{ inputs.visibility }}**" >> "$GITHUB_STEP_SUMMARY"
