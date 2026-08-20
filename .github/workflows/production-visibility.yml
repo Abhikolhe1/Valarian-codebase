@@ -43,7 +43,7 @@ jobs:
                test -f /var/www/maintenance/maintenance.html; \
                touch /var/www/maintenance/frontend.flag; \
              else \
-               test -f /var/www/html/index.html; \
+               curl -fsS -o /dev/null --max-time 10 http://127.0.0.1:3000/; \
                rm -f /var/www/maintenance/frontend.flag; \
              fi"
 

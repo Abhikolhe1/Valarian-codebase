@@ -9,7 +9,6 @@ DEPLOY_DIR="/var/www/valiarian/Valarian-codebase"
 BACKEND_DIR="${DEPLOY_DIR}/valiarian-backend"
 FRONTEND_DIR="${DEPLOY_DIR}/valiarian-frontend"
 ADMIN_DIR="${DEPLOY_DIR}/Valiarian-admin-panel"
-WEB_ROOT="/var/www/html"
 BACKUP_DIR="/var/backups/valiarian/production"
 SCRIPT_DIR="${DEPLOY_DIR}/scripts"
 log() { echo "[$1] $2"; }
@@ -51,11 +50,16 @@ build_static() {
 build_static frontend "$FRONTEND_DIR"
 build_static admin "$ADMIN_DIR"
 
-log FRONTEND "Publishing storefront to ${WEB_ROOT}"
-rm -rf "${WEB_ROOT}.prev"
-cp -a "$WEB_ROOT" "${WEB_ROOT}.prev"
-find "$WEB_ROOT" -mindepth 1 -maxdepth 1 -exec rm -rf -- {} +
-cp -a "${FRONTEND_DIR}/build.new/." "$WEB_ROOT/"
+log FRONTEND "Swapping in new storefront build"
+rm -rf "${FRONTEND_DIR}/build.prev"
+[ ! -d "${FRONTEND_DIR}/build" ] || mv "${FRONTEND_DIR}/build" "${FRONTEND_DIR}/build.prev"
+mv "${FRONTEND_DIR}/build.new" "${FRONTEND_DIR}/build"
+if pm2 describe valiarian-frontend-production >/dev/null 2>&1; then
+  pm2 restart valiarian-frontend-production
+else
+  pm2 serve "${FRONTEND_DIR}/build" 3000 --spa --name valiarian-frontend-production
+fi
+bash "${SCRIPT_DIR}/health-check.sh" http://127.0.0.1:3000/ 10 3
 
 rm -rf "${ADMIN_DIR}/build.prev"
 [ ! -d "${ADMIN_DIR}/build" ] || mv "${ADMIN_DIR}/build" "${ADMIN_DIR}/build.prev"
