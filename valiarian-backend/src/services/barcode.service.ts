@@ -170,12 +170,15 @@ export class BarcodeService {
   }> {
     try {
       const {data, info} = await sharp(buffer)
-        .ensureAlpha()
+        .rotate()
+        .grayscale()
+        .normalize()
         .raw()
         .toBuffer({resolveWithObject: true});
 
       const hints = new Map();
       hints.set(DecodeHintType.POSSIBLE_FORMATS, [BarcodeFormat.CODE_128]);
+      hints.set(DecodeHintType.TRY_HARDER, true);
 
       const luminanceSource = new RGBLuminanceSource(
         new Uint8ClampedArray(data),

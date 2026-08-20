@@ -2,18 +2,18 @@ import { m } from 'framer-motion';
 import PropTypes from 'prop-types';
 // @mui
 import Box from '@mui/material/Box';
-import Stack from '@mui/material/Stack';
-import { alpha, styled, useTheme } from '@mui/material/styles';
+import Button from '@mui/material/Button';
 import Typography from '@mui/material/Typography';
+import { styled, useTheme } from '@mui/material/styles';
 import useMediaQuery from '@mui/material/useMediaQuery';
 // routes
 import { paths } from 'src/routes/paths';
+import { RouterLink } from 'src/routes/components';
 // layouts
 import { HEADER } from 'src/layouts/config-layout';
 // components
 import { MotionContainer, varFade } from 'src/components/animate';
 import LogoAnimated from 'src/components/logo/logo-animated';
-import TransparentCard from 'src/components/transparent-card';
 
 // ----------------------------------------------------------------------
 
@@ -29,27 +29,14 @@ const StyledRoot = styled('div')(({ theme }) => ({
   },
 }));
 
-const StyledMediaContainer = styled(Box)(({ theme }) => ({
+const StyledMediaContainer = styled(Box)({
   position: 'absolute',
   top: 0,
   left: 0,
   width: '100%',
   height: '100%',
   overflow: 'hidden',
-  '&::after': {
-    content: '""',
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    width: '100%',
-    height: '100%',
-    backgroundColor: alpha(theme.palette.grey[900], 0.3),
-    zIndex: 1,
-    [theme.breakpoints.up('md')]: {
-      backgroundColor: alpha(theme.palette.grey[900], 0.2),
-    },
-  },
-}));
+});
 
 const StyledImage = styled('img')({
   width: '100%',
@@ -67,54 +54,18 @@ const StyledVideo = styled('video')({
   display: 'block',
 });
 
-const StyledContent = styled(Box)(({ theme }) => ({
-  position: 'absolute',
-  bottom: 50,
-  left: 0,
-  zIndex: 10,
-  padding: theme.spacing(4),
-  display: 'flex',
-  alignItems: 'flex-end',
-  justifyContent: 'flex-start', // Align to left
-  [theme.breakpoints.down('md')]: {
-    padding: theme.spacing(3),
-  },
-}));
-
-const StyledContentWrapper = styled(Stack)(({ theme }) => ({
-  maxWidth: '520px',
-  textAlign: 'left',
-  alignItems: 'flex-start',
-  [theme.breakpoints.down('sm')]: {
-    maxWidth: '100%',
-  },
-}));
-
-const StyledHeading = styled(Typography)(({ theme }) => ({
-  color: theme.palette.common.white,
-  fontWeight: 500,
-  fontSize: '2.5rem',
-  letterSpacing: '0.05em',
-  lineHeight: 1.2,
-  marginBottom: 0,
-
-  [theme.breakpoints.up('md')]: {
-    fontSize: '3.5rem',
-  },
-  [theme.breakpoints.up('lg')]: {
-    fontSize: '4rem',
-  },
-}));
-
 const ContentPosition = styled(Box)(({ theme }) => ({
   position: 'absolute',
-  left: theme.spacing(4),
-  bottom: '8vh',
+  left: '50%',
+  bottom: '7vh',
   zIndex: 10,
+  width: 'calc(100% - 32px)',
+  transform: 'translateX(-50%)',
+  display: 'flex',
+  justifyContent: 'center',
 
   [theme.breakpoints.down('md')]: {
-    left: theme.spacing(2),
-    bottom: '5vh',
+    bottom: theme.spacing(4),
   },
 }));
 
@@ -139,7 +90,6 @@ export default function HomeHero({ imageSrc, videoSrc, cmsData, ...other }) {
   const hasVideo = Boolean(resolvedVideo);
   const hasImage = Boolean(resolvedImage);
 
-  // Use CMS data if available, otherwise use defaults
   const title = cmsData?.content?.title || cmsData?.content?.heading || 'Premium Cotton Polos.';
   const ctaText =
     cmsData?.content?.ctaText ||
@@ -213,64 +163,54 @@ export default function HomeHero({ imageSrc, videoSrc, cmsData, ...other }) {
         {renderMedia()}
       </StyledMediaContainer>
 
-      {/* <Box
-        component={MotionContainer}
-        sx={{
-          position: 'absolute',
-          zIndex: 10,
-          height: '100%',
-          width: '100%',
-        }}
-      >
-        <StyledContent>
-          <TransparentCard variant="default">
-            <StyledContentWrapper spacing={3}>
-              <m.div variants={varFade().in}>
-                <StyledHeading variant="h1">
-                  Premium Cotton Polos.
-                </StyledHeading>
-              </m.div>
-
-              <m.div variants={varFade().in}>
-                <Stack
-                  direction={{ xs: 'column', sm: 'row' }}
-                  spacing={2}
-                  sx={{ flexWrap: 'wrap' }}
-                >
-                  <Button
-                    component={RouterLink}
-                    href={paths.product.root}
-                    size="large"
-                    variant="outlined"
-                    sx={{
-                      minWidth: { xs: '100%', sm: 180 },
-                      py: 1.5,
-                      fontSize: '1rem',
-                      fontWeight: 600,
-                      borderColor: 'common.white',
-                      color: 'common.white',
-                      '&:hover': {
-                        borderColor: 'common.white',
-                        backgroundColor: alpha('#FFFFFF', 0.1),
-                      },
-                    }}
-                  >
-                    Explore Collection
-                  </Button>
-                </Stack>
-              </m.div>
-            </StyledContentWrapper>
-          </TransparentCard>
-        </StyledContent>
-      </Box> */}
       <MotionContainer>
         <ContentPosition>
           <m.div variants={varFade().in}>
-            <TransparentCard
-              title={title}
-              buttonLabel={ctaText}
-              buttonHref={ctaLink}
-            />
+            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+              <Typography
+                component="h1"
+                variant="h4"
+                sx={{
+                  color: 'common.white',
+                  fontWeight: 700,
+                  lineHeight: 1.25,
+                  letterSpacing: '0.025em',
+                  textAlign: 'center',
+                  textTransform: 'uppercase',
+                  textShadow: '0 1px 12px rgba(0, 0, 0, 0.35)',
+                  fontSize: { xs: '1.15rem', sm: '1.4rem', md: '1.65rem' },
+                }}
+              >
+                {title}
+              </Typography>
+
+              {ctaText && ctaLink && (
+                <Button
+                  component={RouterLink}
+                  href={ctaLink}
+                  variant="text"
+                  sx={{
+                    minWidth: 0,
+                    p: 0,
+                    borderRadius: 0,
+                    fontSize: { xs: '0.95rem', md: '1.05rem' },
+                    fontWeight: 700,
+                    lineHeight: 1.5,
+                    color: 'common.white',
+                    textDecoration: 'underline',
+                    textUnderlineOffset: '3px',
+                    textTransform: 'none',
+                    textShadow: '0 1px 8px rgba(0, 0, 0, 0.35)',
+                    '&:hover': {
+                      backgroundColor: 'transparent',
+                      opacity: 0.8,
+                    },
+                  }}
+                >
+                  {ctaText}
+                </Button>
+              )}
+            </Box>
           </m.div>
         </ContentPosition>
       </MotionContainer>
