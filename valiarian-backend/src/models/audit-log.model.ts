@@ -65,6 +65,10 @@ export class AuditLog extends Entity {
         'reorder',
         'upload',
         'bulk_delete',
+        'cancel',
+        'sync_tracking',
+        'generate_label',
+        'reverse_pickup',
       ],
     },
   })
@@ -78,7 +82,11 @@ export class AuditLog extends Entity {
     | 'revert'
     | 'reorder'
     | 'upload'
-    | 'bulk_delete';
+    | 'bulk_delete'
+    | 'cancel'
+    | 'sync_tracking'
+    | 'generate_label'
+    | 'reverse_pickup';
 
   @property({
     type: 'string',
@@ -91,6 +99,8 @@ export class AuditLog extends Entity {
         'template',
         'navigation',
         'settings',
+        'shipment',
+        'inventory',
       ],
     },
   })
@@ -100,7 +110,9 @@ export class AuditLog extends Entity {
     | 'media'
     | 'template'
     | 'navigation'
-    | 'settings';
+    | 'settings'
+    | 'shipment'
+    | 'inventory';
 
   @property({
     type: 'string',

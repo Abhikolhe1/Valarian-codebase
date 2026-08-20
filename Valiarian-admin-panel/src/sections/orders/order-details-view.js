@@ -121,7 +121,7 @@ export default function OrderDetailsView() {
   const [printDialogOpen, setPrintDialogOpen] = useState(false);
   const [printHtml, setPrintHtml] = useState('');
   const [printReady, setPrintReady] = useState(false);
-  const [printMode, setPrintMode] = useState('full');
+  const [printTitle, setPrintTitle] = useState('Print');
   const [scanResult, setScanResult] = useState(null);
   const [scanning, setScanning] = useState(false);
   const [liveScanOpen, setLiveScanOpen] = useState(false);
@@ -347,11 +347,26 @@ export default function OrderDetailsView() {
         responseType: 'text',
       });
       setPrintHtml(response.data || '');
-      setPrintMode(mode);
+      setPrintTitle(mode === 'barcode' ? 'Print Barcodes' : 'Print Labels');
       setPrintDialogOpen(true);
     } catch (printError) {
       console.error('Error fetching print labels:', printError);
       enqueueSnackbar(printError.response?.data?.message || 'Failed to load print preview', {
+        variant: 'error',
+      });
+    }
+  };
+
+  const handlePrintDocument = async (documentPath, title) => {
+    setPrintReady(false);
+    try {
+      const response = await axios.get(documentPath, { responseType: 'text' });
+      setPrintHtml(response.data || '');
+      setPrintTitle(title);
+      setPrintDialogOpen(true);
+    } catch (printError) {
+      console.error('Error fetching print document:', printError);
+      enqueueSnackbar(printError.response?.data?.message || `Failed to load ${title}`, {
         variant: 'error',
       });
     }
@@ -502,7 +517,16 @@ export default function OrderDetailsView() {
     setLiveScanCode('');
 
     reader
-      .decodeFromVideoDevice(undefined, videoRef.current, (result, decodeError) => {
+      .decodeFromConstraints(
+        {
+          video: {
+            width: { ideal: 1920 },
+            height: { ideal: 1080 },
+            facingMode: { ideal: 'environment' },
+          },
+        },
+        videoRef.current,
+        (result, decodeError) => {
         if (result) {
           const code = result.getText();
           setLiveScanCode(code);
@@ -520,7 +544,8 @@ export default function OrderDetailsView() {
         } else if (decodeError && decodeError.name !== 'NotFoundException') {
           setLiveScanError(decodeError.message || 'Unable to read from camera');
         }
-      })
+        }
+      )
       .then((controls) => {
         scanControlsRef.current = controls;
       })
@@ -593,6 +618,12 @@ export default function OrderDetailsView() {
             }
           : null,
       }));
+  const scannedItem = scanResult?.orderItem
+    ? displayItems.find((item) => item.id === scanResult.orderItem.id) || scanResult.orderItem
+    : null;
+  const scannedBarcodeCode =
+    scanResult?.decodedBarcode?.code || scanResult?.code || scanResult?.barcode?.code;
+  const scannedVariant = scannedItem?.variantSnapshot || {};
   const canInitiateRefund = isPrepaidOrder(order)
     ? ((order.status === 'returned' || order.status === 'parcel_received') &&
         order.returnStatus !== 'requested' &&
@@ -637,6 +668,31 @@ export default function OrderDetailsView() {
           { name: 'Orders', href: paths.dashboard.order.root },
           { name: order.orderNumber },
         ]}
+        action={
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+            <Button
+              variant="outlined"
+              startIcon={<Iconify icon="solar:bill-list-bold" />}
+              onClick={() =>
+                handlePrintDocument(`/api/admin/orders/${id}/invoice/print`, 'Tax Invoice')
+              }
+            >
+              Invoice
+            </Button>
+            <Button
+              variant="contained"
+              startIcon={<Iconify icon="solar:printer-minimalistic-bold" />}
+              onClick={() =>
+                handlePrintDocument(
+                  `/api/admin/orders/${id}/shipping-label/print`,
+                  'Shipping Label'
+                )
+              }
+            >
+              Print Shipping Label
+            </Button>
+          </Stack>
+        }
         sx={{ mb: { xs: 3, md: 5 } }}
       />
 
@@ -893,7 +949,7 @@ export default function OrderDetailsView() {
                     startIcon={<Iconify icon="solar:barcode-bold" />}
                     onClick={handleVerifyFromStoredBarcode}
                   >
-                    Use Stored Barcode Image
+                    Verify Stored Code
                   </Button>
                 </Stack>
                 <input
@@ -914,20 +970,107 @@ export default function OrderDetailsView() {
 
                 {scanResult && (
                   <Card variant="outlined" sx={{ p: 2 }}>
-                    <Stack spacing={1}>
-                      <Typography variant="subtitle2">
-                        Result: {scanResult.match ? 'Matched' : 'Not Matched'}
-                      </Typography>
-                      {scanResult.decodedBarcode?.code && (
-                        <Typography variant="body2" color="text.secondary">
-                          Scanned Code: {scanResult.decodedBarcode.code}
-                        </Typography>
+                    <Stack spacing={2}>
+                      <Stack direction="row" alignItems="center" justifyContent="space-between">
+                        <Typography variant="subtitle1">Scan Result</Typography>
+                        <Label variant="soft" color={scanResult.match ? 'success' : 'error'}>
+                          {scanResult.match ? 'Matched' : 'Not Matched'}
+                        </Label>
+                      </Stack>
+
+                      {scannedBarcodeCode && (
+                        <Box>
+                          <Typography variant="caption" color="text.secondary">
+                            Barcode
+                          </Typography>
+                          <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>
+                            {scannedBarcodeCode}
+                          </Typography>
+                        </Box>
                       )}
-                      {scanResult.match && scanResult.orderItem && (
-                        <Typography variant="body2">
-                          Item:{' '}
-                          {scanResult.orderItem.productNameSnapshot || scanResult.orderItem.name}
-                        </Typography>
+
+                      {scanResult.match && scannedItem && (
+                        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+                          {scannedItem.image && (
+                            <Box
+                              component="img"
+                              src={scannedItem.image}
+                              alt={scannedItem.productNameSnapshot || scannedItem.name}
+                              sx={{ width: 88, height: 88, objectFit: 'cover', borderRadius: 1 }}
+                            />
+                          )}
+                          <Grid container spacing={1.5} sx={{ flex: 1 }}>
+                            <Grid xs={12}>
+                              <Typography variant="subtitle2">
+                                {scannedItem.productNameSnapshot || scannedItem.name}
+                              </Typography>
+                            </Grid>
+                            <Grid xs={12} sm={6}>
+                              <Typography variant="caption" color="text.secondary">
+                                Order
+                              </Typography>
+                              <Typography variant="body2">{order.orderNumber}</Typography>
+                            </Grid>
+                            <Grid xs={12} sm={6}>
+                              <Typography variant="caption" color="text.secondary">
+                                Barcode Status
+                              </Typography>
+                              <Typography variant="body2">
+                                {scanResult.barcode?.status || scannedItem.barcode?.status || '—'}
+                              </Typography>
+                            </Grid>
+                            <Grid xs={12} sm={6}>
+                              <Typography variant="caption" color="text.secondary">
+                                SKU
+                              </Typography>
+                              <Typography variant="body2">
+                                {scannedVariant.sku || scannedItem.sku || '—'}
+                              </Typography>
+                            </Grid>
+                            <Grid xs={6} sm={3}>
+                              <Typography variant="caption" color="text.secondary">
+                                Color
+                              </Typography>
+                              <Typography variant="body2">
+                                {scannedVariant.colorName || scannedItem.colorName || '—'}
+                              </Typography>
+                            </Grid>
+                            <Grid xs={6} sm={3}>
+                              <Typography variant="caption" color="text.secondary">
+                                Size
+                              </Typography>
+                              <Typography variant="body2">
+                                {scannedVariant.size || scannedItem.size || '—'}
+                              </Typography>
+                            </Grid>
+                            <Grid xs={6} sm={3}>
+                              <Typography variant="caption" color="text.secondary">
+                                Quantity
+                              </Typography>
+                              <Typography variant="body2">{scannedItem.quantity || 1}</Typography>
+                            </Grid>
+                            <Grid xs={6} sm={3}>
+                              <Typography variant="caption" color="text.secondary">
+                                Unit Price
+                              </Typography>
+                              <Typography variant="body2">
+                                {fCurrency(scannedItem.priceSnapshot ?? scannedItem.price)}
+                              </Typography>
+                            </Grid>
+                            <Grid xs={12} sm={6}>
+                              <Typography variant="caption" color="text.secondary">
+                                Line Total
+                              </Typography>
+                              <Typography variant="body2">
+                                {fCurrency(
+                                  scannedItem.subtotal ??
+                                    scannedItem.totalAmount ??
+                                    Number(scannedItem.price || 0) * Number(scannedItem.quantity || 1)
+                                )}
+                              </Typography>
+                            </Grid>
+                          </Grid>
+                        </Stack>
                       )}
                       {!scanResult.match && scanResult.reason && (
                         <Typography variant="body2" color="text.secondary">
@@ -1449,13 +1592,13 @@ export default function OrderDetailsView() {
         maxWidth="lg"
         fullWidth
       >
-        <DialogTitle>{printMode === 'barcode' ? 'Print Barcodes' : 'Print Labels'}</DialogTitle>
+        <DialogTitle>{printTitle}</DialogTitle>
         <DialogContent sx={{ p: 0 }}>
           {printHtml ? (
             <Box
               component="iframe"
               srcDoc={printHtml}
-              title="Print Labels Preview"
+              title={`${printTitle} preview`}
               ref={printFrameRef}
               onLoad={() => setPrintReady(true)}
               sx={{ width: '100%', height: { xs: 520, md: 700 }, border: 0 }}
@@ -1503,7 +1646,8 @@ export default function OrderDetailsView() {
               </Typography>
             )}
             <Typography variant="caption" color="text.secondary">
-              Allow camera permissions when prompted. Hold the barcode steady in frame.
+              Allow camera permissions when prompted. Keep the full barcode horizontal, well-lit,
+              and steady in the frame until the camera focuses.
             </Typography>
           </Stack>
         </DialogContent>

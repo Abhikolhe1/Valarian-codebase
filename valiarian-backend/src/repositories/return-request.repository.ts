@@ -1,5 +1,5 @@
 import {Constructor, Getter, inject} from '@loopback/core';
-import {BelongsToAccessor, DefaultCrudRepository, repository} from '@loopback/repository';
+import {BelongsToAccessor, DefaultCrudRepository, HasManyRepositoryFactory, repository} from '@loopback/repository';
 import {ValiarianDataSource} from '../datasources';
 import {
   Barcode,
@@ -8,12 +8,14 @@ import {
   ReturnRequest,
   ReturnRequestRelations,
   Users,
+  ReturnRequestItem,
 } from '../models';
 import {TimeStampRepositoryMixin} from '../mixins/timestamp-repository-mixin';
 import {BarcodeRepository} from './barcode.repository';
 import {OrderItemRepository} from './order-item.repository';
 import {OrderRepository} from './order.repository';
 import {UsersRepository} from './users.repository';
+import {ReturnRequestItemRepository} from './return-request-item.repository';
 
 export class ReturnRequestRepository extends TimeStampRepositoryMixin<
   ReturnRequest,
@@ -33,6 +35,10 @@ export class ReturnRequestRepository extends TimeStampRepositoryMixin<
   >;
   public readonly order: BelongsToAccessor<Order, typeof ReturnRequest.prototype.id>;
   public readonly requester: BelongsToAccessor<Users, typeof ReturnRequest.prototype.id>;
+  public readonly returnItems: HasManyRepositoryFactory<
+    ReturnRequestItem,
+    typeof ReturnRequest.prototype.id
+  >;
 
   constructor(
     @inject('datasources.valiarian') dataSource: ValiarianDataSource,
@@ -44,16 +50,23 @@ export class ReturnRequestRepository extends TimeStampRepositoryMixin<
     protected orderRepositoryGetter: Getter<OrderRepository>,
     @repository.getter('UsersRepository')
     protected usersRepositoryGetter: Getter<UsersRepository>,
+    @repository.getter('ReturnRequestItemRepository')
+    protected returnRequestItemRepositoryGetter: Getter<ReturnRequestItemRepository>,
   ) {
     super(ReturnRequest, dataSource);
     this.barcode = this.createBelongsToAccessorFor('barcode', barcodeRepositoryGetter);
     this.orderItem = this.createBelongsToAccessorFor('orderItem', orderItemRepositoryGetter);
     this.order = this.createBelongsToAccessorFor('order', orderRepositoryGetter);
     this.requester = this.createBelongsToAccessorFor('requester', usersRepositoryGetter);
+    this.returnItems = this.createHasManyRepositoryFactoryFor(
+      'returnItems',
+      returnRequestItemRepositoryGetter,
+    );
 
     this.registerInclusionResolver('barcode', this.barcode.inclusionResolver);
     this.registerInclusionResolver('orderItem', this.orderItem.inclusionResolver);
     this.registerInclusionResolver('order', this.order.inclusionResolver);
     this.registerInclusionResolver('requester', this.requester.inclusionResolver);
+    this.registerInclusionResolver('returnItems', this.returnItems.inclusionResolver);
   }
 }

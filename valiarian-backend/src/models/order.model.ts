@@ -10,6 +10,7 @@ import {Invoice} from './invoice.model';
 import {OrderItemEntity} from './order-item.model';
 import {Payment} from './payment.model';
 import {Users} from './users.model';
+import {Shipment} from './shipment.model';
 
 // Order Item Interface
 export interface OrderItem {
@@ -152,6 +153,9 @@ export class Order extends Entity {
         'returned',
         'refunded',
         'parcel_received',
+        'rto_initiated',
+        'rto_in_transit',
+        'rto_delivered',
       ],
     },
   })
@@ -168,7 +172,10 @@ export class Order extends Entity {
     | 'cancelled'
     | 'returned'
     | 'refunded'
-    | 'parcel_received';
+    | 'parcel_received'
+    | 'rto_initiated'
+    | 'rto_in_transit'
+    | 'rto_delivered';
 
   // Payment Information
   @property({
@@ -372,6 +379,9 @@ export class Order extends Entity {
   @hasOne(() => Invoice, {keyTo: 'orderId'})
   invoice?: Invoice;
 
+  @hasMany(() => Shipment, {keyTo: 'orderId'})
+  shipments?: Shipment[];
+
   // Shipping/Tracking Information
   @property({
     type: 'string',
@@ -483,6 +493,72 @@ export class Order extends Entity {
     type: 'date',
   })
   parcelReceivedAt?: Date;
+
+  // RTO (Return to Origin) Tracking
+  @property({
+    type: 'string',
+    jsonSchema: {
+      enum: ['initiated', 'in_transit', 'delivered'],
+    },
+    postgresql: {columnName: 'rtostatus'},
+  })
+  rtoStatus?: 'initiated' | 'in_transit' | 'delivered';
+
+  @property({type: 'date', postgresql: {columnName: 'rtoinitiateat'}})
+  rtoInitiatedAt?: Date;
+
+  @property({type: 'date', postgresql: {columnName: 'rtodeliveredat'}})
+  rtoDeliveredAt?: Date;
+
+  @property({
+    type: 'boolean',
+    default: false,
+    postgresql: {columnName: 'rtoinventoryrestored'},
+  })
+  rtoInventoryRestored?: boolean; // true after stock restored on RTO delivery
+
+  // Reverse Pickup AWB
+  @property({type: 'string', postgresql: {columnName: 'reversepickupawb'}})
+  reversePickupAwb?: string;
+
+  @property({type: 'date', postgresql: {columnName: 'reversepickuprequestedat'}})
+  reversePickupRequestedAt?: Date;
+
+  // Inventory Lifecycle Flags
+  @property({
+    type: 'boolean',
+    default: false,
+    postgresql: {columnName: 'inventoryreserved'},
+  })
+  inventoryReserved?: boolean; // true after reserveOnOrderConfirmed
+
+  @property({
+    type: 'boolean',
+    default: false,
+    postgresql: {columnName: 'inventorydeducted'},
+  })
+  inventoryDeducted?: boolean; // true after deductOnShipment
+
+  @property({
+    type: 'boolean',
+    default: false,
+    postgresql: {columnName: 'inventoryrestored'},
+  })
+  inventoryRestored?: boolean; // true after restoreOnReturn or restoreOnRto
+
+  // COD Tracking
+  @property({
+    type: 'boolean',
+    default: false,
+    postgresql: {columnName: 'iscodorder'},
+  })
+  isCodOrder?: boolean;
+
+  @property({
+    type: 'number',
+    postgresql: {columnName: 'codamount', dataType: 'decimal', precision: 10, scale: 2},
+  })
+  codAmount?: number;
 
   @property({
     type: 'string',

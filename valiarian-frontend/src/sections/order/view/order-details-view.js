@@ -117,6 +117,33 @@ export default function OrderDetailsView() {
     navigate(`/orders/${id}/tracking`);
   };
 
+  const handleDownloadInvoice = async () => {
+    // The endpoint needs the bearer token, so the markup is fetched here and
+    // handed to a blank window rather than navigating straight to the URL.
+    const invoiceWindow = window.open('', '_blank');
+
+    if (!invoiceWindow) {
+      enqueueSnackbar('Please allow pop-ups to download your invoice.', { variant: 'warning' });
+      return;
+    }
+
+    try {
+      const response = await axios.get(`/api/orders/${id}/invoice/print`, {
+        params: { autoPrint: true },
+        responseType: 'text',
+      });
+      invoiceWindow.document.write(response.data || '');
+      invoiceWindow.document.close();
+      invoiceWindow.focus();
+    } catch (invoiceError) {
+      invoiceWindow.close();
+      console.error('Error downloading invoice:', invoiceError);
+      enqueueSnackbar(invoiceError.response?.data?.message || 'Failed to load invoice', {
+        variant: 'error',
+      });
+    }
+  };
+
   if (loading) {
     return (
       <Container maxWidth={settings.themeStretch ? false : 'lg'}>
@@ -171,6 +198,7 @@ export default function OrderDetailsView() {
         onCancel={canCancel ? () => setCancelDialogOpen(true) : null}
         onReturn={canReturn ? () => setReturnDialogOpen(true) : null}
         onTrack={order.trackingNumber ? handleTrackOrder : null}
+        onInvoice={handleDownloadInvoice}
       />
 
       {order.returnStatus && (

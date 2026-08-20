@@ -45,6 +45,14 @@ export async function migrate(args: string[]) {
       'ReturnRequest',
       'Review',
       'ContactSubmission',
+      'Shipment',
+      'ShipmentEvent',
+      'ShipmentItem',
+      'ShipmentLabel',
+      'Warehouse',
+      'Ndr',
+      'ArchivedShipmentEvent',
+      'ReturnRequestItem',
     ],
   });
 
