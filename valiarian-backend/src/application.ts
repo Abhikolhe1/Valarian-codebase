@@ -25,6 +25,10 @@ import {InvoicePrintService} from './services/invoice-print.service';
 import {JWTService} from './services/jwt-service';
 import {MediaService} from './services/media.service';
 import {OtpNotificationService} from './services/otp-notification.service';
+import {OtpService} from './services/otp.service';
+import {OtpRateLimitService} from './services/otp-rate-limit.service';
+import {WhatsAppService} from './services/whatsapp.service';
+import {OtpCleanupService} from './services/otp-cleanup.service';
 import {PendingOrderCleanupService} from './services/pending-order-cleanup.service';
 import {PremiumPreorderExpiryService} from './services/premium-preorder-expiry.service';
 import {RateLimiterService} from './services/rate-limiter.service';
@@ -82,6 +86,7 @@ export class ValiarianBackendApplication extends BootMixin(
     this.lifeCycleObserver(TrackingSyncCronJob);
     this.lifeCycleObserver(NdrFollowUpCronJob);
     this.lifeCycleObserver(EventRetentionCronJob);
+    this.lifeCycleObserver(OtpCleanupService);
 
     this.projectRoot = __dirname;
     // Customize @loopback/boot Booter Conventions here
@@ -119,6 +124,9 @@ export class ValiarianBackendApplication extends BootMixin(
     this.bind('services.invoice.generator').toClass(InvoiceGeneratorService);
     this.bind('services.invoice.print').toClass(InvoicePrintService);
     this.bind('services.otp.notification').toClass(OtpNotificationService);
+    this.bind('services.otp').toClass(OtpService);
+    this.bind('services.otp.rate-limit').toClass(OtpRateLimitService);
+    this.bind('services.whatsapp').toClass(WhatsAppService);
     this.bind('services.storage').toClass(LocalStorageService);
     this.bind('services.barcode').toClass(BarcodeService);
 

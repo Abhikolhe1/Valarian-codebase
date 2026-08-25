@@ -25,18 +25,18 @@ export default function CheckoutEmailVerificationDialog({
   const [email, setEmail] = useState(initialEmail || '');
   const [otpStep, setOtpStep] = useState(false);
   const [newEmail, setNewEmail] = useState('');
-  const [otp, setOtp] = useState(['', '', '', '']);
+  const [otp, setOtp] = useState(Array(6).fill(''));
   const [error, setError] = useState('');
   const [isSendingOtp, setIsSendingOtp] = useState(false);
   const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
-  const otpRefs = [useRef(null), useRef(null), useRef(null), useRef(null)];
+  const otpRefs = useRef([]);
 
   useEffect(() => {
     if (open) {
       setEmail(initialEmail || '');
       setOtpStep(false);
       setNewEmail('');
-      setOtp(['', '', '', '']);
+      setOtp(Array(6).fill(''));
       setError('');
     }
   }, [initialEmail, open]);
@@ -57,14 +57,14 @@ export default function CheckoutEmailVerificationDialog({
 
       setNewEmail(email.trim());
       setOtpStep(true);
-      setOtp(['', '', '', '']);
+      setOtp(Array(6).fill(''));
 
       enqueueSnackbar(response.data.message || 'OTP sent to your email', {
         variant: 'success',
       });
 
       setTimeout(() => {
-        otpRefs[0].current?.focus();
+        otpRefs.current[0]?.focus();
       }, 100);
     } catch (otpError) {
       setError(
@@ -87,15 +87,15 @@ export default function CheckoutEmailVerificationDialog({
       setOtp(nextOtp);
       setError('');
 
-      if (numericValue && index < 3) {
-        otpRefs[index + 1].current?.focus();
+      if (numericValue && index < otp.length - 1) {
+        otpRefs.current[index + 1]?.focus();
       }
     }
   };
 
   const handleOtpKeyDown = (index, event) => {
     if (event.key === 'Backspace' && !otp[index] && index > 0) {
-      otpRefs[index - 1].current?.focus();
+      otpRefs.current[index - 1]?.focus();
     }
   };
 
@@ -104,9 +104,9 @@ export default function CheckoutEmailVerificationDialog({
     const pastedData = event.clipboardData
       .getData('text')
       .replace(/[^0-9]/g, '')
-      .slice(0, 4);
+      .slice(0, 6);
 
-    if (pastedData.length === 4) {
+    if (pastedData.length === 6) {
       const nextOtp = pastedData.split('');
       setOtp(nextOtp);
       setError('');
@@ -117,8 +117,8 @@ export default function CheckoutEmailVerificationDialog({
     try {
       const otpValue = otp.join('');
 
-      if (otpValue.length !== 4) {
-        setError('Please enter the 4-digit OTP');
+      if (otpValue.length !== 6) {
+        setError('Please enter the 6-digit OTP');
         return;
       }
 
@@ -190,7 +190,9 @@ export default function CheckoutEmailVerificationDialog({
                 {otp.map((digit, index) => (
                   <TextField
                     key={index}
-                    inputRef={otpRefs[index]}
+                    inputRef={(element) => {
+                      otpRefs.current[index] = element;
+                    }}
                     value={digit}
                     onChange={(event) => handleOtpChange(index, event.target.value)}
                     onKeyDown={(event) => handleOtpKeyDown(index, event)}
@@ -214,7 +216,7 @@ export default function CheckoutEmailVerificationDialog({
                   variant="outlined"
                   onClick={() => {
                     setOtpStep(false);
-                    setOtp(['', '', '', '']);
+                    setOtp(Array(6).fill(''));
                     setError('');
                   }}
                   fullWidth

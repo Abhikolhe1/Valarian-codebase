@@ -64,10 +64,7 @@ export function AuthProvider({ children }) {
     try {
       const accessToken = sessionStorage.getItem(STORAGE_KEY);
 
-      console.log('Initializing auth, token exists:', !!accessToken);
-
       if (accessToken && isValidToken(accessToken)) {
-        console.log('Token is valid, setting session and fetching user');
         setSession(accessToken);
 
         const response = await axios.get(endpoints.auth.me);
@@ -84,7 +81,6 @@ export function AuthProvider({ children }) {
           },
         });
       } else {
-        console.log('No valid token found');
         dispatch({
           type: 'INITIAL',
           payload: {
@@ -126,7 +122,6 @@ export function AuthProvider({ children }) {
 
     const { accessToken, user } = response.data;
 
-    console.log('Setting session with token');
     setSession(accessToken);
 
     dispatch({

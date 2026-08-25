@@ -1094,6 +1094,54 @@ export class OrderController {
     }
   }
 
+  private async sendManualShippingAlertEmail(order: Order, reason: string) {
+    try {
+      const fromEmail = this.getOrderMailSender();
+      const recipients = this.getAdminOrderNotificationRecipients();
+
+      if (!recipients.length) {
+        console.warn(
+          '[Order Email] No admin notification recipients configured for manual shipping alert',
+          {orderNumber: order.orderNumber},
+        );
+        return;
+      }
+
+      const emailHtml = await this.emailTemplateService.renderTemplate(
+        'manual-shipping-alert',
+        {
+          reason,
+          customerName: order.billingAddress.fullName,
+          customerEmail: order.billingAddress.email || '-',
+          customerPhone: order.billingAddress.phone || '-',
+          orderNumber: order.orderNumber,
+          orderStatus: order.status,
+          paymentMethod: order.paymentMethod,
+          paymentStatus: order.paymentStatus,
+          total: formatCurrencyValue(order.total),
+          shippingAddress: order.shippingAddress,
+          adminOrderUrl: `${process.env.ADMIN_FRONTEND_URL || 'http://localhost:3001'}/orders/${order.id}`,
+        },
+      );
+
+      console.log('[Order Email] Sending manual shipping alert email', {
+        from: fromEmail,
+        to: recipients,
+        orderNumber: order.orderNumber,
+        reason,
+      });
+
+      await this.emailService.sendMail({
+        from: fromEmail,
+        to: recipients.join(','),
+        subject: `Manual Shipping Required - ${order.orderNumber}`,
+        html: emailHtml,
+      });
+    } catch (emailError) {
+      console.error('Error sending manual shipping alert email:', emailError);
+    }
+  }
+
   private normalizeVerifyPaymentRequest(request: VerifyPaymentRequest) {
     return {
       orderId: request.orderId,
@@ -1782,10 +1830,12 @@ export class OrderController {
 
       const unserviceableReason =
         await this.checkDestinationServiceability(request);
+      let needsManualShipping = false;
       if (unserviceableReason) {
         // Money already moved on this path; rejecting here would strand a
         // captured payment with no order, so record it and let packing catch it.
         if (request.paymentMethod === 'razorpay' && request.paymentDetails) {
+          needsManualShipping = true;
           console.error(
             `[OrderController] Order accepted despite serviceability failure because payment was already captured. Reason: ${unserviceableReason}`,
           );
@@ -1865,6 +1915,10 @@ export class OrderController {
           billingAddress: request.billingAddress,
           shippingAddress: request.shippingAddress,
           items: orderItems,
+          needsManualShipping,
+          manualShippingReason: needsManualShipping
+            ? unserviceableReason ?? undefined
+            : undefined,
           isDeleted: false,
           createdAt: new Date(),
           updatedAt: new Date(),
@@ -1950,6 +2004,9 @@ export class OrderController {
         }
         await this.sendOrderConfirmationEmail(order, currentUser);
         await this.sendAdminOrderNotificationEmail(order);
+        if (needsManualShipping && unserviceableReason) {
+          await this.sendManualShippingAlertEmail(order, unserviceableReason);
+        }
       } else if (request.paymentMethod === 'razorpay') {
         console.log(
           '[Order Email] Skipping prepaid order emails in createOrder until payment succeeds',

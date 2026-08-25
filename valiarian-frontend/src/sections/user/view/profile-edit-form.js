@@ -39,8 +39,8 @@ export default function ProfileEditForm({
   const [isSendingEmailOtp, setIsSendingEmailOtp] = useState(false);
   const [isVerifyingEmailOtp, setIsVerifyingEmailOtp] = useState(false);
   const [emailOtpError, setEmailOtpError] = useState('');
-  const [emailOtp, setEmailOtp] = useState(['', '', '', '']);
-  const emailOtpRefs = [useRef(null), useRef(null), useRef(null), useRef(null)];
+  const [emailOtp, setEmailOtp] = useState(Array(6).fill(''));
+  const emailOtpRefs = useRef([]);
 
   const [mobileVerificationStep, setMobileVerificationStep] = useState(null);
   const [mobileOtpId, setMobileOtpId] = useState('');
@@ -48,9 +48,9 @@ export default function ProfileEditForm({
   const [isSendingMobileOtp, setIsSendingMobileOtp] = useState(false);
   const [isVerifyingMobileOtp, setIsVerifyingMobileOtp] = useState(false);
   const [mobileOtpError, setMobileOtpError] = useState('');
-  const [mobileOtp, setMobileOtp] = useState(['', '', '', '']);
+  const [mobileOtp, setMobileOtp] = useState(Array(6).fill(''));
   const [isMobileChangeVerified, setIsMobileChangeVerified] = useState(true);
-  const mobileOtpRefs = [useRef(null), useRef(null), useRef(null), useRef(null)];
+  const mobileOtpRefs = useRef([]);
 
   const displayUser = user;
   const isEmailLogin = user.authProvider === 'local' || user.authProvider === 'google';
@@ -109,12 +109,12 @@ export default function ProfileEditForm({
       const message = response.data.message || 'OTP sent to your email';
       setEmailOtpId(response.data.otpId || '');
       setEmailVerificationStep('verify-otp');
-      setEmailOtp(['', '', '', '']);
+      setEmailOtp(Array(6).fill(''));
 
       enqueueSnackbar(message);
 
       setTimeout(() => {
-        emailOtpRefs[0].current?.focus();
+        emailOtpRefs.current[0]?.focus();
       }, 100);
     } catch (error) {
       const message =
@@ -132,7 +132,7 @@ export default function ProfileEditForm({
   const handleResetEmailFlow = () => {
     setEmailVerificationStep(null);
     setEmailOtpError('');
-    setEmailOtp(['', '', '', '']);
+    setEmailOtp(Array(6).fill(''));
     setNewEmail('');
   };
 
@@ -145,15 +145,15 @@ export default function ProfileEditForm({
       setEmailOtp(newOtp);
       setEmailOtpError('');
 
-      if (numericValue && index < 3) {
-        emailOtpRefs[index + 1].current?.focus();
+      if (numericValue && index < emailOtp.length - 1) {
+        emailOtpRefs.current[index + 1]?.focus();
       }
     }
   };
 
   const handleEmailOtpKeyDown = (index, e) => {
     if (e.key === 'Backspace' && !emailOtp[index] && index > 0) {
-      emailOtpRefs[index - 1].current?.focus();
+      emailOtpRefs.current[index - 1]?.focus();
     }
   };
 
@@ -162,12 +162,12 @@ export default function ProfileEditForm({
     const pastedData = e.clipboardData
       .getData('text')
       .replace(/[^0-9]/g, '')
-      .slice(0, 4);
+      .slice(0, 6);
 
-    if (pastedData.length === 4) {
+    if (pastedData.length === 6) {
       const newOtp = pastedData.split('');
       setEmailOtp(newOtp);
-      emailOtpRefs[3].current?.focus();
+      emailOtpRefs.current[5]?.focus();
       handleVerifyEmailOtp(pastedData);
     }
   };
@@ -178,7 +178,7 @@ export default function ProfileEditForm({
       setEmailOtpError('');
       const otp = otpValue || emailOtp.join('');
 
-      if (otp.length !== 4) {
+      if (otp.length !== 6) {
         return;
       }
 
@@ -226,12 +226,12 @@ export default function ProfileEditForm({
       const message = response.data.message || 'OTP sent to your mobile number';
       setMobileOtpId(response.data.otpId || '');
       setMobileVerificationStep('verify-otp');
-      setMobileOtp(['', '', '', '']);
+      setMobileOtp(Array(6).fill(''));
 
       enqueueSnackbar(message);
 
       setTimeout(() => {
-        mobileOtpRefs[0].current?.focus();
+        mobileOtpRefs.current[0]?.focus();
       }, 100);
       reset({
         fullName: user.fullName,
@@ -254,7 +254,7 @@ export default function ProfileEditForm({
   const handleResetMobileFlow = () => {
     setMobileVerificationStep(null);
     setMobileOtpError('');
-    setMobileOtp(['', '', '', '']);
+    setMobileOtp(Array(6).fill(''));
     setNewMobile('');
     setIsMobileChangeVerified(phoneValue === (user.phone || ''));
   };
@@ -268,15 +268,15 @@ export default function ProfileEditForm({
       setMobileOtp(newOtp);
       setMobileOtpError('');
 
-      if (numericValue && index < 3) {
-        mobileOtpRefs[index + 1].current?.focus();
+      if (numericValue && index < mobileOtp.length - 1) {
+        mobileOtpRefs.current[index + 1]?.focus();
       }
     }
   };
 
   const handleMobileOtpKeyDown = (index, e) => {
     if (e.key === 'Backspace' && !mobileOtp[index] && index > 0) {
-      mobileOtpRefs[index - 1].current?.focus();
+      mobileOtpRefs.current[index - 1]?.focus();
     }
   };
 
@@ -285,12 +285,12 @@ export default function ProfileEditForm({
     const pastedData = e.clipboardData
       .getData('text')
       .replace(/[^0-9]/g, '')
-      .slice(0, 4);
+      .slice(0, 6);
 
-    if (pastedData.length === 4) {
+    if (pastedData.length === 6) {
       const newOtp = pastedData.split('');
       setMobileOtp(newOtp);
-      mobileOtpRefs[3].current?.focus();
+      mobileOtpRefs.current[5]?.focus();
       handleVerifyMobileOtp(pastedData);
     }
   };
@@ -301,7 +301,7 @@ export default function ProfileEditForm({
       setMobileOtpError('');
       const otp = otpValue || mobileOtp.join('');
 
-      if (otp.length !== 4) {
+      if (otp.length !== 6) {
         return;
       }
 
@@ -439,7 +439,9 @@ export default function ProfileEditForm({
                     {emailOtp.map((digit, index) => (
                       <TextField
                         key={index}
-                        inputRef={emailOtpRefs[index]}
+                        inputRef={(element) => {
+                          emailOtpRefs.current[index] = element;
+                        }}
                         value={digit}
                         onChange={(e) => handleEmailOtpChange(index, e.target.value)}
                         onKeyDown={(e) => handleEmailOtpKeyDown(index, e)}
@@ -470,7 +472,7 @@ export default function ProfileEditForm({
                     type="button"
                     loading={isVerifyingEmailOtp}
                     onClick={() => handleVerifyEmailOtp()}
-                    disabled={emailOtp.join('').length !== 4}
+                    disabled={emailOtp.join('').length !== 6}
                   >
                     Verify & Update Email
                   </LoadingButton>
@@ -540,7 +542,9 @@ export default function ProfileEditForm({
                     {mobileOtp.map((digit, index) => (
                       <TextField
                         key={index}
-                        inputRef={mobileOtpRefs[index]}
+                        inputRef={(element) => {
+                          mobileOtpRefs.current[index] = element;
+                        }}
                         value={digit}
                         onChange={(e) => handleMobileOtpChange(index, e.target.value)}
                         onKeyDown={(e) => handleMobileOtpKeyDown(index, e)}
@@ -571,7 +575,7 @@ export default function ProfileEditForm({
                     type="button"
                     loading={isVerifyingMobileOtp}
                     onClick={() => handleVerifyMobileOtp()}
-                    disabled={mobileOtp.join('').length !== 4}
+                    disabled={mobileOtp.join('').length !== 6}
                   >
                     Verify & Update Mobile
                   </LoadingButton>

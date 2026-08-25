@@ -68,7 +68,7 @@ export default function CheckoutSummary({
   return (
     <Card sx={{ mb: 3 }}>
       <CardHeader
-        title="Order Summary1"
+        title="Order Summary"
         action={
           enableEdit && (
             <Button
@@ -120,15 +120,19 @@ export default function CheckoutSummary({
             </Stack>
           )}
 
-          <Stack spacing={0.5}>
-            <Stack direction="row" justifyContent="space-between">
-              <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                Included Shipping
-              </Typography>
-              <Typography variant="subtitle2">{fCurrency(shippingCharge)}</Typography>
-            </Stack>
-            <Typography variant="caption" sx={{ color: 'text.disabled' }}>
-              Already included in price
+          <Stack direction="row" justifyContent="space-between">
+            <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+              Shipping fee
+            </Typography>
+            <Typography variant="subtitle2">{fCurrency(shippingCharge)}</Typography>
+          </Stack>
+
+          <Stack direction="row" justifyContent="space-between">
+            <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+              Shipping discount
+            </Typography>
+            <Typography variant="subtitle2" sx={{ color: 'success.main' }}>
+              {fCurrency(-shippingCharge)}
             </Typography>
           </Stack>
 

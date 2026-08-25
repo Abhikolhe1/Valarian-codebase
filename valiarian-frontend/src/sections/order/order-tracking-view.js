@@ -188,6 +188,17 @@ export default function OrderTrackingView() {
   const returnRequestedSteps = ['Delivered', 'Return Requested'];
   const normalizedStatus = String(tracking?.status || '').toLowerCase();
   const isCancelledOrder = ['cancelled', 'canceled'].includes(normalizedStatus);
+  // Preserve every status event for the customer timeline, but remove internal
+  // actor attribution such as "by admin", "by user", or "by staff".
+  const customerTrackingEvents = (tracking?.events || []).map((event) => {
+    const comment = String(event?.comment || '').trim();
+    const isInternalStatusAudit = /^status\s+updated\s+to\b/i.test(comment);
+    const sanitizedComment = isInternalStatusAudit
+      ? ''
+      : comment.replace(/\s+by\s+(?:admin|administrator|user|customer|staff|employee)\b[.!\s]*$/i, '').trim();
+
+    return {...event, comment: sanitizedComment};
+  });
 
   const getCancelledBy = () => {
     const directCancelledBy = String(tracking?.cancelledBy || '').toLowerCase();
@@ -280,7 +291,7 @@ export default function OrderTrackingView() {
 
   const shouldShowTimeline = Boolean(
     tracking?.trackingNumber ||
-      tracking?.events?.length ||
+      customerTrackingEvents.length ||
       [
         'pending',
         'confirmed',
@@ -506,13 +517,13 @@ export default function OrderTrackingView() {
               )}
 
               {/* Tracking Events */}
-              {tracking.events && tracking.events.length > 0 && (
+              {customerTrackingEvents.length > 0 && (
                 <Box sx={{ mt: 5 }}>
                   <Typography variant="subtitle2" gutterBottom>
                     Tracking Events
                   </Typography>
                   <Stack spacing={2} sx={{ mt: 2 }}>
-                    {tracking.events.map((event, index) => (
+                    {customerTrackingEvents.map((event, index) => (
                       <Stack
                         key={index}
                         direction="row"
@@ -534,8 +545,9 @@ export default function OrderTrackingView() {
                           }}
                         />
                         <Box sx={{ flexGrow: 1 }}>
-                          <Typography variant="body2" sx={{ textTransform: 'capitalize' }}>
-                            {event.status} {event.comment && `- ${event.comment}`}
+                          <Typography variant="body2">
+                            {formatOrderStatusLabel(event.status)}{' '}
+                            {event.comment && `- ${event.comment}`}
                           </Typography>
                           <Typography variant="caption" color="text.secondary">
                             {format(new Date(event.timestamp), 'MMM dd, yyyy - h:mm a')}

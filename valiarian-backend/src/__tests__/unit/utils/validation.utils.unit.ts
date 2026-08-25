@@ -156,15 +156,15 @@ describe('Validation Utils (unit)', () => {
 
   describe('validateAndSanitizeMobile', () => {
     it('validates and trims mobile', () => {
-      expect(validateAndSanitizeMobile('  1234567890  ')).to.equal('1234567890');
+      expect(validateAndSanitizeMobile('  9876543210  ')).to.equal('+919876543210');
     });
 
     it('removes spaces from mobile', () => {
-      expect(validateAndSanitizeMobile('123 456 7890')).to.equal('1234567890');
+      expect(validateAndSanitizeMobile('987 654 3210')).to.equal('+919876543210');
     });
 
     it('throws error for invalid mobile', () => {
-      expect(() => validateAndSanitizeMobile('123')).to.throw(/Invalid mobile format/);
+      expect(() => validateAndSanitizeMobile('123')).to.throw(/Invalid Indian mobile number/);
     });
   });
 

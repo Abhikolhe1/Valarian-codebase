@@ -29,6 +29,7 @@
     "docker:run": "docker run -p 3000:3000 -d Valiarian-backend",
     "premigrate": "npm run build",
     "migrate": "node ./dist/migrate",
+    "migrate:otp-security": "npm run build && node ./dist/scripts/migrate-otp-security.js",
     "migrate:variants": "npm run build && node ./dist/scripts/migrate-to-variants.js",
     "migrate:variants:dry": "npm run build && node ./dist/scripts/migrate-to-variants.js --dry-run",
     "migrate:variants:force": "npm run build && node ./dist/scripts/migrate-to-variants.js --force",

@@ -33,8 +33,18 @@ export class ShippingController {
 
       return result;
     } catch (err) {
+      // Full detail (provider, upstream status, sanitized error code) stays
+      // server-side only — never forward the raw provider message to an
+      // unauthenticated public endpoint.
+      console.error('[ShippingController] Serviceability check failed:', {
+        pincode,
+        operation: err.operation,
+        httpStatus: err.httpStatus,
+        providerCode: err.providerCode,
+        message: err.message,
+      });
       throw new HttpErrors.BadGateway(
-        `Unable to verify serviceability: ${err.message || err}`,
+        'Unable to verify delivery availability for this pincode right now. Please try again shortly.',
       );
     }
   }

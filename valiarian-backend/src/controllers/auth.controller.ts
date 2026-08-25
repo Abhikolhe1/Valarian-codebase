@@ -15,6 +15,7 @@ import {BcryptHasher} from '../services/hash.password.bcrypt';
 import {JWTService} from '../services/jwt-service';
 import {MediaService} from '../services/media.service';
 import {OtpNotificationService} from '../services/otp-notification.service';
+import {OtpService} from '../services/otp.service';
 import {RateLimiterService} from '../services/rate-limiter.service';
 import {RbacService} from '../services/rbac.service';
 import {UserProfileService} from '../services/user-profile.service';
@@ -22,6 +23,8 @@ import {MyUserService} from '../services/user-service';
 import {FileUploadHandler} from '../types';
 import {formatDeviceInfo, parseDeviceInfo} from '../utils/device-info.utils';
 import {sanitizeInput, validateAndCheckPassword, validateAndSanitizeEmail, validateAndSanitizeMobile} from '../utils/validation.utils';
+import {OtpIdentifierType, OtpPurpose} from '../types/otp.types';
+import {OTP_CONFIG} from '../utils/otp-config';
 
 export class AuthController {
   constructor(
@@ -55,6 +58,8 @@ export class AuthController {
     private rateLimiterService: RateLimiterService,
     @inject('services.otp.notification')
     private otpNotificationService: OtpNotificationService,
+    @inject('services.otp')
+    private otpService: OtpService,
     @inject('services.cache')
     private cacheService: CacheService,
     @inject(RestBindings.Http.REQUEST)
@@ -982,43 +987,23 @@ export class AuthController {
       }
     }
 
-    await this.otpRepository.updateAll(
-      {isUsed: true, expiresAt: new Date()},
-      {identifier: sanitizedPhone, type: 0}
-    );
-
-    // Generate a 4-digit OTP for phone verification.
-    const otpCode =
-      process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'dev'
-        ? '1234'
-        : Math.floor(1000 + Math.random() * 9000).toString();
-
-    const otp = await this.otpRepository.create({
-      otp: otpCode,
-      type: 0,
+    const {record: otp, code: otpCode} = await this.otpService.issue({
       identifier: sanitizedPhone,
-      attempts: 0,
-      isUsed: false,
-      expiresAt: new Date(Date.now() + 10 * 60 * 1000) // 10 min
+      identifierType: OtpIdentifierType.PHONE,
+      purpose: OtpPurpose.SIGNUP_PHONE,
     });
 
-    if (!otp) {
-      throw new HttpErrors.InternalServerError(
-        process.env.NODE_ENV === 'dev'
-          ? "Failed to create otp"
-          : "Something went wrong"
-      );
-    }
-
-    // Send OTP via SMS
+    // Deliver phone verification through the configured WhatsApp provider.
     try {
-      await this.otpNotificationService.sendSmsOtp(sanitizedPhone, otpCode, 'registration');
+      const providerMessageId = await this.otpNotificationService.sendOtp({
+        channel: 'whatsapp', identifier: sanitizedPhone, code: otpCode, purpose: OtpPurpose.SIGNUP_PHONE,
+      });
+      if (providerMessageId) await this.otpService.recordProviderMessage(otp.id, providerMessageId);
     } catch (error) {
       console.error('Failed to send SMS OTP:', error);
-      // Don't fail the request if SMS sending fails in development
-      if (process.env.NODE_ENV !== 'development' && process.env.NODE_ENV !== 'dev') {
-        throw new HttpErrors.InternalServerError('Failed to send OTP. Please try again.');
-      }
+      await this.otpService.invalidate(otp.id);
+      await this.otpService.releaseIssueCooldown(OtpPurpose.SIGNUP_PHONE, sanitizedPhone);
+      throw new HttpErrors.ServiceUnavailable('Failed to send OTP. Please try again.');
     }
 
     const existingSession = await this.registrationSessionsRepository.findOne({
@@ -1099,6 +1084,10 @@ export class AuthController {
       throw new HttpErrors.BadRequest('Invalid session');
     }
 
+    if (!session.isActive || new Date(session.expiresAt) < new Date()) {
+      throw new HttpErrors.BadRequest('Session expired');
+    }
+
     if (new Date(session.expiresAt) < new Date()) {
       throw new HttpErrors.BadRequest('Session expired, please restart signup');
     }
@@ -1107,46 +1096,13 @@ export class AuthController {
       throw new HttpErrors.BadRequest('Phone number missing in session');
     }
 
-    const otpEntry = await this.otpRepository.findOne({
-      where: {
-        identifier: session.phoneNumber,
-        type: 0,
-        isUsed: false,
-      },
-      order: ['createdAt DESC'],
-    });
-
-    if (!otpEntry) {
-      throw new HttpErrors.BadRequest('OTP expired or not found');
-    }
-
-    if (otpEntry.attempts >= 3) {
-      throw new HttpErrors.BadRequest(
-        'Maximum attempts reached, please request a new OTP',
-      );
-    }
-
-    if (new Date(otpEntry.expiresAt) < new Date()) {
-      await this.otpRepository.updateById(otpEntry.id, {
-        isUsed: true,
-        expiresAt: new Date(),
-      });
-
-      throw new HttpErrors.BadRequest('OTP expired, request a new one');
-    }
-
-    if (otpEntry.otp !== otp) {
-      await this.otpRepository.updateById(otpEntry.id, {
-        attempts: otpEntry.attempts + 1,
-      });
-
-      throw new HttpErrors.BadRequest('Invalid OTP');
-    }
-
-    await this.otpRepository.updateById(otpEntry.id, {
-      isUsed: true,
-      expiresAt: new Date(),
-    });
+    const otpEntry = await this.otpRepository.findOne({where: {
+      identifier: session.phoneNumber, purpose: OtpPurpose.SIGNUP_PHONE, isUsed: false,
+    }, order: ['createdAt DESC']});
+    if (!otpEntry) throw new HttpErrors.BadRequest('OTP expired or not found');
+    await this.otpService.verifyAndConsume(
+      otpEntry.id, session.phoneNumber, OtpIdentifierType.PHONE, OtpPurpose.SIGNUP_PHONE, otp,
+    );
 
     await this.registrationSessionsRepository.updateById(sessionId, {
       phoneVerified: true,
@@ -1455,14 +1411,25 @@ export class AuthController {
       throw new HttpErrors.BadRequest('Invalid session');
     }
 
+    if (!session.isActive || new Date(session.expiresAt) < new Date()) {
+      throw new HttpErrors.BadRequest('Session expired');
+    }
+
     if (!session.phoneVerified && !session.emailVerified) {
       throw new HttpErrors.BadRequest('OTP not verified');
     }
 
-    // Find user by email or phone
+    // Bind login identity to the identifier that was actually verified.
     const isEmail = identifier.includes('@');
+    const canonicalIdentifier = isEmail
+      ? validateAndSanitizeEmail(identifier)
+      : validateAndSanitizeMobile(identifier);
+    const verifiedIdentifier = isEmail ? session.email : session.phoneNumber;
+    if (!verifiedIdentifier || verifiedIdentifier !== canonicalIdentifier) {
+      throw new HttpErrors.BadRequest('Verified identity does not match login identity');
+    }
     const userData = await this.usersRepository.findOne({
-      where: isEmail ? {email: identifier} : {phone: identifier},
+      where: isEmail ? {email: canonicalIdentifier} : {phone: canonicalIdentifier},
     });
 
     if (!userData) {
@@ -1602,36 +1569,19 @@ export class AuthController {
       );
     }
 
-    await this.otpRepository.updateAll(
-      {isUsed: true, expiresAt: new Date()},
-      {identifier: sanitizedEmail, type: 1}
-    );
-
-    // Generate a real random 4-digit OTP to match the admin reset UI
-    const otpCode = Math.floor(1000 + Math.random() * 9000).toString();
-
-    const otp = await this.otpRepository.create({
-      otp: otpCode,
-      type: 1,
+    const {record: otp, code: otpCode} = await this.otpService.issue({
       identifier: sanitizedEmail,
-      attempts: 0,
-      isUsed: false,
-      expiresAt: new Date(Date.now() + 10 * 60 * 1000) // 10 min
+      identifierType: OtpIdentifierType.EMAIL,
+      purpose: OtpPurpose.EMAIL_VERIFICATION,
     });
-
-    if (!otp) {
-      throw new HttpErrors.InternalServerError(
-        process.env.NODE_ENV === 'dev'
-          ? "Failed to create otp"
-          : "Something went wrong"
-      );
-    }
 
     // Send OTP via Email
     try {
-      await this.otpNotificationService.sendEmailOtp(sanitizedEmail, otpCode, 'registration');
+      await this.otpNotificationService.sendOtp({channel: 'email', identifier: sanitizedEmail, code: otpCode, purpose: OtpPurpose.EMAIL_VERIFICATION});
     } catch (error) {
       console.error('Failed to send email OTP:', error);
+      await this.otpService.invalidate(otp.id);
+      await this.otpService.releaseIssueCooldown(OtpPurpose.EMAIL_VERIFICATION, sanitizedEmail);
       throw new HttpErrors.InternalServerError('Failed to send OTP email. Please try again.');
     }
 
@@ -1682,46 +1632,13 @@ export class AuthController {
       throw new HttpErrors.BadRequest('Email missing in session');
     }
 
-    const otpEntry = await this.otpRepository.findOne({
-      where: {
-        identifier: session.email,
-        type: 1,
-        isUsed: false,
-      },
-      order: ['createdAt DESC'],
-    });
-
-    if (!otpEntry) {
-      throw new HttpErrors.BadRequest('OTP expired or not found');
-    }
-
-    if (otpEntry.attempts >= 3) {
-      throw new HttpErrors.BadRequest(
-        'Maximum attempts reached, please request a new OTP',
-      );
-    }
-
-    if (new Date(otpEntry.expiresAt) < new Date()) {
-      await this.otpRepository.updateById(otpEntry.id, {
-        isUsed: true,
-        expiresAt: new Date(),
-      });
-
-      throw new HttpErrors.BadRequest('OTP expired, request a new one');
-    }
-
-    if (otpEntry.otp !== otp) {
-      await this.otpRepository.updateById(otpEntry.id, {
-        attempts: otpEntry.attempts + 1,
-      });
-
-      throw new HttpErrors.BadRequest('Invalid OTP');
-    }
-
-    await this.otpRepository.updateById(otpEntry.id, {
-      isUsed: true,
-      expiresAt: new Date(),
-    });
+    const otpEntry = await this.otpRepository.findOne({where: {
+      identifier: session.email, purpose: OtpPurpose.EMAIL_VERIFICATION, isUsed: false,
+    }, order: ['createdAt DESC']});
+    if (!otpEntry) throw new HttpErrors.BadRequest('OTP expired or not found');
+    await this.otpService.verifyAndConsume(
+      otpEntry.id, session.email, OtpIdentifierType.EMAIL, OtpPurpose.EMAIL_VERIFICATION, otp,
+    );
 
     await this.registrationSessionsRepository.updateById(sessionId, {
       emailVerified: true,
@@ -1802,36 +1719,20 @@ export class AuthController {
       throw new HttpErrors.Unauthorized('Unauthorized access');
     }
 
-    await this.otpRepository.updateAll(
-      {isUsed: true, expiresAt: new Date()},
-      {identifier: sanitizedEmail, type: 1}
-    );
-
-    // Generate a real random 4-digit OTP to match the admin reset UI
-    const otpCode = Math.floor(1000 + Math.random() * 9000).toString();
-
-    const otp = await this.otpRepository.create({
-      otp: otpCode,
-      type: 1,
+    const {record: otp, code: otpCode} = await this.otpService.issue({
       identifier: sanitizedEmail,
-      attempts: 0,
-      isUsed: false,
-      expiresAt: new Date(Date.now() + 10 * 60 * 1000) // 10 min
+      identifierType: OtpIdentifierType.EMAIL,
+      purpose: OtpPurpose.PASSWORD_RESET,
+      userId: user.id,
     });
-
-    if (!otp) {
-      throw new HttpErrors.InternalServerError(
-        process.env.NODE_ENV === 'dev'
-          ? "Failed to create otp"
-          : "Something went wrong"
-      );
-    }
 
     // Send OTP via Email
     try {
-      await this.otpNotificationService.sendEmailOtp(sanitizedEmail, otpCode, 'password_reset');
+      await this.otpNotificationService.sendOtp({channel: 'email', identifier: sanitizedEmail, code: otpCode, purpose: OtpPurpose.PASSWORD_RESET});
     } catch (error) {
       console.error('Failed to send password reset email OTP:', error);
+      await this.otpService.invalidate(otp.id);
+      await this.otpService.releaseIssueCooldown(OtpPurpose.PASSWORD_RESET, sanitizedEmail);
       throw new HttpErrors.InternalServerError('Failed to send OTP email. Please try again.');
     }
 
@@ -1911,50 +1812,18 @@ export class AuthController {
       throw new HttpErrors.Unauthorized('Unauthorized access');
     }
 
-    const otpEntry = await this.otpRepository.findOne({
-      where: {
-        identifier: sanitizedEmail,
-        type: 1,
-        isUsed: false,
-      },
-      order: ['createdAt DESC'],
-    });
-
-    if (!otpEntry) {
-      throw new HttpErrors.BadRequest('OTP expired or not found');
-    }
-
-    if (otpEntry.attempts >= 3) {
-      throw new HttpErrors.BadRequest(
-        'Maximum attempts reached, please request a new OTP',
-      );
-    }
-
-    if (new Date(otpEntry.expiresAt) < new Date()) {
-      await this.otpRepository.updateById(otpEntry.id, {
-        isUsed: true,
-        expiresAt: new Date(),
-      });
-
-      throw new HttpErrors.BadRequest('OTP expired, request a new one');
-    }
-
-    if (otpEntry.otp !== body.otp) {
-      await this.otpRepository.updateById(otpEntry.id, {
-        attempts: otpEntry.attempts + 1,
-      });
-
-      throw new HttpErrors.BadRequest('Invalid OTP');
-    }
-
-    await this.otpRepository.updateById(otpEntry.id, {
-      isUsed: true,
-      expiresAt: new Date(),
-    });
+    const otpEntry = await this.otpRepository.findOne({where: {
+      identifier: sanitizedEmail, purpose: OtpPurpose.PASSWORD_RESET, isUsed: false,
+    }, order: ['createdAt DESC']});
+    if (!otpEntry) throw new HttpErrors.BadRequest('OTP expired or not found');
+    await this.otpService.verifyAndConsume(
+      otpEntry.id, sanitizedEmail, OtpIdentifierType.EMAIL, OtpPurpose.PASSWORD_RESET, body.otp,
+    );
 
     const hashedPassword = await this.hasher.hashPassword(body.newPassword);
 
     await this.usersRepository.updateById(user.id, {password: hashedPassword});
+    await this.revokeUserRefreshTokens(user.id);
 
     return {
       success: true,
@@ -2525,60 +2394,51 @@ export class AuthController {
         'application/json': {
           schema: {
             type: 'object',
-            required: ['identifier', 'type'],
+            required: ['identifier'],
             properties: {
               identifier: {type: 'string'},
-              type: {type: 'string', enum: ['email', 'phone']},
             },
           },
         },
       },
     })
-    request: {identifier: string; type: 'email' | 'phone'},
-  ): Promise<{success: boolean; message: string; otpId: string; isNewUser: boolean}> {
+    request: {identifier: string},
+  ): Promise<{success: boolean; message: string; otpId: string; expiresIn: number; resendAfter: number}> {
     try {
-      const {identifier, type} = request;
-
-      // Validate identifier
-      if (type === 'email') {
-        validateAndSanitizeEmail(identifier);
-      } else {
-        validateAndSanitizeMobile(identifier);
-      }
-
-      // Check if user exists (but don't throw error if not)
-      const whereClause = type === 'email' ? {email: identifier} : {phone: identifier};
-      const user = await this.usersRepository.findOne({where: whereClause});
-      const isNewUser = !user;
-
-      // For testing, use hardcoded OTP: 1234
-      const otpCode = '1234';
-      const otpType = type === 'email' ? 1 : 0;
-
-      // Store OTP in database
-      const otp = await this.otpRepository.create({
-        otp: otpCode,
-        type: otpType,
+      const identifier = validateAndSanitizeMobile(request.identifier);
+      const clientIp = this.getClientIp();
+      await this.otpService.enforceLoginSendLimits(identifier, clientIp);
+      const {record, code} = await this.otpService.issue({
         identifier,
-        attempts: 0,
-        isUsed: false,
-        expiresAt: new Date(Date.now() + 10 * 60 * 1000), // 10 minutes
+        identifierType: OtpIdentifierType.PHONE,
+        purpose: OtpPurpose.LOGIN_PHONE,
+        ip: clientIp,
       });
 
-      // In production, send OTP via SMS/Email
-      // await this.otpNotificationService.sendOtp(identifier, otpCode, type);
+      try {
+        const providerMessageId = await this.otpNotificationService.sendOtp({
+          channel: 'whatsapp', identifier, code, purpose: OtpPurpose.LOGIN_PHONE,
+        });
+        if (providerMessageId) await this.otpService.recordProviderMessage(record.id, providerMessageId);
+      } catch (providerError) {
+        await this.otpService.invalidate(record.id);
+        await this.otpService.releaseIssueCooldown(OtpPurpose.LOGIN_PHONE, identifier);
+        throw new HttpErrors.ServiceUnavailable('Unable to send verification code. Please try again later.');
+      }
 
       return {
         success: true,
-        message: `OTP sent to ${identifier}. For testing, use OTP: 1234`,
-        otpId: otp.id!,
-        isNewUser,
+        message: 'Verification code sent',
+        otpId: record.id!,
+        expiresIn: OTP_CONFIG.expirySeconds,
+        resendAfter: OTP_CONFIG.resendCooldownSeconds,
       };
     } catch (error) {
       if (error instanceof HttpErrors.HttpError) {
         throw error;
       }
-      throw new HttpErrors.InternalServerError(`Failed to send OTP: ${error.message}`);
+      console.error('Failed to issue login OTP:', {name: error?.name});
+      throw new HttpErrors.InternalServerError('Unable to send verification code.');
     }
   }
 
@@ -2603,35 +2463,20 @@ export class AuthController {
   ): Promise<{
     success: boolean;
     accessToken: string;
-    refreshToken: string;
     user: any;
     isNewUser: boolean;
   }> {
     try {
       const {otpId, otp, identifier} = request;
 
-      // Verify OTP
-      const otpRecord = await this.otpRepository.findById(otpId);
-
-      if (!otpRecord) {
-        throw new HttpErrors.Unauthorized('Invalid OTP');
-      }
-
-      if (otpRecord.otp !== otp) {
-        throw new HttpErrors.Unauthorized('Invalid OTP');
-      }
-
-      if (otpRecord.isUsed) {
-        throw new HttpErrors.Unauthorized('OTP already used');
-      }
-
-      if (new Date() > otpRecord.expiresAt) {
-        throw new HttpErrors.Unauthorized('OTP has expired');
-      }
+      const canonicalIdentifier = validateAndSanitizeMobile(identifier);
+      await this.otpService.enforceLoginVerifyLimits(canonicalIdentifier, this.getClientIp());
+      await this.otpService.verifyAndConsume(
+        otpId, canonicalIdentifier, OtpIdentifierType.PHONE, OtpPurpose.LOGIN_PHONE, otp,
+      );
 
       // Find or create user
-      const isEmail = identifier.includes('@');
-      const whereClause = isEmail ? {email: identifier} : {phone: identifier};
+      const whereClause = {phone: canonicalIdentifier};
       let user = await this.usersRepository.findOne({where: whereClause});
       let isNewUser = false;
 
@@ -2664,19 +2509,11 @@ export class AuthController {
           authProvider: 'otp',
         };
 
-        if (isEmail) {
-          newUserData.email = identifier;
-          newUserData.phone = ''; // Empty string instead of undefined
-          newUserData.fullName = identifier.split('@')[0]; // Use email prefix as temporary name
-          newUserData.isEmailVerified = true;
-          newUserData.isMobileVerified = false;
-        } else {
-          newUserData.phone = identifier;
-          newUserData.email = ''; // Empty string instead of undefined
-          newUserData.fullName = `User ${identifier.slice(-4)}`; // Use last 4 digits as temporary name
-          newUserData.isEmailVerified = false;
-          newUserData.isMobileVerified = true;
-        }
+        newUserData.phone = canonicalIdentifier;
+        newUserData.email = '';
+        newUserData.fullName = `User ${canonicalIdentifier.slice(-4)}`;
+        newUserData.isEmailVerified = false;
+        newUserData.isMobileVerified = true;
 
         user = await this.usersRepository.create(newUserData);
 
@@ -2688,9 +2525,6 @@ export class AuthController {
           isActive: true,
         });
       }
-
-      // Mark OTP as used
-      await this.otpRepository.updateById(otpId, {isUsed: true});
 
       // Get user roles and permissions using RBAC service BEFORE generating token
       const {roles, permissions} = await this.rbacService.getUserRolesAndPermissions(user.id!);
@@ -2709,10 +2543,16 @@ export class AuthController {
         deviceInfo: 'OTP Login',
       });
 
+      this.request.res?.cookie('refreshToken', refreshToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+        maxAge: 30 * 24 * 60 * 60 * 1000,
+      });
+
       return {
         success: true,
         accessToken,
-        refreshToken,
         user: {
           id: user.id,
           email: user.email,
@@ -2727,7 +2567,8 @@ export class AuthController {
       if (error instanceof HttpErrors.HttpError) {
         throw error;
       }
-      throw new HttpErrors.InternalServerError(`Failed to verify OTP: ${error.message}`);
+      console.error('Failed to complete OTP authentication:', {name: error?.name});
+      throw new HttpErrors.InternalServerError('Unable to complete authentication.');
     }
   }
 }

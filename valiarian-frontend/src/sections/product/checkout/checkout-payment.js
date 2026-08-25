@@ -10,9 +10,11 @@ import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
 import { clearUserCart } from 'src/api/cart';
+import { checkPincodeServiceability } from 'src/api/shipping';
 import { useAuthContext } from 'src/auth/hooks';
 import FormProvider from 'src/components/hook-form';
 import Iconify from 'src/components/iconify';
+import { INCLUDED_SHIPPING_CHARGE } from 'src/config/checkout';
 import { useSnackbar } from 'src/components/snackbar';
 import useRazorpay from 'src/hooks/use-razorpay';
 import {
@@ -39,9 +41,9 @@ import CheckoutSummary from './checkout-summary';
 
 const DELIVERY_OPTIONS = [
   {
-    value: 199,
+    value: INCLUDED_SHIPPING_CHARGE,
     label: 'Standard',
-    description: 'Delivery charge included in the selling price',
+    description: '₹199 shipping discount applied — no extra delivery cost',
   },
 ];
 
@@ -120,6 +122,8 @@ export default function CheckoutPayment({
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const [emailPromptDismissed, setEmailPromptDismissed] = useState(false);
   const [emailDialogOpen, setEmailDialogOpen] = useState(false);
+  const [codUnavailable, setCodUnavailable] = useState('');
+  const [isCheckingCod, setIsCheckingCod] = useState(false);
 
   const PaymentSchema = Yup.object().shape({
     payment: Yup.string().required('Payment method is required!'),
@@ -147,6 +151,41 @@ export default function CheckoutPayment({
       loadScript().catch(() => undefined);
     }
   }, [loadScript, selectedPayment]);
+
+  useEffect(() => {
+    const pincode = billing?.zipCode;
+
+    if (selectedPayment !== 'cod' || !pincode) {
+      setCodUnavailable('');
+      return undefined;
+    }
+
+    let ignore = false;
+    setIsCheckingCod(true);
+
+    checkPincodeServiceability(pincode, 'cod')
+      .then((result) => {
+        if (ignore) return;
+        setCodUnavailable(
+          result && result.isServiceable === false
+            ? `Cash on delivery is not available for pincode ${pincode}. Please choose online payment instead.`
+            : ''
+        );
+      })
+      .catch((checkError) => {
+        // Provider outage — fail open, same policy as the backend's own gate,
+        // so COD is not blocked just because the serviceability check failed.
+        console.error('COD serviceability check failed, allowing checkout to proceed:', checkError);
+        if (!ignore) setCodUnavailable('');
+      })
+      .finally(() => {
+        if (!ignore) setIsCheckingCod(false);
+      });
+
+    return () => {
+      ignore = true;
+    };
+  }, [billing?.zipCode, selectedPayment]);
 
   useEffect(() => {
     const defaultShipping = DELIVERY_OPTIONS[0]?.value || 0;
@@ -498,6 +537,11 @@ export default function CheckoutPayment({
     try {
       setCheckoutError('');
 
+      if (data.payment === 'cod' && codUnavailable) {
+        setCheckoutError(codUnavailable);
+        return;
+      }
+
       const orderData = createOrderPayload(data.payment);
 
       if (data.payment === 'razorpay') {
@@ -575,6 +619,12 @@ export default function CheckoutPayment({
 
             <CheckoutPaymentMethods options={PAYMENT_OPTIONS} sx={{ my: 3 }} />
 
+            {selectedPayment === 'cod' && !!codUnavailable && (
+              <Alert severity="warning" sx={{ mb: 3 }}>
+                {codUnavailable}
+              </Alert>
+            )}
+
             <Button
               size="small"
               variant='outlined'
@@ -621,7 +671,12 @@ export default function CheckoutPayment({
               variant="contained"
               color='secondary'
               loading={isSubmitting || isProcessingPayment || isLoadingScript}
-              disabled={isSubmitting || isProcessingPayment || !eligibleCart?.length}
+              disabled={
+                isSubmitting ||
+                isProcessingPayment ||
+                !eligibleCart?.length ||
+                (selectedPayment === 'cod' && (isCheckingCod || !!codUnavailable))
+              }
             >
               Place Order
             </LoadingButton>

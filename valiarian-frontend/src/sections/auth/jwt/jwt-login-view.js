@@ -36,13 +36,13 @@ export default function JwtLoginView() {
   const [otpSent, setOtpSent] = useState(false);
   const [phone, setPhone] = useState('');
   const [otpId, setOtpId] = useState('');
-  const [otp, setOtp] = useState(['', '', '', '']);
+  const [otp, setOtp] = useState(Array(6).fill(''));
   const [otpError, setOtpError] = useState('');
   const [isVerifying, setIsVerifying] = useState(false);
   const [resendTimer, setResendTimer] = useState(0);
 
   // Refs for OTP inputs
-  const otpRefs = [useRef(null), useRef(null), useRef(null), useRef(null)];
+  const otpRefs = useRef([]);
 
   // Countdown for the "Resend OTP" cooldown
   useEffect(() => {
@@ -79,7 +79,7 @@ export default function JwtLoginView() {
       setPhone(phoneNumber);
 
       // Send OTP using auth context
-      const result = await sendOtp(phoneNumber, 'phone');
+      const result = await sendOtp(phoneNumber);
 
       setOtpId(result.otpId);
       setOtpSent(true);
@@ -87,11 +87,11 @@ export default function JwtLoginView() {
 
       // Focus first OTP input
       setTimeout(() => {
-        otpRefs[0].current?.focus();
+        otpRefs.current[0]?.focus();
       }, 100);
     } catch (error) {
       console.error(error);
-      setErrorMsg(typeof error === 'string' ? error : error?.error?.message || 'Failed to send OTP');
+      setErrorMsg(typeof error === 'string' ? error : error?.message || error?.error?.message || 'Failed to send OTP');
     }
   });
 
@@ -106,14 +106,14 @@ export default function JwtLoginView() {
       setOtpError('');
 
       // Auto-focus next input
-      if (numericValue && index < 3) {
-        otpRefs[index + 1].current?.focus();
+      if (numericValue && index < otp.length - 1) {
+        otpRefs.current[index + 1]?.focus();
       }
 
       // Auto-verify when all 4 digits entered
-      if (index === 3 && numericValue) {
-        const fullOtp = [...newOtp.slice(0, 3), numericValue].join('');
-        if (fullOtp.length === 4) {
+      if (index === 5 && numericValue) {
+        const fullOtp = newOtp.join('');
+        if (fullOtp.length === 6) {
           handleVerifyOtp(fullOtp);
         }
       }
@@ -123,18 +123,18 @@ export default function JwtLoginView() {
   const handleOtpKeyDown = (index, e) => {
     // Handle backspace
     if (e.key === 'Backspace' && !otp[index] && index > 0) {
-      otpRefs[index - 1].current?.focus();
+      otpRefs.current[index - 1]?.focus();
     }
   };
 
   const handleOtpPaste = (e) => {
     e.preventDefault();
-    const pastedData = e.clipboardData.getData('text').replace(/[^0-9]/g, '').slice(0, 4);
+    const pastedData = e.clipboardData.getData('text').replace(/[^0-9]/g, '').slice(0, 6);
 
-    if (pastedData.length === 4) {
+    if (pastedData.length === 6) {
       const newOtp = pastedData.split('');
       setOtp(newOtp);
-      otpRefs[3].current?.focus();
+      otpRefs.current[5]?.focus();
       handleVerifyOtp(pastedData);
     }
   };
@@ -144,26 +144,19 @@ export default function JwtLoginView() {
       setIsVerifying(true);
       setOtpError('');
 
-      if (otpValue.length !== 4) {
-        setOtpError('Please enter a valid 4-digit OTP');
+      if (otpValue.length !== 6) {
+        setOtpError('Please enter a valid 6-digit OTP');
         setIsVerifying(false);
         return;
       }
 
       // Verify OTP and login using auth context
-      const result = await verifyOtp(otpId, otpValue, phone);
-
-      console.log('User authenticated successfully:', result.user);
-
-      // Show welcome message for new users
-      if (result.isNewUser) {
-        console.log('Welcome! Your account has been created. Complete your profile to add email.');
-      }
+      await verifyOtp(otpId, otpValue, phone);
 
       router.replace(resolveAuthRedirect(searchParams));
     } catch (error) {
       console.error('OTP verification error:', error);
-      setOtpError(typeof error === 'string' ? error : error?.error?.message || 'Invalid OTP');
+      setOtpError(typeof error === 'string' ? error : error?.message || error?.error?.message || 'Invalid OTP');
       setIsVerifying(false);
     }
   };
@@ -176,14 +169,14 @@ export default function JwtLoginView() {
       setOtp(['', '', '', '']);
 
       // Resend OTP using auth context
-      const result = await sendOtp(phone, 'phone');
+      const result = await sendOtp(phone);
 
       setOtpId(result.otpId);
       setResendTimer(60);
-      otpRefs[0].current?.focus();
+      otpRefs.current[0]?.focus();
     } catch (error) {
       console.error(error);
-      setOtpError(typeof error === 'string' ? error : error?.error?.message || 'Failed to resend OTP');
+      setOtpError(typeof error === 'string' ? error : error?.message || error?.error?.message || 'Failed to resend OTP');
     }
   };
 
@@ -264,7 +257,9 @@ export default function JwtLoginView() {
               {otp.map((digit, index) => (
                 <TextField
                   key={index}
-                  inputRef={otpRefs[index]}
+                  inputRef={(element) => {
+                    otpRefs.current[index] = element;
+                  }}
                   value={digit}
                   onChange={(e) => handleOtpChange(index, e.target.value)}
                   onKeyDown={(e) => handleOtpKeyDown(index, e)}
@@ -297,7 +292,7 @@ export default function JwtLoginView() {
             type="button"
             onClick={() => handleVerifyOtp()}
             loading={isVerifying}
-            disabled={otp.join('').length !== 4}
+            disabled={otp.join('').length !== 6}
           >
             Verify & Login
           </LoadingButton>

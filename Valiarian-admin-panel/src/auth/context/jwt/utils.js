@@ -31,19 +31,11 @@ function jwtDecode(token) {
 
 export const isValidToken = (accessToken) => {
   if (!accessToken) {
-    console.log('No access token provided');
     return false;
   }
 
   try {
     const decoded = jwtDecode(accessToken);
-
-    console.log('Decoded token:', {
-      exp: decoded.exp,
-      expDate: decoded.exp ? new Date(decoded.exp * 1000).toLocaleString() : 'N/A',
-      iat: decoded.iat,
-      iatDate: decoded.iat ? new Date(decoded.iat * 1000).toLocaleString() : 'N/A',
-    });
 
     if (!decoded.exp) {
       console.error('Token does not have expiration (exp) claim');
@@ -52,16 +44,6 @@ export const isValidToken = (accessToken) => {
 
     const currentTime = Date.now() / 1000;
     const isValid = decoded.exp > currentTime;
-
-    console.log('Token validation:', {
-      currentTime,
-      currentDate: new Date(currentTime * 1000).toLocaleString(),
-      tokenExp: decoded.exp,
-      tokenExpDate: new Date(decoded.exp * 1000).toLocaleString(),
-      isValid,
-      timeUntilExpiry: decoded.exp - currentTime,
-      timeUntilExpiryMinutes: Math.floor((decoded.exp - currentTime) / 60),
-    });
 
     return isValid;
   } catch (error) {
@@ -82,18 +64,6 @@ export const tokenExpired = (exp) => {
   const expTime = exp * 1000; // Convert to milliseconds
   const timeLeft = expTime - currentTime;
 
-  console.log('Token expiration check:', {
-    exp,
-    expTime,
-    expDate: new Date(expTime).toLocaleString(),
-    currentTime,
-    currentDate: new Date(currentTime).toLocaleString(),
-    timeLeft,
-    timeLeftMinutes: Math.floor(timeLeft / 1000 / 60),
-    timeLeftHours: Math.floor(timeLeft / 1000 / 60 / 60),
-    timeLeftDays: Math.floor(timeLeft / 1000 / 60 / 60 / 24),
-  });
-
   // If token is already expired
   if (timeLeft <= 0) {
     console.error('Token is already expired!');
@@ -113,10 +83,7 @@ export const tokenExpired = (exp) => {
   const maxTimeout = 2147483647; // Maximum setTimeout value
   const timeoutDelay = Math.min(timeLeft, maxTimeout);
 
-  console.log('Setting token expiration timeout for:', timeoutDelay, 'ms');
-
   const expiredTimer = setTimeout(() => {
-    console.log('Token has expired, redirecting to login');
     alert('Token expired');
     sessionStorage.removeItem('accessToken');
     window.location.href = paths.auth.jwt.login;
