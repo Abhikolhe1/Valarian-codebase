@@ -20,6 +20,7 @@ import { resolveAuthRedirect } from 'src/utils/auth-redirect';
 // components
 import { Button } from '@mui/material';
 import FormProvider, { RHFTextField } from 'src/components/hook-form';
+import { MOBILE_AUTH_ENABLED } from 'src/config/auth';
 import { RouterLink } from 'src/routes/components';
 import GoogleLoginButton from './google-login-button';
 
@@ -206,12 +207,13 @@ export default function JwtLoginView() {
         <Button fullWidth size="large" color='secondary' variant="outlined"> Login As Guest</Button>
       </Link>
 
-      <Divider sx={{ my: 1 }}>
+      {MOBILE_AUTH_ENABLED && <>
+        <Divider sx={{ my: 1 }}>
 
-        <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-          OR
-        </Typography>
-      </Divider>
+          <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+            OR
+          </Typography>
+        </Divider>
 
       {!otpSent && (
         <Box>
@@ -335,6 +337,7 @@ export default function JwtLoginView() {
           By continuing, you agree to our Terms of Service and Privacy Policy
         </Typography>
       )}
+      </>}
     </Stack>
   );
 

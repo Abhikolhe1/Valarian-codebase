@@ -21,6 +21,7 @@ import { resolveAuthRedirect } from 'src/utils/auth-redirect';
 // components
 import { Divider } from '@mui/material';
 import FormProvider, { RHFTextField } from 'src/components/hook-form';
+import { MOBILE_AUTH_ENABLED } from 'src/config/auth';
 import GoogleLoginButton from './google-login-button';
 import OtpVerificationModal from './otp-verification-modal';
 
@@ -199,12 +200,13 @@ export default function JwtRegisterView() {
         {/* Google Sign Up Button */}
         <GoogleLoginButton />
 
-        {/* OR Divider */}
-        <Divider sx={{ my: 2 }}>
-          <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-            OR
-          </Typography>
-        </Divider>
+        {MOBILE_AUTH_ENABLED && <>
+          {/* OR Divider */}
+          <Divider sx={{ my: 2 }}>
+            <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+              OR
+            </Typography>
+          </Divider>
 
         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
           <RHFTextField name="firstName" label="First name" />
@@ -248,6 +250,7 @@ export default function JwtRegisterView() {
         >
           Send OTP
         </LoadingButton>
+        </>}
       </Stack>
     </FormProvider>
   );
@@ -260,14 +263,14 @@ export default function JwtRegisterView() {
 
       {renderTerms}
 
-      <OtpVerificationModal
+      {MOBILE_AUTH_ENABLED && <OtpVerificationModal
         open={otpModalOpen}
         onClose={() => setOtpModalOpen(false)}
         mobile={registrationData?.mobile}
         sessionId={sessionId}
         onResend={handleResendOtp}
         onVerified={handleOtpVerified}
-      />
+      />}
     </>
   );
 }

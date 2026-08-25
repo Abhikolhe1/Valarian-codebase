@@ -25,6 +25,7 @@ import {formatDeviceInfo, parseDeviceInfo} from '../utils/device-info.utils';
 import {sanitizeInput, validateAndCheckPassword, validateAndSanitizeEmail, validateAndSanitizeMobile} from '../utils/validation.utils';
 import {OtpIdentifierType, OtpPurpose} from '../types/otp.types';
 import {OTP_CONFIG} from '../utils/otp-config';
+import {assertMobileAuthEnabled} from '../utils/mobile-auth';
 
 export class AuthController {
   constructor(
@@ -954,6 +955,8 @@ export class AuthController {
       role: string;
     }
   ): Promise<{success: boolean; message: string; sessionId: string}> {
+    assertMobileAuthEnabled();
+
     // Validate and sanitize mobile number
     const sanitizedPhone = validateAndSanitizeMobile(body.phone);
 
@@ -1074,6 +1077,8 @@ export class AuthController {
     })
     body: {sessionId: string; otp: string},
   ): Promise<{success: boolean; message: string}> {
+    assertMobileAuthEnabled();
+
     const {sessionId, otp} = body;
 
     const session = await this.registrationSessionsRepository.findById(
@@ -1139,6 +1144,8 @@ export class AuthController {
       password: string;
     },
   ): Promise<{success: boolean; message: string; accessToken: string; user: any}> {
+    assertMobileAuthEnabled();
+
     const {sessionId, fullName, email, password} = body;
 
     // Verify session exists and is verified
@@ -1403,6 +1410,10 @@ export class AuthController {
     body: {sessionId: string; identifier: string},
   ): Promise<{success: boolean; message: string; accessToken: string; user: object}> {
     const {sessionId, identifier} = body;
+
+    if (!identifier.includes('@')) {
+      assertMobileAuthEnabled();
+    }
 
     // Verify session
     const session = await this.registrationSessionsRepository.findById(sessionId);
@@ -2404,6 +2415,8 @@ export class AuthController {
     })
     request: {identifier: string},
   ): Promise<{success: boolean; message: string; otpId: string; expiresIn: number; resendAfter: number}> {
+    assertMobileAuthEnabled();
+
     try {
       const identifier = validateAndSanitizeMobile(request.identifier);
       const clientIp = this.getClientIp();
@@ -2466,6 +2479,8 @@ export class AuthController {
     user: any;
     isNewUser: boolean;
   }> {
+    assertMobileAuthEnabled();
+
     try {
       const {otpId, otp, identifier} = request;
 
