@@ -188,8 +188,11 @@ export class BlueDartDeveloperPortalProvider implements ShippingProvider {
 
   async registerPickup(request: PickupRegistrationRequest): Promise<PickupRegistrationResult> {
     if (!request.providerRequestId) throw new BlueDartProviderError('Pickup providerRequestId is required', {operation: 'registerPickup'});
-    const raw = await this.client.post<Json, PickupRegistrationRequest>(this.config.baseUrl!, this.endpoint('pickupRegistration'), request, 'registerPickup');
-    const pickupReference = this.text(raw.pickupReference ?? raw.pickupId);
+    const operation = 'registerPickup';
+    assertBlueDartBaseUrlConfigured(this.config.pickupBaseUrl, 'BLUEDART_SANDBOX_PICKUP_BASE_URL / BLUEDART_PRODUCTION_PICKUP_BASE_URL', operation);
+    const raw = await this.client.post<Json, PickupRegistrationRequest>(this.config.pickupBaseUrl, this.endpoint('pickupRegistration'), request, operation);
+    const details: Json = (raw.RegisterPickupResult ?? raw.PickupRegistrationResponse ?? raw) as Json;
+    const pickupReference = this.text(details.TokenNumber ?? details.pickupReference ?? details.pickupId);
     if (!pickupReference) throw new BlueDartProviderError('Unsupported pickup response contract', {operation: 'registerPickup', reconciliationRequired: true});
     return {pickupReference, rawResponse: raw};
   }
