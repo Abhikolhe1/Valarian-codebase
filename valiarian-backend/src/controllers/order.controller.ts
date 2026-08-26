@@ -953,7 +953,6 @@ export class OrderController {
           trackingNumber: order.trackingNumber,
           items,
           reviewUrl: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/orders/${order.id}/review`,
-          returnWindowDays: process.env.RETURN_WINDOW_DAYS || '7',
           returnUrl: `${this.getOrderDetailsUrl(order.id)}/return`,
           orderDetailsUrl: this.getOrderDetailsUrl(order.id),
           year: new Date().getFullYear(),
@@ -2840,7 +2839,7 @@ export class OrderController {
       }
 
       const returnWindowDays = parseInt(
-        process.env.RETURN_WINDOW_DAYS || '7',
+        process.env.RETURN_WINDOW_DAYS || '3',
         10,
       );
       const returnWindowMs = returnWindowDays * 24 * 60 * 60 * 1000;
@@ -2849,7 +2848,7 @@ export class OrderController {
 
       if (currentTime - deliveryTime > returnWindowMs) {
         throw new HttpErrors.BadRequest(
-          `Return window of ${returnWindowDays} days has expired. Order was delivered on ${new Date(
+          `The 72-hour return window has expired. Order was delivered on ${new Date(
             order.deliveredAt,
           ).toLocaleDateString()}.`,
         );

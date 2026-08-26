@@ -9,12 +9,6 @@ import { useSiteSettings } from 'src/hooks/use-site-settings';
 
 // ----------------------------------------------------------------------
 
-const DEFAULT_OFFERS = [
-  'Flat 20% off on premium polos',
-  'Free shipping on orders above ₹1999',
-  'Limited edition drop – Shop now',
-];
-
 const StyledMarqueeContainer = styled(Box)(({ theme, visible }) => ({
   position: 'fixed',
   top: 0,
@@ -98,7 +92,7 @@ export default function OfferMarquee() {
   const offers = (settings?.offers?.marquee || [])
     .map((item) => String(item?.text || '').trim())
     .filter(Boolean);
-  const activeOffers = offers.length ? offers : DEFAULT_OFFERS;
+  const activeOffers = offers;
 
   // Create seamless infinite loop by duplicating offers multiple times
   // Using 3 sets ensures we always have content ready when looping

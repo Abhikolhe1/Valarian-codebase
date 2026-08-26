@@ -16,6 +16,7 @@ import Typography from '@mui/material/Typography';
 // utils
 import axiosInstance from 'src/utils/axios';
 import { useAuthContext } from 'src/auth/hooks';
+import { MOBILE_AUTH_ENABLED } from 'src/config/auth';
 // components
 import FormProvider, { RHFTextField } from 'src/components/hook-form';
 import Iconify from 'src/components/iconify';
@@ -81,12 +82,21 @@ export default function ProfileEditForm({
 
   const emailValue = watch('email');
   const phoneValue = watch('phone');
+  let mobileHelperText = 'Enter a 10 digit mobile number';
+
+  if (MOBILE_AUTH_ENABLED) {
+    mobileHelperText = displayUser.isMobileVerified
+      ? 'Mobile number verified'
+      : 'Enter 10 digit mobile number to verify';
+  }
 
   const handlePhoneChange = (event) => {
     const { value } = event.target;
     const sanitizedValue = value.replace(/[^0-9]/g, '').slice(0, 10);
     setValue('phone', sanitizedValue, { shouldValidate: true });
-    setIsMobileChangeVerified(sanitizedValue === (user.phone || ''));
+    setIsMobileChangeVerified(
+      !MOBILE_AUTH_ENABLED || sanitizedValue === (user.phone || '')
+    );
   };
 
   // Email Verification Handlers
@@ -350,7 +360,7 @@ export default function ProfileEditForm({
       const submittedPhone = data.phone || '';
       const isPhoneChanged = submittedPhone !== currentPhone;
 
-      if (isPhoneChanged && !isMobileChangeVerified) {
+      if (MOBILE_AUTH_ENABLED && isPhoneChanged && !isMobileChangeVerified) {
         const message = "You haven't verified the OTP yet for the new mobile number.";
         setErrorMsg(message);
         enqueueSnackbar(message, { variant: 'error' });
@@ -360,6 +370,7 @@ export default function ProfileEditForm({
       // Update profile data first
       await axiosInstance.patch('/api/users/profile', {
         fullName: data.fullName,
+        ...(!MOBILE_AUTH_ENABLED && { phone: submittedPhone }),
       });
 
       const message = 'Profile updated successfully!';
@@ -496,16 +507,13 @@ export default function ProfileEditForm({
                   type="tel"
                   onChange={handlePhoneChange}
                   disabled={
-                    (displayUser.isMobileVerified && !isEmailLogin) ||
-                    mobileVerificationStep === 'verify-otp'
+                    MOBILE_AUTH_ENABLED &&
+                    ((displayUser.isMobileVerified && !isEmailLogin) ||
+                      mobileVerificationStep === 'verify-otp')
                   }
-                  helperText={
-                    displayUser.isMobileVerified
-                      ? 'Mobile number verified'
-                      : 'Enter 10 digit mobile number to verify'
-                  }
+                  helperText={mobileHelperText}
                   InputProps={{
-                    endAdornment: displayUser.isMobileVerified && (
+                    endAdornment: MOBILE_AUTH_ENABLED && displayUser.isMobileVerified && (
                       <Box sx={{ display: 'flex', alignItems: 'center', mr: 1 }}>
                         <Iconify icon="solar:check-circle-bold" color="success.main" width={24} />
                       </Box>
@@ -514,6 +522,7 @@ export default function ProfileEditForm({
                 />
               </Box>
               {phoneValue &&
+                MOBILE_AUTH_ENABLED &&
                 phoneValue.length === 10 &&
                 phoneValue !== user.phone &&
                 !mobileVerificationStep && (
@@ -529,7 +538,7 @@ export default function ProfileEditForm({
                   </LoadingButton>
                 )}
 
-              {mobileVerificationStep === 'verify-otp' && (
+              {MOBILE_AUTH_ENABLED && mobileVerificationStep === 'verify-otp' && (
                 <Stack spacing={2} sx={{ p: 2, bgcolor: 'background.neutral', borderRadius: 1 }}>
                   <Stack direction="row" justifyContent="space-between" alignItems="center">
                     <Typography variant="body2">Enter OTP sent to {newMobile}</Typography>

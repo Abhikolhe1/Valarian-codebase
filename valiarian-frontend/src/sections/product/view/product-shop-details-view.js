@@ -33,18 +33,18 @@ import { ProductDetailsSkeleton } from '../product-skeleton';
 const SUMMARY = [
   {
     title: '100% Original',
-    description: 'Chocolate bar candy canes ice cream toffee cookie halvah.',
+    description: 'Authentic Valiarian apparel crafted with premium-quality materials.',
     icon: 'solar:verified-check-bold',
   },
   {
-    title: '10 Day Replacement',
-    description: 'Marshmallow biscuit donut dragée fruitcake wafer.',
+    title: '72-Hour Return',
+    description: 'Request a return within 72 hours of delivery for eligible unworn items with original tags.',
     icon: 'solar:clock-circle-bold',
   },
   {
-    title: 'Year Warranty',
-    description: 'Cotton candy gingerbread cake I love sugar sweet.',
-    icon: 'solar:shield-check-bold',
+    title: 'Designed for Comfort',
+    description: 'Thoughtfully crafted for everyday comfort and effortless style.',
+    icon: 'solar:star-bold',
   },
 ];
 

@@ -2217,6 +2217,7 @@ export class AuthController {
             type: 'object',
             properties: {
               fullName: {type: 'string'},
+              phone: {type: 'string'},
               address: {type: 'string'},
               city: {type: 'string'},
               state: {type: 'string'},
@@ -2229,6 +2230,7 @@ export class AuthController {
     })
     data: {
       fullName?: string;
+      phone?: string;
       address?: string;
       city?: string;
       state?: string;
@@ -2239,6 +2241,7 @@ export class AuthController {
     // Sanitize all text inputs to prevent XSS
     const sanitizedData = {
       fullName: data.fullName ? sanitizeInput(data.fullName) : undefined,
+      phone: data.phone,
       address: data.address ? sanitizeInput(data.address) : undefined,
       city: data.city ? sanitizeInput(data.city) : undefined,
       state: data.state ? sanitizeInput(data.state) : undefined,

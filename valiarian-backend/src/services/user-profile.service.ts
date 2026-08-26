@@ -8,6 +8,7 @@ import {OtpNotificationService} from './otp-notification.service';
 import {OtpService} from './otp.service';
 import {OtpIdentifierType, OtpPurpose} from '../types/otp.types';
 import {validateAndSanitizeEmail, validateAndSanitizeMobile} from '../utils/validation.utils';
+import {isMobileAuthEnabled} from '../utils/mobile-auth';
 
 @injectable({scope: BindingScope.TRANSIENT})
 export class UserProfileService {
@@ -55,6 +56,7 @@ export class UserProfileService {
     userId: string,
     data: {
       fullName?: string;
+      phone?: string;
       address?: string;
       city?: string;
       state?: string;
@@ -73,9 +75,29 @@ export class UserProfileService {
       throw new HttpErrors.BadRequest('User account is not active');
     }
 
+    if (data.phone !== undefined) {
+      if (isMobileAuthEnabled()) {
+        throw new HttpErrors.BadRequest(
+          'Use mobile OTP verification to update your mobile number.',
+        );
+      }
+
+      const phone = validateAndSanitizeMobile(data.phone);
+      const existingUser = await this.usersRepository.findOne({
+        where: {phone, isDeleted: false},
+      });
+
+      if (existingUser && existingUser.id !== userId) {
+        throw new HttpErrors.BadRequest('Mobile number is already in use');
+      }
+
+      data.phone = phone;
+    }
+
     // Update only provided fields
     await this.usersRepository.updateById(userId, {
       ...data,
+      ...(data.phone !== undefined && {isMobileVerified: false}),
       updatedAt: new Date(),
     });
 
