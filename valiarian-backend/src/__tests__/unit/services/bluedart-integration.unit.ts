@@ -304,4 +304,56 @@ describe('Blue Dart confirmed request contracts (unit)', () => {
     expect(calls[0].baseURL).to.equal('https://apigateway-sandbox.bluedart.com/in/transportation/waybill/v1');
     expect(calls[0].url).to.equal('/GenerateWayBill');
   });
+
+  it('uses the official Tracking GET contract and maps XML scan history', async () => {
+    const calls: any[] = [];
+    const trackingConfig = loadBlueDartConfig({
+      ...developerEnvWithSandboxHost(),
+      BLUEDART_SANDBOX_TRACKING_BASE_URL: 'https://apigateway-sandbox.bluedart.com/in/transportation/tracking/v1',
+      BLUEDART_TRACKING_PATH: '/shipment',
+    });
+    const xml = '<ShipmentData><Shipment WaybillNo="76662235090"><Destination>GURUGRAM</Destination><Status>SHIPMENT DELIVERED</Status><StatusType>DL</StatusType><StatusDate>30 January 2023</StatusDate><StatusTime>11:41</StatusTime><Scans><ScanDetail><Scan>SHIPMENT DELIVERED</Scan><ScanCode>000</ScanCode><ScanType>DL</ScanType><ScanDate>30-Jan-2023</ScanDate><ScanTime>11:41</ScanTime><ScannedLocation>GURGAON CPC</ScannedLocation></ScanDetail></Scans></Shipment></ShipmentData>';
+    const http = {request: async (cfg: any) => {
+      if (!cfg.baseURL) return {data: {JWTToken: 'test-token', expires_in: 3600}};
+      calls.push(cfg);
+      return {data: xml};
+    }} as any;
+    const auth = new BlueDartAuthService(trackingConfig, undefined, http);
+    const provider = new BlueDartDeveloperPortalProvider(trackingConfig, new BlueDartApiClient(trackingConfig, auth, http));
+    const result = await provider.trackShipment('76662235090');
+    expect(calls[0].method).to.equal('GET');
+    expect(calls[0].url).to.match(/^\/shipment\?/);
+    expect(calls[0].url).to.match(/numbers=76662235090/);
+    expect(calls[0].url).to.match(/scan=1/);
+    expect(result.currentStatus).to.equal('delivered');
+    expect(result.currentLocation).to.equal('GURGAON CPC');
+    expect(result.events[0]).to.containDeep({courierRawCode: 'DL', internalStatus: 'delivered'});
+  });
+
+  it('uses the official pickup registration and cancellation payloads', async () => {
+    const calls: any[] = [];
+    const pickupConfig = loadBlueDartConfig({
+      ...developerEnvWithSandboxHost(),
+      BLUEDART_SANDBOX_PICKUP_BASE_URL: 'https://apigateway-sandbox.bluedart.com/in/transportation/pickup/v1',
+      BLUEDART_SANDBOX_CANCEL_PICKUP_BASE_URL: 'https://apigateway-sandbox.bluedart.com/in/transportation/cancel-pickup/v1',
+      BLUEDART_PICKUP_REGISTRATION_PATH: '/RegisterPickup',
+      BLUEDART_PICKUP_CANCELLATION_PATH: '/CancelPickup',
+    });
+    const http = {request: async (cfg: any) => {
+      if (!cfg.baseURL) return {data: {JWTToken: 'test-token', expires_in: 3600}};
+      calls.push(cfg);
+      return cfg.url === '/RegisterPickup'
+        ? {data: {RegisterPickupResult: {TokenNumber: 748984, IsError: false}}}
+        : {data: {CancelPickupResult: {IsError: false}}};
+    }} as any;
+    const auth = new BlueDartAuthService(pickupConfig, undefined, http);
+    const provider = new BlueDartDeveloperPortalProvider(pickupConfig, new BlueDartApiClient(pickupConfig, auth, http));
+    const pickupDate = new Date(1700000000000);
+    const registered = await provider.registerPickup({providerRequestId: 'pickup:order-1', awbNumber: '76662235090', areaCode: 'NSK', customerCode: '000005', customerName: 'Valiarian Warehouse', addressLine1: 'Building 8', pincode: '422007', phone: '8830800191', numberOfPieces: 2, weightKg: 1.5, pickupDate, pickupTime: '09:00', officeCloseTime: '22:00', productCode: 'A', subProducts: ['P']});
+    expect(registered.pickupReference).to.equal('748984');
+    expect(calls[0].data.request).to.containDeep({AWBNo: ['76662235090'], AreaCode: 'NSK', ShipmentPickupDate: '/Date(1700000000000)/'});
+    const cancelled = await provider.cancelPickup({pickupReference: registered.pickupReference, pickupRegistrationDate: pickupDate, remarks: 'Admin cancelled'});
+    expect(cancelled.success).to.be.true();
+    expect(calls[1].data.request).to.containDeep({TokenNumber: 748984, PickupRegistrationDate: '/Date(1700000000000)/'});
+  });
 });

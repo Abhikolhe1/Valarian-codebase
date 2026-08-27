@@ -1,18 +1,35 @@
 import {assertBlueDartBaseUrlConfigured, BlueDartConfig, loadBlueDartConfig} from '../../config/bluedart.config';
-import {CreateReversePickupParams, CreateReversePickupResult, CreateShipmentParams, CreateShipmentResult, GenerateLabelResult, MasterDownloadResult, ProductCatalogEntry, ProductCatalogResult, ServiceabilityParams, ServiceabilityResult, ShippingProvider, TrackingResult, TransitTimeParams, TransitTimeResult} from '../../interfaces/shipping-provider.interface';
+import {CreateReversePickupParams, CreateReversePickupResult, CreateShipmentParams, CreateShipmentResult, GenerateLabelResult, MasterDownloadResult, PickupCancellationParams, PickupCancellationResult, PickupRegistrationParams, PickupRegistrationResult, ProductCatalogEntry, ProductCatalogResult, ServiceabilityParams, ServiceabilityResult, ShippingProvider, TrackingResult, TransitTimeParams, TransitTimeResult} from '../../interfaces/shipping-provider.interface';
 import {mapCourierStatus} from '../../utils/courier-status-mapper';
 import {BlueDartApiClient} from './bluedart-api.client';
 import {BlueDartAuthService} from './bluedart-auth.service';
 import {BlueDartProviderError, LabelGenerationNotSupportedError} from './bluedart-errors';
-import {mapCancelWaybillRequest, mapMasterDownloadRequest, mapProductsRequest, mapReversePickupRequest, mapServiceabilityRequest, mapTrackingRequest, mapTransitTimeRequest, mapWaybillRequest} from './bluedart/mappers';
+import {mapCancelWaybillRequest, mapMasterDownloadRequest, mapProductsRequest, mapReversePickupRequest, mapServiceabilityRequest, mapTransitTimeRequest, mapWaybillRequest} from './bluedart/mappers';
 
 type Json = Record<string, any>;
-export interface PickupRegistrationRequest { providerRequestId: string; pickupDate: string; pickupLocationCode?: string; shipmentReferences: string[]; }
-export interface PickupRegistrationResult { pickupReference: string; rawResponse?: unknown; }
-export interface PickupCancellationRequest { pickupReference: string; }
-export interface PickupCancellationResult { success: boolean; message?: string; }
 
 const isYes = (value: unknown) => value === 'Y' || value === 'Yes';
+
+const decodeXml = (value: string): string => value
+  .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1')
+  .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"')
+  .replace(/&apos;/g, "'").replace(/&amp;/g, '&').trim();
+
+const xmlTag = (xml: string, tag: string): string | undefined => {
+  const match = xml.match(new RegExp(`<${tag}(?:\\s[^>]*)?>([\\s\\S]*?)<\\/${tag}>`, 'i'));
+  return match ? decodeXml(match[1]) : undefined;
+};
+
+const mapBlueDartTrackingStatus = (code: string, description = '') => {
+  const text = description.toUpperCase();
+  if (text.includes('OUT FOR DELIVERY')) return mapCourierStatus('BlueDart', 'OFD');
+  if (text.includes('RETURNED TO ORIGIN') || (text.includes('RETURN') && text.includes('DELIVERED'))) return mapCourierStatus('BlueDart', 'RP');
+  if (text.includes('RETURN') || text.includes('RTO')) return mapCourierStatus('BlueDart', 'RTO');
+  if (text.includes('DELIVERED')) return mapCourierStatus('BlueDart', 'DL');
+  if (text.includes('PICKED UP') || text.includes('PICKUP DONE')) return mapCourierStatus('BlueDart', 'PU');
+  if (text.includes('CANCEL')) return mapCourierStatus('BlueDart', 'CN');
+  return mapCourierStatus('BlueDart', code);
+};
 
 export class BlueDartDeveloperPortalProvider implements ShippingProvider {
   readonly courierName = 'BlueDart';
@@ -160,13 +177,47 @@ export class BlueDartDeveloperPortalProvider implements ShippingProvider {
     return {success: !isError, message: this.extractErrorMessage(details) ?? this.text(details.message), rawResponse: raw};
   }
 
-  // ── Not yet confirmed against official spec — unchanged from prior implementation. ──
+  /** Official Tracking v1 GET contract; scan=1 returns the complete scan history. */
   async trackShipment(awbNumber: string): Promise<TrackingResult> {
-    const raw = await this.client.post<Json, unknown>(this.config.baseUrl!, this.endpoint('tracking'), mapTrackingRequest(awbNumber, this.config), 'trackShipment');
-    const sourceEvents = Array.isArray(raw.events) ? raw.events : [];
-    const events = sourceEvents.map((event: Json) => { const code = String(event.code ?? event.statusCode ?? ''); return {internalStatus: mapCourierStatus('BlueDart', code), courierRawCode: code, courierDescription: String(event.description ?? ''), description: String(event.description ?? ''), location: String(event.location ?? ''), timestamp: new Date(event.timestamp)}; });
-    const rawCode = String(raw.statusCode ?? events[0]?.courierRawCode ?? '');
-    return {awbNumber, currentStatus: mapCourierStatus('BlueDart', rawCode), courierRawStatus: rawCode, currentLocation: this.text(raw.currentLocation), deliveredAt: raw.deliveredAt ? new Date(raw.deliveredAt) : undefined, events, rawResponse: raw};
+    const operation = 'trackShipment';
+    assertBlueDartBaseUrlConfigured(this.config.trackingBaseUrl, 'BLUEDART_SANDBOX_TRACKING_BASE_URL / BLUEDART_PRODUCTION_TRACKING_BASE_URL', operation);
+    const query = new URLSearchParams({
+      handler: 'tnt', action: 'custawbquery', loginid: this.config.account.loginId || '',
+      awb: 'awb', numbers: awbNumber, format: 'xml',
+      lickey: this.config.account.licenceKey || '', verno: '1', scan: '1',
+    });
+    const raw = await this.client.get<string>(this.config.trackingBaseUrl, `${this.endpoint('tracking')}?${query.toString()}`, operation);
+    if (typeof raw !== 'string') throw new BlueDartProviderError('Blue Dart tracking response was not XML', {operation});
+    const parseTimestamp = (dateValue: unknown, timeValue: unknown): Date => {
+      const dateText = String(dateValue || '').trim();
+      const timeText = String(timeValue || '').trim();
+      const match = dateText.match(/^(\d{1,2})[\s-]([A-Za-z]+)[\s-](\d{4})$/);
+      const parsed = match
+        ? new Date(`${match[2]} ${match[1]}, ${match[3]} ${timeText}`.trim())
+        : new Date(`${dateText} ${timeText}`.trim());
+      return Number.isNaN(parsed.getTime()) ? new Date(0) : parsed;
+    };
+    const scanBlocks = Array.from(raw.matchAll(/<ScanDetail(?:\s[^>]*)?>([\s\S]*?)<\/ScanDetail>/gi), match => match[1]);
+    const events = scanBlocks.map(scan => {
+      const code = xmlTag(scan, 'ScanType') || xmlTag(scan, 'ScanCode') || '';
+      const description = xmlTag(scan, 'Scan') || code;
+      return {
+        internalStatus: mapBlueDartTrackingStatus(code, description), courierRawCode: code,
+        courierDescription: description, description,
+        location: xmlTag(scan, 'ScannedLocation') || '',
+        timestamp: parseTimestamp(xmlTag(scan, 'ScanDate'), xmlTag(scan, 'ScanTime')),
+      };
+    }).filter(event => event.courierRawCode && event.timestamp.getTime() > 0);
+    const rawCode = xmlTag(raw, 'StatusType') || events[0]?.courierRawCode || '';
+    if (!rawCode) throw new BlueDartProviderError(xmlTag(raw, 'Error') || xmlTag(raw, 'Instructions') || 'Blue Dart tracking response did not contain a shipment status', {operation});
+    const currentStatus = mapBlueDartTrackingStatus(rawCode, xmlTag(raw, 'Status'));
+    const statusTimestamp = parseTimestamp(xmlTag(raw, 'StatusDate'), xmlTag(raw, 'StatusTime'));
+    return {
+      awbNumber, currentStatus, courierRawStatus: rawCode,
+      currentLocation: xmlTag(raw, 'ScannedLocation') || xmlTag(raw, 'Destination'),
+      deliveredAt: currentStatus === 'delivered' && statusTimestamp.getTime() > 0 ? statusTimestamp : undefined,
+      events, rawResponse: raw,
+    };
   }
 
   async createReversePickup(params: CreateReversePickupParams): Promise<CreateReversePickupResult> {
@@ -186,15 +237,80 @@ export class BlueDartDeveloperPortalProvider implements ShippingProvider {
     return {pdf, awbNumber, labelFormat: 'A6'};
   }
 
-  async registerPickup(request: PickupRegistrationRequest): Promise<PickupRegistrationResult> {
-    if (!request.providerRequestId) throw new BlueDartProviderError('Pickup providerRequestId is required', {operation: 'registerPickup'});
+  async registerPickup(params: PickupRegistrationParams): Promise<PickupRegistrationResult> {
+    if (!params.providerRequestId) throw new BlueDartProviderError('Pickup providerRequestId is required', {operation: 'registerPickup'});
     const operation = 'registerPickup';
     assertBlueDartBaseUrlConfigured(this.config.pickupBaseUrl, 'BLUEDART_SANDBOX_PICKUP_BASE_URL / BLUEDART_PRODUCTION_PICKUP_BASE_URL', operation);
-    const raw = await this.client.post<Json, PickupRegistrationRequest>(this.config.pickupBaseUrl, this.endpoint('pickupRegistration'), request, operation);
-    const details: Json = (raw.RegisterPickupResult ?? raw.PickupRegistrationResponse ?? raw) as Json;
-    const pickupReference = this.text(details.TokenNumber ?? details.pickupReference ?? details.pickupId);
+    const body = {
+      request: {
+        AWBNo: [params.awbNumber],
+        AreaCode: params.areaCode,
+        CISDDN: false,
+        ContactPersonName: params.customerName,
+        CustomerAddress1: params.addressLine1,
+        CustomerAddress2: params.addressLine2 || '',
+        CustomerAddress3: params.addressLine3 || '',
+        CustomerCode: params.customerCode,
+        CustomerName: params.customerName,
+        CustomerPincode: params.pincode,
+        CustomerTelephoneNumber: params.phone,
+        DoxNDox: '2',
+        EmailID: '',
+        IsForcePickup: false,
+        IsReversePickup: false,
+        MobileTelNo: params.phone,
+        NumberofPieces: params.numberOfPieces,
+        OfficeCloseTime: params.officeCloseTime,
+        PackType: '',
+        ProductCode: params.productCode,
+        ReferenceNo: params.providerRequestId,
+        Remarks: `Pickup for ${params.providerRequestId}`.slice(0, 60),
+        RouteCode: '',
+        ShipmentPickupDate: `/Date(${params.pickupDate.getTime()})/`,
+        ShipmentPickupTime: params.pickupTime,
+        SubProducts: params.subProducts || [],
+        VolumeWeight: params.weightKg,
+        WeightofShipment: params.weightKg,
+        isToPayShipper: false,
+      },
+      profile: {
+        Api_type: 'S',
+        LicenceKey: this.config.account.licenceKey,
+        LoginID: this.config.account.loginId,
+      },
+    };
+    const raw = await this.client.post<Json, typeof body>(this.config.pickupBaseUrl, this.endpoint('pickupRegistration'), body, operation);
+    const detailsValue = raw.RegisterPickupResult ?? raw.PickupRegistrationResponse ?? raw;
+    const details: Json = (Array.isArray(detailsValue) ? detailsValue[0] : detailsValue) as Json;
+    const isError = details.IsError === true || details.IsError === 'True' || details.IsError === 'true';
+    if (isError) throw new BlueDartProviderError(this.extractErrorMessage(details) || 'Blue Dart rejected pickup registration', {operation, reconciliationRequired: false});
+    const rawReference = details.TokenNumber ?? details.pickupReference ?? details.pickupId;
+    const pickupReference = rawReference === undefined || rawReference === null ? undefined : String(rawReference);
     if (!pickupReference) throw new BlueDartProviderError('Unsupported pickup response contract', {operation: 'registerPickup', reconciliationRequired: true});
     return {pickupReference, rawResponse: raw};
   }
-  async cancelPickup(request: PickupCancellationRequest): Promise<PickupCancellationResult> { return this.client.post(this.config.baseUrl!, this.endpoint('pickupCancellation'), request, 'cancelPickup'); }
+  async cancelPickup(params: PickupCancellationParams): Promise<PickupCancellationResult> {
+    const operation = 'cancelPickup';
+    const tokenNumber = Number(params.pickupReference);
+    if (!Number.isSafeInteger(tokenNumber) || tokenNumber <= 0) {
+      throw new BlueDartProviderError('Blue Dart pickup token must be a positive number', {operation});
+    }
+    assertBlueDartBaseUrlConfigured(this.config.cancelPickupBaseUrl, 'BLUEDART_SANDBOX_CANCEL_PICKUP_BASE_URL / BLUEDART_PRODUCTION_CANCEL_PICKUP_BASE_URL', operation);
+    const body = {
+      request: {
+        PickupRegistrationDate: `/Date(${params.pickupRegistrationDate.getTime()})/`,
+        Remarks: params.remarks || '',
+        TokenNumber: tokenNumber,
+      },
+      profile: {
+        Api_type: 'S',
+        LicenceKey: this.config.account.licenceKey,
+        LoginID: this.config.account.loginId,
+      },
+    };
+    const raw = await this.client.post<Json, typeof body>(this.config.cancelPickupBaseUrl, this.endpoint('pickupCancellation'), body, operation);
+    const details: Json = (raw.CancelPickupResult ?? raw.CancelPickupResponseEntity ?? raw) as Json;
+    const isError = details.IsError === true || details.IsError === 'True' || details.IsError === 'true';
+    return {success: !isError, message: this.extractErrorMessage(details), rawResponse: raw};
+  }
 }

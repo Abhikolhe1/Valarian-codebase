@@ -8,6 +8,10 @@ import {
   CreateShipmentResult,
   GenerateLabelResult,
   MasterDownloadResult,
+  PickupCancellationParams,
+  PickupCancellationResult,
+  PickupRegistrationParams,
+  PickupRegistrationResult,
   ProductCatalogResult,
   ServiceabilityParams,
   ServiceabilityResult,
@@ -197,6 +201,42 @@ export class ShippingService {
     return this.runWithRetry(
       'createShipment',
       () => this.activeProvider.createShipment(params),
+      false,
+    );
+  }
+
+  async registerPickup(
+    params: PickupRegistrationParams,
+  ): Promise<PickupRegistrationResult> {
+    const provider = this.activeProvider as ShippingProvider & {
+      registerPickup?: (request: PickupRegistrationParams) => Promise<PickupRegistrationResult>;
+    };
+    if (!provider.registerPickup) {
+      throw new HttpErrors.NotImplemented(
+        `${this.activeProvider.courierName} does not support pickup registration`,
+      );
+    }
+    return this.runWithRetry(
+      'registerPickup',
+      () => provider.registerPickup!(params),
+      false,
+    );
+  }
+
+  async cancelPickup(
+    params: PickupCancellationParams,
+  ): Promise<PickupCancellationResult> {
+    const provider = this.activeProvider as ShippingProvider & {
+      cancelPickup?: (request: PickupCancellationParams) => Promise<PickupCancellationResult>;
+    };
+    if (!provider.cancelPickup) {
+      throw new HttpErrors.NotImplemented(
+        `${this.activeProvider.courierName} does not support pickup cancellation`,
+      );
+    }
+    return this.runWithRetry(
+      'cancelPickup',
+      () => provider.cancelPickup!(params),
       false,
     );
   }

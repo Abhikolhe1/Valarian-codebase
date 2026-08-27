@@ -109,6 +109,43 @@ export interface CreateShipmentResult {
   rawResponse?: unknown;
 }
 
+export interface PickupRegistrationParams {
+  providerRequestId: string;
+  awbNumber: string;
+  areaCode: string;
+  customerCode: string;
+  customerName: string;
+  addressLine1: string;
+  addressLine2?: string;
+  addressLine3?: string;
+  pincode: string;
+  phone: string;
+  numberOfPieces: number;
+  weightKg: number;
+  pickupDate: Date;
+  pickupTime: string;
+  officeCloseTime: string;
+  productCode: string;
+  subProducts?: string[];
+}
+
+export interface PickupRegistrationResult {
+  pickupReference: string;
+  rawResponse?: unknown;
+}
+
+export interface PickupCancellationParams {
+  pickupReference: string;
+  pickupRegistrationDate: Date;
+  remarks?: string;
+}
+
+export interface PickupCancellationResult {
+  success: boolean;
+  message?: string;
+  rawResponse?: unknown;
+}
+
 // ── Shipment Cancellation ─────────────────────────────────────────────────────
 export interface CancelShipmentResult {
   success: boolean;
@@ -279,4 +316,14 @@ export interface ShippingProvider {
   createReversePickup(
     params: CreateReversePickupParams,
   ): Promise<CreateReversePickupResult>;
+
+  /** Register already-created AWBs for collection from the warehouse. */
+  registerPickup?(
+    params: PickupRegistrationParams,
+  ): Promise<PickupRegistrationResult>;
+
+  /** Cancel a previously registered warehouse pickup by token number. */
+  cancelPickup?(
+    params: PickupCancellationParams,
+  ): Promise<PickupCancellationResult>;
 }

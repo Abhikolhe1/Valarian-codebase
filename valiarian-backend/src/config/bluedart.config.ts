@@ -29,6 +29,8 @@ export interface BlueDartConfig {
   masterDownloadBaseUrl?: string;
   waybillBaseUrl?: string;
   pickupBaseUrl?: string;
+  cancelPickupBaseUrl?: string;
+  trackingBaseUrl?: string;
   requestTimeoutMs: number;
   tokenRefreshBufferSeconds: number;
   tokenFallbackTtlSeconds: number;
@@ -109,6 +111,8 @@ export function loadBlueDartConfig(env: NodeJS.ProcessEnv = process.env): BlueDa
   const masterDownloadBaseUrl = environment === 'production' ? env.BLUEDART_PRODUCTION_MASTERDOWNLOAD_BASE_URL : env.BLUEDART_SANDBOX_MASTERDOWNLOAD_BASE_URL;
   const waybillBaseUrl = environment === 'production' ? env.BLUEDART_PRODUCTION_WAYBILL_BASE_URL : env.BLUEDART_SANDBOX_WAYBILL_BASE_URL;
   const pickupBaseUrl = environment === 'production' ? env.BLUEDART_PRODUCTION_PICKUP_BASE_URL : env.BLUEDART_SANDBOX_PICKUP_BASE_URL;
+  const cancelPickupBaseUrl = environment === 'production' ? env.BLUEDART_PRODUCTION_CANCEL_PICKUP_BASE_URL : env.BLUEDART_SANDBOX_CANCEL_PICKUP_BASE_URL;
+  const trackingBaseUrl = environment === 'production' ? env.BLUEDART_PRODUCTION_TRACKING_BASE_URL : env.BLUEDART_SANDBOX_TRACKING_BASE_URL;
 
   if (providerMode === 'developer-portal') {
     const requiredVars: Array<[string, string | undefined]> = [
@@ -135,6 +139,8 @@ export function loadBlueDartConfig(env: NodeJS.ProcessEnv = process.env): BlueDa
     masterDownloadBaseUrl,
     waybillBaseUrl,
     pickupBaseUrl,
+    cancelPickupBaseUrl,
+    trackingBaseUrl,
     requestTimeoutMs: positiveNumber('BLUEDART_REQUEST_TIMEOUT_MS', env.BLUEDART_REQUEST_TIMEOUT_MS, 30000, errors),
     tokenRefreshBufferSeconds: positiveNumber('BLUEDART_TOKEN_REFRESH_BUFFER_SECONDS', env.BLUEDART_TOKEN_REFRESH_BUFFER_SECONDS, 300, errors),
     tokenFallbackTtlSeconds: positiveNumber('BLUEDART_TOKEN_FALLBACK_TTL_SECONDS', env.BLUEDART_TOKEN_FALLBACK_TTL_SECONDS, 900, errors),
@@ -211,6 +217,8 @@ export function getMaskedBlueDartDiagnostics(config: BlueDartConfig) {
     masterDownloadBaseUrlConfigured: Boolean(config.masterDownloadBaseUrl),
     waybillBaseUrlConfigured: Boolean(config.waybillBaseUrl),
     pickupBaseUrlConfigured: Boolean(config.pickupBaseUrl),
+    cancelPickupBaseUrlConfigured: Boolean(config.cancelPickupBaseUrl),
+    trackingBaseUrlConfigured: Boolean(config.trackingBaseUrl),
     loginIdConfigured: Boolean(config.account.loginId),
     licenceKeyConfigured: Boolean(config.account.licenceKey),
     configuredEndpoints: Object.keys(config.endpoints).filter(key => Boolean(config.endpoints[key as keyof BlueDartEndpointConfig])),
