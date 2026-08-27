@@ -39,8 +39,8 @@ const SUMMARY = [
     icon: 'solar:verified-check-bold',
   },
   {
-    title: '72-Hour Return',
-    description: 'Request a return within 72 hours of delivery for eligible unworn items with original tags.',
+    title: '7-Day Return',
+    description: 'Request a return within 7 days of delivery for eligible unworn items with original tags.',
     icon: 'solar:clock-circle-bold',
   },
   {

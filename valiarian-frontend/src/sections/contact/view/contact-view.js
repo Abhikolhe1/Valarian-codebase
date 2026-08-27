@@ -15,6 +15,12 @@ import ContactForm from '../contact-form';
 
 // ----------------------------------------------------------------------
 
+const COMPANY_LATITUDE = 19.9902916;
+const COMPANY_LONGITUDE = 73.7285843;
+const COMPANY_MAP_EMBED_URL = `https://www.google.com/maps?q=${COMPANY_LATITUDE},${COMPANY_LONGITUDE}&z=17&output=embed`;
+
+// ----------------------------------------------------------------------
+
 function getDefaultLocations(settings) {
   const general = settings?.general || {};
 
@@ -31,6 +37,31 @@ function getDefaultLocations(settings) {
 
 // ----------------------------------------------------------------------
 
+function normalizeLocations(locations) {
+  return locations
+    .filter((location) => {
+      const title = location?.title?.trim().toLowerCase();
+      const address = location?.address?.trim().toLowerCase();
+
+      return title !== 'studio' && address !== 'pune';
+    })
+    .map((location) => {
+      const title = location?.title?.trim().toLowerCase();
+      const address = location?.address?.trim().toLowerCase();
+
+      return title?.includes('nashik') || address?.includes('nashik')
+        ? {
+            ...location,
+            phoneNumber: '8830800191',
+            latitude: COMPANY_LATITUDE,
+            longitude: COMPANY_LONGITUDE,
+          }
+        : location;
+    });
+}
+
+// ----------------------------------------------------------------------
+
 export default function ContactView() {
   const { enqueueSnackbar } = useSnackbar();
   const { settings } = useSiteSettings();
@@ -39,7 +70,10 @@ export default function ContactView() {
   const contactPage = settings?.contactPage || {};
 
   const locations = useMemo(
-    () => (contactPage.locations?.length ? contactPage.locations : getDefaultLocations(settings)),
+    () =>
+      normalizeLocations(
+        contactPage.locations?.length ? contactPage.locations : getDefaultLocations(settings)
+      ),
     [contactPage.locations, settings]
   );
 
@@ -121,7 +155,7 @@ export default function ContactView() {
           <ContactMap
             mapTitle={contactPage.mapTitle}
             mapDescription={contactPage.mapDescription}
-            mapEmbedUrl={contactPage.mapEmbedUrl}
+            mapEmbedUrl={COMPANY_MAP_EMBED_URL}
             contacts={locations}
           />
         </Box>
