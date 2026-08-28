@@ -23,7 +23,7 @@ export default function OtpVerificationModal({
   onVerified,
   onResend,
 }) {
-  const OTP_LENGTH = 4;
+  const OTP_LENGTH = 6;
   const [otp, setOtp] = useState(Array(OTP_LENGTH).fill(''));
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);

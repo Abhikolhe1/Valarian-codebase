@@ -1,4 +1,5 @@
 import {Entity, model, property} from '@loopback/repository';
+import {OtpIdentifierType, OtpPurpose} from '../types/otp.types';
 
 @model({
   settings: {
@@ -31,7 +32,13 @@ export class Otp extends Entity {
     type: 'number',
     required: true
   })
-  type: number; // 0 => phone, 1=> email
+  type: number; // legacy compatibility: 0 => phone, 1 => email
+
+  @property({type: 'string', required: true})
+  identifierType: OtpIdentifierType;
+
+  @property({type: 'string', required: true})
+  purpose: OtpPurpose;
 
   @property({
     type: 'string',
@@ -59,9 +66,15 @@ export class Otp extends Entity {
 
   @property({
     type: 'boolean',
-    default: true,
+    default: false,
   })
   isUsed?: boolean;
+
+  @property({type: 'date'})
+  consumedAt?: Date;
+
+  @property({type: 'string'})
+  providerMessageId?: string;
 
   
 

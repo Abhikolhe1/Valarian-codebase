@@ -147,10 +147,6 @@ export class ShipmentController {
     const existing = await this.shipmentRepository.findOne({
       where: {orderId: id, isReverse: false, status: {neq: 'cancelled'}},
     });
-    if (existing) {
-      return existing;
-    }
-
     // 4. Calculate default weight / dimensions
     const orderItems = await this.orderItemRepository.find({
       where: {orderId: id},
@@ -204,7 +200,7 @@ export class ShipmentController {
     );
 
     // 7. Invoke provider waybill generation
-    const creationResult = await this.shippingService.createShipment({
+    const creationResult = existing ?? await this.shippingService.createShipment({
       providerRequestId: `forward:${order.id}`,
       orderReference: order.id,
       orderNumber: order.orderNumber,
@@ -220,6 +216,10 @@ export class ShipmentController {
       warehouseOriginArea: origin.bluedartOriginArea,
       warehousePincode: origin.pincode,
       warehouseName: origin.name,
+      warehouseAddressLine1: origin.addressLine1,
+      warehouseCity: origin.city,
+      warehouseState: origin.state,
+      warehousePhone: origin.phone,
       weightGrams,
       lengthCm,
       breadthCm,
@@ -231,7 +231,7 @@ export class ShipmentController {
     });
 
     // 8. Create Shipment record
-    const shipment = await this.shipmentRepository.create({
+    const shipment = existing ?? await this.shipmentRepository.create({
       orderId: order.id,
       awbNumber: creationResult.awbNumber,
       courierName: 'BlueDart',
@@ -261,23 +261,101 @@ export class ShipmentController {
       isDeleted: false,
     });
 
-    // 9. Map order items to shipment join table
-    for (const item of orderItems) {
-      await this.shipmentItemRepository.create({
-        shipmentId: shipment.id,
-        orderItemId: item.id,
-        quantity: item.quantity,
+    // 9. Register the packed shipment for collection at the warehouse.
+    // Waybill generation and pickup registration are separate Blue Dart APIs.
+    if (!shipment.pickupReference) try {
+      const now = new Date();
+      const pickupTime = process.env.BLUEDART_PICKUP_TIME || '09:00';
+      const officeCloseTime = process.env.BLUEDART_OFFICE_CLOSE_TIME || '22:00';
+      const [pickupHour, pickupMinute] = pickupTime.split(':').map(Number);
+      const [closeHour, closeMinute] = officeCloseTime.split(':').map(Number);
+      const pickupDate = new Date(now);
+      const warehouseOpen = new Date(now);
+      warehouseOpen.setHours(pickupHour, pickupMinute, 0, 0);
+      const warehouseClose = new Date(now);
+      warehouseClose.setHours(closeHour, closeMinute, 0, 0);
+      let requestedPickupTime = pickupTime;
+
+      if (now.getTime() > warehouseClose.getTime()) {
+        pickupDate.setDate(pickupDate.getDate() + 1);
+      } else if (now.getTime() >= warehouseOpen.getTime()) {
+        requestedPickupTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+      }
+
+      const pickupResult = await this.shippingService.registerPickup({
+        providerRequestId: `pickup:${order.id}`,
+        awbNumber: creationResult.awbNumber,
+        areaCode: origin.bluedartAreaCode,
+        customerCode: process.env.BLUEDART_CUSTOMER_CODE || '',
+        customerName: origin.name,
+        addressLine1: origin.addressLine1,
+        addressLine2: origin.city,
+        addressLine3: origin.state,
+        pincode: origin.pincode,
+        phone: origin.phone,
+        numberOfPieces: orderItems.reduce(
+          (total, item) => total + Number(item.quantity || 0),
+          0,
+        ),
+        weightKg: weightGrams / 1000,
+        pickupDate,
+        pickupTime: requestedPickupTime,
+        officeCloseTime,
+        productCode: process.env.BLUEDART_PRODUCT_CODE || 'D',
+        subProducts: (process.env.BLUEDART_SUB_PRODUCT_CODE || '')
+          .split(',')
+          .map(value => value.trim())
+          .filter(Boolean),
       });
+
+      const pickupRegisteredAt = new Date();
+      await this.shipmentRepository.updateById(shipment.id, {
+        status: 'pickup_pending',
+        pickupReference: pickupResult.pickupReference,
+        pickupRegisteredAt,
+        pickupRegistrationError: '',
+        updatedAt: new Date(),
+      });
+      shipment.status = 'pickup_pending';
+      shipment.pickupReference = pickupResult.pickupReference;
+      shipment.pickupRegisteredAt = pickupRegisteredAt;
+    } catch (pickupError) {
+      const pickupMessage =
+        pickupError instanceof Error
+          ? pickupError.message
+          : 'Blue Dart pickup registration failed';
+      await this.shipmentRepository.updateById(shipment.id, {
+        pickupRegistrationError: pickupMessage,
+        reconciliationRequired: true,
+        updatedAt: new Date(),
+      });
+      throw new HttpErrors.UnprocessableEntity(
+        `AWB ${creationResult.awbNumber} was created, but pickup registration failed: ${pickupMessage}`,
+      );
     }
 
-    // 10. Deduct inventory
+    // 10. Map order items to shipment join table
+    for (const item of orderItems) {
+      const existingShipmentItem = await this.shipmentItemRepository.findOne({
+        where: {shipmentId: shipment.id, orderItemId: item.id},
+      });
+      if (!existingShipmentItem) {
+        await this.shipmentItemRepository.create({
+          shipmentId: shipment.id,
+          orderItemId: item.id,
+          quantity: item.quantity,
+        });
+      }
+    }
+
+    // 11. Deduct inventory
     await this.inventoryLifecycleService.deductOnShipment(
       order.id,
       currentUser.id,
       currentUser.email,
     );
 
-    // 11. Update Order status
+    // 12. Update Order status
     await this.orderRepository.updateById(order.id, {
       status: 'shipped',
       trackingNumber: creationResult.awbNumber,
@@ -286,7 +364,7 @@ export class ShipmentController {
       updatedAt: new Date(),
     });
 
-    // 12. Create Shipment Label if requested
+    // 13. Create Shipment Label if requested
     if (req.generateLabelNow) {
       const labelRes = await this.shippingService.generateLabel(
         creationResult.awbNumber,
@@ -343,10 +421,29 @@ export class ShipmentController {
     }
 
     try {
+      if (shipment.pickupReference && shipment.pickupRegisteredAt) {
+        const pickupCancelResult = await this.shippingService.cancelPickup({
+          pickupReference: shipment.pickupReference,
+          pickupRegistrationDate: shipment.pickupRegisteredAt,
+          remarks: reason,
+        });
+        if (!pickupCancelResult.success) {
+          throw new HttpErrors.UnprocessableEntity(
+            `Blue Dart rejected pickup cancellation: ${pickupCancelResult.message || 'Unknown reason'}`,
+          );
+        }
+      }
+
       const cancelRes = await this.shippingService.cancelShipment(
         shipment.awbNumber,
       );
       if (!cancelRes.success) {
+        await this.shipmentRepository.updateById(shipmentId, {
+          status: 'cancel_pending',
+          reconciliationRequired: true,
+          cancellationReason: reason,
+          updatedAt: new Date(),
+        });
         throw new HttpErrors.UnprocessableEntity(
           `Courier rejected cancellation request: ${cancelRes.message || 'Unknown reason'}`,
         );

@@ -1,12 +1,35 @@
 import {inject} from '@loopback/core';
 import SITE_SETTINGS from '../utils/config';
 import {EmailService} from './email.service';
+import {OtpDeliveryChannel, OtpPurpose} from '../types/otp.types';
+import {WhatsAppService} from './whatsapp.service';
+import {OTP_CONFIG} from '../utils/otp-config';
 
 export class OtpNotificationService {
   constructor(
     @inject('services.email')
     private emailService: EmailService,
+    @inject('services.whatsapp')
+    private whatsappService: WhatsAppService,
   ) { }
+
+  async sendOtp(options: {
+    channel: OtpDeliveryChannel;
+    identifier: string;
+    code: string;
+    purpose: OtpPurpose;
+  }): Promise<string | undefined> {
+    if (options.channel === 'whatsapp') {
+      return this.whatsappService.sendAuthenticationOtp(options.identifier, options.code);
+    }
+    const emailPurpose = options.purpose === OtpPurpose.PASSWORD_RESET
+      ? 'password_reset'
+      : options.purpose === OtpPurpose.EMAIL_VERIFICATION
+        ? 'email_update'
+        : 'registration';
+    await this.sendEmailOtp(options.identifier, options.code, emailPurpose);
+    return undefined;
+  }
 
   /**
    * Send OTP via email
@@ -52,7 +75,7 @@ export class OtpNotificationService {
               <p>Hello,</p>
               <p>You requested an OTP to ${purposeText[purpose]}. Please use the following code:</p>
               <div class="otp-code">${otp}</div>
-              <p>This code will expire in <strong>10 minutes</strong>.</p>
+              <p>This code will expire in <strong>${Math.ceil(OTP_CONFIG.expirySeconds / 60)} minutes</strong>.</p>
               <p class="warning">⚠️ If you didn't request this code, please ignore this email.</p>
             </div>
             <div class="footer">
@@ -62,7 +85,7 @@ export class OtpNotificationService {
         </body>
         </html>
       `,
-      text: `Your OTP code is: ${otp}. This code will expire in 10 minutes. Use it to ${purposeText[purpose]}.`,
+      text: `Your OTP code is: ${otp}. This code will expire in ${Math.ceil(OTP_CONFIG.expirySeconds / 60)} minutes. Use it to ${purposeText[purpose]}.`,
     };
 
     try {
@@ -71,52 +94,6 @@ export class OtpNotificationService {
     } catch (error) {
       console.error('❌ Failed to send email OTP:', error);
       throw new Error('Failed to send OTP email. Please try again later.');
-    }
-  }
-
-  /**
-   * Send OTP via SMS
-   * @param phone - Recipient phone number
-   * @param otp - OTP code
-   * @param purpose - Purpose of OTP
-   *
-   * NOTE: This is a placeholder implementation. In production, integrate with:
-   * - Twilio: https://www.twilio.com/docs/sms/quickstart/node
-   * - AWS SNS: https://docs.aws.amazon.com/sns/latest/dg/sms_publish-to-phone.html
-   * - Other SMS providers
-   */
-  async sendSmsOtp(
-    phone: string,
-    otp: string,
-    purpose: 'registration' | 'password_reset' | 'mobile_update' = 'registration',
-  ): Promise<void> {
-    const purposeText = {
-      registration: 'verify your phone for registration',
-      password_reset: 'reset your password',
-      mobile_update: 'verify your new phone number',
-    };
-
-    // TODO: Integrate with actual SMS provider
-    // Example with Twilio:
-    // const client = require('twilio')(accountSid, authToken);
-    // await client.messages.create({
-    //   body: `Your OTP code is: ${otp}. Valid for 10 minutes.`,
-    //   from: process.env.TWILIO_PHONE_NUMBER,
-    //   to: phone
-    // });
-
-    // For now, log to console in development
-    if (process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'dev') {
-      console.log('📱 SMS OTP (Development Mode):');
-      console.log(`   Phone: ${phone}`);
-      console.log(`   OTP: ${otp}`);
-      console.log(`   Purpose: ${purposeText[purpose]}`);
-      console.log(`   ⚠️  In production, integrate with SMS provider (Twilio, AWS SNS, etc.)`);
-    } else {
-      // In production without SMS provider, throw error
-      throw new Error(
-        'SMS service not configured. Please contact administrator or use email verification.',
-      );
     }
   }
 

@@ -5,6 +5,10 @@ import {v4 as uuidv4} from 'uuid';
 import {MediaRepository, OtpRepository, UsersRepository} from '../repositories';
 import {BcryptHasher} from './hash.password.bcrypt';
 import {OtpNotificationService} from './otp-notification.service';
+import {OtpService} from './otp.service';
+import {OtpIdentifierType, OtpPurpose} from '../types/otp.types';
+import {validateAndSanitizeEmail, validateAndSanitizeMobile} from '../utils/validation.utils';
+import {isMobileAuthEnabled} from '../utils/mobile-auth';
 
 @injectable({scope: BindingScope.TRANSIENT})
 export class UserProfileService {
@@ -17,6 +21,8 @@ export class UserProfileService {
     private mediaRepository: MediaRepository,
     @inject('services.otp.notification')
     private otpNotificationService: OtpNotificationService,
+    @inject('services.otp')
+    private otpService: OtpService,
   ) { }
 
   /**
@@ -50,6 +56,7 @@ export class UserProfileService {
     userId: string,
     data: {
       fullName?: string;
+      phone?: string;
       address?: string;
       city?: string;
       state?: string;
@@ -68,9 +75,29 @@ export class UserProfileService {
       throw new HttpErrors.BadRequest('User account is not active');
     }
 
+    if (data.phone !== undefined) {
+      if (isMobileAuthEnabled()) {
+        throw new HttpErrors.BadRequest(
+          'Use mobile OTP verification to update your mobile number.',
+        );
+      }
+
+      const phone = validateAndSanitizeMobile(data.phone);
+      const existingUser = await this.usersRepository.findOne({
+        where: {phone, isDeleted: false},
+      });
+
+      if (existingUser && existingUser.id !== userId) {
+        throw new HttpErrors.BadRequest('Mobile number is already in use');
+      }
+
+      data.phone = phone;
+    }
+
     // Update only provided fields
     await this.usersRepository.updateById(userId, {
       ...data,
+      ...(data.phone !== undefined && {isMobileVerified: false}),
       updatedAt: new Date(),
     });
 
@@ -143,6 +170,7 @@ export class UserProfileService {
    * Initiate email update - sends OTP to new email
    */
   async initiateEmailUpdate(userId: string, newEmail: string, hasher: BcryptHasher) {
+    newEmail = validateAndSanitizeEmail(newEmail);
     const user = await this.usersRepository.findById(userId);
 
     if (!user) {
@@ -158,39 +186,22 @@ export class UserProfileService {
       throw new HttpErrors.BadRequest('Email is already in use');
     }
 
-    // Invalidate old OTPs for this email
-    await this.otpRepository.updateAll(
-      {isUsed: true, expiresAt: new Date()},
-      {identifier: newEmail, type: 1},
-    );
-
-    // Generate a real random 4-digit OTP for email verification.
-    const otpCode = Math.floor(1000 + Math.random() * 9000).toString();
-
-    // Hash OTP before storing
-    const hashedOtp = await hasher.hashPassword(otpCode);
-
-    const otp = await this.otpRepository.create({
-      otp: hashedOtp,
-      type: 1, // Email type
+    void hasher;
+    const {record: otp, code: otpCode} = await this.otpService.issue({
       identifier: newEmail,
-      attempts: 0,
-      isUsed: false,
-      userId: userId,
-      expiresAt: new Date(Date.now() + 10 * 60 * 1000), // 10 min
+      identifierType: OtpIdentifierType.EMAIL,
+      purpose: OtpPurpose.EMAIL_VERIFICATION,
+      userId,
     });
 
     try {
-      await this.otpNotificationService.sendEmailOtp(
-        newEmail,
-        otpCode,
-        'email_update',
-      );
+      await this.otpNotificationService.sendOtp({channel: 'email', identifier: newEmail, code: otpCode, purpose: OtpPurpose.EMAIL_VERIFICATION});
     } catch (error) {
       await this.otpRepository.updateById(otp.id, {
         isUsed: true,
         expiresAt: new Date(),
       });
+      await this.otpService.releaseIssueCooldown(OtpPurpose.EMAIL_VERIFICATION, newEmail);
 
       console.error('Failed to send email update OTP:', error);
       throw new HttpErrors.InternalServerError(
@@ -214,6 +225,7 @@ export class UserProfileService {
     otp: string,
     hasher: BcryptHasher,
   ) {
+    newEmail = validateAndSanitizeEmail(newEmail);
     const user = await this.usersRepository.findById(userId);
 
     if (!user) {
@@ -224,7 +236,7 @@ export class UserProfileService {
     const otpEntry = await this.otpRepository.findOne({
       where: {
         identifier: newEmail,
-        type: 1,
+        purpose: OtpPurpose.EMAIL_VERIFICATION,
         isUsed: false,
         userId: userId,
       },
@@ -235,35 +247,8 @@ export class UserProfileService {
       throw new HttpErrors.BadRequest('OTP expired or not found');
     }
 
-    if (otpEntry.attempts >= 3) {
-      throw new HttpErrors.BadRequest(
-        'Maximum attempts reached. Please request a new OTP.',
-      );
-    }
-
-    if (new Date(otpEntry.expiresAt) < new Date()) {
-      await this.otpRepository.updateById(otpEntry.id, {
-        isUsed: true,
-        expiresAt: new Date(),
-      });
-      throw new HttpErrors.BadRequest('OTP expired, request a new one');
-    }
-
-    // Verify OTP
-    const isOtpValid = await hasher.comparePassword(otp, otpEntry.otp);
-
-    if (!isOtpValid) {
-      await this.otpRepository.updateById(otpEntry.id, {
-        attempts: otpEntry.attempts + 1,
-      });
-      throw new HttpErrors.BadRequest('Invalid OTP');
-    }
-
-    // Mark OTP as used
-    await this.otpRepository.updateById(otpEntry.id, {
-      isUsed: true,
-      expiresAt: new Date(),
-    });
+    void hasher;
+    await this.otpService.verifyAndConsume(otpEntry.id, newEmail, OtpIdentifierType.EMAIL, OtpPurpose.EMAIL_VERIFICATION, otp);
 
     // Update email
     await this.usersRepository.updateById(userId, {
@@ -282,6 +267,7 @@ export class UserProfileService {
    * Initiate mobile update - sends OTP to new mobile
    */
   async initiateMobileUpdate(userId: string, newMobile: string, hasher: BcryptHasher) {
+    newMobile = validateAndSanitizeMobile(newMobile);
     const user = await this.usersRepository.findById(userId);
 
     if (!user) {
@@ -297,31 +283,20 @@ export class UserProfileService {
       throw new HttpErrors.BadRequest('Mobile number is already in use');
     }
 
-    // Invalidate old OTPs for this mobile
-    await this.otpRepository.updateAll(
-      {isUsed: true, expiresAt: new Date()},
-      {identifier: newMobile, type: 0},
-    );
-
-    // Generate OTP - use hardcoded 1234 for testing in dev mode
-    const otpCode = (process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'dev') ? '1234' : Math.floor(1000 + Math.random() * 9000).toString();
-
-    // Hash OTP before storing
-    const hashedOtp = await hasher.hashPassword(otpCode);
-
-    const otp = await this.otpRepository.create({
-      otp: hashedOtp,
-      type: 0, // Mobile type
+    void hasher;
+    const {record: otp, code: otpCode} = await this.otpService.issue({
       identifier: newMobile,
-      attempts: 0,
-      isUsed: false,
-      userId: userId,
-      expiresAt: new Date(Date.now() + 10 * 60 * 1000), // 10 min
+      identifierType: OtpIdentifierType.PHONE,
+      purpose: OtpPurpose.PROFILE_MOBILE,
+      userId,
     });
-
-    // Log OTP in development mode
-    if (process.env.NODE_ENV === 'dev') {
-      console.log(`Mobile update OTP for ${newMobile}: ${otpCode}`);
+    try {
+      const messageId = await this.otpNotificationService.sendOtp({channel: 'whatsapp', identifier: newMobile, code: otpCode, purpose: OtpPurpose.PROFILE_MOBILE});
+      if (messageId) await this.otpService.recordProviderMessage(otp.id, messageId);
+    } catch (error) {
+      await this.otpService.invalidate(otp.id);
+      await this.otpService.releaseIssueCooldown(OtpPurpose.PROFILE_MOBILE, newMobile);
+      throw new HttpErrors.ServiceUnavailable('Unable to send verification code. Please try again later.');
     }
 
     return {
@@ -340,6 +315,7 @@ export class UserProfileService {
     otp: string,
     hasher: BcryptHasher,
   ) {
+    newMobile = validateAndSanitizeMobile(newMobile);
     const user = await this.usersRepository.findById(userId);
 
     if (!user) {
@@ -350,7 +326,7 @@ export class UserProfileService {
     const otpEntry = await this.otpRepository.findOne({
       where: {
         identifier: newMobile,
-        type: 0,
+        purpose: OtpPurpose.PROFILE_MOBILE,
         isUsed: false,
         userId: userId,
       },
@@ -361,35 +337,8 @@ export class UserProfileService {
       throw new HttpErrors.BadRequest('OTP expired or not found');
     }
 
-    if (otpEntry.attempts >= 3) {
-      throw new HttpErrors.BadRequest(
-        'Maximum attempts reached. Please request a new OTP.',
-      );
-    }
-
-    if (new Date(otpEntry.expiresAt) < new Date()) {
-      await this.otpRepository.updateById(otpEntry.id, {
-        isUsed: true,
-        expiresAt: new Date(),
-      });
-      throw new HttpErrors.BadRequest('OTP expired, request a new one');
-    }
-
-    // Verify OTP
-    const isOtpValid = await hasher.comparePassword(otp, otpEntry.otp);
-
-    if (!isOtpValid) {
-      await this.otpRepository.updateById(otpEntry.id, {
-        attempts: otpEntry.attempts + 1,
-      });
-      throw new HttpErrors.BadRequest('Invalid OTP');
-    }
-
-    // Mark OTP as used
-    await this.otpRepository.updateById(otpEntry.id, {
-      isUsed: true,
-      expiresAt: new Date(),
-    });
+    void hasher;
+    await this.otpService.verifyAndConsume(otpEntry.id, newMobile, OtpIdentifierType.PHONE, OtpPurpose.PROFILE_MOBILE, otp);
 
     // Update mobile
     await this.usersRepository.updateById(userId, {

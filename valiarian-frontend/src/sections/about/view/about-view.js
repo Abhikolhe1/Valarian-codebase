@@ -3,7 +3,7 @@ import Stack from '@mui/material/Stack';
 import { useGetAboutPage } from 'src/api/about-page';
 import AboutHero from '../about-hero';
 import AboutStorySection from '../about-story';
-import AboutTeam from '../about-team';
+// import AboutTeam from '../about-team';
 import AboutThoughtCarousel from '../about-thought';
 import { AboutValues } from '../about-values';
 
@@ -33,7 +33,7 @@ export default function AboutView() {
 
       <AboutValues content={aboutPage?.values} />
 
-      <AboutTeam content={aboutPage?.team} />
+      {/* <AboutTeam content={aboutPage?.team} /> */}
     </>
   );
 }

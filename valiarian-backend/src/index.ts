@@ -1,9 +1,11 @@
 import * as dotenv from 'dotenv';
 import {ApplicationConfig, ValiarianBackendApplication} from './application';
+import {validateOtpProviderConfig} from './utils/otp-config';
 export * from './application';
 dotenv.config();
 
 export async function main(options: ApplicationConfig = {}) {
+  validateOtpProviderConfig();
   const app = new ValiarianBackendApplication(options);
   await app.boot();
   await app.start();
@@ -41,6 +43,14 @@ if (require.main === module) {
       // Security headers
       expressSettings: {
         'x-powered-by': false,
+      },
+      requestBodyParser: {
+        json: {
+          limit: '1mb',
+          verify: (req: any, _res: any, buffer: Buffer) => {
+            req.rawBody = Buffer.from(buffer);
+          },
+        },
       },
     },
   };

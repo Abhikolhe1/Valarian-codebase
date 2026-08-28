@@ -109,15 +109,23 @@ export function validateAndSanitizeEmail(email: string): string {
  * Validate and sanitize mobile
  */
 export function validateAndSanitizeMobile(mobile: string): string {
-  const trimmed = mobile.trim().replace(/\s+/g, '');
+  if (typeof mobile !== 'string') {
+    throw new HttpErrors.BadRequest('Invalid mobile format.');
+  }
 
-  if (!validateMobile(trimmed)) {
+  const compact = mobile.trim().replace(/[\s()-]/g, '');
+  const digits = compact.startsWith('+') ? compact.slice(1) : compact;
+  const nationalNumber = digits.startsWith('91') && digits.length === 12
+    ? digits.slice(2)
+    : digits;
+
+  if (!validateMobile(nationalNumber) || !/^[6-9]/.test(nationalNumber)) {
     throw new HttpErrors.BadRequest(
-      'Invalid mobile format. Must be 10 digits.',
+      'Invalid Indian mobile number.',
     );
   }
 
-  return trimmed;
+  return `+91${nationalNumber}`;
 }
 
 /**

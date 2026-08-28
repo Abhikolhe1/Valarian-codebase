@@ -34,7 +34,7 @@ export default function JwtNewPasswordView() {
   const password = useBoolean();
   const { countdown, counting, startCountdown } = useCountdownSeconds(60);
 
-  const [otp, setOtp] = useState(Array(4).fill(''));
+  const [otp, setOtp] = useState(Array(6).fill(''));
   const otpRefs = useRef([]);
 
   const VerifySchema = Yup.object().shape({
@@ -70,7 +70,7 @@ export default function JwtNewPasswordView() {
       updated[index] = value;
       setOtp(updated);
 
-      if (value && index < 3) otpRefs.current[index + 1]?.focus();
+      if (value && index < 5) otpRefs.current[index + 1]?.focus();
     }
   };
 
@@ -83,8 +83,8 @@ export default function JwtNewPasswordView() {
   const onSubmit = handleSubmit(async (data) => {
     const enteredOtp = otp.join('');
 
-    if (enteredOtp.length !== 4) {
-      alert('Please enter 4-digit OTP');
+    if (enteredOtp.length !== 6) {
+      alert('Please enter 6-digit OTP');
       return;
     }
 
@@ -112,7 +112,7 @@ export default function JwtNewPasswordView() {
     try {
       startCountdown();
       await forgotPassword?.(values.email);
-      setOtp(Array(4).fill(''));
+      setOtp(Array(6).fill(''));
       otpRefs.current[0]?.focus();
     } catch (error) {
       console.error(error);

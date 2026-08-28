@@ -1,5 +1,6 @@
 import { createSlice } from '@reduxjs/toolkit';
 import uniq from 'lodash/uniq';
+import { INCLUDED_SHIPPING_CHARGE } from 'src/config/checkout';
 import {
   calculateCheckoutTotals,
   clampCartQuantity,
@@ -20,7 +21,7 @@ const initialState = {
   total: 0,
   discount: 0,
   appliedCoupon: null,
-  shipping: 0,
+  shipping: INCLUDED_SHIPPING_CHARGE,
   tax: 0,
   billing: null,
   totalItems: 0,
@@ -62,7 +63,7 @@ const applyCartState = (state, cart) => {
   state.actualSubTotal = actualSubTotal || 0;
   state.productDiscount = productDiscount || 0;
   state.discount = state.discount || 0;
-  state.shipping = state.shipping || 0;
+  state.shipping = state.shipping || INCLUDED_SHIPPING_CHARGE;
   state.tax = taxAmount || 0;
   state.billing = state.billing || null;
   state.subTotal = subTotal;
@@ -159,7 +160,7 @@ const slice = createSlice({
       state.subTotal = 0;
       state.discount = 0;
       state.appliedCoupon = null;
-      state.shipping = 0;
+      state.shipping = INCLUDED_SHIPPING_CHARGE;
       state.actualSubTotal = 0;
       state.productDiscount = 0;
       state.tax = 0;
@@ -255,7 +256,7 @@ const slice = createSlice({
       state.activeStep = 0;
       state.discount = 0;
       state.appliedCoupon = null;
-      state.shipping = 0;
+      state.shipping = INCLUDED_SHIPPING_CHARGE;
       state.tax = 0;
       state.paymentSession = null;
     },
@@ -278,7 +279,7 @@ const slice = createSlice({
       state.buyNowItem = newProduct;
       state.billing = null;
       state.discount = 0;
-      state.shipping = 0;
+      state.shipping = INCLUDED_SHIPPING_CHARGE;
       state.activeStep = 1;
     },
 

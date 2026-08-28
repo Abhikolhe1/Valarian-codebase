@@ -73,11 +73,7 @@ const defaultHeaderSettings = {
 };
 
 const defaultOffersSettings = {
-  marquee: [
-    {text: 'Flat 20% off on premium polos'},
-    {text: 'Free shipping on orders above ₹1999'},
-    {text: 'Limited edition drop - Shop now'},
-  ],
+  marquee: [],
 };
 
 export class CMSSettingsController {
@@ -165,7 +161,7 @@ export class CMSSettingsController {
       marquee:
         settings.offers?.marquee?.length
           ? settings.offers.marquee.filter(item => item?.text?.trim())
-          : defaultOffersSettings.marquee,
+          : [],
     };
 
     return settings;

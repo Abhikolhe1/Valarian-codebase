@@ -297,7 +297,7 @@ export class OrderRepository extends TimeStampRepositoryMixin<
     return order.status === 'pending' || order.status === 'confirmed';
   }
 
-  canBeReturned(order: Order, returnWindowDays = 7): boolean {
+  canBeReturned(order: Order, returnWindowDays = 3): boolean {
     if (order.status !== 'delivered' || !order.deliveredAt) {
       return false;
     }

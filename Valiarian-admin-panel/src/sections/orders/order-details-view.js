@@ -208,6 +208,12 @@ export default function OrderDetailsView() {
 
       const response = await axios.patch(`/api/admin/orders/${id}/status`, payload);
 
+      if (newStatus === 'packed') {
+        await axios.post(`/api/admin/orders/${id}/shipments`, {
+          generateLabelNow: false,
+        });
+      }
+
       console.log('✅ Status updated successfully:', response.data);
 
       setStatusDialogOpen(false);
@@ -216,7 +222,12 @@ export default function OrderDetailsView() {
       setTrackingNumber('');
       setCarrier('');
       setEstimatedDelivery('');
-      enqueueSnackbar('Order status updated successfully.', { variant: 'success' });
+      enqueueSnackbar(
+        newStatus === 'packed'
+          ? 'Order packed, AWB generated, and Blue Dart pickup requested.'
+          : 'Order status updated successfully.',
+        { variant: 'success' }
+      );
       await fetchOrderDetails();
     } catch (err) {
       console.error('❌ Error updating status:', err);

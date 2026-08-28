@@ -164,11 +164,7 @@ export default function CMSSettingsView() {
       offers: {
         marquee: siteSettings?.offers?.marquee?.length
           ? siteSettings.offers.marquee
-          : [
-              { text: 'Flat 20% off on premium polos' },
-              { text: 'Free shipping on orders above ₹1999' },
-              { text: 'Limited edition drop - Shop now' },
-            ],
+          : [{ text: '' }],
       },
     }),
     [siteSettings]

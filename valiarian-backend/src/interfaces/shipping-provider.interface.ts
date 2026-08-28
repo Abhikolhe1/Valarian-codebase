@@ -61,6 +61,12 @@ export interface CreateShipmentParams {
   warehouseOriginArea: string;
   warehousePincode: string;
   warehouseName: string;
+  warehouseCity?: string;
+  warehouseState?: string;
+  /** Warehouse street address — required by Blue Dart's Shipper.CustomerAddress1. */
+  warehouseAddressLine1?: string;
+  /** Warehouse contact phone — Blue Dart's Shipper.CustomerTelephone. */
+  warehousePhone?: string;
 
   // Package
   weightGrams: number;
@@ -74,6 +80,8 @@ export interface CreateShipmentParams {
   productCode?: string; // e.g. "A" for Air Express
   subProductCode?: string; // e.g. "P"
   serviceType?: string; // "A" = Air, "D" = Surface
+  /** Blue Dart ProductType: 0 for non-document merchandise, 1 for documents. */
+  productType?: 0 | 1;
 
   // COD
   isCod: boolean;
@@ -98,6 +106,43 @@ export interface CreateShipmentResult {
   totalCourierCost?: number;
   chargesUnavailable?: boolean; // true in sandbox/test environment
 
+  rawResponse?: unknown;
+}
+
+export interface PickupRegistrationParams {
+  providerRequestId: string;
+  awbNumber: string;
+  areaCode: string;
+  customerCode: string;
+  customerName: string;
+  addressLine1: string;
+  addressLine2?: string;
+  addressLine3?: string;
+  pincode: string;
+  phone: string;
+  numberOfPieces: number;
+  weightKg: number;
+  pickupDate: Date;
+  pickupTime: string;
+  officeCloseTime: string;
+  productCode: string;
+  subProducts?: string[];
+}
+
+export interface PickupRegistrationResult {
+  pickupReference: string;
+  rawResponse?: unknown;
+}
+
+export interface PickupCancellationParams {
+  pickupReference: string;
+  pickupRegistrationDate: Date;
+  remarks?: string;
+}
+
+export interface PickupCancellationResult {
+  success: boolean;
+  message?: string;
   rawResponse?: unknown;
 }
 
@@ -146,6 +191,53 @@ export interface GenerateLabelResult {
   pdf: Buffer;
   awbNumber: string;
   labelFormat: 'A5' | 'A6' | 'A4';
+}
+
+// ── Transit Time ──────────────────────────────────────────────────────────────
+export interface TransitTimeParams {
+  originPincode: string;
+  destinationPincode: string;
+  productCode: string;
+  subProductCode?: string;
+  /** Pickup date, local calendar date (server converts to Blue Dart's DDMMYYYY). */
+  pickupDate: Date;
+  /** 24hr "HHmm", e.g. "1300". */
+  pickupTime: string;
+}
+
+export interface TransitTimeResult {
+  serviceable: boolean;
+  expectedDeliveryDate?: string;
+  expectedPodDate?: string;
+  additionalDays?: number;
+  areaCode?: string;
+  serviceCenter?: string;
+  isError: boolean;
+  errorMessage?: string;
+  rawResponse?: unknown;
+}
+
+// ── Product / Sub-Product Catalog ───────────────────────────────────────────────
+export interface ProductCatalogEntry {
+  productName: string;
+  productDescription: string;
+  subProducts: string[];
+}
+
+export interface ProductCatalogResult {
+  products: ProductCatalogEntry[];
+  isError: boolean;
+  errorMessage?: string;
+  rawResponse?: unknown;
+}
+
+// ── Master Download (incremental pincode master sync) ───────────────────────────
+export interface MasterDownloadResult {
+  records: unknown[];
+  recordCount: number;
+  isError: boolean;
+  errorMessage?: string;
+  rawResponse?: unknown;
 }
 
 // ── Reverse Pickup ────────────────────────────────────────────────────────────
@@ -224,4 +316,14 @@ export interface ShippingProvider {
   createReversePickup(
     params: CreateReversePickupParams,
   ): Promise<CreateReversePickupResult>;
+
+  /** Register already-created AWBs for collection from the warehouse. */
+  registerPickup?(
+    params: PickupRegistrationParams,
+  ): Promise<PickupRegistrationResult>;
+
+  /** Cancel a previously registered warehouse pickup by token number. */
+  cancelPickup?(
+    params: PickupCancellationParams,
+  ): Promise<PickupCancellationResult>;
 }

@@ -953,7 +953,6 @@ export class OrderController {
           trackingNumber: order.trackingNumber,
           items,
           reviewUrl: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/orders/${order.id}/review`,
-          returnWindowDays: process.env.RETURN_WINDOW_DAYS || '7',
           returnUrl: `${this.getOrderDetailsUrl(order.id)}/return`,
           orderDetailsUrl: this.getOrderDetailsUrl(order.id),
           year: new Date().getFullYear(),
@@ -1091,6 +1090,54 @@ export class OrderController {
         'Error sending admin new order notification email:',
         emailError,
       );
+    }
+  }
+
+  private async sendManualShippingAlertEmail(order: Order, reason: string) {
+    try {
+      const fromEmail = this.getOrderMailSender();
+      const recipients = this.getAdminOrderNotificationRecipients();
+
+      if (!recipients.length) {
+        console.warn(
+          '[Order Email] No admin notification recipients configured for manual shipping alert',
+          {orderNumber: order.orderNumber},
+        );
+        return;
+      }
+
+      const emailHtml = await this.emailTemplateService.renderTemplate(
+        'manual-shipping-alert',
+        {
+          reason,
+          customerName: order.billingAddress.fullName,
+          customerEmail: order.billingAddress.email || '-',
+          customerPhone: order.billingAddress.phone || '-',
+          orderNumber: order.orderNumber,
+          orderStatus: order.status,
+          paymentMethod: order.paymentMethod,
+          paymentStatus: order.paymentStatus,
+          total: formatCurrencyValue(order.total),
+          shippingAddress: order.shippingAddress,
+          adminOrderUrl: `${process.env.ADMIN_FRONTEND_URL || 'http://localhost:3001'}/orders/${order.id}`,
+        },
+      );
+
+      console.log('[Order Email] Sending manual shipping alert email', {
+        from: fromEmail,
+        to: recipients,
+        orderNumber: order.orderNumber,
+        reason,
+      });
+
+      await this.emailService.sendMail({
+        from: fromEmail,
+        to: recipients.join(','),
+        subject: `Manual Shipping Required - ${order.orderNumber}`,
+        html: emailHtml,
+      });
+    } catch (emailError) {
+      console.error('Error sending manual shipping alert email:', emailError);
     }
   }
 
@@ -1782,10 +1829,12 @@ export class OrderController {
 
       const unserviceableReason =
         await this.checkDestinationServiceability(request);
+      let needsManualShipping = false;
       if (unserviceableReason) {
         // Money already moved on this path; rejecting here would strand a
         // captured payment with no order, so record it and let packing catch it.
         if (request.paymentMethod === 'razorpay' && request.paymentDetails) {
+          needsManualShipping = true;
           console.error(
             `[OrderController] Order accepted despite serviceability failure because payment was already captured. Reason: ${unserviceableReason}`,
           );
@@ -1865,6 +1914,10 @@ export class OrderController {
           billingAddress: request.billingAddress,
           shippingAddress: request.shippingAddress,
           items: orderItems,
+          needsManualShipping,
+          manualShippingReason: needsManualShipping
+            ? unserviceableReason ?? undefined
+            : undefined,
           isDeleted: false,
           createdAt: new Date(),
           updatedAt: new Date(),
@@ -1950,6 +2003,9 @@ export class OrderController {
         }
         await this.sendOrderConfirmationEmail(order, currentUser);
         await this.sendAdminOrderNotificationEmail(order);
+        if (needsManualShipping && unserviceableReason) {
+          await this.sendManualShippingAlertEmail(order, unserviceableReason);
+        }
       } else if (request.paymentMethod === 'razorpay') {
         console.log(
           '[Order Email] Skipping prepaid order emails in createOrder until payment succeeds',
@@ -2783,7 +2839,7 @@ export class OrderController {
       }
 
       const returnWindowDays = parseInt(
-        process.env.RETURN_WINDOW_DAYS || '7',
+        process.env.RETURN_WINDOW_DAYS || '3',
         10,
       );
       const returnWindowMs = returnWindowDays * 24 * 60 * 60 * 1000;
@@ -2792,7 +2848,7 @@ export class OrderController {
 
       if (currentTime - deliveryTime > returnWindowMs) {
         throw new HttpErrors.BadRequest(
-          `Return window of ${returnWindowDays} days has expired. Order was delivered on ${new Date(
+          `The 72-hour return window has expired. Order was delivered on ${new Date(
             order.deliveredAt,
           ).toLocaleDateString()}.`,
         );
