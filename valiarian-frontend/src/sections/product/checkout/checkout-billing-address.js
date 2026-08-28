@@ -3,11 +3,13 @@ import { useState } from 'react';
 // @mui
 import Alert from '@mui/material/Alert';
 import Button from '@mui/material/Button';
+import LoadingButton from '@mui/lab/LoadingButton';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import Grid from '@mui/material/Unstable_Grid2';
 // api
 import { createAddress, useGetAddresses } from 'src/api/addresses';
+import { checkPincodeServiceability } from 'src/api/shipping';
 // auth
 import { useAuthContext } from 'src/auth/hooks';
 // hooks
@@ -32,6 +34,8 @@ export default function CheckoutBillingAddress({ checkout, onBackStep, onCreateB
   const { user } = useAuthContext();
   const { addresses, isLoading, error, mutate } = useGetAddresses(user?.id, Boolean(user?.id));
   const [editingAddress, setEditingAddress] = useState(null);
+  const [serviceabilityError, setServiceabilityError] = useState('');
+  const [checkingAddressId, setCheckingAddressId] = useState(null);
 
   const buildBillingAddress = (address, fallbackName, fallbackPhone) =>
     mapAddressToCheckoutBilling(
@@ -42,6 +46,36 @@ export default function CheckoutBillingAddress({ checkout, onBackStep, onCreateB
       },
       user
     );
+
+  // Returns a customer-facing block message only on a definitive "not
+  // serviceable" answer. A provider outage (thrown error) fails open — same
+  // policy as the backend's own gate — so it never returns a message.
+  const getUnserviceableMessage = async (pincode) => {
+    try {
+      const result = await checkPincodeServiceability(pincode);
+      return result && result.isServiceable === false
+        ? `We do not deliver to pincode ${pincode} yet. Please use a different address.`
+        : null;
+    } catch (checkError) {
+      console.error('Serviceability check failed, allowing checkout to proceed:', checkError);
+      return null;
+    }
+  };
+
+  const selectSavedAddress = async (address) => {
+    setServiceabilityError('');
+    setCheckingAddressId(address.id);
+    try {
+      const blockMessage = await getUnserviceableMessage(address.pincode);
+      if (blockMessage) {
+        setServiceabilityError(blockMessage);
+        return;
+      }
+      onCreateBilling(buildBillingAddress(address));
+    } finally {
+      setCheckingAddressId(null);
+    }
+  };
 
   const handleEditAddress = (address) => {
     setEditingAddress(address);
@@ -84,15 +118,17 @@ export default function CheckoutBillingAddress({ checkout, onBackStep, onCreateB
             >
               Edit
             </Button>
-            <Button
+            <LoadingButton
               variant="contained"
               color='secondary'
               size="small"
-              onClick={() => onCreateBilling(buildBillingAddress(address))}
+              loading={checkingAddressId === address.id}
+              disabled={checkingAddressId !== null && checkingAddressId !== address.id}
+              onClick={() => selectSavedAddress(address)}
               sx={{ width: { xs: '100%', sm: 'auto' } }}
             >
               Deliver to this Address
-            </Button>
+            </LoadingButton>
           </Stack>
         }
         sx={{
@@ -124,6 +160,12 @@ export default function CheckoutBillingAddress({ checkout, onBackStep, onCreateB
           {error && (
             <Alert severity="error" sx={{ mb: 3 }}>
               Failed to load saved addresses. You can still add a new address below.
+            </Alert>
+          )}
+
+          {serviceabilityError && (
+            <Alert severity="error" sx={{ mb: 3 }}>
+              {serviceabilityError}
             </Alert>
           )}
 
@@ -184,6 +226,12 @@ export default function CheckoutBillingAddress({ checkout, onBackStep, onCreateB
         onClose={addressForm.onFalse}
         onCreate={async (newAddress) => {
           const sanitizedPayload = sanitizeAddressPayload(newAddress);
+
+          const blockMessage = await getUnserviceableMessage(sanitizedPayload.pincode);
+          if (blockMessage) {
+            throw new Error(blockMessage);
+          }
+
           const createdAddress = await createAddress(sanitizedPayload);
 
           onCreateBilling(

@@ -2,6 +2,7 @@ import { useCallback, useState } from 'react';
 // auth
 import { useAuthContext } from 'src/auth/hooks';
 import { useSnackbar } from 'src/components/snackbar';
+import { INCLUDED_SHIPPING_CHARGE } from 'src/config/checkout';
 // api
 import {
   addCartItem as addCartItemRequest,
@@ -48,13 +49,15 @@ export default function useCheckout() {
 
   const checkout = useSelector((state) => state.checkout);
   const checkoutItems = checkout.buyNowItem ? [checkout.buyNowItem] : checkout.cart;
+  const includedShipping = Number(checkout.shipping) || INCLUDED_SHIPPING_CHARGE;
   const sessionTotals = calculateCheckoutTotals(
     checkoutItems,
     checkout.discount,
-    checkout.shipping
+    includedShipping
   );
   const checkoutSession = {
     ...checkout,
+    shipping: includedShipping,
     cart: sessionTotals.cart,
     eligibleCart: sessionTotals.eligibleCart,
     unavailableCart: sessionTotals.unavailableCart,

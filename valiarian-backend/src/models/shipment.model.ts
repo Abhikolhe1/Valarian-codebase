@@ -297,6 +297,15 @@ export class Shipment extends Entity {
   @property({type: 'string', postgresql: {columnName: 'providerrequestid'}})
   providerRequestId?: string;
 
+  @property({type: 'string', postgresql: {columnName: 'pickupreference'}})
+  pickupReference?: string;
+
+  @property({type: 'date', postgresql: {columnName: 'pickupregisteredat'}})
+  pickupRegisteredAt?: Date;
+
+  @property({type: 'string', postgresql: {columnName: 'pickupregistrationerror'}})
+  pickupRegistrationError?: string;
+
   @property({
     type: 'string',
     jsonSchema: {enum: ['bluedart-legacy-soap', 'bluedart-developer-portal']},

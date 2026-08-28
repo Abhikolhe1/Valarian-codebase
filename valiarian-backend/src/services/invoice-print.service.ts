@@ -247,7 +247,8 @@ ${autoPrint ? '<script>window.addEventListener("load", function () { window.prin
           <tr><td>Taxable value</td><td class="num">${this.money(invoice.totals.taxableAmount)}</td></tr>
           ${this.taxSummaryRows(invoice)}
           ${invoice.totals.discount ? `<tr><td>Discount</td><td class="num">-${this.money(invoice.totals.discount)}</td></tr>` : ''}
-          <tr><td>Shipping</td><td class="num">${this.money(invoice.totals.shipping)}</td></tr>
+          <tr><td>Shipping fee</td><td class="num">${this.money(invoice.totals.shipping)}</td></tr>
+          <tr><td>Shipping discount</td><td class="num">-${this.money(invoice.totals.shippingDiscount)}</td></tr>
         </tbody>
         <tfoot>
           <tr class="grand"><td>Total</td><td class="num">${this.money(invoice.totals.total)}</td></tr>
@@ -458,7 +459,8 @@ ${autoPrint ? '<script>window.addEventListener("load", function () { window.prin
           <tr><td>Taxable value</td><td class="num">${this.money(invoice.totals.taxableAmount)}</td></tr>
           ${this.taxSummaryRows(invoice)}
           ${invoice.totals.discount ? `<tr><td>Discount</td><td class="num">-${this.money(invoice.totals.discount)}</td></tr>` : ''}
-          <tr><td>Shipping</td><td class="num">${this.money(invoice.totals.shipping)}</td></tr>
+          <tr><td>Shipping fee</td><td class="num">${this.money(invoice.totals.shipping)}</td></tr>
+          <tr><td>Shipping discount</td><td class="num">-${this.money(invoice.totals.shippingDiscount)}</td></tr>
         </tbody>
         <tfoot>
           <tr class="grand"><td>Total</td><td class="num">${this.money(invoice.totals.total)}</td></tr>

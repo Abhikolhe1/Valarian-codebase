@@ -1,8 +1,8 @@
 import {Order} from '../models';
 
 const DEFAULT_HSN_SAC = process.env.DEFAULT_HSN_SAC || '6109';
-const DEFAULT_GST_NUMBER = process.env.COMPANY_GST_NUMBER || '27ABCDE1234F1Z5';
-const DEFAULT_COMPANY_NAME = process.env.COMPANY_NAME || 'Valiarian';
+const DEFAULT_GST_NUMBER = process.env.COMPANY_GST_NUMBER || '27ABBFV5019J1Z0';
+const DEFAULT_COMPANY_NAME = process.env.COMPANY_NAME || 'VALIARIAN LLP';
 const DEFAULT_COMPANY_STATE = process.env.COMPANY_STATE || 'Maharashtra';
 
 export interface GeneratedInvoice {
@@ -58,6 +58,7 @@ export interface GeneratedInvoice {
     taxableAmount: number;
     discount: number;
     shipping: number;
+    shippingDiscount: number;
     tax: number;
     total: number;
   };
@@ -202,6 +203,7 @@ export function buildInvoiceFromOrder(order: Order): GeneratedInvoice {
       taxableAmount,
       discount: roundCurrency(order.discount),
       shipping: roundCurrency(order.shipping),
+      shippingDiscount: roundCurrency(order.shipping),
       tax: gstAmount,
       total: roundCurrency(order.total),
     },

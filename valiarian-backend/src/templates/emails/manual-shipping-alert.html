@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.5; color: #333; margin: 0; padding: 0; background-color: #f4f4f4; }
+    .container { width: 100%; max-width: 640px; margin: 0 auto; background: #ffffff; border-radius: 0; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+    .header { background: #b91c1c; color: #ffffff; padding: 28px 18px; }
+    .header h1 { margin: 0; font-size: 24px; }
+    .content { padding: 20px 16px 24px; }
+    .reason-box { background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 16px; margin: 18px 0; color: #991b1b; font-weight: 600; }
+    .summary { background: #f8fafc; border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; margin: 18px 0; }
+    .row { margin: 6px 0; }
+    .label { color: #6b7280; display: inline-block; min-width: 120px; }
+    .address-box { background: #f8fafc; border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; margin-top: 14px; }
+    .address-box h4 { margin: 0 0 10px; color: #111827; font-size: 16px; }
+    .address-box div { margin: 4px 0; }
+    .button { display: inline-block; margin-top: 20px; padding: 12px 18px; background: #111827; color: #ffffff !important; text-decoration: none; border-radius: 6px; font-weight: 600; }
+    @media only screen and (min-width: 601px) {
+      .container { margin: 20px auto; border-radius: 10px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>Manual Shipping Required</h1>
+      <div>Order {{orderNumber}} was paid, but Blue Dart cannot deliver to this pincode.</div>
+    </div>
+
+    <div class="content">
+      <div class="reason-box">{{reason}}</div>
+
+      <div class="summary">
+        <div class="row"><span class="label">Order Status:</span> {{orderStatus}}</div>
+        <div class="row"><span class="label">Payment:</span> {{paymentMethod}} / {{paymentStatus}}</div>
+        <div class="row"><span class="label">Customer:</span> {{customerName}}</div>
+        <div class="row"><span class="label">Email:</span> {{customerEmail}}</div>
+        <div class="row"><span class="label">Phone:</span> {{customerPhone}}</div>
+        <div class="row"><span class="label">Total:</span> Rs {{total}}</div>
+      </div>
+
+      <div class="address-box">
+        <h4>Shipping Address</h4>
+        <div><strong>{{shippingAddress.fullName}}</strong></div>
+        <div>{{shippingAddress.phone}}</div>
+        <div>{{shippingAddress.address}}</div>
+        <div>{{shippingAddress.city}}, {{shippingAddress.state}}</div>
+        <div>{{shippingAddress.zipCode}}</div>
+        <div>{{shippingAddress.country}}</div>
+      </div>
+
+      <p>Payment has already been captured for this order. Blue Dart will not accept an AWB for
+        this pincode, so it needs manual fulfillment — an alternate courier, local delivery, or a
+        refund/cancellation decision.</p>
+
+      <a class="button" href="{{adminOrderUrl}}">Open Order</a>
+    </div>
+  </div>
+</body>
+</html>

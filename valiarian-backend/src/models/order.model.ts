@@ -546,6 +546,22 @@ export class Order extends Entity {
   })
   inventoryRestored?: boolean; // true after restoreOnReturn or restoreOnRto
 
+  // Manual Shipping Fallback — set when payment was already captured but the
+  // destination pincode failed Blue Dart serviceability, so the order was
+  // let through instead of stranding a captured payment with no order.
+  @property({
+    type: 'boolean',
+    default: false,
+    postgresql: {columnName: 'needsmanualshipping'},
+  })
+  needsManualShipping?: boolean;
+
+  @property({
+    type: 'string',
+    postgresql: {columnName: 'manualshippingreason'},
+  })
+  manualShippingReason?: string;
+
   // COD Tracking
   @property({
     type: 'boolean',

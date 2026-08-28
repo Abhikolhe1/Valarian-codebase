@@ -7,10 +7,18 @@ import {
   CreateShipmentParams,
   CreateShipmentResult,
   GenerateLabelResult,
+  MasterDownloadResult,
+  PickupCancellationParams,
+  PickupCancellationResult,
+  PickupRegistrationParams,
+  PickupRegistrationResult,
+  ProductCatalogResult,
   ServiceabilityParams,
   ServiceabilityResult,
   ShippingProvider,
   TrackingResult,
+  TransitTimeParams,
+  TransitTimeResult,
 } from '../interfaces/shipping-provider.interface';
 import {BlueDartProvider} from './shipping-providers/bluedart.provider';
 import {BlueDartDeveloperPortalProvider} from './shipping-providers/bluedart-developer-portal.provider';
@@ -197,6 +205,42 @@ export class ShippingService {
     );
   }
 
+  async registerPickup(
+    params: PickupRegistrationParams,
+  ): Promise<PickupRegistrationResult> {
+    const provider = this.activeProvider as ShippingProvider & {
+      registerPickup?: (request: PickupRegistrationParams) => Promise<PickupRegistrationResult>;
+    };
+    if (!provider.registerPickup) {
+      throw new HttpErrors.NotImplemented(
+        `${this.activeProvider.courierName} does not support pickup registration`,
+      );
+    }
+    return this.runWithRetry(
+      'registerPickup',
+      () => provider.registerPickup!(params),
+      false,
+    );
+  }
+
+  async cancelPickup(
+    params: PickupCancellationParams,
+  ): Promise<PickupCancellationResult> {
+    const provider = this.activeProvider as ShippingProvider & {
+      cancelPickup?: (request: PickupCancellationParams) => Promise<PickupCancellationResult>;
+    };
+    if (!provider.cancelPickup) {
+      throw new HttpErrors.NotImplemented(
+        `${this.activeProvider.courierName} does not support pickup cancellation`,
+      );
+    }
+    return this.runWithRetry(
+      'cancelPickup',
+      () => provider.cancelPickup!(params),
+      false,
+    );
+  }
+
   async cancelShipment(awbNumber: string): Promise<CancelShipmentResult> {
     return this.runWithRetry(
       'cancelShipment',
@@ -231,5 +275,36 @@ export class ShippingService {
 
   getProviderVersion(): string {
     return this.activeProvider.providerVersion || 'bluedart-legacy-soap';
+  }
+
+  /**
+   * Transit Time / Product-Subproduct catalog / Master Download are Blue
+   * Dart-specific capabilities, not part of the generic multi-courier
+   * ShippingProvider interface (same precedent as registerPickup/
+   * cancelPickup above) — accessed via a narrow runtime capability check
+   * rather than widening the interface for every courier.
+   */
+  async getTransitTime(params: TransitTimeParams): Promise<TransitTimeResult> {
+    const provider = this.activeProvider as unknown as {getTransitTime?: (p: TransitTimeParams) => Promise<TransitTimeResult>};
+    if (!provider.getTransitTime) {
+      throw new Error(`${this.activeProvider.courierName} does not support transit time lookup`);
+    }
+    return this.runWithRetry('getTransitTime', () => provider.getTransitTime!(params));
+  }
+
+  async getProductsAndSubProducts(): Promise<ProductCatalogResult> {
+    const provider = this.activeProvider as unknown as {getProductsAndSubProducts?: () => Promise<ProductCatalogResult>};
+    if (!provider.getProductsAndSubProducts) {
+      throw new Error(`${this.activeProvider.courierName} does not support product catalog lookup`);
+    }
+    return this.runWithRetry('getProductsAndSubProducts', () => provider.getProductsAndSubProducts!());
+  }
+
+  async downloadPinCodeMaster(lastSynchDate: Date): Promise<MasterDownloadResult> {
+    const provider = this.activeProvider as unknown as {downloadPinCodeMaster?: (d: Date) => Promise<MasterDownloadResult>};
+    if (!provider.downloadPinCodeMaster) {
+      throw new Error(`${this.activeProvider.courierName} does not support master data download`);
+    }
+    return this.runWithRetry('downloadPinCodeMaster', () => provider.downloadPinCodeMaster!(lastSynchDate));
   }
 }

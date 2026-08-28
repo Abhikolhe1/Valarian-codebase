@@ -74,9 +74,7 @@ export function AuthProvider({ children }) {
       const accessToken = localStorage.getItem(STORAGE_KEY);
       const storedUser = getStoredUser();
 
-      console.log('Initializing frontend auth, token exists:', !!accessToken);
       if (accessToken && isValidToken(accessToken)) {
-        console.log('Token is valid, setting session and fetching user');
         setSession(accessToken);
 
         try {
@@ -112,7 +110,6 @@ export function AuthProvider({ children }) {
           });
         }
       } else {
-        console.log('No valid token found in frontend');
         localStorage.removeItem(USER_STORAGE_KEY);
         dispatch({
           type: 'INITIAL',
@@ -185,7 +182,6 @@ export function AuthProvider({ children }) {
 
     const { accessToken } = response.data;
 
-    console.log('Setting session with token');
     setSession(accessToken);
 
     // Fetch full user data from /me
@@ -298,7 +294,6 @@ export function AuthProvider({ children }) {
 
   // OTP LOGIN (for OTP-based authentication)
   const otpLogin = useCallback(async (accessToken) => {
-    console.log('Setting session with OTP accessToken');
     setSession(accessToken);
 
     // Fetch full user data from /me instead of relying on passed user
@@ -338,24 +333,19 @@ export function AuthProvider({ children }) {
   }, []);
 
   // SEND OTP
-  const sendOtp = useCallback(async (identifier, type = 'phone') => {
-    console.log('Sending OTP to:', { identifier, type });
-
+  const sendOtp = useCallback(async (identifier) => {
     try {
       const response = await axios.post(`${HOST_API}/api/auth/send-otp-login`, {
         identifier,
-        type,
       });
-
-      console.log('Send OTP response:', response.data);
-      return response.data; // { success, message, otpId, isNewUser }
+      return response.data;
     } catch (error) {
       console.error('Send OTP error:', error);
 
       // Handle different error types
       if (error.response) {
         // Server responded with error
-        const errorMessage = error.response.data?.message || 'Failed to send OTP';
+        const errorMessage = error.response.data?.error?.message || error.response.data?.message || 'Failed to send OTP';
         console.error('Server error:', errorMessage);
         throw new Error(errorMessage);
       } else if (error.request) {
@@ -372,8 +362,6 @@ export function AuthProvider({ children }) {
 
   // VERIFY OTP
   const verifyOtp = useCallback(async (otpId, otp, identifier) => {
-    console.log('Verifying OTP...', { otpId, otp, identifier });
-
     try {
       const response = await axios.post(`${HOST_API}/api/auth/verify-otp-login`, {
         otpId,
@@ -381,11 +369,8 @@ export function AuthProvider({ children }) {
         identifier,
       });
 
-      console.log('Verify OTP response:', response.data);
-
       const { accessToken, user } = response.data;
 
-      console.log('Setting session with token', accessToken);
       setSession(accessToken);
 
       // Store user data in localStorage
@@ -398,8 +383,6 @@ export function AuthProvider({ children }) {
         },
       });
 
-      console.log('OTP verification successful, user state updated');
-
       return {
         accessToken,
         user,
@@ -411,7 +394,7 @@ export function AuthProvider({ children }) {
       // Handle different error types
       if (error.response) {
         // Server responded with error
-        const errorMessage = error.response.data?.message || 'Invalid OTP';
+        const errorMessage = error.response.data?.error?.message || error.response.data?.message || 'Invalid OTP';
         console.error('Server error:', errorMessage);
         throw new Error(errorMessage);
       } else if (error.request) {

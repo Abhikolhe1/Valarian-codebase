@@ -1,5 +1,5 @@
 import axios = require('axios');
-import {BlueDartConfig} from '../../config/bluedart.config';
+import {assertBlueDartConfigured, BlueDartConfig} from '../../config/bluedart.config';
 import {BlueDartAuthenticationError, BlueDartTimeoutError} from './bluedart-errors';
 
 export interface BlueDartTokenResponse {
@@ -22,22 +22,22 @@ export class InMemoryBlueDartTokenCache implements BlueDartTokenCache {
 }
 
 export interface AuthenticationRequest {
-  method: 'POST';
+  method: 'GET';
   headers: Record<string, string>;
-  body: Record<string, string>;
 }
 
 interface HttpClient { request(config: Record<string, unknown>): Promise<{data: unknown}>; }
 
 /**
- * UNCONFIRMED CONTRACT: credential placement is isolated here. Blue Dart/DHL
- * documentation must confirm or replace this mapper before live use.
+ * Confirmed against Blue Dart's official Authentication API documentation
+ * (DHL Developer Portal): GET {authUrl} with Accept/ClientID/clientSecret
+ * headers (note the lowercase "clientSecret" — Blue Dart's own spec), no
+ * request body. Response is `{ "JWTToken": "<token>" }`.
  */
 export function buildAuthenticationRequest(config: BlueDartConfig): AuthenticationRequest {
   return {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json', 'x-api-secret': config.apiSecret!},
-    body: {apiKey: config.apiKey!},
+    method: 'GET',
+    headers: {Accept: 'application/json', ClientID: config.apiKey!, clientSecret: config.apiSecret!},
   };
 }
 
@@ -52,7 +52,7 @@ function decodeJwtExpiry(token: string): number | undefined {
 
 export function parseAuthenticationResponse(data: unknown, fallbackTtlSeconds = 900, now = Date.now()): BlueDartTokenResponse {
   const value = (data || {}) as Record<string, unknown>;
-  const accessToken = [value.access_token, value.accessToken, value.token, value.jwt].find(item => typeof item === 'string') as string | undefined;
+  const accessToken = [value.JWTToken, value.access_token, value.accessToken, value.token, value.jwt].find(item => typeof item === 'string') as string | undefined;
   if (!accessToken) {
     throw new BlueDartAuthenticationError('Blue Dart authentication response did not contain a supported token field', {operation: 'authenticate'});
   }
@@ -85,9 +85,12 @@ export class BlueDartAuthService {
   async invalidate(): Promise<void> { await this.cache.clear(); }
 
   private async authenticate(): Promise<BlueDartTokenResponse> {
+    // Deferred to first real use — never at app boot — so an incomplete Blue
+    // Dart setup can't take down unrelated backend functionality.
+    assertBlueDartConfigured(this.config, 'authenticate');
     const request = buildAuthenticationRequest(this.config);
     try {
-      const response = await this.http.request({url: this.config.authUrl!, method: request.method, headers: request.headers, data: request.body, timeout: this.config.requestTimeoutMs});
+      const response = await this.http.request({url: this.config.authUrl!, method: request.method, headers: request.headers, timeout: this.config.requestTimeoutMs});
       const token = parseAuthenticationResponse(response.data, this.config.tokenFallbackTtlSeconds);
       await this.cache.set(token);
       return token;
