@@ -36,6 +36,9 @@ yarn-error.log*
 # yarn lockfile intentionally ignored — npm (with a committed package-lock.json) is the pipeline's package manager
 yarn.lock
 
+# Local database exports can contain private customer and order data
+database-backups/
+
 # Kiro configuration and documentation files
 .config.kiro
 .kiro
