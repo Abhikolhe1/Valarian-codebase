@@ -7,8 +7,11 @@ import {BlueDartProviderError, BlueDartRateLimitError, BlueDartTimeoutError, Blu
 /**
  * Pulls a short, sanitized diagnostic summary out of a Blue Dart error body
  * for internal logs/error objects — never sent to frontend clients as-is.
- * Recognizes the shapes seen in practice: {error-response:[{msg|ErrorMessage}]}
- * and a bare {title}. Falls back to a byte-length note, never the raw payload.
+ * Recognizes the shapes seen in practice: {error-response:[{msg|ErrorMessage}]},
+ * an ASP.NET-style {title, errors: {Field: [messages]}}, and a bare {title}.
+ * Falls back to a truncated JSON dump of the body (internal-only — this is
+ * never forwarded to an external client, only logged/stored for admins) so a
+ * shape we haven't seen before still surfaces *something* instead of nothing.
  */
 function summarizeProviderErrorBody(data: unknown): string | undefined {
   if (!data || typeof data !== 'object') return undefined;
@@ -28,7 +31,29 @@ function summarizeProviderErrorBody(data: unknown): string | undefined {
       }
     }
   }
+  // ASP.NET Core ValidationProblemDetails shape — common on Apigee-fronted
+  // .NET backends: {title, status, errors: {FieldName: ["message", ...]}}.
+  // The bare {title} case (e.g. "Bad Request" with no further structure)
+  // carries no field-level detail, so prefer this when present.
+  if (body.errors && typeof body.errors === 'object') {
+    const fieldMessages = Object.entries(body.errors as Record<string, unknown>)
+      .map(([field, messages]) => {
+        const text = Array.isArray(messages) ? messages.join('; ') : String(messages);
+        return `${field}: ${text}`;
+      })
+      .join(' | ');
+    if (fieldMessages) {
+      const title = typeof body.title === 'string' ? `${body.title} — ` : '';
+      return `${title}${fieldMessages}`;
+    }
+  }
   if (typeof body.title === 'string') return body.title;
+  try {
+    const dump = JSON.stringify(body);
+    if (dump && dump !== '{}') return dump.length > 500 ? `${dump.slice(0, 500)}…` : dump;
+  } catch {
+    // not serializable — fall through to undefined
+  }
   return undefined;
 }
 
