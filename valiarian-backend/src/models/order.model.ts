@@ -589,6 +589,21 @@ export class Order extends Entity {
   })
   refundTransactionId?: string;
 
+  // Populated by the refund.failed webhook when Razorpay reports an
+  // asynchronous refund failure after initial acceptance. Deliberately
+  // does not revert `status`/`paymentStatus` — there's no reliable prior
+  // value to roll back to, so failures are surfaced here for manual
+  // reconciliation instead of guessed automatically.
+  @property({
+    type: 'string',
+  })
+  refundFailureReason?: string;
+
+  @property({
+    type: 'date',
+  })
+  refundFailedAt?: Date;
+
   // Notes
   @property({
     type: 'string',

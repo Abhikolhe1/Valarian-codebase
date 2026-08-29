@@ -1,6 +1,14 @@
 #!/usr/bin/env bash
 # Production deployment orchestrator for the verified srv1547800 layout.
-# Never enable set -x here: application env files contain secrets.
+#
+# Sequence: backup -> backend build -> migrate -> backend reload -> backend
+#           health check -> frontend build+swap -> health check -> admin
+#           build+swap -> health check -> nginx cutover -> final checks.
+# Any failure rolls back the affected app's release artifact (dist/build) and
+# reloads/restarts it back to the previous known-good state. The database is
+# NEVER rolled back automatically.
+#
+# Never enable `set -x` here: application env files contain secrets.
 set -euo pipefail
 
 [ $# -eq 1 ] || { echo "Usage: $0 <commit-sha>" >&2; exit 2; }
@@ -20,56 +28,149 @@ log DB "Creating verified PostgreSQL backup"
 BACKUP_FILE="$(bash "${SCRIPT_DIR}/backup-db.sh" "${BACKEND_DIR}/.env" "$BACKUP_DIR" 14 valiarian-production)"
 log DB "Backup verified: ${BACKUP_FILE}"
 
-log BACKEND "Installing dependencies and building"
-( cd "$BACKEND_DIR" && npm ci )
-rm -rf "${BACKEND_DIR}/dist.new"
-rm -f "${BACKEND_DIR}"/*.tsbuildinfo
-( cd "$BACKEND_DIR" && npx lb-tsc --outDir dist.new )
-[ -f "${BACKEND_DIR}/dist.new/index.js" ] || { log BACKEND "Build output missing"; exit 1; }
-rm -rf "${BACKEND_DIR}/dist.prev"
-[ ! -d "${BACKEND_DIR}/dist" ] || mv "${BACKEND_DIR}/dist" "${BACKEND_DIR}/dist.prev"
-mv "${BACKEND_DIR}/dist.new" "${BACKEND_DIR}/dist"
+# ---- Backend: build to a staging dir, never touch the live dist/ until it compiles clean
+deploy_backend() {
+  log BACKEND "Installing dependencies"
+  ( cd "$BACKEND_DIR" && npm ci )
 
-log MIGRATION "Running non-destructive schema autoupdate"
-( cd "$BACKEND_DIR" && node ./dist/migrate )
-if pm2 describe valiarian-backend-production >/dev/null 2>&1; then
-  pm2 reload valiarian-backend-production --update-env
-else
-  ( cd "$BACKEND_DIR" && pm2 start dist/index.js --name valiarian-backend-production )
+  log BACKEND "Building (staged, not yet live)"
+  rm -rf "${BACKEND_DIR}/dist.new"
+  # See scripts/deploy-uat.sh for why *.tsbuildinfo must be cleared first.
+  rm -f "${BACKEND_DIR}"/*.tsbuildinfo
+  ( cd "$BACKEND_DIR" && npx lb-tsc --outDir dist.new )
+  [ -f "${BACKEND_DIR}/dist.new/index.js" ] || { log BACKEND "build did not produce dist.new/index.js"; rm -rf "${BACKEND_DIR}/dist.new"; return 1; }
+
+  log BACKEND "Swapping in new build"
+  rm -rf "${BACKEND_DIR}/dist.prev"
+  if [ -d "${BACKEND_DIR}/dist" ]; then mv "${BACKEND_DIR}/dist" "${BACKEND_DIR}/dist.prev"; fi
+  mv "${BACKEND_DIR}/dist.new" "${BACKEND_DIR}/dist"
+
+  log MIGRATION "Running non-destructive schema autoupdate"
+  if ! ( cd "$BACKEND_DIR" && node ./dist/migrate ); then
+    log MIGRATION "FAILED — restoring previous backend build, database is left as-is for manual review"
+    rollback_backend
+    return 1
+  fi
+  log MIGRATION "Completed"
+
+  log BACKEND "Reloading PM2 process valiarian-backend-production"
+  if pm2 describe valiarian-backend-production >/dev/null 2>&1; then
+    if ! pm2 reload valiarian-backend-production --update-env; then
+      log BACKEND "pm2 reload failed — restoring previous build"
+      rollback_backend
+      return 1
+    fi
+  elif ! ( cd "$BACKEND_DIR" && pm2 start dist/index.js --name valiarian-backend-production ); then
+    log BACKEND "pm2 start failed — restoring previous build"
+    rollback_backend
+    return 1
+  fi
+
+  log HEALTH "Checking backend"
+  if ! bash "${SCRIPT_DIR}/health-check.sh" http://127.0.0.1:3035/health 10 3; then
+    log HEALTH "Backend failed health check — rolling back"
+    rollback_backend
+    return 1
+  fi
+  log HEALTH "Backend OK"
+  return 0
+}
+
+rollback_backend() {
+  if [ -d "${BACKEND_DIR}/dist.prev" ]; then
+    rm -rf "${BACKEND_DIR}/dist"
+    mv "${BACKEND_DIR}/dist.prev" "${BACKEND_DIR}/dist"
+    if pm2 describe valiarian-backend-production >/dev/null 2>&1; then
+      pm2 reload valiarian-backend-production --update-env || true
+    fi
+    if bash "${SCRIPT_DIR}/health-check.sh" http://127.0.0.1:3035/health 5 3; then
+      log ROLLBACK "Backend restored to previous release and healthy"
+    else
+      log ROLLBACK "Backend restored but still failing health check — needs manual attention"
+    fi
+  else
+    log ROLLBACK "No previous backend build available to restore — needs manual attention"
+  fi
+}
+
+if ! deploy_backend; then
+  log DEPLOY "Production deployment FAILED at backend stage. Frontend/admin were not touched."
+  exit 1
 fi
-bash "${SCRIPT_DIR}/health-check.sh" http://127.0.0.1:3035/health 10 3
 
+# ---- Static apps (frontend / admin): build to a staging dir, atomic swap, pm2 serve/restart,
+# roll back to the previous release on a restart or health-check failure.
 build_static() {
   local name="$1" dir="$2"
-  log "${name^^}" "Installing dependencies and building"
+  log "${name^^}" "Installing dependencies"
   ( cd "$dir" && npm ci )
+  log "${name^^}" "Building (staged, not yet live)"
   rm -rf "${dir}/build.new"
   ( cd "$dir" && BUILD_PATH=build.new GENERATE_SOURCEMAP=false NODE_OPTIONS="--max-old-space-size=2048" npm run build )
-  [ -f "${dir}/build.new/index.html" ] || { log "${name^^}" "Build output missing"; exit 1; }
+  [ -f "${dir}/build.new/index.html" ] || { log "${name^^}" "build did not produce build.new/index.html"; rm -rf "${dir}/build.new"; return 1; }
+  return 0
 }
-build_static frontend "$FRONTEND_DIR"
-build_static admin "$ADMIN_DIR"
 
-log FRONTEND "Swapping in new storefront build"
-rm -rf "${FRONTEND_DIR}/build.prev"
-[ ! -d "${FRONTEND_DIR}/build" ] || mv "${FRONTEND_DIR}/build" "${FRONTEND_DIR}/build.prev"
-mv "${FRONTEND_DIR}/build.new" "${FRONTEND_DIR}/build"
-if pm2 describe valiarian-frontend-production >/dev/null 2>&1; then
-  pm2 restart valiarian-frontend-production
-else
-  pm2 serve "${FRONTEND_DIR}/build" 3000 --spa --name valiarian-frontend-production
-fi
-bash "${SCRIPT_DIR}/health-check.sh" http://127.0.0.1:3000/ 10 3
+deploy_static_app() {
+  local name="$1" dir="$2" pm2_name="$3" port="$4" health_url="$5"
 
-rm -rf "${ADMIN_DIR}/build.prev"
-[ ! -d "${ADMIN_DIR}/build" ] || mv "${ADMIN_DIR}/build" "${ADMIN_DIR}/build.prev"
-mv "${ADMIN_DIR}/build.new" "${ADMIN_DIR}/build"
-if pm2 describe valiarian-admin-production >/dev/null 2>&1; then
-  pm2 restart valiarian-admin-production
-else
-  pm2 serve "${ADMIN_DIR}/build" 4000 --spa --name valiarian-admin-production
+  build_static "$name" "$dir" || return 1
+
+  log "${name^^}" "Swapping in new build"
+  rm -rf "${dir}/build.prev"
+  [ ! -d "${dir}/build" ] || mv "${dir}/build" "${dir}/build.prev"
+  mv "${dir}/build.new" "${dir}/build"
+
+  log "${name^^}" "Restarting PM2 process ${pm2_name}"
+  if pm2 describe "$pm2_name" >/dev/null 2>&1; then
+    if ! pm2 restart "$pm2_name"; then
+      log "${name^^}" "pm2 restart failed — restoring previous build"
+      rollback_static_app "$name" "$dir" "$pm2_name" "$port" "$health_url"
+      return 1
+    fi
+  elif ! pm2 serve "${dir}/build" "$port" --spa --name "$pm2_name"; then
+    log "${name^^}" "pm2 serve failed — restoring previous build"
+    rollback_static_app "$name" "$dir" "$pm2_name" "$port" "$health_url"
+    return 1
+  fi
+
+  log HEALTH "Checking ${name}"
+  if ! bash "${SCRIPT_DIR}/health-check.sh" "$health_url" 10 3; then
+    log HEALTH "${name^} failed health check — rolling back"
+    rollback_static_app "$name" "$dir" "$pm2_name" "$port" "$health_url"
+    return 1
+  fi
+  log HEALTH "${name^} OK"
+  return 0
+}
+
+rollback_static_app() {
+  local name="$1" dir="$2" pm2_name="$3" port="$4" health_url="$5"
+  if [ -d "${dir}/build.prev" ]; then
+    rm -rf "${dir}/build"
+    mv "${dir}/build.prev" "${dir}/build"
+    if pm2 describe "$pm2_name" >/dev/null 2>&1; then
+      pm2 restart "$pm2_name" || true
+    fi
+    if bash "${SCRIPT_DIR}/health-check.sh" "$health_url" 5 3; then
+      log ROLLBACK "${name^} restored to previous release and healthy"
+    else
+      log ROLLBACK "${name^} restored but still failing health check — needs manual attention"
+    fi
+  else
+    log ROLLBACK "No previous ${name} build available to restore — needs manual attention"
+  fi
+}
+
+if ! deploy_static_app frontend "$FRONTEND_DIR" valiarian-frontend-production 3000 http://127.0.0.1:3000/; then
+  log DEPLOY "Production deployment FAILED at frontend stage. Backend deployed successfully; frontend rolled back."
+  exit 1
 fi
-bash "${SCRIPT_DIR}/health-check.sh" http://127.0.0.1:4000/ 10 3
+
+if ! deploy_static_app admin "$ADMIN_DIR" valiarian-admin-production 4000 http://127.0.0.1:4000/; then
+  log DEPLOY "Production deployment FAILED at admin stage. Backend and frontend deployed successfully; admin rolled back."
+  exit 1
+fi
 
 # Production admin cannot use 3001 because UAT frontend owns that port.
 # Keep a recoverable copy, validate Nginx, then switch the existing vhost.

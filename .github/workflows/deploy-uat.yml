@@ -7,7 +7,16 @@ on:
     branches: [uat]
 
 concurrency:
-  group: valiarian-uat-deployment
+  # Keyed by originating event: this workflow_run trigger fires for every
+  # completed "CI" run on branch uat, including pull_request checks (e.g. a
+  # uat->main promotion PR), not just the push that should actually deploy.
+  # The job's `if:` below skips non-push runs, but that check happens AFTER
+  # the run has entered this concurrency group — an unkeyed group let a
+  # same-moment pull_request-triggered (no-op) run cancel a real push-
+  # triggered deploy mid-build, leaving the server on a stale build with no
+  # further run to retry it. Separate groups per event so a no-op run can
+  # never cancel a real one; same-event runs still cancel-in-progress as before.
+  group: valiarian-uat-deployment-${{ github.event.workflow_run.event }}
   cancel-in-progress: true
 
 jobs:
