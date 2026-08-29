@@ -45,6 +45,12 @@ import {InvoicePrintService} from '../services/invoice-print.service';
 import {RazorpayService} from '../services/razorpay.service';
 import {BarcodeService} from '../services/barcode.service';
 import {
+  buildRazorpayEventMarker,
+  historyAlreadyContainsMarker,
+  isLiveRazorpayMode,
+  resolveWebhookRawBody,
+} from '../utils/razorpay-webhook.utils';
+import {
   calculateCouponDiscount,
   getCouponAvailabilityError,
   normalizeCouponCode,
@@ -3559,9 +3565,15 @@ export class OrderController {
         );
       }
 
-      // Try to create Razorpay refund, but handle test orders gracefully
+      // In live mode, a failed Razorpay refund call must NEVER be papered
+      // over with a fabricated refund — that would mark a customer's order
+      // "refunded" when no money actually moved. The mock-refund fallback
+      // below exists only for local/test-mode development against Razorpay
+      // test-mode orders that may not exist server-side; it's gated on the
+      // configured key being genuinely live (`rzp_live_...`), not a separate
+      // flag that could drift out of sync with the real credentials in use.
+      const liveMode = isLiveRazorpayMode(process.env.RAZORPAY_KEY_ID);
       let refund: any = null;
-      let refundId = `refund_${Date.now()}`;
 
       try {
         refund = await this.razorpayService.createRefund(
@@ -3575,24 +3587,38 @@ export class OrderController {
               effectiveDeliveryChargeDeductionAmount.toFixed(2),
           },
         );
-        refundId = refund.id;
-        console.log('[Admin] Razorpay refund created:', refundId);
+        console.log('[Admin] Razorpay refund created:', refund.id);
       } catch (razorpayError: any) {
+        if (liveMode) {
+          console.error(
+            '[Admin] Razorpay refund FAILED in LIVE mode — order will NOT be marked refunded:',
+            {orderId: order.id, message: razorpayError.message},
+          );
+          throw new HttpErrors.BadGateway(
+            'Razorpay could not process this refund. The order has not been marked as refunded. Please retry, or investigate the payment in the Razorpay dashboard before trying again.',
+          );
+        }
+
         console.warn(
-          '[Admin] Razorpay refund failed (possibly test order):',
+          '[Admin] Razorpay refund failed in test mode — using mock refund for local/dev testing only:',
           razorpayError.message,
         );
-        // For test orders or when Razorpay fails, create a mock refund
+        // Test-mode-only fallback: lets refund workflows be exercised
+        // locally against orders that don't have a real Razorpay payment
+        // behind them. Unreachable when RAZORPAY_KEY_ID is a live key.
+        const mockRefundId = `refund_mock_${Date.now()}`;
         refund = {
-          id: refundId,
+          id: mockRefundId,
           amount: Math.round(request.amount * 100),
           currency: 'INR',
           payment_id: order.razorpayPaymentId,
           status: 'processed',
           created_at: Math.floor(Date.now() / 1000),
         };
-        console.log('[Admin] Using mock refund for test order:', refundId);
+        console.log('[Admin] Using mock refund for test order:', mockRefundId);
       }
+
+      const refundId = refund.id;
 
       const totalRefunded = alreadyRefunded + request.amount;
       const isFullRefund = totalRefunded >= refundableTotal;
@@ -3722,7 +3748,19 @@ export class OrderController {
         throw new HttpErrors.BadRequest('Missing webhook signature');
       }
 
-      const rawBody = JSON.stringify(body);
+      // Must be the exact bytes Razorpay signed — re-serializing the parsed
+      // `body` via JSON.stringify is not guaranteed to match the original
+      // payload (key order, number formatting, whitespace) and would make
+      // signature verification unreliable. See index.ts's requestBodyParser
+      // `verify` hook, which captures this for every request.
+      const rawBody = resolveWebhookRawBody(request as unknown as {rawBody?: Buffer});
+      if (!rawBody) {
+        console.error(
+          '[RazorpayWebhook] Raw request body unavailable — rejecting webhook rather than falling back to a re-serialized approximation.',
+        );
+        throw new HttpErrors.BadRequest('Unable to verify webhook payload');
+      }
+
       const isValid = this.razorpayService.verifyWebhookSignature(
         rawBody,
         signature,
@@ -3753,6 +3791,10 @@ export class OrderController {
 
         case 'refund.processed':
           await this.handleRefundProcessed(payload);
+          break;
+
+        case 'refund.failed':
+          await this.handleRefundFailed(payload);
           break;
 
         default:
@@ -3922,6 +3964,20 @@ export class OrderController {
         return;
       }
 
+      // Razorpay may redeliver this webhook; without a guard every
+      // redelivery would insert a duplicate history row and re-email the
+      // customer a "payment failed" notice. Dedupe on (event, payment ID).
+      const marker = buildRazorpayEventMarker('payment.failed', payment.id);
+      const existingHistory = await this.orderStatusHistoryRepository.find({
+        where: {orderId: order.id},
+      });
+      if (historyAlreadyContainsMarker(existingHistory, marker)) {
+        console.log(
+          `[RazorpayWebhook] Duplicate payment.failed delivery ignored for payment ${payment.id}`,
+        );
+        return;
+      }
+
       await this.orderRepository.updateById(order.id, {
         paymentStatus: 'failed',
         updatedAt: new Date(),
@@ -3931,7 +3987,7 @@ export class OrderController {
         order.id,
         'failed',
         order.userId,
-        `Payment failed: ${payment.error_description || 'Unknown error'}`,
+        `Payment failed: ${payment.error_description || 'Unknown error'} ${marker}`,
       );
 
       try {
@@ -3972,6 +4028,17 @@ export class OrderController {
 
       const order = orders[0];
 
+      const marker = buildRazorpayEventMarker('refund.created', refund.id);
+      const existingHistory = await this.orderStatusHistoryRepository.find({
+        where: {orderId: order.id},
+      });
+      if (historyAlreadyContainsMarker(existingHistory, marker)) {
+        console.log(
+          `[RazorpayWebhook] Duplicate refund.created delivery ignored for refund ${refund.id}`,
+        );
+        return;
+      }
+
       await this.orderRepository.updateById(order.id, {
         refundAmount: refund.amount / 100,
         refundInitiatedAt: new Date(),
@@ -3983,7 +4050,7 @@ export class OrderController {
         order.id,
         'refund_initiated',
         order.userId,
-        `Refund initiated: ₹${refund.amount / 100}`,
+        `Refund initiated: ₹${refund.amount / 100} ${marker}`,
       );
     } catch (error) {
       console.error('Error handling refund.created:', error);
@@ -4007,6 +4074,17 @@ export class OrderController {
 
       const order = orders[0];
 
+      const marker = buildRazorpayEventMarker('refund.processed', refund.id);
+      const existingHistory = await this.orderStatusHistoryRepository.find({
+        where: {orderId: order.id},
+      });
+      if (historyAlreadyContainsMarker(existingHistory, marker)) {
+        console.log(
+          `[RazorpayWebhook] Duplicate refund.processed delivery ignored for refund ${refund.id}`,
+        );
+        return;
+      }
+
       const isFullRefund = refund.amount >= order.total * 100;
       const paymentStatus = isFullRefund ? 'refunded' : 'partially_refunded';
 
@@ -4022,7 +4100,7 @@ export class OrderController {
         order.id,
         'refund_completed',
         order.userId,
-        `Refund processed: ₹${refund.amount / 100}`,
+        `Refund processed: ₹${refund.amount / 100} ${marker}`,
       );
 
       try {
@@ -4059,6 +4137,72 @@ export class OrderController {
       }
     } catch (error) {
       console.error('Error handling refund.processed:', error);
+    }
+  }
+
+  private async handleRefundFailed(payload: any): Promise<void> {
+    try {
+      const refund = payload.refund.entity;
+      const paymentId = refund.payment_id;
+
+      const orders = await this.orderRepository.find({
+        where: {razorpayPaymentId: paymentId},
+        limit: 1,
+      });
+
+      if (orders.length === 0) {
+        console.error(`Order not found for payment ID: ${paymentId}`);
+        return;
+      }
+
+      const order = orders[0];
+
+      const marker = buildRazorpayEventMarker('refund.failed', refund.id);
+      const existingHistory = await this.orderStatusHistoryRepository.find({
+        where: {orderId: order.id},
+      });
+      if (historyAlreadyContainsMarker(existingHistory, marker)) {
+        console.log(
+          `[RazorpayWebhook] Duplicate refund.failed delivery ignored for refund ${refund.id}`,
+        );
+        return;
+      }
+
+      // Deliberately does NOT touch status/paymentStatus here: if this order
+      // was already optimistically marked refunded by the admin-initiated
+      // refund flow, we have no reliable prior value to roll back to.
+      // Surfacing the failure for manual reconciliation is safer than
+      // guessing a revert that could itself be wrong.
+      const failureReason =
+        refund.error_description ||
+        refund.status_reason_code ||
+        'Refund failed at Razorpay (no reason provided)';
+
+      await this.orderRepository.updateById(order.id, {
+        refundFailureReason: failureReason,
+        refundFailedAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      await this.orderStatusHistoryRepository.createStatusEntry(
+        order.id,
+        'refund_failed',
+        order.userId,
+        `Refund failed: ${failureReason} ${marker}`,
+      );
+
+      console.error(
+        '[RazorpayWebhook] Refund failed — needs manual reconciliation',
+        {
+          orderId: order.id,
+          orderNumber: order.orderNumber,
+          refundId: refund.id,
+          paymentId,
+          reason: failureReason,
+        },
+      );
+    } catch (error) {
+      console.error('Error handling refund.failed:', error);
     }
   }
 }
