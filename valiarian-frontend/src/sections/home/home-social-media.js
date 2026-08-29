@@ -64,8 +64,9 @@ function GalleryTile({ item, height, alt, fallbackLink, logoOpacity }) {
             top: '50%',
             left: '50%',
             transform: 'translate(-50%, -50%)',
-            width: { xs: '42%', md: '35%' },
-            maxWidth: 200,
+            // Reduced to 30% of the original size (42%/35%/200px) per request.
+            width: { xs: '12.6%', md: '10.5%' },
+            maxWidth: 60,
             opacity: logoOpacity,
             pointerEvents: 'none',
             filter: 'drop-shadow(0 1px 3px rgba(0,0,0,0.28))',

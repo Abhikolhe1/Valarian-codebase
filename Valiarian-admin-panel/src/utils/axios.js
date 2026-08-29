@@ -54,6 +54,7 @@ export const endpoints = {
   auth: {
     me: '/api/auth/me',
     updateMe: '/api/auth/me',
+    updatePassword: '/api/auth/update-password',
     login: '/api/auth/login',
     forgotPasswordSendOtp: '/api/auth/forget-password/send-email-otp',
     forgotPasswordVerifyOtp: '/api/auth/forget-password/verify-email-otp',

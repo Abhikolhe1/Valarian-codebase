@@ -9,6 +9,8 @@ import IconButton from '@mui/material/IconButton';
 import InputAdornment from '@mui/material/InputAdornment';
 // hooks
 import { useBoolean } from 'src/hooks/use-boolean';
+// utils
+import axios, { endpoints } from 'src/utils/axios';
 // components
 import Iconify from 'src/components/iconify';
 import { useSnackbar } from 'src/components/snackbar';
@@ -53,12 +55,18 @@ export default function AccountChangePassword() {
 
   const onSubmit = handleSubmit(async (data) => {
     try {
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      const response = await axios.post(endpoints.auth.updatePassword, {
+        oldPassword: data.oldPassword,
+        newPassword: data.newPassword,
+      });
+
       reset();
-      enqueueSnackbar('Update success!');
-      console.info('DATA', data);
+      enqueueSnackbar(response.data?.message || 'Password updated successfully!');
     } catch (error) {
       console.error(error);
+      const message = error?.error?.message || error?.message || 'Unable to update password.';
+
+      enqueueSnackbar(message, { variant: 'error' });
     }
   });
 
