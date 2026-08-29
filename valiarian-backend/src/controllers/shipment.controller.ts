@@ -1,6 +1,6 @@
 import {authenticate} from '@loopback/authentication';
 import {inject} from '@loopback/core';
-import {repository, Filter} from '@loopback/repository';
+import {IsolationLevel, repository, Filter} from '@loopback/repository';
 import {
   post,
   param,
@@ -89,7 +89,9 @@ export class ShipmentController {
     lockKey: string,
     action: () => Promise<T>,
   ): Promise<T> {
-    const transaction = await this.orderRepository.dataSource.beginTransaction();
+    const transaction = await this.orderRepository.dataSource.beginTransaction(
+      IsolationLevel.READ_COMMITTED,
+    );
     try {
       await this.orderRepository.dataSource.execute(
         'SELECT pg_advisory_xact_lock(hashtext($1))',
