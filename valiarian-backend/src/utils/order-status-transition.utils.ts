@@ -23,6 +23,7 @@ export type OrderStatus =
   | 'processing'
   | 'packed'
   | 'shipped'
+  | 'out_for_delivery'
   | 'delivered'
   | 'return_requested'
   | 'cancelled'
@@ -44,7 +45,8 @@ const ALLOWED_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
   confirmed: ['processing', 'cancelled'],
   processing: ['packed', 'cancelled'],
   packed: ['shipped', 'cancelled'],
-  shipped: ['delivered', 'rto_initiated', 'cancelled'],
+  shipped: ['out_for_delivery', 'delivered', 'rto_initiated', 'cancelled'],
+  out_for_delivery: ['delivered', 'rto_initiated'],
   delivered: ['return_requested'],
   return_requested: ['returned', 'cancelled'],
   returned: ['refunded', 'parcel_received'],

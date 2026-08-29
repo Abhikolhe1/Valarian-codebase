@@ -62,6 +62,8 @@ const getAvailableStatusOptions = (order) => {
     case 'packed':
       return ['shipped', 'cancelled'];
     case 'shipped':
+      return ['out_for_delivery', 'delivered'];
+    case 'out_for_delivery':
       return ['delivered'];
     case 'delivered':
       return ['return_requested'];

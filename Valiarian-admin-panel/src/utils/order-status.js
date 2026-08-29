@@ -18,6 +18,7 @@ export function getOrderStatusColor(status) {
     case 'processing':
     case 'packed':
     case 'shipped':
+    case 'out_for_delivery':
       return 'info';
     case 'cancelled':
     case 'refunded':
