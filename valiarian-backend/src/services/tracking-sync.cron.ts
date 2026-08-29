@@ -69,6 +69,12 @@ export class TrackingSyncCronJob implements LifeCycleObserver {
       for (const shipment of activeShipments) {
         try {
           const tracking = await this.shippingService.trackShipment(shipment.awbNumber);
+          // Captured before this tick's write so the out-for-delivery branch
+          // below can tell a genuine new transition from a shipment that was
+          // already out for delivery on the last sync (avoids re-writing the
+          // order and appending a duplicate history entry every 30 minutes
+          // while it sits in that state).
+          const previousShipmentStatus = shipment.status;
 
           await this.shipmentRepository.updateById(shipment.id, {
             status: tracking.currentStatus,
@@ -123,7 +129,26 @@ export class TrackingSyncCronJob implements LifeCycleObserver {
               'system:tracking-sync-cron',
               `Blue Dart confirmed delivery. AWB: ${shipment.awbNumber}`,
             );
-          } 
+          }
+          // Auto-advance to out_for_delivery when Blue Dart reports it (OA/OFD
+          // codes — see courier-status-mapper.ts). Guarded on the previous
+          // shipment status so this only fires once per real transition, not
+          // on every sync tick while the shipment sits in this state.
+          else if (
+            tracking.currentStatus === 'out_for_delivery' &&
+            previousShipmentStatus !== 'out_for_delivery'
+          ) {
+            await this.orderRepository.updateById(shipment.orderId, {
+              status: 'out_for_delivery',
+              updatedAt: new Date(),
+            });
+            await this.orderStatusHistoryRepository.createStatusEntry(
+              shipment.orderId,
+              'out_for_delivery',
+              'system:tracking-sync-cron',
+              `Blue Dart: shipment out for delivery. AWB: ${shipment.awbNumber}`,
+            );
+          }
           // Close active NDR if RTO initiated
           else if (tracking.currentStatus === 'rto_initiated') {
             const activeNdr = await this.ndrRepository.findOne({

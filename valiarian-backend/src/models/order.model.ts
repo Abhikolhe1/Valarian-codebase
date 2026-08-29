@@ -147,6 +147,7 @@ export class Order extends Entity {
         'processing',
         'packed',
         'shipped',
+        'out_for_delivery',
         'delivered',
         'return_requested',
         'cancelled',
@@ -167,6 +168,7 @@ export class Order extends Entity {
     | 'processing'
     | 'packed'
     | 'shipped'
+    | 'out_for_delivery'
     | 'delivered'
     | 'return_requested'
     | 'cancelled'

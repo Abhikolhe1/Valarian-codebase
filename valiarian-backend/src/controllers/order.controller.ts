@@ -2985,6 +2985,7 @@ export class OrderController {
         'processing',
         'packed',
         'shipped',
+        'out_for_delivery',
         'delivered',
         'return_requested',
         'cancelled',
@@ -3157,6 +3158,7 @@ export class OrderController {
         'processing',
         'packed',
         'shipped',
+        'out_for_delivery',
         'delivered',
         'return_requested',
         'cancelled',
@@ -3170,12 +3172,17 @@ export class OrderController {
         throw new HttpErrors.BadRequest(`Invalid status: ${request.status}`);
       }
 
+      // 'out_for_delivery' is normally set automatically by the tracking-sync
+      // cron when Blue Dart reports it (see TrackingSyncCronJob) — this manual
+      // path exists as a fallback for when that sync hasn't run yet or the
+      // courier feed is delayed.
       const statusTransitions: any = {
         pending: ['confirmed', 'cancelled'],
         confirmed: ['processing', 'cancelled'],
         processing: ['packed', 'cancelled'],
         packed: ['shipped', 'cancelled'],
-        shipped: ['delivered'],
+        shipped: ['out_for_delivery', 'delivered'],
+        out_for_delivery: ['delivered'],
         delivered: ['return_requested'],
         return_requested: ['returned'],
         cancelled: ['refunded'],

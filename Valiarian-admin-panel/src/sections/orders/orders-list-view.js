@@ -46,6 +46,7 @@ const STATUS_OPTIONS = [
   { value: 'processing', label: 'Processing' },
   { value: 'packed', label: 'Packed' },
   { value: 'shipped', label: 'Shipped' },
+  { value: 'out_for_delivery', label: 'Out for Delivery' },
   { value: 'delivered', label: 'Delivered' },
   { value: 'return_requested', label: 'Return Requested' },
   { value: 'cancelled', label: 'Cancelled' },
