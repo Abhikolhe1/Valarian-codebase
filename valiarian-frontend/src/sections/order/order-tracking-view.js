@@ -169,6 +169,7 @@ export default function OrderTrackingView() {
       case 'packed':
         return 1;
       case 'shipped':
+      case 'out_for_delivery':
         return 2;
       case 'delivered':
       case 'completed':
@@ -335,6 +336,8 @@ export default function OrderTrackingView() {
         return 'Your refund has been processed successfully.';
       case 'shipped':
         return 'Your order has been shipped. Tracking number will be updated soon.';
+      case 'out_for_delivery':
+        return 'Your order is out for delivery and will arrive soon.';
       case 'confirmed':
       case 'processing':
       case 'packed':
@@ -412,7 +415,7 @@ export default function OrderTrackingView() {
                     variant="soft"
                     color={
                       (['delivered', 'completed', 'return_requested', 'returned', 'parcel_received', 'refunded'].includes(tracking.status) && 'success') ||
-                      (tracking.status === 'shipped' && 'info') ||
+                      (['shipped', 'out_for_delivery'].includes(tracking.status) && 'info') ||
                       (tracking.status === 'confirmed' && 'warning') ||
                       (['cancelled', 'canceled'].includes(tracking.status) && 'error') ||
                       'default'
