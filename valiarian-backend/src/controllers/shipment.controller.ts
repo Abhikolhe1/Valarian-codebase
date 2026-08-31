@@ -196,6 +196,15 @@ export class ShipmentController {
       );
     }
 
+    // Secure the exact product/variant stock after courier serviceability is
+    // known but before creating anything externally. This is idempotent and
+    // prevents orphaned AWBs/pickups when local inventory cannot be reserved.
+    await this.inventoryLifecycleService.reserveOnOrderConfirmed(
+      order.id,
+      currentUser.id,
+      currentUser.email,
+    );
+
     // 6. Resolve warehouse origin details
     const origin = await this.warehouseService.getOriginDetailsForShipment(
       req.warehouseId,
@@ -303,8 +312,8 @@ export class ShipmentController {
         pickupDate,
         pickupTime: requestedPickupTime,
         officeCloseTime,
-        productCode: process.env.BLUEDART_PRODUCT_CODE || 'D',
-        subProducts: (process.env.BLUEDART_SUB_PRODUCT_CODE || '')
+        productCode: process.env.BLUEDART_PICKUP_PRODUCT_CODE || process.env.BLUEDART_PRODUCT_CODE || 'D',
+        subProducts: (process.env.BLUEDART_PICKUP_SUB_PRODUCTS || '')
           .split(',')
           .map(value => value.trim())
           .filter(Boolean),
@@ -350,23 +359,16 @@ export class ShipmentController {
       }
     }
 
-    // 11. Deduct inventory
-    await this.inventoryLifecycleService.deductOnShipment(
-      order.id,
-      currentUser.id,
-      currentUser.email,
-    );
-
-    // 12. Update Order status
+    // 11. Store courier metadata, but keep the order packed until Blue Dart
+    // tracking confirms that the parcel was physically collected.
     await this.orderRepository.updateById(order.id, {
-      status: 'shipped',
       trackingNumber: creationResult.awbNumber,
       carrier: 'BlueDart',
       estimatedDelivery: creationResult.estimatedDelivery,
       updatedAt: new Date(),
     });
 
-    // 13. Create Shipment Label if requested
+    // 12. Create Shipment Label if requested
     if (req.generateLabelNow) {
       const labelRes = await this.shippingService.generateLabel(
         creationResult.awbNumber,
@@ -694,7 +696,7 @@ export class ShipmentController {
       where: {orderId: id, status: 'APPROVED'},
     });
 
-    if (!returnRequest) {
+    if (!returnRequest && order.returnStatus !== 'approved') {
       throw new HttpErrors.BadRequest(
         'No approved return request found for this order.',
       );
@@ -704,6 +706,11 @@ export class ShipmentController {
       where: {orderId: id, isReverse: true, status: {neq: 'cancelled'}},
     });
     if (existingReverse) return existingReverse;
+    if (order.reversePickupAwb) {
+      throw new HttpErrors.Conflict(
+        `Reverse AWB ${order.reversePickupAwb} already exists but its shipment record requires reconciliation. Do not create another reverse pickup.`,
+      );
+    }
 
     const forwardShipment = await this.shipmentRepository.findOne({
       where: {orderId: id, isReverse: false},
@@ -712,8 +719,9 @@ export class ShipmentController {
     const weightGrams = req.weightGrams ?? 500;
     const origin = await this.warehouseService.getOriginDetailsForShipment();
 
+    const returnReference = returnRequest?.id || order.id;
     const reverseRes = await this.shippingService.createReversePickup({
-      providerRequestId: `reverse:${returnRequest.id}`,
+      providerRequestId: `reverse:${returnReference}`,
       originalAwbNumber: forwardShipment?.awbNumber || '',
       orderReference: order.id,
       pickupName: order.shippingAddress.fullName,
@@ -726,34 +734,69 @@ export class ShipmentController {
       warehouseOriginArea: origin.bluedartOriginArea,
       warehousePincode: origin.pincode,
       warehouseName: origin.name,
+      warehouseAddress: origin.addressLine1,
+      warehouseCity: origin.city,
+      warehouseState: origin.state,
+      warehousePhone: origin.phone,
       weightGrams,
+      declaredValue: Number(order.total || order.totalAmount || 0),
       itemDescription: req.itemDescription,
+      returnReason: returnRequest?.reason || order.returnReason,
     });
 
-    const shipment = await this.shipmentRepository.create({
-      orderId: order.id,
-      awbNumber: reverseRes.reverseAwbNumber,
-      courierName: 'BlueDart',
-      courierReferenceNumber: reverseRes.courierReferenceNumber,
-      weightGrams,
-      status: 'created',
-      warehouseId: origin.bluedartAreaCode,
-      warehouseName: origin.name,
-      isReverse: true,
-      parentShipmentId: forwardShipment?.id,
-      providerRequestId: `reverse:${returnRequest.id}`,
-      providerMode: this.shippingService.getProviderVersion() as any,
-      creationState: 'CREATED',
-      reconciliationRequired: false,
-      isActive: true,
-      isDeleted: false,
-    });
+    let shipment: Shipment;
+    try {
+      shipment = await this.shipmentRepository.create({
+        orderId: order.id,
+        awbNumber: reverseRes.reverseAwbNumber,
+        courierName: 'BlueDart',
+        courierReferenceNumber: reverseRes.courierReferenceNumber,
+        pickupReference: reverseRes.pickupTokenNumber,
+        pickupRegisteredAt: reverseRes.pickupTokenNumber ? new Date() : undefined,
+        weightGrams,
+        status: 'created',
+        // `warehouseId` is a PostgreSQL UUID foreign key. BOM/NSK belongs in
+        // the Blue Dart request as an area code, never in this database column.
+        warehouseId: origin.warehouseId,
+        warehouseName: origin.name,
+        isReverse: true,
+        parentShipmentId: forwardShipment?.id,
+        providerRequestId: `reverse:${returnReference}`,
+        providerMode: this.shippingService.getProviderVersion() as any,
+        creationState: 'CREATED',
+        reconciliationRequired: false,
+        isActive: true,
+        isDeleted: false,
+      });
+    } catch (persistenceError) {
+      // The courier mutation has already succeeded. Preserve the AWB on the
+      // order so an unrelated database failure can never make a retry create
+      // an untracked duplicate reverse shipment.
+      await this.orderRepository.updateById(id, {
+        reversePickupAwb: reverseRes.reverseAwbNumber,
+        reversePickupRequestedAt: new Date(),
+        needsManualShipping: true,
+        manualShippingReason: `Reverse AWB ${reverseRes.reverseAwbNumber} was created but its shipment record could not be saved`,
+        updatedAt: new Date(),
+      });
+      console.error('[Reverse Pickup] AWB created but local persistence failed', {
+        orderId: id,
+        reverseAwbNumber: reverseRes.reverseAwbNumber,
+        pickupTokenNumber: reverseRes.pickupTokenNumber,
+        error: persistenceError instanceof Error ? persistenceError.message : String(persistenceError),
+      });
+      throw new HttpErrors.InternalServerError(
+        `Reverse AWB ${reverseRes.reverseAwbNumber} was created by Blue Dart, but the local shipment record could not be saved. Do not retry; reconciliation is required.`,
+      );
+    }
 
-    await this.returnRequestRepository.updateById(returnRequest.id, {
-      reversePickupAwb: reverseRes.reverseAwbNumber,
-      reversePickupRequestedAt: new Date(),
-      updatedAt: new Date(),
-    });
+    if (returnRequest) {
+      await this.returnRequestRepository.updateById(returnRequest.id, {
+        reversePickupAwb: reverseRes.reverseAwbNumber,
+        reversePickupRequestedAt: new Date(),
+        updatedAt: new Date(),
+      });
+    }
 
     await this.orderRepository.updateById(id, {
       reversePickupAwb: reverseRes.reverseAwbNumber,

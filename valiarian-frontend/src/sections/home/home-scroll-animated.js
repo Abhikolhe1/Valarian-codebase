@@ -14,7 +14,10 @@ import { paths } from 'src/routes/paths';
 // ----------------------------------------------------------------------
 
 const HOLD_PORTION = 0.62;
-const FINAL_CARD_HOLD_PORTION = 0.16;
+// Widened from 0.16: on a fast mobile scroll flick the spring-smoothed index
+// (below) needs real scroll distance to catch up before the last card can be
+// read — too little margin here made the last story flash by unread.
+const FINAL_CARD_HOLD_PORTION = 0.22;
 
 const PRODUCTS = [
   {
@@ -394,8 +397,15 @@ export default function HomeScrollAnimated({ products: propProducts, cmsData, ..
                   px: { xs: 1.5, md: 2.25 },
                   py: { xs: 0.75, md: 1.25 },
                   borderRadius: 999,
-                  bgcolor: alpha(theme.palette.common.white, 0.84),
-                  backdropFilter: 'blur(12px)',
+                  bgcolor: {
+                    xs: alpha(theme.palette.common.white, 0.96),
+                    md: alpha(theme.palette.common.white, 0.84),
+                  },
+                  // backdrop-filter is expensive to composite on mobile GPUs,
+                  // especially while the section is scroll-repainting every
+                  // frame — a real contributor to the reported mobile lag.
+                  // Desktop keeps the blur; mobile gets a near-opaque bg instead.
+                  backdropFilter: { xs: 'none', md: 'blur(12px)' },
                   boxShadow: `0 12px 30px ${alpha(theme.palette.grey[900], 0.08)}`,
                 }}
               >

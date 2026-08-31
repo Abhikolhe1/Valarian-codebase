@@ -50,8 +50,6 @@ const getAvailableStatusOptions = (order) => {
     return [];
   }
 
-  const prepaid = isPrepaidOrder(order);
-
   switch (order.status) {
     case 'pending':
       return ['confirmed', 'cancelled'];
@@ -68,7 +66,7 @@ const getAvailableStatusOptions = (order) => {
     case 'delivered':
       return ['return_requested'];
     case 'return_requested':
-      return order.returnStatus === 'approved' ? ['returned'] : [];
+      return order.returnStatus === 'approved' && order.reversePickupAwb ? ['returned'] : [];
     case 'returned':
       return ['parcel_received'];
     case 'refunded':
@@ -251,25 +249,65 @@ export default function OrderDetailsView() {
   };
 
   const handleProcessReturn = async () => {
+    let returnApproved = false;
     try {
       setUpdating(true);
       await axios.patch(`/api/admin/orders/${id}/return`, {
         action: returnAction,
         comment: returnComment,
       });
+
+      returnApproved = returnAction === 'approve';
+      let reverseShipment;
+      if (returnApproved) {
+        const reverseResponse = await axios.post(`/api/admin/orders/${id}/reverse-pickup`, {});
+        reverseShipment = reverseResponse.data;
+      }
+
       setReturnDialogOpen(false);
       setReturnAction('');
       setReturnComment('');
       enqueueSnackbar(
-        returnAction === 'approve'
-          ? 'Return approved successfully.'
+        returnApproved
+          ? `Return approved and Blue Dart pickup registered${reverseShipment?.awbNumber ? ` (AWB ${reverseShipment.awbNumber})` : ''}.`
           : 'Return rejected successfully.',
         { variant: 'success' }
       );
       await fetchOrderDetails();
     } catch (err) {
       console.error('Error processing return:', err);
-      enqueueSnackbar(err.response?.data?.message || 'Failed to process return', {
+      const providerMessage =
+        err?.error?.message ||
+        err.response?.data?.error?.message ||
+        err.response?.data?.message ||
+        err.message;
+      enqueueSnackbar(returnApproved
+        ? `Return was approved, but Blue Dart pickup registration failed: ${providerMessage || 'Unknown error'}. Use Retry Blue Dart Pickup after correcting the issue.`
+        : providerMessage || 'Failed to process return', {
+        variant: 'error',
+      });
+      await fetchOrderDetails();
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  const handleCreateReversePickup = async () => {
+    try {
+      setUpdating(true);
+      const response = await axios.post(`/api/admin/orders/${id}/reverse-pickup`, {});
+      enqueueSnackbar(
+        `Blue Dart return pickup registered${response.data?.awbNumber ? ` (AWB ${response.data.awbNumber})` : ''}.`,
+        { variant: 'success' }
+      );
+      await fetchOrderDetails();
+    } catch (err) {
+      const providerMessage =
+        err?.error?.message ||
+        err.response?.data?.error?.message ||
+        err.response?.data?.message ||
+        err.message;
+      enqueueSnackbar(`Blue Dart pickup registration failed: ${providerMessage || 'Unknown error'}`, {
         variant: 'error',
       });
     } finally {
@@ -1275,7 +1313,8 @@ export default function OrderDetailsView() {
                   Update Status
                 </Button>
 
-                {order.returnStatus === 'requested' && (
+                {(order.returnStatus === 'requested' ||
+                  (order.status === 'return_requested' && !order.returnStatus)) && (
                   <Button
                     fullWidth
                     variant="outlined"
@@ -1283,6 +1322,19 @@ export default function OrderDetailsView() {
                     onClick={() => setReturnDialogOpen(true)}
                   >
                     Process Return
+                  </Button>
+                )}
+
+                {order.returnStatus === 'approved' && !order.reversePickupAwb && (
+                  <Button
+                    fullWidth
+                    variant="outlined"
+                    color="info"
+                    startIcon={<Iconify icon="eva:car-fill" />}
+                    disabled={updating}
+                    onClick={handleCreateReversePickup}
+                  >
+                    Retry Blue Dart Pickup
                   </Button>
                 )}
 

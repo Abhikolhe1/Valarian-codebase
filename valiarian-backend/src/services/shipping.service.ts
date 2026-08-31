@@ -2,6 +2,8 @@ import {BindingScope, injectable, inject} from '@loopback/core';
 import {HttpErrors} from '@loopback/rest';
 import {
   CancelShipmentResult,
+  AlternateInstructionParams,
+  AlternateInstructionResult,
   CreateReversePickupParams,
   CreateReversePickupResult,
   CreateShipmentParams,
@@ -26,6 +28,7 @@ import {loadBlueDartConfig} from '../config/bluedart.config';
 import {CacheService} from './cache.service';
 import {ShippingAuditService} from './shipping-audit.service';
 import {ShippingMonitorService} from './shipping-monitor.service';
+import {BlueDartRateLimitError} from './shipping-providers/bluedart-errors';
 
 @injectable({scope: BindingScope.SINGLETON})
 export class ShippingService {
@@ -120,6 +123,20 @@ export class ShippingService {
           `[ShippingService] Attempt ${attempt} failed for ${operationName}:`,
           err.message || err,
         );
+
+        // Do not retry account-wide throttling here. The tracking scheduler
+        // applies a longer cooldown before making another Blue Dart request.
+        if (err instanceof BlueDartRateLimitError) {
+          this.releaseLock();
+          if (this.monitorService) {
+            await this.monitorService.recordFailure(
+              this.activeProvider.courierName,
+              operationName,
+              err.message,
+            );
+          }
+          throw err;
+        }
 
         // Do not retry on auth (403) or bad request / validation (400, 422) errors
         const status = err.status || err.statusCode;
@@ -269,6 +286,26 @@ export class ShippingService {
     return this.runWithRetry(
       'createReversePickup',
       () => this.activeProvider.createReversePickup(params),
+      false,
+    );
+  }
+
+  async updateAlternateInstruction(
+    params: AlternateInstructionParams,
+  ): Promise<AlternateInstructionResult> {
+    const provider = this.activeProvider as ShippingProvider & {
+      updateAlternateInstruction?: (
+        request: AlternateInstructionParams,
+      ) => Promise<AlternateInstructionResult>;
+    };
+    if (!provider.updateAlternateInstruction) {
+      throw new HttpErrors.NotImplemented(
+        `${this.activeProvider.courierName} does not support alternate instructions`,
+      );
+    }
+    return this.runWithRetry(
+      'updateAlternateInstruction',
+      () => provider.updateAlternateInstruction!(params),
       false,
     );
   }

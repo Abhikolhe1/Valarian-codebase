@@ -15,11 +15,18 @@ export class ShippingMonitorService {
   ) {}
 
   private getAlertEmail(): string {
-    return process.env.SHIPPING_ALERT_EMAIL || 'ops@valarian.com';
+    return process.env.SHIPPING_ALERT_EMAIL || 'valiarian.wear@gmail.com';
   }
 
   private getThreshold(): number {
     return Number(process.env.SHIPPING_FAILURE_ALERT_THRESHOLD || '5');
+  }
+
+  private areAlertsEnabled(): boolean {
+    return (
+      process.env.NODE_ENV?.trim().toLowerCase() !== 'test' &&
+      process.env.SHIPPING_ALERTS_ENABLED?.trim().toLowerCase() !== 'false'
+    );
   }
 
   /**
@@ -39,7 +46,7 @@ export class ShippingMonitorService {
     this.connectivityStatus[provider] = false;
 
     const threshold = this.getThreshold();
-    if (this.failureCounts[operation] === threshold) {
+    if (this.areAlertsEnabled() && this.failureCounts[operation] === threshold) {
       await this.sendAlertEmail(provider, operation, errorMsg, this.failureCounts[operation]);
     }
   }
@@ -52,7 +59,7 @@ export class ShippingMonitorService {
   ) {
     const alertEmail = this.getAlertEmail();
     const mailObj = {
-      from: process.env.EMAIL_FROM || 'no-reply@valarian.com',
+      from: process.env.EMAIL_FROM || 'valiarian.wear@gmail.com',
       to: alertEmail,
       subject: `[CRITICAL] Shipping API Alert: ${provider} consecutive failures`,
       html: `
