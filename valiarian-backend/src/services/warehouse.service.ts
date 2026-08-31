@@ -60,16 +60,20 @@ export class WarehouseService {
       warehouse = await this.getPrimaryWarehouse();
     }
 
+    const environment = process.env.BLUEDART_ENV === 'production' ? 'PRODUCTION' : 'SANDBOX';
+    const scoped = (name: string): string | undefined =>
+      process.env[`BLUEDART_${environment}_${name}`];
+
     return {
       warehouseId: warehouse?.id,
-      bluedartAreaCode: warehouse?.bluedartAreaCode || process.env.BLUEDART_AREA_CODE || '',
-      bluedartOriginArea: warehouse?.bluedartOriginArea || process.env.BLUEDART_ORIGIN_AREA || '',
-      pincode: warehouse?.pincode || process.env.BLUEDART_SHIPPER_PINCODE || '',
-      name: warehouse?.name || process.env.BLUEDART_SHIPPER_NAME || '',
-      addressLine1: warehouse?.addressLine1 || process.env.BLUEDART_SHIPPER_ADDRESS_LINE1 || '',
-      city: warehouse?.city || process.env.BLUEDART_SHIPPER_CITY || '',
-      state: warehouse?.state || process.env.BLUEDART_SHIPPER_STATE || '',
-      phone: warehouse?.contactPhone || process.env.BLUEDART_SHIPPER_PHONE || '',
+      bluedartAreaCode: scoped('AREA_CODE') || warehouse?.bluedartAreaCode || process.env.BLUEDART_AREA_CODE || '',
+      bluedartOriginArea: scoped('ORIGIN_AREA') || warehouse?.bluedartOriginArea || process.env.BLUEDART_ORIGIN_AREA || '',
+      pincode: scoped('SHIPPER_PINCODE') || warehouse?.pincode || process.env.BLUEDART_SHIPPER_PINCODE || '',
+      name: scoped('SHIPPER_NAME') || warehouse?.name || process.env.BLUEDART_SHIPPER_NAME || '',
+      addressLine1: scoped('SHIPPER_ADDRESS_LINE1') || warehouse?.addressLine1 || process.env.BLUEDART_SHIPPER_ADDRESS_LINE1 || '',
+      city: scoped('SHIPPER_CITY') || warehouse?.city || process.env.BLUEDART_SHIPPER_CITY || '',
+      state: scoped('SHIPPER_STATE') || warehouse?.state || process.env.BLUEDART_SHIPPER_STATE || '',
+      phone: scoped('SHIPPER_PHONE') || warehouse?.contactPhone || process.env.BLUEDART_SHIPPER_PHONE || '',
     };
   }
 }

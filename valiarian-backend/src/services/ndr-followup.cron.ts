@@ -1,5 +1,6 @@
 import {inject, lifeCycleObserver, LifeCycleObserver} from '@loopback/core';
 import {NdrService} from './ndr.service';
+import {areBackgroundJobsEnabled} from '../utils/background-jobs';
 
 const DEFAULT_NDR_SWEEP_INTERVAL_MS = 24 * 60 * 60 * 1000; // 24 hours
 
@@ -15,6 +16,10 @@ export class NdrFollowUpCronJob implements LifeCycleObserver {
   ) {}
 
   async start(): Promise<void> {
+    if (!areBackgroundJobsEnabled()) {
+      console.log('[NDR Follow-Up Cron] disabled via BACKGROUND_JOBS_ENABLED=false');
+      return;
+    }
     console.log('[NDR Follow-Up Cron] observer started');
     // Run initial sweep on application startup
     await this.runNdrFollowUp();

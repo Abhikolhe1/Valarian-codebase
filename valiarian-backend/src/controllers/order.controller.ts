@@ -3269,6 +3269,16 @@ export class OrderController {
         updateData.deliveredAt = new Date();
       }
 
+      // An admin may initiate a return on the customer's behalf through the
+      // generic status action. Keep the dedicated return workflow fields in
+      // sync so the request can subsequently be approved and sent to Blue Dart.
+      if (request.status === 'return_requested') {
+        updateData.returnStatus = 'requested';
+        updateData.returnInitiatedAt = order.returnInitiatedAt || new Date();
+        updateData.returnReason = order.returnReason || request.comment || 'Return initiated by support';
+        updateData.returnComment = order.returnComment || request.comment || '';
+      }
+
       if (request.status === 'cancelled') {
         updateData.cancelledAt = order.cancelledAt || new Date();
       }
@@ -3382,7 +3392,9 @@ export class OrderController {
         throw new HttpErrors.NotFound('Order not found');
       }
 
-      if (order.returnStatus !== 'requested') {
+      const legacyAdminInitiatedReturn =
+        order.status === 'return_requested' && !order.returnStatus;
+      if (order.returnStatus !== 'requested' && !legacyAdminInitiatedReturn) {
         throw new HttpErrors.BadRequest(
           `Cannot process return. Current return status: ${order.returnStatus || 'none'}`,
         );

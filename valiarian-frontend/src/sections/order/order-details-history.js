@@ -15,8 +15,74 @@ import CardHeader from '@mui/material/CardHeader';
 import Typography from '@mui/material/Typography';
 // utils
 import { fDateTime } from 'src/utils/format-time';
+import { formatOrderStatusLabel } from 'src/utils/order-status';
 
 // ----------------------------------------------------------------------
+
+const CUSTOMER_STATUS_CONTENT = {
+  pending: {
+    label: 'Order Placed',
+    message: 'We have received your order.',
+  },
+  confirmed: {
+    label: 'Confirmed',
+    message: 'Your order has been confirmed.',
+  },
+  processing: {
+    label: 'Processing',
+    message: 'We are preparing your order.',
+  },
+  packed: {
+    label: 'Packed',
+    message: 'Your parcel is packed and ready for dispatch.',
+  },
+  shipped: {
+    label: 'Shipped',
+    message: 'Your parcel has been dispatched from our warehouse and handed over to Blue Dart.',
+  },
+  out_for_delivery: {
+    label: 'Out for Delivery',
+    message: 'Blue Dart will attempt delivery today, typically between 9:00 AM and 11:00 PM.',
+  },
+  delivered: {
+    label: 'Delivered',
+    message: 'Your parcel has been delivered successfully.',
+  },
+  return_requested: {
+    label: 'Return Requested',
+    message: 'Your return request has been received and is being reviewed.',
+  },
+  return_approved: {
+    label: 'Return Approved',
+    message: 'Your return has been approved. Please keep the parcel ready for pickup.',
+  },
+  returned: {
+    label: 'Return Picked Up',
+    message: 'Your return parcel has been collected and is travelling to our warehouse.',
+  },
+  parcel_received: {
+    label: 'Received at Warehouse',
+    message: 'Your return parcel has reached our warehouse and will be checked.',
+  },
+  refunded: {
+    label: 'Refunded',
+    message: 'Your refund has been processed.',
+  },
+  cancelled: {
+    label: 'Cancelled',
+    message: 'Your order has been cancelled.',
+  },
+};
+
+const getCustomerStatusContent = (item) => {
+  const status = String(item?.status || '').toLowerCase();
+  return (
+    CUSTOMER_STATUS_CONTENT[status] || {
+      label: item?.title ? formatOrderStatusLabel(item.title) : formatOrderStatusLabel(status),
+      message: 'Your order status has been updated.',
+    }
+  );
+};
 
 export default function OrderDetailsHistory({ history, order }) {
   const historyItems = Array.isArray(history) ? history : history?.timeline || [];
@@ -44,25 +110,6 @@ export default function OrderDetailsHistory({ history, order }) {
     order?.returnStatus === 'requested' ||
     order?.returnStatus === 'approved' ||
     order?.status === 'returned';
-  const getChangedByLabel = (item) =>
-    item?.changedByUser?.fullName ||
-    item?.changedByUser?.email ||
-    item?.changedBy ||
-    '';
-  const getDisplayComment = (item) => {
-    if (!item?.comment) {
-      return '';
-    }
-
-    const changedByLabel = getChangedByLabel(item);
-
-    if (!changedByLabel) {
-      return item.comment;
-    }
-
-    return item.comment.replace(/\bby admin\b/gi, `by ${changedByLabel}`);
-  };
-
   const renderSummary = (
     <Stack
       spacing={2}
@@ -88,13 +135,13 @@ export default function OrderDetailsHistory({ history, order }) {
         )}
       </Stack>
       <Stack spacing={0.5}>
-        <Box sx={{ color: 'text.disabled' }}>Delivery time for the carrier</Box>
+        <Box sx={{ color: 'text.disabled' }}>Dispatched time</Box>
         {fDateTime(
           timelineItems.find((item) => ['shipped', 'packed', 'processing'].includes(item?.status))?.createdAt
         )}
       </Stack>
       <Stack spacing={0.5}>
-        <Box sx={{ color: 'text.disabled' }}>Completion time</Box>
+        <Box sx={{ color: 'text.disabled' }}>Latest update</Box>
         {fDateTime(latestEvent?.createdAt || latestEvent?.time)}
       </Stack>
     </Stack>
@@ -127,6 +174,7 @@ export default function OrderDetailsHistory({ history, order }) {
         const firstTimeline = index === 0;
 
         const lastTimeline = index === timelineItems.length - 1;
+        const customerContent = getCustomerStatusContent(item);
 
         return (
           <TimelineItem key={`${item.status || item.title || 'event'}-${item.createdAt || item.time || index}`}>
@@ -137,12 +185,12 @@ export default function OrderDetailsHistory({ history, order }) {
 
             <TimelineContent>
               <Typography variant="subtitle2">
-                {item.title || item.status || 'Status Updated'}
+                {customerContent.label || 'Status Updated'}
               </Typography>
 
-              {getDisplayComment(item) && (
+              {customerContent.message && (
                 <Box sx={{ color: 'text.secondary', typography: 'body2', mt: 0.5 }}>
-                  {getDisplayComment(item)}
+                  {customerContent.message}
                 </Box>
               )}
 
@@ -158,7 +206,7 @@ export default function OrderDetailsHistory({ history, order }) {
 
   return (
     <Card>
-      <CardHeader title="History" />
+      <CardHeader title="Order Updates" />
       <Stack
         spacing={3}
         alignItems={{ md: 'flex-start' }}
@@ -172,8 +220,8 @@ export default function OrderDetailsHistory({ history, order }) {
 
       {showReturnReviewMessage && (
         <Alert severity="info" sx={{ mx: 3, mb: 3 }}>
-          Admin is reviewing your return request. As soon as possible, you will receive the next
-          update about the return process and what happens next.
+          Your return request is being reviewed. You will receive an update with the next steps
+          shortly.
         </Alert>
       )}
     </Card>
@@ -181,6 +229,6 @@ export default function OrderDetailsHistory({ history, order }) {
 }
 
 OrderDetailsHistory.propTypes = {
-  history: PropTypes.object,
+  history: PropTypes.oneOfType([PropTypes.array, PropTypes.object]),
   order: PropTypes.object,
 };

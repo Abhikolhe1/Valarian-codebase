@@ -1,8 +1,9 @@
-import {BindingScope, injectable} from '@loopback/core';
-import {repository} from '@loopback/repository';
+import {BindingScope, inject, injectable} from '@loopback/core';
+import {IsolationLevel, repository} from '@loopback/repository';
 import {HttpErrors} from '@loopback/rest';
 import {Ndr, NdrStatus, NdrClosureReason} from '../models';
 import {NdrRepository, ShipmentRepository, OrderRepository, OrderStatusHistoryRepository} from '../repositories';
+import {ShippingService} from './shipping.service';
 
 @injectable({scope: BindingScope.TRANSIENT})
 export class NdrService {
@@ -15,6 +16,8 @@ export class NdrService {
     public orderRepository: OrderRepository,
     @repository(OrderStatusHistoryRepository)
     public orderStatusHistoryRepository: OrderStatusHistoryRepository,
+    @inject('services.shipping')
+    public shippingService: ShippingService,
   ) {}
 
   /**
@@ -70,6 +73,7 @@ export class NdrService {
     toStatus: NdrStatus,
     adminNotes?: string,
     customerResponse?: string,
+    preferredDate?: Date,
   ): Promise<Ndr> {
     const ndr = await this.ndrRepository.findById(ndrId);
 
@@ -78,6 +82,20 @@ export class NdrService {
       throw new HttpErrors.UnprocessableEntity(
         `NDR status cannot transition from '${ndr.ndrStatus}' to '${toStatus}'. Allowed: [${allowed.join(', ')}]`,
       );
+    }
+
+    if (toStatus === 'return_requested' || toStatus === 'reattempt_requested') {
+      const shipment = await this.shipmentRepository.findById(ndr.shipmentId);
+      if (toStatus === 'reattempt_requested' && !preferredDate) {
+        throw new HttpErrors.UnprocessableEntity(
+          'A preferred delivery date is required for a Blue Dart delivery reattempt',
+        );
+      }
+      await this.shippingService.updateAlternateInstruction({
+        awbNumber: shipment.awbNumber,
+        instructionType: toStatus === 'return_requested' ? 'RTO' : 'DT',
+        preferredDate,
+      });
     }
 
     const updates: Partial<Ndr> = {
@@ -142,35 +160,66 @@ export class NdrService {
         : ndr.createdAt;
 
       if (new Date(referenceDate) <= cutoff) {
-        // Transition NDR
-        await this.transitionNdr(
-          ndr.id,
-          'return_requested',
-          `Auto-escalated to return_requested by NdrFollowUpCronJob due to no customer response/action for ${escalationDays} days.`,
-        );
+        try {
+          // Blue Dart must accept the RTO instruction before local state is
+          // allowed to claim that the return has been initiated.
+          const shipment = await this.shipmentRepository.findById(ndr.shipmentId);
+          await this.shippingService.updateAlternateInstruction({
+            awbNumber: shipment.awbNumber,
+            instructionType: 'RTO',
+          });
 
-        // Update Shipment status
-        await this.shipmentRepository.updateById(ndr.shipmentId, {
-          status: 'rto_initiated',
-          updatedAt: new Date(),
-        });
+          const transaction =
+            await this.ndrRepository.dataSource.beginTransaction(
+              IsolationLevel.READ_COMMITTED,
+            );
+          try {
+            const now = new Date();
+            await this.ndrRepository.updateById(
+              ndr.id,
+              {
+                ndrStatus: 'return_requested',
+                returnRequestedAt: now,
+                adminNotes: `Auto-escalated to return_requested by NdrFollowUpCronJob due to no customer response/action for ${escalationDays} days.`,
+                updatedAt: now,
+              },
+              {transaction},
+            );
+            await this.shipmentRepository.updateById(
+              ndr.shipmentId,
+              {status: 'rto_initiated', updatedAt: now},
+              {transaction},
+            );
+            await this.orderRepository.updateById(
+              ndr.orderId,
+              {
+                status: 'rto_initiated',
+                rtoStatus: 'initiated',
+                rtoInitiatedAt: now,
+                updatedAt: now,
+              },
+              {transaction},
+            );
+            await this.orderStatusHistoryRepository.createStatusEntry(
+              ndr.orderId,
+              'rto_initiated',
+              'system:ndr-followup-cron',
+              `Blue Dart accepted automatic RTO after the NDR remained unresolved for ${escalationDays} days.`,
+              {transaction},
+            );
+            await transaction.commit();
+          } catch (localError) {
+            await transaction.rollback();
+            throw localError;
+          }
 
-        // Update Order status
-        await this.orderRepository.updateById(ndr.orderId, {
-          status: 'rto_initiated',
-          rtoStatus: 'initiated',
-          rtoInitiatedAt: new Date(),
-          updatedAt: new Date(),
-        });
-
-        await this.orderStatusHistoryRepository.createStatusEntry(
-          ndr.orderId,
-          'rto_initiated',
-          'system:ndr-followup-cron',
-          `Order auto-escalated to RTO because NDR was unresolved after ${escalationDays} days.`,
-        );
-
-        escalatedCount++;
+          escalatedCount++;
+        } catch (error) {
+          console.error(
+            `[NDR Follow-Up] RTO processing failed for NDR ${ndr.id}; local transaction was not committed and provider reconciliation may be required:`,
+            error.message || error,
+          );
+        }
       }
     }
 
