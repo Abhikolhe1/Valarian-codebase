@@ -1,5 +1,5 @@
 import {BlueDartConfig} from '../../../../config/bluedart.config';
-import {CreateReversePickupParams, CreateShipmentParams, ServiceabilityParams, TransitTimeParams} from '../../../../interfaces/shipping-provider.interface';
+import {AlternateInstructionParams, CreateReversePickupParams, CreateShipmentParams, ServiceabilityParams, TransitTimeParams} from '../../../../interfaces/shipping-provider.interface';
 import {BlueDartConfigurationError, BlueDartValidationError} from '../../bluedart-errors';
 
 function required(value: string | undefined, name: string, operation: string): string {
@@ -186,8 +186,17 @@ export function mapWaybillRequest(params: CreateShipmentParams, config: BlueDart
     ReturnTelephone: warehousePhone,
   };
 
+  const productCode = required(params.productCode || config.account.productCode, 'productCode', operation);
+  const subProductCode = params.subProductCode || config.account.subProductCode;
+  if (productCode.length !== 1) {
+    throw new BlueDartValidationError('Waybill productCode must be exactly one character', {operation});
+  }
+  if (subProductCode && subProductCode.length !== 1) {
+    throw new BlueDartValidationError('Waybill subProductCode must be exactly one character', {operation});
+  }
+
   const Services: Record<string, unknown> = {
-    ProductCode: required(params.productCode || config.account.productCode, 'productCode', operation),
+    ProductCode: productCode,
     // Valiarian ships physical merchandise (apparel), not paper documents —
     // Dutiables (1), not Docs (0).
     ProductType: params.productType ?? 0,
@@ -211,8 +220,8 @@ export function mapWaybillRequest(params: CreateShipmentParams, config: BlueDart
     itemdtl: [],
     noOfDCGiven: 0,
   };
-  if (params.subProductCode || config.account.subProductCode) {
-    Services.SubProductCode = params.subProductCode || config.account.subProductCode;
+  if (subProductCode) {
+    Services.SubProductCode = subProductCode;
   }
   if (params.isCod) {
     const codAmount = params.codAmount ?? 0;
@@ -240,8 +249,105 @@ export function mapCancelWaybillRequest(awbNumber: string, config: BlueDartConfi
   };
 }
 
+/** Confirmed DHL eCommerce India / Blue Dart Alt-Instruction v0.1 contract. */
+export function mapAlternateInstructionRequest(
+  params: AlternateInstructionParams,
+  config: BlueDartConfig,
+) {
+  const operation = 'updateAlternateInstruction';
+  if (params.instructionType === 'DT' && !params.preferredDate) {
+    throw new BlueDartValidationError(
+      'Blue Dart delivery reattempt requires a preferred date',
+      {operation},
+    );
+  }
+
+  return {
+    altreq: {
+      AWBNo: required(params.awbNumber, 'awbNumber', operation),
+      PreferDate: params.preferredDate
+        ? `/Date(${params.preferredDate.getTime()})/`
+        : undefined,
+      AltInstRequestType: params.instructionType,
+      TimeSlot: params.timeSlot || '',
+      MobileNo: params.mobileNumber || '',
+      PreferTime: params.preferredTime || '',
+    },
+    profile: {
+      ...buildProfile(config, operation),
+      Version: '1.9',
+    },
+  };
+}
+
 // ── Not yet confirmed against official spec — unchanged from prior speculative implementation. ──
 export function mapTrackingRequest(awbNumber: string, config: BlueDartConfig) { return {awbNumber, profile: buildModernAccountProfile(config, 'trackShipment')}; }
 export function mapReversePickupRequest(params: CreateReversePickupParams, config: BlueDartConfig) {
-  return {providerRequestId: params.providerRequestId || `return:${params.orderReference}`, originalAwbNumber: params.originalAwbNumber, pickup: {name: params.pickupName, phone: params.pickupPhone, address: params.pickupAddress, city: params.pickupCity, state: params.pickupState, pincode: params.pickupPincode}, destination: {name: params.warehouseName, pincode: params.warehousePincode, areaCode: params.warehouseAreaCode, originArea: params.warehouseOriginArea}, weightGrams: params.weightGrams, itemDescription: params.itemDescription, pickupLocationCode: config.account.pickupLocationCode, profile: buildModernAccountProfile(config, 'createReversePickup')};
+  const operation = 'createReversePickup';
+  if (!Number.isFinite(params.weightGrams) || params.weightGrams <= 0) {
+    throw new BlueDartValidationError('weightGrams must be greater than zero', {operation});
+  }
+  if (!Number.isFinite(params.declaredValue) || params.declaredValue <= 0) {
+    throw new BlueDartValidationError('declaredValue must be greater than zero', {operation});
+  }
+  const pickupAreaCode = required(params.warehouseOriginArea, 'resolved customer pickup area', operation);
+  const reference = (`RVP${params.orderReference.replace(/[^A-Za-z0-9]/g, '')}`).slice(0, 20);
+  // Blue Dart applies different limits to these two identifiers:
+  // CreditReferenceNo is max 20, while itemdtl.ItemID is max 15.
+  const itemId = reference.slice(0, 15);
+  const now = new Date();
+  const pickupTime = `${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}`;
+  const customerPhone = required(params.pickupPhone, 'pickupPhone', operation);
+  const warehousePhone = required(params.warehousePhone, 'warehousePhone', operation);
+  const itemName = (params.itemDescription || 'APPAREL').replace(/[^A-Za-z0-9 ]/g, '').slice(0, 30) || 'APPAREL';
+  const returnReason = (params.returnReason || '').replace(/[^A-Za-z0-9 ]/g, '').slice(0, 30);
+
+  return {
+    Request: {
+      Consignee: {
+        ConsigneeName: required(params.warehouseName, 'warehouseName', operation),
+        ConsigneeAddress1: required(params.warehouseAddress, 'warehouseAddress', operation),
+        ConsigneeAddress2: params.warehouseCity || '',
+        ConsigneeAddress3: params.warehouseState || '',
+        ConsigneePincode: requiredPincode(params.warehousePincode, 'warehousePincode', operation),
+        ConsigneeMobile: warehousePhone,
+        ConsigneeTelephone: warehousePhone,
+        ConsigneeAttention: '', ConsigneeEmailID: '', ConsigneeGSTNumber: '',
+        ConsigneeLatitude: '', ConsigneeLongitude: '', ConsigneeMaskedContactNumber: '',
+        ConsigneeAddressType: 'R',
+      },
+      Shipper: {
+        CustomerAddress1: required(params.pickupAddress, 'pickupAddress', operation),
+        CustomerAddress2: params.pickupCity || '', CustomerAddress3: params.pickupState || '',
+        CustomerCode: required(config.account.customerCode, 'BLUEDART_CUSTOMER_CODE', operation),
+        CustomerName: required(params.pickupName, 'pickupName', operation),
+        CustomerPincode: requiredPincode(params.pickupPincode, 'pickupPincode', operation),
+        CustomerMobile: customerPhone, CustomerTelephone: customerPhone,
+        OriginArea: pickupAreaCode, Sender: '', VendorCode: '', IsToPayCustomer: false,
+        CustomerEmailID: '', CustomerGSTNumber: '', CustomerLatitude: '',
+        CustomerLongitude: '', CustomerMaskedContactNumber: '',
+      },
+      Returnadds: {
+        ManifestNumber: '', ReturnAddress1: required(params.warehouseAddress, 'warehouseAddress', operation),
+        ReturnAddress2: params.warehouseCity || '', ReturnAddress3: params.warehouseState || '',
+        ReturnContact: required(params.warehouseName, 'warehouseName', operation), ReturnEmailID: '',
+        ReturnLatitude: '', ReturnLongitude: '', ReturnMaskedContactNumber: '',
+        ReturnMobile: warehousePhone, ReturnPincode: requiredPincode(params.warehousePincode, 'warehousePincode', operation),
+        ReturnTelephone: warehousePhone,
+      },
+      Services: {
+        AWBNo: '', ActualWeight: params.weightGrams / 1000, Commodity: {},
+        CreditReferenceNo: reference, DeclaredValue: params.declaredValue, Dimensions: [],
+        ForwardAWBNo: params.originalAwbNumber || '', ForwardLogisticCompName: 'BLUEDART',
+        IsForcePickup: false, IsPartialPickup: false, IsReversePickup: true,
+        ItemCount: 1, PDFOutputNotRequired: true, PackType: '', PickupMode: 'P', PickupType: '',
+        PieceCount: 1, ProductCode: 'A', ProductType: 1, RegisterPickup: true,
+        PickupDate: formatBlueDartDate(now), PickupTime: pickupTime,
+        SpecialInstruction: params.itemDescription || '', SubProductCode: 'P', TotalCashPaytoCustomer: 0,
+        itemdtl: [{ItemID: itemId, ItemName: itemName, ItemValue: params.declaredValue, Itemquantity: 1, ReturnReason: returnReason}],
+      },
+      IsUpdateAPI: false,
+    },
+    Profile: buildProfile(config, operation),
+  };
 }

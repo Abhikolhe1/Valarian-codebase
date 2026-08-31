@@ -19,7 +19,7 @@ function summarizeProviderErrorBody(data: unknown): string | undefined {
   const entry = Array.isArray(body['error-response']) ? (body['error-response'] as unknown[])[0] : undefined;
   if (entry && typeof entry === 'object') {
     const e = entry as Record<string, unknown>;
-    const msg = e.msg ?? e.ErrorMessage;
+    const msg = e.msg ?? e.message ?? e.ErrorMessage ?? e.detail ?? e.title;
     if (typeof msg === 'string') return msg;
     // Waybill-shaped errors nest the real message under Status[0] instead
     // (confirmed via live sandbox, 2026-08-26): {Status: [{StatusCode, StatusInformation}]}.
@@ -76,6 +76,26 @@ interface HttpClient { request<T>(config: Record<string, unknown>): Promise<{dat
 
 const SANDBOX_HOST = 'apigateway-sandbox.bluedart.com';
 
+const sanitizeForDiagnosticLog = (value: unknown): unknown => {
+  if (Array.isArray(value)) return value.map(sanitizeForDiagnosticLog);
+  if (!value || typeof value !== 'object') return value;
+  const sensitiveFields = /(LicenceKey|LoginID|JWTToken|Authorization|clientSecret|Address|Name|Telephone|Mobile|Phone|Email)/i;
+  return Object.fromEntries(
+    Object.entries(value as Record<string, unknown>).map(([key, item]) => [
+      key,
+      sensitiveFields.test(key) ? '<redacted>' : sanitizeForDiagnosticLog(item),
+    ]),
+  );
+};
+
+const diagnosticJson = (value: unknown): string => {
+  try {
+    return JSON.stringify(sanitizeForDiagnosticLog(value));
+  } catch {
+    return '"<unserializable>"';
+  }
+};
+
 export class BlueDartApiClient {
   constructor(private readonly config: BlueDartConfig, private readonly auth: BlueDartAuthService, private readonly http: HttpClient = axios.create({}) as any) {}
 
@@ -121,8 +141,26 @@ export class BlueDartApiClient {
       } catch (error) {
         const clientError = error as any;
         const status = clientError?.response?.status;
+        if (process.env.BLUEDART_DEBUG_LOGGING === 'true' && ['createShipment', 'registerPickup'].includes(options.operation)) {
+          const responseHeaders = clientError?.response?.headers;
+          console.error('[BlueDart API diagnostic]', {
+            operation: options.operation,
+            method: options.method,
+            baseUrl: options.baseUrl,
+            path: options.path,
+            httpStatus: status,
+            correlationId,
+            providerCorrelationId: responseHeaders?.['correlation-id'],
+            providerRequestId: responseHeaders?.['x-request-id'],
+            contentType: responseHeaders?.['content-type'],
+            requestBodyJson: diagnosticJson(options.body),
+            responseBodyJson: diagnosticJson(clientError?.response?.data),
+          });
+        }
         if (status === 401 && !authRetried) { authRetried = true; await this.auth.invalidate(); continue; }
-        if (options.operationType === 'read' && !transientRetried && status && [429, 500, 502, 503, 504].includes(status)) { transientRetried = true; continue; }
+        // A 429 applies to the caller/account, so an immediate retry only adds
+        // load and extends the throttle. Let the tracking scheduler cool down.
+        if (options.operationType === 'read' && !transientRetried && status && [500, 502, 503, 504].includes(status)) { transientRetried = true; continue; }
         if (clientError?.code === 'ECONNABORTED') {
           throw new BlueDartTimeoutError('Blue Dart request timed out', {operation: options.operation, correlationId, retryable: options.operationType === 'read', reconciliationRequired: options.operationType === 'mutation'});
         }

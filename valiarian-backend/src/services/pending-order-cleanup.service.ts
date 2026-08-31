@@ -10,6 +10,7 @@ import {
 import {EmailService} from './email.service';
 import {EmailTemplateService} from './email-template.service';
 import {RazorpayService} from './razorpay.service';
+import {areBackgroundJobsEnabled} from '../utils/background-jobs';
 
 const DEFAULT_PENDING_ORDER_AGE_HOURS = 2;
 const DEFAULT_SWEEP_INTERVAL_MS = 2 * 60 * 60 * 1000;
@@ -41,6 +42,10 @@ export class PendingOrderCleanupService implements LifeCycleObserver {
   ) {}
 
   async start(): Promise<void> {
+    if (!areBackgroundJobsEnabled()) {
+      console.log('[Pending Order Cleanup] disabled via BACKGROUND_JOBS_ENABLED=false');
+      return;
+    }
     console.log('[Pending Order Cleanup] Service started', {
       pendingOrderAgeHours: this.pendingOrderAgeHours,
       sweepIntervalMs: this.sweepIntervalMs,

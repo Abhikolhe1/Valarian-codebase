@@ -260,14 +260,41 @@ export interface CreateReversePickupParams {
   warehouseOriginArea: string;
   warehousePincode: string;
   warehouseName: string;
+  warehouseAddress: string;
+  warehouseCity: string;
+  warehouseState: string;
+  warehousePhone: string;
 
   weightGrams: number;
+  declaredValue: number;
   itemDescription?: string;
+  returnReason?: string;
 }
 
 export interface CreateReversePickupResult {
   reverseAwbNumber: string;
   courierReferenceNumber?: string;
+  pickupTokenNumber?: string;
+  pickupDate?: string;
+  rawResponse?: unknown;
+}
+
+export type AlternateInstructionType = 'RTO' | 'DT' | 'ED' | 'LM' | 'AM';
+
+export interface AlternateInstructionParams {
+  awbNumber: string;
+  instructionType: AlternateInstructionType;
+  preferredDate?: Date;
+  timeSlot?: string;
+  mobileNumber?: string;
+  preferredTime?: string;
+}
+
+export interface AlternateInstructionResult {
+  awbNumber: string;
+  accepted: boolean;
+  statusCode?: string;
+  statusInformation?: string;
   rawResponse?: unknown;
 }
 
@@ -316,6 +343,10 @@ export interface ShippingProvider {
   createReversePickup(
     params: CreateReversePickupParams,
   ): Promise<CreateReversePickupResult>;
+
+  updateAlternateInstruction?(
+    params: AlternateInstructionParams,
+  ): Promise<AlternateInstructionResult>;
 
   /** Register already-created AWBs for collection from the warehouse. */
   registerPickup?(

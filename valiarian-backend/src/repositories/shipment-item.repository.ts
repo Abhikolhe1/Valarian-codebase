@@ -1,16 +1,13 @@
-import {Constructor, inject} from '@loopback/core';
+import {inject} from '@loopback/core';
 import {DefaultCrudRepository} from '@loopback/repository';
 import {ValiarianDataSource} from '../datasources';
-import {TimeStampRepositoryMixin} from '../mixins/timestamp-repository-mixin';
 import {ShipmentItem, ShipmentItemRelations} from '../models';
 
-export class ShipmentItemRepository extends TimeStampRepositoryMixin<
+export class ShipmentItemRepository extends DefaultCrudRepository<
   ShipmentItem,
   typeof ShipmentItem.prototype.id,
-  Constructor<
-    DefaultCrudRepository<ShipmentItem, typeof ShipmentItem.prototype.id, ShipmentItemRelations>
-  >
->(DefaultCrudRepository) {
+  ShipmentItemRelations
+> {
   constructor(
     @inject('datasources.valiarian') dataSource: ValiarianDataSource,
   ) {

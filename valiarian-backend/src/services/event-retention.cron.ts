@@ -3,6 +3,7 @@ import {repository, IsolationLevel} from '@loopback/repository';
 import {ShipmentEventRepository, ArchivedShipmentEventRepository} from '../repositories';
 import {AuditService} from './audit.service';
 import {ArchivedShipmentEvent} from '../models';
+import {areBackgroundJobsEnabled} from '../utils/background-jobs';
 
 const DEFAULT_RETENTION_SWEEP_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days (weekly)
 const DEFAULT_RETENTION_MONTHS = 24;
@@ -28,6 +29,10 @@ export class EventRetentionCronJob implements LifeCycleObserver {
   ) {}
 
   async start(): Promise<void> {
+    if (!areBackgroundJobsEnabled()) {
+      console.log('[Event Retention Cron] disabled via BACKGROUND_JOBS_ENABLED=false');
+      return;
+    }
     console.log('[Event Retention Cron] observer started');
     // Run initial sweep on application startup
     await this.runRetentionSweep();

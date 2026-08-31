@@ -3,8 +3,8 @@ import {assertBlueDartConfigured, loadBlueDartConfig} from '../../../config/blue
 import {BlueDartApiClient} from '../../../services/shipping-providers/bluedart-api.client';
 import {BlueDartAuthService, parseAuthenticationResponse} from '../../../services/shipping-providers/bluedart-auth.service';
 import {BlueDartDeveloperPortalProvider} from '../../../services/shipping-providers/bluedart-developer-portal.provider';
-import {BlueDartConfigurationError} from '../../../services/shipping-providers/bluedart-errors';
-import {mapTransitTimeRequest, mapWaybillRequest} from '../../../services/shipping-providers/bluedart/mappers';
+import {BlueDartConfigurationError, BlueDartRateLimitError} from '../../../services/shipping-providers/bluedart-errors';
+import {mapAlternateInstructionRequest, mapReversePickupRequest, mapTransitTimeRequest, mapWaybillRequest} from '../../../services/shipping-providers/bluedart/mappers';
 import {CreateShipmentParams} from '../../../interfaces/shipping-provider.interface';
 
 function developerEnv(): NodeJS.ProcessEnv {
@@ -85,9 +85,15 @@ describe('Blue Dart Developer Portal safety (unit)', () => {
       BLUEDART_SANDBOX_BASE_URL: 'https://sandbox-base.invalid',
       BLUEDART_PRODUCTION_AUTH_URL: 'https://prod-auth.invalid',
       BLUEDART_PRODUCTION_BASE_URL: 'https://prod-base.invalid',
+      BLUEDART_ORIGIN_AREA: 'BOM',
+      BLUEDART_PRODUCTION_ORIGIN_AREA: 'NSK',
+      BLUEDART_SHIPPER_CITY: 'Mumbai',
+      BLUEDART_PRODUCTION_SHIPPER_CITY: 'Nashik',
     });
     expect(production.authUrl).to.equal('https://prod-auth.invalid');
     expect(production.baseUrl).to.equal('https://prod-base.invalid');
+    expect(production.account.originArea).to.equal('NSK');
+    expect(production.account.shipperCity).to.equal('Nashik');
   });
 
   it('parses the documented JWTToken response field', () => {
@@ -213,6 +219,29 @@ describe('Blue Dart API client sandbox host guard (unit)', () => {
     // developerEnv()'s BLUEDART_SANDBOX_BASE_URL ('https://api.invalid') does
     // not contain the real sandbox host — must be refused, not silently allowed.
     await expect(client.post(config.baseUrl!, '/whatever', {}, 'testOperation')).to.be.rejected();
+  });
+
+  it('surfaces HTTP 429 immediately without an internal retry burst', async () => {
+    const config = loadBlueDartConfig(developerEnvWithSandboxHost());
+    let businessCalls = 0;
+    const http = {
+      request: async (request: any) => {
+        if (!request.baseURL) {
+          return {data: {JWTToken: 'test-token', expires_in: 3600}};
+        }
+        businessCalls++;
+        const error: any = new Error('rate limited');
+        error.response = {status: 429, data: {title: 'Too Many Requests'}};
+        throw error;
+      },
+    } as any;
+    const auth = new BlueDartAuthService(config, undefined, http);
+    const client = new BlueDartApiClient(config, auth, http);
+
+    await expect(
+      client.get(config.baseUrl!, '/GetServicesforPincode', 'checkServiceability'),
+    ).to.be.rejectedWith(BlueDartRateLimitError);
+    expect(businessCalls).to.equal(1);
   });
 });
 
@@ -349,11 +378,147 @@ describe('Blue Dart confirmed request contracts (unit)', () => {
     const auth = new BlueDartAuthService(pickupConfig, undefined, http);
     const provider = new BlueDartDeveloperPortalProvider(pickupConfig, new BlueDartApiClient(pickupConfig, auth, http));
     const pickupDate = new Date(1700000000000);
-    const registered = await provider.registerPickup({providerRequestId: 'pickup:order-1', awbNumber: '76662235090', areaCode: 'NSK', customerCode: '000005', customerName: 'Valiarian Warehouse', addressLine1: 'Building 8', pincode: '422007', phone: '8830800191', numberOfPieces: 2, weightKg: 1.5, pickupDate, pickupTime: '09:00', officeCloseTime: '22:00', productCode: 'A', subProducts: ['P']});
+    const registered = await provider.registerPickup({providerRequestId: 'pickup:order-1', awbNumber: '76662235090', areaCode: 'NSK', customerCode: '000005', customerName: 'Valiarian Warehouse', addressLine1: 'Building 8', pincode: '422007', phone: '8830800191', numberOfPieces: 2, weightKg: 1.5, pickupDate, pickupTime: '09:00', officeCloseTime: '18:00', productCode: 'A', subProducts: ['E-Tailing']});
     expect(registered.pickupReference).to.equal('748984');
-    expect(calls[0].data.request).to.containDeep({AWBNo: ['76662235090'], AreaCode: 'NSK', ShipmentPickupDate: '/Date(1700000000000)/'});
+    expect(calls[0].data.request).to.containDeep({
+      AWBNo: [''],
+      AreaCode: 'NSK',
+      ShipmentPickupDate: '/Date(1700000000000)/',
+      DoxNDox: '1',
+      ProductCode: 'A',
+      ReferenceNo: '',
+      Remarks: '',
+      ShipmentPickupTime: '09:00',
+      OfficeCloseTime: '18:00',
+      SubProducts: ['E-Tailing'],
+    });
     const cancelled = await provider.cancelPickup({pickupReference: registered.pickupReference, pickupRegistrationDate: pickupDate, remarks: 'Admin cancelled'});
     expect(cancelled.success).to.be.true();
     expect(calls[1].data.request).to.containDeep({TokenNumber: 748984, PickupRegistrationDate: '/Date(1700000000000)/'});
+  });
+
+  it('uses the official Alt-Instruction RTO and delivery-reattempt contract', async () => {
+    const calls: any[] = [];
+    const altConfig = loadBlueDartConfig({
+      ...developerEnvWithSandboxHost(),
+      BLUEDART_SANDBOX_ALT_INSTRUCTION_BASE_URL:
+        'https://apigateway-sandbox.bluedart.com/in/transportation/cust-instruction-update/v1',
+      BLUEDART_ALT_INSTRUCTION_PATH: '/CustALTInstructionUpdate',
+    });
+    const reattemptDate = new Date(1700000000000);
+    const mappedRto = mapAlternateInstructionRequest(
+      {awbNumber: '69501388751', instructionType: 'RTO'},
+      altConfig,
+    );
+    expect(mappedRto).to.containDeep({
+      altreq: {AWBNo: '69501388751', AltInstRequestType: 'RTO'},
+      profile: {
+        LoginID: 'test-login',
+        LicenceKey: 'test-licence',
+        Api_type: 'S',
+        Version: '1.9',
+      },
+    });
+    expect(() =>
+      mapAlternateInstructionRequest(
+        {awbNumber: '59500670843', instructionType: 'DT'},
+        altConfig,
+      ),
+    ).to.throw(/preferred date/i);
+
+    const http = {
+      request: async (cfg: any) => {
+        if (!cfg.baseURL) {
+          return {data: {JWTToken: 'test-token', expires_in: 3600}};
+        }
+        calls.push(cfg);
+        return {
+          data: {
+            CustALTInstructionUpdateResult: {
+              AWBNo: cfg.data.altreq.AWBNo,
+              IsError: false,
+              status: {
+                e: {
+                  StatusCode: 'Valid',
+                  StatusInformation: 'AltInstruction Update Successful',
+                },
+              },
+            },
+          },
+        };
+      },
+    } as any;
+    const auth = new BlueDartAuthService(altConfig, undefined, http);
+    const provider = new BlueDartDeveloperPortalProvider(
+      altConfig,
+      new BlueDartApiClient(altConfig, auth, http),
+    );
+    const result = await provider.updateAlternateInstruction({
+      awbNumber: '59500670843',
+      instructionType: 'DT',
+      preferredDate: reattemptDate,
+    });
+    expect(result).to.containDeep({
+      awbNumber: '59500670843',
+      accepted: true,
+      statusCode: 'Valid',
+    });
+    expect(calls[0]).to.containDeep({
+      method: 'POST',
+      baseURL:
+        'https://apigateway-sandbox.bluedart.com/in/transportation/cust-instruction-update/v1',
+      url: '/CustALTInstructionUpdate',
+    });
+    expect(calls[0].data.altreq).to.containDeep({
+      AWBNo: '59500670843',
+      AltInstRequestType: 'DT',
+      PreferDate: '/Date(1700000000000)/',
+    });
+  });
+
+  it('uses Finder plus the documented Closed RVP Waybill contract for a customer return', async () => {
+    const calls: any[] = [];
+    const reverseConfig = loadBlueDartConfig({
+      ...developerEnvWithSandboxHost(),
+      BLUEDART_CUSTOMER_CODE: '000005',
+      BLUEDART_SANDBOX_WAYBILL_BASE_URL: 'https://apigateway-sandbox.bluedart.com/in/transportation/waybill/v1',
+    });
+    const params = {
+      originalAwbNumber: '20472264525', orderReference: '6b27113d-02cb-4794-96ff-d3bf3ea93dab',
+      pickupName: 'Customer Name', pickupPhone: '9999999999', pickupAddress: 'Andheri East',
+      pickupCity: 'Mumbai', pickupState: 'Maharashtra', pickupPincode: '400069',
+      warehouseAreaCode: 'BOM', warehouseOriginArea: 'IGNORED', warehousePincode: '400069',
+      warehouseName: 'VALIARIAN LLP', warehouseAddress: 'Warehouse Address', warehouseCity: 'Mumbai',
+      warehouseState: 'Maharashtra', warehousePhone: '8888888888', weightGrams: 600,
+      declaredValue: 999,
+      itemDescription: 'Crown Line Polo Sand', returnReason: 'Size issue',
+    };
+    const mapped = mapReversePickupRequest({...params, warehouseOriginArea: 'BOM'}, reverseConfig);
+    expect(mapped.Request.Shipper).to.containDeep({CustomerPincode: '400069', OriginArea: 'BOM'});
+    expect(mapped.Request.Consignee).to.containDeep({ConsigneePincode: '400069'});
+    expect(mapped.Request.Services).to.containDeep({
+      IsReversePickup: true, RegisterPickup: true, PickupMode: 'P', PickupType: '',
+      ProductCode: 'A', SubProductCode: 'P', ForwardAWBNo: '20472264525',
+    });
+    expect(mapped.Request.Services.CreditReferenceNo.length).to.be.lessThanOrEqual(20);
+    expect(mapped.Request.Services.itemdtl[0].ItemID.length).to.be.lessThanOrEqual(15);
+    expect(mapped.Request.Services.DeclaredValue).to.equal(999);
+    expect(mapped.Request.Services.itemdtl[0].ItemValue).to.equal(999);
+
+    const http = {request: async (cfg: any) => {
+      if (!cfg.baseURL) return {data: {JWTToken: 'test-token', expires_in: 3600}};
+      calls.push(cfg);
+      if (cfg.url === '/GetServicesforPincodeAndProduct') {
+        return {data: {GetServicesforPincodeAndProductResult: {IsError: false, PickupService: 'Yes', PickupAreaCode: 'BOM'}}};
+      }
+      return {data: {GenerateWayBillResult: {IsError: false, IsErrorInPU: false, AWBNo: '20479990001', CCRCRDREF: 'RVPREF', TokenNumber: '12345', ShipmentPickupDate: '/Date(1700000000000)/'}}};
+    }} as any;
+    const auth = new BlueDartAuthService(reverseConfig, undefined, http);
+    const provider = new BlueDartDeveloperPortalProvider(reverseConfig, new BlueDartApiClient(reverseConfig, auth, http));
+    const result = await provider.createReversePickup(params);
+    expect(result).to.containDeep({reverseAwbNumber: '20479990001', pickupTokenNumber: '12345'});
+    expect(calls.map(call => call.url)).to.deepEqual(['/GetServicesforPincodeAndProduct', '/GenerateWayBill']);
+    expect(calls[1].data.Request.Services.IsReversePickup).to.be.true();
+    expect(calls[1].data.Request.Services.RegisterPickup).to.be.true();
   });
 });

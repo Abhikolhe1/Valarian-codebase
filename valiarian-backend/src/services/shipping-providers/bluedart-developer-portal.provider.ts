@@ -1,14 +1,27 @@
 import {assertBlueDartBaseUrlConfigured, BlueDartConfig, loadBlueDartConfig} from '../../config/bluedart.config';
-import {CreateReversePickupParams, CreateReversePickupResult, CreateShipmentParams, CreateShipmentResult, GenerateLabelResult, MasterDownloadResult, PickupCancellationParams, PickupCancellationResult, PickupRegistrationParams, PickupRegistrationResult, ProductCatalogEntry, ProductCatalogResult, ServiceabilityParams, ServiceabilityResult, ShippingProvider, TrackingResult, TransitTimeParams, TransitTimeResult} from '../../interfaces/shipping-provider.interface';
+import {AlternateInstructionParams, AlternateInstructionResult, CreateReversePickupParams, CreateReversePickupResult, CreateShipmentParams, CreateShipmentResult, GenerateLabelResult, MasterDownloadResult, PickupCancellationParams, PickupCancellationResult, PickupRegistrationParams, PickupRegistrationResult, ProductCatalogEntry, ProductCatalogResult, ServiceabilityParams, ServiceabilityResult, ShippingProvider, TrackingResult, TransitTimeParams, TransitTimeResult} from '../../interfaces/shipping-provider.interface';
 import {mapCourierStatus} from '../../utils/courier-status-mapper';
 import {BlueDartApiClient} from './bluedart-api.client';
 import {BlueDartAuthService} from './bluedart-auth.service';
 import {BlueDartProviderError, LabelGenerationNotSupportedError} from './bluedart-errors';
-import {mapCancelWaybillRequest, mapMasterDownloadRequest, mapProductsRequest, mapReversePickupRequest, mapServiceabilityRequest, mapTransitTimeRequest, mapWaybillRequest} from './bluedart/mappers';
+import {mapAlternateInstructionRequest, mapCancelWaybillRequest, mapMasterDownloadRequest, mapProductsRequest, mapReversePickupRequest, mapServiceabilityRequest, mapTransitTimeRequest, mapWaybillRequest} from './bluedart/mappers';
 
 type Json = Record<string, any>;
 
 const isYes = (value: unknown) => value === 'Y' || value === 'Yes';
+
+const toBlueDartPickupTime = (value: string, field: string, operation: string): string => {
+  const digits = value.replace(':', '');
+  if (!/^\d{4}$/.test(digits)) {
+    throw new BlueDartProviderError(`${field} must use HH:mm or HHmm format`, {operation});
+  }
+  const hours = Number(digits.slice(0, 2));
+  const minutes = Number(digits.slice(2));
+  if (hours > 23 || minutes > 59) {
+    throw new BlueDartProviderError(`${field} must contain a valid 24-hour time`, {operation});
+  }
+  return `${digits.slice(0, 2)}:${digits.slice(2)}`;
+};
 
 const decodeXml = (value: string): string => value
   .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1')
@@ -221,10 +234,82 @@ export class BlueDartDeveloperPortalProvider implements ShippingProvider {
   }
 
   async createReversePickup(params: CreateReversePickupParams): Promise<CreateReversePickupResult> {
-    const raw = await this.client.post<Json, unknown>(this.config.waybillBaseUrl || this.config.baseUrl!, this.endpoint('waybill'), mapReversePickupRequest(params, this.config), 'createReversePickup');
-    const reverseAwbNumber = this.text(raw.reverseAwbNumber ?? raw.awbNumber ?? raw.AWBNo);
-    if (!reverseAwbNumber) throw new BlueDartProviderError('Unsupported reverse-waybill response contract', {operation: 'createReversePickup', reconciliationRequired: true});
-    return {reverseAwbNumber, courierReferenceNumber: this.text(raw.courierReferenceNumber ?? raw.referenceNumber), rawResponse: raw};
+    const operation = 'createReversePickup';
+    assertBlueDartBaseUrlConfigured(this.config.baseUrl, 'BLUEDART_SANDBOX_BASE_URL / BLUEDART_PRODUCTION_BASE_URL', operation);
+    assertBlueDartBaseUrlConfigured(this.config.waybillBaseUrl, 'BLUEDART_SANDBOX_WAYBILL_BASE_URL / BLUEDART_PRODUCTION_WAYBILL_BASE_URL', operation);
+
+    const finderRaw = await this.client.post<Json, unknown>(
+      this.config.baseUrl,
+      '/GetServicesforPincodeAndProduct',
+      {pinCode: params.pickupPincode, ProductCode: 'A', SubProductCode: 'P', PackType: '', Feature: 'R', profile: mapServiceabilityRequest({pincode: params.pickupPincode}, this.config).profile},
+      operation,
+    );
+    const finder = (finderRaw.GetServicesforPincodeAndProductResult ?? finderRaw) as Json;
+    if (finder.IsError === true || finder.IsError === 'True' || !isYes(finder.PickupService)) {
+      throw new BlueDartProviderError(this.extractErrorMessage(finder) || `Blue Dart reverse pickup is unavailable for pincode ${params.pickupPincode}`, {operation});
+    }
+    const pickupAreaCode = this.text(finder.PickupAreaCode);
+    if (!pickupAreaCode) throw new BlueDartProviderError('Blue Dart Finder did not return PickupAreaCode for the reverse pickup', {operation});
+
+    const raw = await this.client.post<Json, unknown>(
+      this.config.waybillBaseUrl,
+      '/GenerateWayBill',
+      mapReversePickupRequest({...params, warehouseOriginArea: pickupAreaCode}, this.config),
+      operation,
+    );
+    const details = (raw.GenerateWayBillResult ?? raw) as Json;
+    const awb = this.text(details.AWBNo);
+    if (details.IsError === true || details.IsError === 'True' || !awb) {
+      throw new BlueDartProviderError(this.extractErrorMessage(details) || 'Blue Dart rejected the reverse waybill request', {operation, reconciliationRequired: Boolean(awb)});
+    }
+    if (details.IsErrorInPU === true || details.IsErrorInPU === 'True') {
+      throw new BlueDartProviderError(this.extractErrorMessage(details) || `Reverse AWB ${awb} was created, but pickup registration failed`, {operation, reconciliationRequired: true});
+    }
+    return {reverseAwbNumber: awb, courierReferenceNumber: this.text(details.CCRCRDREF), pickupTokenNumber: this.text(details.TokenNumber), pickupDate: this.text(details.ShipmentPickupDate), rawResponse: raw};
+  }
+
+  async updateAlternateInstruction(
+    params: AlternateInstructionParams,
+  ): Promise<AlternateInstructionResult> {
+    const operation = 'updateAlternateInstruction';
+    assertBlueDartBaseUrlConfigured(
+      this.config.alternateInstructionBaseUrl,
+      'BLUEDART_SANDBOX_ALT_INSTRUCTION_BASE_URL / BLUEDART_PRODUCTION_ALT_INSTRUCTION_BASE_URL',
+      operation,
+    );
+    const raw = await this.client.post<Json, unknown>(
+      this.config.alternateInstructionBaseUrl,
+      this.config.endpoints.alternateInstruction || '/CustALTInstructionUpdate',
+      mapAlternateInstructionRequest(params, this.config),
+      operation,
+    );
+    const details: Json = (raw.CustALTInstructionUpdateResult ?? raw) as Json;
+    const statusContainer = details.Status ?? details.status;
+    const statusEntry = Array.isArray(statusContainer)
+      ? statusContainer[0]
+      : statusContainer?.e ?? statusContainer;
+    const isError =
+      details.IsError === true ||
+      details.IsError === 'True' ||
+      details.IsError === 'true';
+    const statusCode = this.text(statusEntry?.StatusCode);
+    const statusInformation =
+      this.text(statusEntry?.StatusInformation) ||
+      this.text(details.ErrorMessage);
+    if (isError) {
+      throw new BlueDartProviderError(
+        statusInformation || 'Blue Dart rejected the alternate instruction',
+        {operation, providerCode: statusCode},
+      );
+    }
+    const awbNumber = this.text(details.AWBNo) || params.awbNumber;
+    return {
+      awbNumber,
+      accepted: true,
+      statusCode,
+      statusInformation,
+      rawResponse: raw,
+    };
   }
 
   async generateLabel(awbNumber: string): Promise<GenerateLabelResult> {
@@ -241,9 +326,14 @@ export class BlueDartDeveloperPortalProvider implements ShippingProvider {
     if (!params.providerRequestId) throw new BlueDartProviderError('Pickup providerRequestId is required', {operation: 'registerPickup'});
     const operation = 'registerPickup';
     assertBlueDartBaseUrlConfigured(this.config.pickupBaseUrl, 'BLUEDART_SANDBOX_PICKUP_BASE_URL / BLUEDART_PRODUCTION_PICKUP_BASE_URL', operation);
+    const pickupTime = toBlueDartPickupTime(params.pickupTime, 'pickupTime', operation);
+    const officeCloseTime = toBlueDartPickupTime(params.officeCloseTime, 'officeCloseTime', operation);
     const body = {
       request: {
-        AWBNo: [params.awbNumber],
+        // Blue Dart's v0.1 RegisterPickup contract registers a collection
+        // request independently of the shipment; its documented value is an
+        // array containing one empty string, even after waybill generation.
+        AWBNo: [''],
         AreaCode: params.areaCode,
         CISDDN: false,
         ContactPersonName: params.customerName,
@@ -254,20 +344,20 @@ export class BlueDartDeveloperPortalProvider implements ShippingProvider {
         CustomerName: params.customerName,
         CustomerPincode: params.pincode,
         CustomerTelephoneNumber: params.phone,
-        DoxNDox: '2',
+        DoxNDox: '1',
         EmailID: '',
         IsForcePickup: false,
         IsReversePickup: false,
         MobileTelNo: params.phone,
         NumberofPieces: params.numberOfPieces,
-        OfficeCloseTime: params.officeCloseTime,
+        OfficeCloseTime: officeCloseTime,
         PackType: '',
         ProductCode: params.productCode,
-        ReferenceNo: params.providerRequestId,
-        Remarks: `Pickup for ${params.providerRequestId}`.slice(0, 60),
+        ReferenceNo: '',
+        Remarks: '',
         RouteCode: '',
         ShipmentPickupDate: `/Date(${params.pickupDate.getTime()})/`,
-        ShipmentPickupTime: params.pickupTime,
+        ShipmentPickupTime: pickupTime,
         SubProducts: params.subProducts || [],
         VolumeWeight: params.weightKg,
         WeightofShipment: params.weightKg,

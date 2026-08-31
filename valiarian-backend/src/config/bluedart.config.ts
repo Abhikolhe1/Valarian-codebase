@@ -14,6 +14,7 @@ export interface BlueDartEndpointConfig {
   transitTime?: string;
   products?: string;
   label?: string;
+  alternateInstruction?: string;
 }
 
 export interface BlueDartConfig {
@@ -31,6 +32,7 @@ export interface BlueDartConfig {
   pickupBaseUrl?: string;
   cancelPickupBaseUrl?: string;
   trackingBaseUrl?: string;
+  alternateInstructionBaseUrl?: string;
   requestTimeoutMs: number;
   tokenRefreshBufferSeconds: number;
   tokenFallbackTtlSeconds: number;
@@ -94,6 +96,8 @@ export function loadBlueDartConfig(env: NodeJS.ProcessEnv = process.env): BlueDa
   const environment = resolveEnum('BLUEDART_ENV', env.BLUEDART_ENV, ['sandbox', 'production'] as const, 'sandbox', errors);
   const modernProfileMode = resolveEnum('BLUEDART_MODERN_PROFILE_MODE', env.BLUEDART_MODERN_PROFILE_MODE, ['none', 'customer-only', 'legacy-profile'] as const, 'none', errors);
   const enableTestMocks = env.BLUEDART_ENABLE_TEST_MOCKS === 'true';
+  const scoped = (name: string): string | undefined =>
+    env[`BLUEDART_${environment.toUpperCase()}_${name}`] || env[`BLUEDART_${name}`];
 
   if (environment === 'production' && enableTestMocks) {
     errors.push('BLUEDART_ENABLE_TEST_MOCKS must not be true when BLUEDART_ENV=production (test mocks disabled)');
@@ -113,6 +117,7 @@ export function loadBlueDartConfig(env: NodeJS.ProcessEnv = process.env): BlueDa
   const pickupBaseUrl = environment === 'production' ? env.BLUEDART_PRODUCTION_PICKUP_BASE_URL : env.BLUEDART_SANDBOX_PICKUP_BASE_URL;
   const cancelPickupBaseUrl = environment === 'production' ? env.BLUEDART_PRODUCTION_CANCEL_PICKUP_BASE_URL : env.BLUEDART_SANDBOX_CANCEL_PICKUP_BASE_URL;
   const trackingBaseUrl = environment === 'production' ? env.BLUEDART_PRODUCTION_TRACKING_BASE_URL : env.BLUEDART_SANDBOX_TRACKING_BASE_URL;
+  const alternateInstructionBaseUrl = environment === 'production' ? env.BLUEDART_PRODUCTION_ALT_INSTRUCTION_BASE_URL : env.BLUEDART_SANDBOX_ALT_INSTRUCTION_BASE_URL;
 
   if (providerMode === 'developer-portal') {
     const requiredVars: Array<[string, string | undefined]> = [
@@ -141,6 +146,7 @@ export function loadBlueDartConfig(env: NodeJS.ProcessEnv = process.env): BlueDa
     pickupBaseUrl,
     cancelPickupBaseUrl,
     trackingBaseUrl,
+    alternateInstructionBaseUrl,
     requestTimeoutMs: positiveNumber('BLUEDART_REQUEST_TIMEOUT_MS', env.BLUEDART_REQUEST_TIMEOUT_MS, 30000, errors),
     tokenRefreshBufferSeconds: positiveNumber('BLUEDART_TOKEN_REFRESH_BUFFER_SECONDS', env.BLUEDART_TOKEN_REFRESH_BUFFER_SECONDS, 300, errors),
     tokenFallbackTtlSeconds: positiveNumber('BLUEDART_TOKEN_FALLBACK_TTL_SECONDS', env.BLUEDART_TOKEN_FALLBACK_TTL_SECONDS, 900, errors),
@@ -150,17 +156,17 @@ export function loadBlueDartConfig(env: NodeJS.ProcessEnv = process.env): BlueDa
       customerCode: env.BLUEDART_CUSTOMER_CODE,
       loginId: env.BLUEDART_LOGIN_ID,
       licenceKey: env.BLUEDART_LICENCE_KEY,
-      originArea: env.BLUEDART_ORIGIN_AREA,
-      areaCode: env.BLUEDART_AREA_CODE,
+      originArea: scoped('ORIGIN_AREA'),
+      areaCode: scoped('AREA_CODE'),
       pickupLocationCode: env.BLUEDART_PICKUP_LOCATION_CODE,
       productCode: env.BLUEDART_PRODUCT_CODE,
       subProductCode: env.BLUEDART_SUB_PRODUCT_CODE,
       serviceType: env.BLUEDART_SERVICE_TYPE,
       codFavorOf: env.BLUEDART_COD_FAVOR_OF,
-      shipperAddressLine1: env.BLUEDART_SHIPPER_ADDRESS_LINE1,
-      shipperCity: env.BLUEDART_SHIPPER_CITY,
-      shipperState: env.BLUEDART_SHIPPER_STATE,
-      shipperPhone: env.BLUEDART_SHIPPER_PHONE,
+      shipperAddressLine1: scoped('SHIPPER_ADDRESS_LINE1'),
+      shipperCity: scoped('SHIPPER_CITY'),
+      shipperState: scoped('SHIPPER_STATE'),
+      shipperPhone: scoped('SHIPPER_PHONE'),
     },
     endpoints: {
       serviceability: optionalPath('BLUEDART_SERVICEABILITY_PATH', env.BLUEDART_SERVICEABILITY_PATH, errors),
@@ -172,6 +178,7 @@ export function loadBlueDartConfig(env: NodeJS.ProcessEnv = process.env): BlueDa
       transitTime: optionalPath('BLUEDART_TRANSIT_TIME_PATH', env.BLUEDART_TRANSIT_TIME_PATH, errors),
       products: optionalPath('BLUEDART_PRODUCTS_PATH', env.BLUEDART_PRODUCTS_PATH, errors),
       label: optionalPath('BLUEDART_LABEL_PATH', env.BLUEDART_LABEL_PATH, errors),
+      alternateInstruction: optionalPath('BLUEDART_ALT_INSTRUCTION_PATH', env.BLUEDART_ALT_INSTRUCTION_PATH, errors),
     },
     configErrors: errors,
   };
@@ -219,6 +226,7 @@ export function getMaskedBlueDartDiagnostics(config: BlueDartConfig) {
     pickupBaseUrlConfigured: Boolean(config.pickupBaseUrl),
     cancelPickupBaseUrlConfigured: Boolean(config.cancelPickupBaseUrl),
     trackingBaseUrlConfigured: Boolean(config.trackingBaseUrl),
+    alternateInstructionBaseUrlConfigured: Boolean(config.alternateInstructionBaseUrl),
     loginIdConfigured: Boolean(config.account.loginId),
     licenceKeyConfigured: Boolean(config.account.licenceKey),
     configuredEndpoints: Object.keys(config.endpoints).filter(key => Boolean(config.endpoints[key as keyof BlueDartEndpointConfig])),
