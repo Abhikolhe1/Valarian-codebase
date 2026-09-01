@@ -297,6 +297,21 @@ describe('Blue Dart confirmed request contracts (unit)', () => {
     expect(request.Request.Services.CollectableAmount).to.equal(750);
   });
 
+  it('makes CreditReferenceNo unique per order UUID even when orderNumber collides across environments', () => {
+    // Regression for 2026-09-01: order numbers are date+sequential *per
+    // environment*, so the same literal orderNumber can be produced by both
+    // local and UAT on the same day. Blue Dart's duplicate-AWB check is
+    // scoped to the account, not the environment, so a bare orderNumber
+    // reference let one environment's AWB permanently block the other's.
+    const a = mapWaybillRequest(validShipment({orderNumber: 'ORD-20260901-0002', orderReference: 'aaaaaaaa-0000-0000-0000-000000000000'}), config);
+    const b = mapWaybillRequest(validShipment({orderNumber: 'ORD-20260901-0002', orderReference: 'bbbbbbbb-1111-1111-1111-111111111111'}), config);
+    const refA = a.Request.Services.CreditReferenceNo as string;
+    const refB = b.Request.Services.CreditReferenceNo as string;
+    expect(refA.length).to.be.lessThanOrEqual(20);
+    expect(refB.length).to.be.lessThanOrEqual(20);
+    expect(refA).to.not.equal(refB);
+  });
+
   it('uses the exact confirmed Transit endpoint and preserves InvalidOriginPincode as a business result', async () => {
     const calls: any[] = [];
     const liveShapeConfig = loadBlueDartConfig({
