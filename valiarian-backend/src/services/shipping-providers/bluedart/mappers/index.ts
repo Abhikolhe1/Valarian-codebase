@@ -115,9 +115,22 @@ export function mapWaybillRequest(params: CreateShipmentParams, config: BlueDart
 
   const now = new Date();
   const pickupTime = `${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}`;
-  // Alphanumeric only, max 20 chars per spec — sanitize the order number
-  // rather than inventing a separate reference.
-  const creditReferenceNo = params.orderNumber.replace(/[^A-Za-z0-9]/g, '').slice(0, 20);
+  // Alphanumeric only, max 20 chars per spec. The plain orderNumber alone is
+  // NOT collision-safe: our order numbers are date+sequential *per
+  // environment* (local, UAT, production each count their own day's orders
+  // independently), so the same literal orderNumber string can be produced
+  // by two different environments on the same day. Blue Dart's duplicate-AWB
+  // check is scoped to the credential/account, not to which of our
+  // environments called it — confirmed live 2026-09-01, when a UAT order
+  // collided with an already-generated AWB from same-day local testing on
+  // the shared sandbox account, permanently blocking that order's reference.
+  // Reserve the last 4 chars for a slice of the order's UUID (orderReference)
+  // — globally unique per order regardless of environment or orderNumber
+  // reuse — so two orders can never produce the same CreditReferenceNo.
+  const REFERENCE_SUFFIX_LENGTH = 4;
+  const orderNumberPart = params.orderNumber.replace(/[^A-Za-z0-9]/g, '').slice(0, 20 - REFERENCE_SUFFIX_LENGTH);
+  const referenceSuffix = params.orderReference.replace(/[^A-Za-z0-9]/g, '').slice(0, REFERENCE_SUFFIX_LENGTH);
+  const creditReferenceNo = `${orderNumberPart}${referenceSuffix}`;
   if (!creditReferenceNo) throw new BlueDartValidationError('CreditReferenceNo cannot be empty after sanitizing orderNumber', {operation});
   if (!Number.isFinite(params.weightGrams) || params.weightGrams <= 0) {
     throw new BlueDartValidationError('weightGrams must be greater than zero', {operation});
