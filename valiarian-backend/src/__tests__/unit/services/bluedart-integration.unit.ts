@@ -380,7 +380,6 @@ describe('Blue Dart confirmed request contracts (unit)', () => {
       BLUEDART_SANDBOX_PICKUP_BASE_URL: 'https://apigateway-sandbox.bluedart.com/in/transportation/pickup/v1',
       BLUEDART_SANDBOX_CANCEL_PICKUP_BASE_URL: 'https://apigateway-sandbox.bluedart.com/in/transportation/cancel-pickup/v1',
       BLUEDART_PICKUP_REGISTRATION_PATH: '/RegisterPickup',
-      BLUEDART_PICKUP_CANCELLATION_PATH: '/CancelPickup',
     });
     const http = {request: async (cfg: any) => {
       if (!cfg.baseURL) return {data: {JWTToken: 'test-token', expires_in: 3600}};
@@ -408,6 +407,7 @@ describe('Blue Dart confirmed request contracts (unit)', () => {
     });
     const cancelled = await provider.cancelPickup({pickupReference: registered.pickupReference, pickupRegistrationDate: pickupDate, remarks: 'Admin cancelled'});
     expect(cancelled.success).to.be.true();
+    expect(calls[1].url).to.equal('');
     expect(calls[1].data.request).to.containDeep({TokenNumber: 748984, PickupRegistrationDate: '/Date(1700000000000)/'});
   });
 
