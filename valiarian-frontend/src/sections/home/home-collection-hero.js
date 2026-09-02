@@ -6,6 +6,8 @@ import Button from '@mui/material/Button';
 import Container from '@mui/material/Container';
 import Typography from '@mui/material/Typography';
 import Grid from '@mui/material/Unstable_Grid2';
+import { useTheme } from '@mui/material/styles';
+import useMediaQuery from '@mui/material/useMediaQuery';
 // routes
 import { paths } from 'src/routes/paths';
 // components
@@ -15,16 +17,29 @@ import { RouterLink } from 'src/routes/components';
 // ----------------------------------------------------------------------
 
 export default function HomeCollectionHero({ imageSrc, videoSrc, cmsData, ...other }) {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+
   // Use CMS data if available
   const title = cmsData?.content?.title || 'COLLECTION';
   const subtitle = cmsData?.content?.subtitle || 'Explore our latest designs';
   const ctaText = cmsData?.content?.ctaText || 'View All';
   const ctaLink = cmsData?.content?.ctaLink || paths.product.root;
-  const backgroundVideo = cmsData?.content?.backgroundVideo || videoSrc;
-  const backgroundImage =
+  const desktopVideo = cmsData?.content?.backgroundVideo || videoSrc;
+  const desktopImage =
     cmsData?.content?.backgroundImage ||
     imageSrc ||
     '/assets/images/home/new-arrival/new-arrival-hero.jpeg';
+
+  // Mobile-specific media is optional — falls back to the desktop media
+  // whenever it isn't set, so existing collection sections keep working
+  // unchanged.
+  const backgroundVideo = isMobile
+    ? cmsData?.content?.backgroundVideoMobile || desktopVideo
+    : desktopVideo;
+  const backgroundImage = isMobile
+    ? cmsData?.content?.backgroundImageMobile || desktopImage
+    : desktopImage;
 
   const hasVideo = Boolean(backgroundVideo);
   const hasImage = Boolean(backgroundImage);
@@ -211,14 +226,5 @@ export default function HomeCollectionHero({ imageSrc, videoSrc, cmsData, ...oth
 HomeCollectionHero.propTypes = {
   imageSrc: PropTypes.string,
   videoSrc: PropTypes.string,
-  cmsData: PropTypes.shape({
-    content: PropTypes.shape({
-      title: PropTypes.string,
-      subtitle: PropTypes.string,
-      backgroundImage: PropTypes.string,
-      backgroundVideo: PropTypes.string,
-      ctaText: PropTypes.string,
-      ctaLink: PropTypes.string,
-    }),
-  }),
+  cmsData: PropTypes.object,
 };

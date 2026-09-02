@@ -10,6 +10,7 @@ import Typography from '@mui/material/Typography';
 import { alpha, useTheme } from '@mui/material/styles';
 import { RouterLink } from 'src/routes/components';
 import { paths } from 'src/routes/paths';
+import Iconify from 'src/components/iconify';
 
 // ----------------------------------------------------------------------
 
@@ -303,7 +304,11 @@ export default function HomeScrollAnimated({ products: propProducts, cmsData, ..
                   </m.div>
                 </AnimatePresence>
 
-                <Stack direction="row" spacing={1.25} sx={{ pt: 1 }}>
+                <Stack
+                  direction="row"
+                  spacing={1.25}
+                  sx={{ pt: 1, display: { xs: 'none', md: 'flex' } }}
+                >
                   {products.map((product, index) => (
                     <Box
                       key={product.id || `${product.title}-${index}`}
@@ -319,6 +324,29 @@ export default function HomeScrollAnimated({ products: propProducts, cmsData, ..
                       }}
                     />
                   ))}
+                </Stack>
+
+                {/* Mobile-only scroll hint, in place of the desktop dash
+                    indicators above — this section is scroll-jacked/pinned,
+                    which reads as "stuck" on a phone without a cue that
+                    scrolling further advances the story. */}
+                <Stack
+                  direction="row"
+                  spacing={0.75}
+                  alignItems="center"
+                  sx={{ pt: 1, display: { xs: 'flex', md: 'none' } }}
+                >
+                  <Iconify
+                    icon="solar:double-alt-arrow-up-bold"
+                    width={16}
+                    sx={{ color: 'text.secondary' }}
+                  />
+                  <Typography
+                    variant="caption"
+                    sx={{ color: 'text.secondary', letterSpacing: '0.02em' }}
+                  >
+                    Scroll to explore
+                  </Typography>
                 </Stack>
               </Stack>
             </Box>
@@ -391,6 +419,7 @@ export default function HomeScrollAnimated({ products: propProducts, cmsData, ..
 
               <Box
                 sx={{
+                  display: { xs: 'none', md: 'block' },
                   position: 'absolute',
                   right: { xs: 4, sm: 12, md: -18 },
                   bottom: { xs: 12, sm: 12, md: 20 },
