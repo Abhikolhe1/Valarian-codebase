@@ -389,6 +389,16 @@ export class BlueDartDeveloperPortalProvider implements ShippingProvider {
     if (!pickupReference) throw new BlueDartProviderError('Unsupported pickup response contract', {operation: 'registerPickup', reconciliationRequired: true});
     return {pickupReference, rawResponse: raw};
   }
+  /**
+   * Official Cancel Pickup v1 POST contract. Confirmed against Blue Dart's
+   * documented endpoint (2026-09-02): the request posts directly to the
+   * cancel-pickup base URL (".../cancel-pickup/v1") with NO sub-path —
+   * same pattern as trackShipment(). Deliberately does not go through
+   * this.endpoint('pickupCancellation') / BLUEDART_PICKUP_CANCELLATION_PATH,
+   * which previously appended a nonexistent "/CancelPickup" segment and
+   * made every cancellation fail with a generic, detail-free HTTP 400 from
+   * Apigee's routing layer before ever reaching Blue Dart's business logic.
+   */
   async cancelPickup(params: PickupCancellationParams): Promise<PickupCancellationResult> {
     const operation = 'cancelPickup';
     const tokenNumber = Number(params.pickupReference);
@@ -408,7 +418,7 @@ export class BlueDartDeveloperPortalProvider implements ShippingProvider {
         LoginID: this.config.account.loginId,
       },
     };
-    const raw = await this.client.post<Json, typeof body>(this.config.cancelPickupBaseUrl, this.endpoint('pickupCancellation'), body, operation);
+    const raw = await this.client.post<Json, typeof body>(this.config.cancelPickupBaseUrl, '', body, operation);
     const details: Json = (raw.CancelPickupResult ?? raw.CancelPickupResponseEntity ?? raw) as Json;
     const isError = details.IsError === true || details.IsError === 'True' || details.IsError === 'true';
     return {success: !isError, message: this.extractErrorMessage(details), rawResponse: raw};
