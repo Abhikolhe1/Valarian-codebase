@@ -25,6 +25,8 @@ export default function CollectionHeroSectionEditor({ section, onSave, onCancel 
           section?.content?.backgroundImage ||
           '/assets/images/home/new-arrival/new-arrival-hero.jpeg',
         backgroundVideo: section?.content?.backgroundVideo || '',
+        backgroundImageMobile: section?.content?.backgroundImageMobile || '',
+        backgroundVideoMobile: section?.content?.backgroundVideoMobile || '',
         ctaText: section?.content?.ctaText || 'View All',
         ctaLink: section?.content?.ctaLink || '/product',
       },
@@ -96,6 +98,39 @@ export default function CollectionHeroSectionEditor({ section, onSave, onCancel 
                 value={values.content?.backgroundVideo}
                 onChange={(url) => setValue('content.backgroundVideo', url)}
                 helperText="Optional video override for the collection hero"
+                accept={{
+                  'video/*': ['.mp4', '.webm'],
+                }}
+              />
+            </Stack>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent>
+            <Typography variant="h6" gutterBottom>
+              Mobile Background (Optional)
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              Shown instead of the background above on phone/small-tablet
+              screens. Leave blank to keep using the same background on
+              mobile.
+            </Typography>
+            <Stack spacing={2}>
+              <CMSMediaPickerField
+                label="Background Image (Mobile)"
+                value={values.content?.backgroundImageMobile}
+                onChange={(url) => setValue('content.backgroundImageMobile', url)}
+                helperText="Select an image from media library"
+                accept={{
+                  'image/*': ['.jpg', '.jpeg', '.png', '.webp', '.svg'],
+                }}
+              />
+              <CMSMediaPickerField
+                label="Background Video (Mobile, Optional)"
+                value={values.content?.backgroundVideoMobile}
+                onChange={(url) => setValue('content.backgroundVideoMobile', url)}
+                helperText="Select a video from media library"
                 accept={{
                   'video/*': ['.mp4', '.webm'],
                 }}

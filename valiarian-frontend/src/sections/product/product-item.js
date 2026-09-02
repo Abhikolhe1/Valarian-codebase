@@ -388,7 +388,7 @@ function ProductItem({ product }) {
           </Stack>
         </Stack>
 
-        <Box
+        {/* <Box
           sx={{
             display: 'flex',
             mt: 'auto',
@@ -424,7 +424,7 @@ function ProductItem({ product }) {
                 : 'Add to Cart'}
             </LoadingButton>
           )}
-        </Box>
+        </Box> */}
       </Stack>
     </Card>
   );
