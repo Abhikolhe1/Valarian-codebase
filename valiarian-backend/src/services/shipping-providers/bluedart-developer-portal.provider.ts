@@ -190,7 +190,17 @@ export class BlueDartDeveloperPortalProvider implements ShippingProvider {
     return {success: !isError, message: this.extractErrorMessage(details) ?? this.text(details.message), rawResponse: raw};
   }
 
-  /** Official Tracking v1 GET contract; scan=1 returns the complete scan history. */
+  /**
+   * Official Tracking v1 GET contract; scan=1 returns the complete scan
+   * history. Confirmed against Blue Dart's documented example request
+   * (2026-09-02): the query string is appended directly to the tracking
+   * base URL (".../tracking/v1?handler=tnt&...") with NO sub-path — unlike
+   * every other Blue Dart API family, tracking has no separate resource
+   * path. Deliberately does not go through this.endpoint('tracking') /
+   * BLUEDART_TRACKING_PATH, which previously appended a nonexistent
+   * "/shipment" segment and made every tracking call fail with a generic,
+   * detail-free HTTP 400 from Apigee's routing layer.
+   */
   async trackShipment(awbNumber: string): Promise<TrackingResult> {
     const operation = 'trackShipment';
     assertBlueDartBaseUrlConfigured(this.config.trackingBaseUrl, 'BLUEDART_SANDBOX_TRACKING_BASE_URL / BLUEDART_PRODUCTION_TRACKING_BASE_URL', operation);
@@ -199,7 +209,7 @@ export class BlueDartDeveloperPortalProvider implements ShippingProvider {
       awb: 'awb', numbers: awbNumber, format: 'xml',
       lickey: this.config.account.licenceKey || '', verno: '1', scan: '1',
     });
-    const raw = await this.client.get<string>(this.config.trackingBaseUrl, `${this.endpoint('tracking')}?${query.toString()}`, operation);
+    const raw = await this.client.get<string>(this.config.trackingBaseUrl, `?${query.toString()}`, operation);
     if (typeof raw !== 'string') throw new BlueDartProviderError('Blue Dart tracking response was not XML', {operation});
     const parseTimestamp = (dateValue: unknown, timeValue: unknown): Date => {
       const dateText = String(dateValue || '').trim();

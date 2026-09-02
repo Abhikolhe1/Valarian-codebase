@@ -354,7 +354,6 @@ describe('Blue Dart confirmed request contracts (unit)', () => {
     const trackingConfig = loadBlueDartConfig({
       ...developerEnvWithSandboxHost(),
       BLUEDART_SANDBOX_TRACKING_BASE_URL: 'https://apigateway-sandbox.bluedart.com/in/transportation/tracking/v1',
-      BLUEDART_TRACKING_PATH: '/shipment',
     });
     const xml = '<ShipmentData><Shipment WaybillNo="76662235090"><Destination>GURUGRAM</Destination><Status>SHIPMENT DELIVERED</Status><StatusType>DL</StatusType><StatusDate>30 January 2023</StatusDate><StatusTime>11:41</StatusTime><Scans><ScanDetail><Scan>SHIPMENT DELIVERED</Scan><ScanCode>000</ScanCode><ScanType>DL</ScanType><ScanDate>30-Jan-2023</ScanDate><ScanTime>11:41</ScanTime><ScannedLocation>GURGAON CPC</ScannedLocation></ScanDetail></Scans></Shipment></ShipmentData>';
     const http = {request: async (cfg: any) => {
@@ -366,7 +365,7 @@ describe('Blue Dart confirmed request contracts (unit)', () => {
     const provider = new BlueDartDeveloperPortalProvider(trackingConfig, new BlueDartApiClient(trackingConfig, auth, http));
     const result = await provider.trackShipment('76662235090');
     expect(calls[0].method).to.equal('GET');
-    expect(calls[0].url).to.match(/^\/shipment\?/);
+    expect(calls[0].url).to.match(/^\?handler=tnt/);
     expect(calls[0].url).to.match(/numbers=76662235090/);
     expect(calls[0].url).to.match(/scan=1/);
     expect(result.currentStatus).to.equal('delivered');
