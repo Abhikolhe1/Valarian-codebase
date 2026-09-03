@@ -1,3 +1,14 @@
-# https://www.robotstxt.org/robotstxt.html
 User-agent: *
-Disallow:
+Allow: /
+Disallow: /auth/
+Disallow: /dashboard/
+Disallow: /profile
+Disallow: /orders/
+Disallow: /payment/
+Disallow: /products/checkout
+Disallow: /favorites
+Disallow: /components/
+Disallow: /classic/
+Disallow: /modern/
+
+Sitemap: https://valiarian.com/sitemap.xml

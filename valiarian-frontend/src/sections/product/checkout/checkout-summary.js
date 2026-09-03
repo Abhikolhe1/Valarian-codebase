@@ -153,7 +153,7 @@ export default function CheckoutSummary({
           <Stack direction="row" justifyContent="space-between">
             <Typography variant="subtitle1">Payable</Typography>
             <Box sx={{ textAlign: 'right' }}>
-              <Typography variant="subtitle1" sx={{ color: 'error.main' }}>
+              <Typography variant="subtitle1">
                 {fCurrency(payableAmount)}
               </Typography>
             </Box>

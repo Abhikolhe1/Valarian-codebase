@@ -91,35 +91,6 @@ export default function HomeView() {
       {renderCmsSection(fabricSection, HomeFabricSection, <HomeSectionSkeleton />)}
 
       {renderCmsSection(socialMediaSection, HomeSocialMedia, <HomeSectionSkeleton compact />)}
-
-      {/* <Box
-        sx={{
-          overflow: 'hidden',
-          position: 'relative',
-          bgcolor: 'background.default',
-        }}
-      >
-
-        <HomeHugePackElements />
-
-        <Box sx={{ position: 'relative' }}>
-          <StyledPolygon />
-          <HomeForDesigner />
-          <StyledPolygon anchor="bottom" />
-        </Box>
-
-        <HomeDarkMode />
-
-        <HomeColorPresets />
-
-        <HomeCleanInterfaces />
-
-        <HomePricing />
-
-        <HomeLookingFor />
-
-        <HomeAdvertisement />
-      </Box> */}
     </>
   );
 }
