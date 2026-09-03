@@ -11,12 +11,92 @@ export const _carouselsMembers = [...Array(6)].map((_, index) => ({
 
 // ----------------------------------------------------------------------
 
-export const _faqs = [...Array(8)].map((_, index) => ({
-  id: _mock.id(index),
-  value: `panel${index + 1}`,
-  heading: `Questions ${index + 1}`,
-  detail: _mock.description(index),
-}));
+export const _faqs = [
+  {
+    id: 'faq-account-access',
+    value: 'panel1',
+    heading: 'How can I create or access my account?',
+    detail:
+      'You can sign in using your registered account details or continue with Google. From your account, you can manage saved addresses, view orders, track shipments, and submit return requests.',
+  },
+  {
+    id: 'faq-cod-availability',
+    value: 'panel2',
+    heading: 'Why is Cash on Delivery unavailable for my order?',
+    detail:
+      'Cash on Delivery availability depends on whether the courier supports COD service for your delivery postcode. If COD is unavailable, please choose an available prepaid payment method.',
+  },
+  {
+    id: 'faq-coupon-cod',
+    value: 'panel3',
+    heading: 'Can every coupon be used with Cash on Delivery?',
+    detail:
+      'No. Some coupons are limited to specific payment methods and may not be applicable to Cash on Delivery orders. Please choose an eligible payment method or remove the coupon before placing the order.',
+  },
+  {
+    id: 'faq-track-order',
+    value: 'panel4',
+    heading: 'How can I track my order?',
+    detail:
+      'Open your order history and select the relevant order. Tracking details become available after the order has been shipped.',
+  },
+  {
+    id: 'faq-delivery-unavailable',
+    value: 'panel5',
+    heading: 'Why is delivery unavailable for my postcode?',
+    detail:
+      'Delivery availability depends on Blue Dart serviceability for your six-digit postcode. If the postcode is not serviceable, we cannot deliver the order to that location at this time.',
+  },
+  {
+    id: 'faq-damaged-wrong-product',
+    value: 'panel6',
+    heading: 'What should I do if I receive a damaged or incorrect product?',
+    detail:
+      'Submit a return request from your order details and provide the required product photos. Our team will review the request and contact you with the next steps.',
+  },
+  {
+    id: 'faq-return-barcode',
+    value: 'panel7',
+    heading: 'Why is the product barcode required for a return?',
+    detail:
+      'The barcode helps us identify the exact item and match it with the correct order before approving the return.',
+  },
+  {
+    id: 'faq-return-window',
+    value: 'panel8',
+    heading: 'How long do I have to request a return?',
+    detail:
+      'You can submit a return request within 7 days of delivery. Requests made after the return window may not be accepted.',
+  },
+  {
+    id: 'faq-return-photos',
+    value: 'panel9',
+    heading: 'Which photos are required for a return request?',
+    detail:
+      'Please upload clear photos of the front and back of the product and the package seal. You may also upload up to five additional photos to clearly show the issue.',
+  },
+  {
+    id: 'faq-refund-method-time',
+    value: 'panel10',
+    heading: 'How will I receive my refund, and how long will it take?',
+    detail:
+      'Approved refunds are issued to the original payment method and generally take 5–7 business days to appear, depending on your bank or payment provider.',
+  },
+  {
+    id: 'faq-secure-payments',
+    value: 'panel11',
+    heading: 'Are online payments secure?',
+    detail:
+      'Yes. Online payments are processed through Razorpay, and payment signatures are verified before an order is confirmed.',
+  },
+  {
+    id: 'faq-return-verification',
+    value: 'panel12',
+    heading: 'How do you verify a return request?',
+    detail:
+      'We verify the customer, order, item, and product barcode details to ensure the return request matches the product that was originally ordered.',
+  },
+];
 
 // ----------------------------------------------------------------------
 

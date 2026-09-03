@@ -12,7 +12,7 @@ import {EmailTemplateService} from './email-template.service';
 import {RazorpayService} from './razorpay.service';
 import {areBackgroundJobsEnabled} from '../utils/background-jobs';
 
-const DEFAULT_PENDING_ORDER_AGE_HOURS = 2;
+const DEFAULT_PENDING_ORDER_AGE_HOURS = 12;
 const DEFAULT_SWEEP_INTERVAL_MS = 2 * 60 * 60 * 1000;
 const SYSTEM_ACTOR_ID = 'system:pending-order-cleanup';
 
