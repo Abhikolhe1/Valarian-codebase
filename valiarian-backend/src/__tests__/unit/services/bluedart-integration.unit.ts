@@ -6,6 +6,8 @@ import {BlueDartDeveloperPortalProvider} from '../../../services/shipping-provid
 import {BlueDartConfigurationError, BlueDartRateLimitError} from '../../../services/shipping-providers/bluedart-errors';
 import {mapAlternateInstructionRequest, mapReversePickupRequest, mapTransitTimeRequest, mapWaybillRequest} from '../../../services/shipping-providers/bluedart/mappers';
 import {CreateShipmentParams} from '../../../interfaces/shipping-provider.interface';
+import {ShippingService} from '../../../services/shipping.service';
+import {selectForwardWaybillService} from '../../../utils/bluedart-forward-service.utils';
 
 function developerEnv(): NodeJS.ProcessEnv {
   return {
@@ -208,6 +210,92 @@ describe('Blue Dart Location Finder response-wrapper regression (unit)', () => {
 
     await expect(provider.checkServiceability({pincode: '400001'})).to.be.rejectedWith(/UserDoesNotExists/);
   });
+
+  it('requires the payment-specific outbound Surface flag in Surface mode', async () => {
+    const config = loadBlueDartConfig(developerEnvWithSandboxHost());
+    const http = mockAuthAndBusinessHttp({
+      GetServicesforPincodeResult: {
+        IsError: false,
+        GroundOutbound: 'Y',
+        DomesticPriorityOutbound: 'Y',
+        eTailPrePaidGroundOutbound: 'N',
+        eTailCODGroundOutbound: 'Y',
+      },
+    });
+    const auth = new BlueDartAuthService(config, undefined, http);
+    const provider = new BlueDartDeveloperPortalProvider(
+      config,
+      new BlueDartApiClient(config, auth, http),
+    );
+
+    const prepaid = await provider.checkServiceability({
+      pincode: '400001', deliveryMode: 'surface', paymentType: 'prepaid',
+    });
+    const cod = await provider.checkServiceability({
+      pincode: '400001', deliveryMode: 'surface', paymentType: 'cod',
+    });
+
+    expect(prepaid.isServiceable).to.be.false();
+    expect(cod.isServiceable).to.be.true();
+    expect(cod.isCodAvailable).to.be.true();
+  });
+});
+
+describe('Blue Dart forward Surface policy (unit)', () => {
+  it('selects E/P for prepaid and E/C for COD with no Air/Priority fallback', () => {
+    const env = {BLUEDART_DELIVERY_MODE: 'surface'};
+    const prepaid = selectForwardWaybillService(false, env);
+    const cod = selectForwardWaybillService(true, env);
+
+    expect(prepaid).to.containDeep({
+      deliveryMode: 'surface', paymentType: 'prepaid',
+      productCode: 'E', subProductCode: 'P', serviceType: 'surface',
+    });
+    expect(cod).to.containDeep({
+      deliveryMode: 'surface', paymentType: 'cod',
+      productCode: 'E', subProductCode: 'C', serviceType: 'surface',
+    });
+    expect([prepaid.productCode, cod.productCode]).to.not.containEql('A');
+    expect([prepaid.productCode, cod.productCode]).to.not.containEql('D');
+  });
+
+  it('keeps Air and Domestic Priority available as explicit environment choices', () => {
+    expect(selectForwardWaybillService(false, {BLUEDART_DELIVERY_MODE: 'air'})).to.containDeep({
+      productCode: 'A', subProductCode: 'P', serviceType: 'air',
+    });
+    expect(selectForwardWaybillService(true, {BLUEDART_DELIVERY_MODE: 'air'})).to.containDeep({
+      productCode: 'A', subProductCode: 'C', serviceType: 'air',
+    });
+    expect(selectForwardWaybillService(false, {BLUEDART_DELIVERY_MODE: 'domestic_priority'})).to.containDeep({
+      productCode: 'D', serviceType: 'domestic_priority',
+    });
+    expect(() => selectForwardWaybillService(true, {BLUEDART_DELIVERY_MODE: 'domestic_priority'}))
+      .to.throw(/not a COD ecommerce mapping/);
+  });
+
+  it('keeps prepaid and COD Surface serviceability caches separate', async () => {
+    const service = new ShippingService(undefined, undefined, undefined);
+    let calls = 0;
+    (service as any).activeProvider = {
+      courierName: 'BlueDart',
+      checkServiceability: async () => {
+        calls++;
+        return {isServiceable: true, isCodAvailable: true, courierName: 'BlueDart'};
+      },
+    };
+
+    await service.checkServiceability({
+      pincode: '400001', deliveryMode: 'surface', paymentType: 'prepaid',
+    });
+    await service.checkServiceability({
+      pincode: '400001', deliveryMode: 'surface', paymentType: 'cod',
+    });
+    await service.checkServiceability({
+      pincode: '400001', deliveryMode: 'surface', paymentType: 'prepaid',
+    });
+
+    expect(calls).to.equal(2);
+  });
 });
 
 describe('Blue Dart API client sandbox host guard (unit)', () => {
@@ -295,6 +383,39 @@ describe('Blue Dart confirmed request contracts (unit)', () => {
   it('maps COD only when explicitly requested', () => {
     const request = mapWaybillRequest(validShipment({isCod: true, codAmount: 750, codFavorOf: 'Valiarian LLP'}), config);
     expect(request.Request.Services.CollectableAmount).to.equal(750);
+  });
+
+  it('maps Surface prepaid as E/P and Surface COD as E/C with the correct collectable amount', () => {
+    const prepaidService = selectForwardWaybillService(false, {BLUEDART_DELIVERY_MODE: 'surface'});
+    const prepaid = mapWaybillRequest(validShipment({
+      isCod: false,
+      productCode: prepaidService.productCode,
+      subProductCode: prepaidService.subProductCode,
+    }), config);
+    expect(prepaid.Request.Services).to.containDeep({ProductCode: 'E', SubProductCode: 'P'});
+    expect(prepaid.Request.Services).to.not.have.property('CollectableAmount');
+
+    const codService = selectForwardWaybillService(true, {BLUEDART_DELIVERY_MODE: 'surface'});
+    const cod = mapWaybillRequest(validShipment({
+      isCod: true,
+      codAmount: 750,
+      codFavorOf: 'Valiarian LLP',
+      productCode: codService.productCode,
+      subProductCode: codService.subProductCode,
+    }), config);
+    expect(cod.Request.Services).to.containDeep({
+      ProductCode: 'E', SubProductCode: 'C', CollectableAmount: 750,
+    });
+  });
+
+  it('passes the selected Surface pair unchanged to Transit Time', () => {
+    const service = selectForwardWaybillService(true, {BLUEDART_DELIVERY_MODE: 'surface'});
+    const request = mapTransitTimeRequest({
+      originPincode: '422001', destinationPincode: '400057',
+      productCode: service.productCode!, subProductCode: service.subProductCode,
+      pickupDate: new Date(1700000000000), pickupTime: '1600',
+    }, config);
+    expect(request).to.containDeep({pProductCode: 'E', pSubProductCode: 'C'});
   });
 
   it('makes CreditReferenceNo unique per order UUID even when orderNumber collides across environments', () => {

@@ -363,14 +363,14 @@ function ProductItem({ product }) {
               {product.salePrice ? fCurrency(product.salePrice) : fCurrency(productView.displayPrice)}
             </Box>
 
-            {product.salePrice && (
+            {/* {product.salePrice && (
               <Box
                 component="span"
                 sx={{ color: 'text.disabled', typography: 'caption', textDecoration: 'line-through', fontSize: { xs: 11, sm: 14 }, }}
               >
                 {fCurrency(productView.displayPrice)}
               </Box>
-            )}
+            )} */}
 
 
             {product.salePrice && productView.discountPercent > 0 && (

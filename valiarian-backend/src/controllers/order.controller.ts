@@ -50,6 +50,7 @@ import {
   isLiveRazorpayMode,
   resolveWebhookRawBody,
 } from '../utils/razorpay-webhook.utils';
+import {selectForwardWaybillService} from '../utils/bluedart-forward-service.utils';
 import {
   calculateCouponDiscount,
   getCouponAvailabilityError,
@@ -1724,7 +1725,14 @@ export class OrderController {
 
     let serviceability;
     try {
-      serviceability = await this.shippingService.checkServiceability({pincode});
+      const forwardService = selectForwardWaybillService(
+        request.paymentMethod === 'cod',
+      );
+      serviceability = await this.shippingService.checkServiceability({
+        pincode,
+        deliveryMode: forwardService.deliveryMode,
+        paymentType: forwardService.paymentType,
+      });
     } catch (error) {
       console.error(
         `[OrderController] Serviceability unavailable for pincode ${pincode}; allowing order. Reason:`,
