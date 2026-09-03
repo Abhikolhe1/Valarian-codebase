@@ -188,7 +188,7 @@ export default function Footer() {
               }}
             >
               {settings.general?.siteDescription ||
-                'The starting point for your next project with Valiarian UI Kit, built on the newest version of Material-UI, ready to be customized to your style.'}
+                "Discover Valiarian's premium clothing, crafted with refined design, exceptional comfort, and timeless style for the modern wardrobe."}
             </Typography>
 
             <Stack

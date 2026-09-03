@@ -89,6 +89,7 @@ export default function OrderDetailsView() {
 
   const [order, setOrder] = useState(null);
   const [statusHistory, setStatusHistory] = useState([]);
+  const [shipments, setShipments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -160,6 +161,13 @@ export default function OrderDetailsView() {
         const response = await axios.get(`/api/admin/orders/${id}`);
         setOrder(response.data.order);
         setStatusHistory(response.data.statusHistory || []);
+        try {
+          const shipmentResponse = await axios.get(`/api/admin/orders/${id}/shipments`);
+          setShipments(Array.isArray(shipmentResponse.data) ? shipmentResponse.data : []);
+        } catch (shipmentError) {
+          console.error('Error fetching shipment details:', shipmentError);
+          setShipments([]);
+        }
         setSelectedOrderItemIds((response.data.order?.orderItems || []).map((item) => item.id));
         setError(null);
       } catch (err) {
@@ -961,6 +969,106 @@ export default function OrderDetailsView() {
                   </Typography>
                 </Stack>
               </Stack>
+            </Card>
+
+            {/* Blue Dart AWB and pickup response */}
+            <Card sx={{ p: 3 }}>
+              <Typography variant="h6" sx={{ mb: 3 }}>
+                Blue Dart Shipment Response
+              </Typography>
+
+              {shipments.length === 0 ? (
+                <Alert severity="info">
+                  No Blue Dart shipment has been created for this order yet. Packing the order
+                  creates the AWB and requests pickup.
+                </Alert>
+              ) : (
+                <Stack spacing={3}>
+                  {shipments.map((shipment) => (
+                    <Card key={shipment.id} variant="outlined" sx={{ p: 2.5 }}>
+                      <Stack spacing={2}>
+                        <Stack
+                          direction={{ xs: 'column', sm: 'row' }}
+                          justifyContent="space-between"
+                          alignItems={{ xs: 'flex-start', sm: 'center' }}
+                          spacing={1}
+                        >
+                          <Typography variant="subtitle1">
+                            {shipment.isReverse ? 'Reverse pickup' : 'Forward shipment'}
+                          </Typography>
+                          <Label
+                            variant="soft"
+                            color={shipment.pickupRegistrationError ? 'error' : 'success'}
+                          >
+                            {shipment.status || shipment.creationState || 'created'}
+                          </Label>
+                        </Stack>
+
+                        <Grid container spacing={2}>
+                          <Grid xs={12} sm={6}>
+                            <Typography variant="caption" color="text.secondary">
+                              AWB Number
+                            </Typography>
+                            <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>
+                              {shipment.awbNumber || 'Not returned'}
+                            </Typography>
+                          </Grid>
+                          <Grid xs={12} sm={6}>
+                            <Typography variant="caption" color="text.secondary">
+                              Pickup Reference
+                            </Typography>
+                            <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>
+                              {shipment.pickupReference || 'Not returned'}
+                            </Typography>
+                          </Grid>
+                          <Grid xs={12} sm={6}>
+                            <Typography variant="caption" color="text.secondary">
+                              Courier Reference
+                            </Typography>
+                            <Typography variant="body2">
+                              {shipment.courierReferenceNumber || 'Not returned'}
+                            </Typography>
+                          </Grid>
+                          <Grid xs={12} sm={6}>
+                            <Typography variant="caption" color="text.secondary">
+                              Blue Dart Service
+                            </Typography>
+                            <Typography variant="body2">
+                              {[shipment.serviceType, shipment.productCode, shipment.subProductCode]
+                                .filter(Boolean)
+                                .join(' / ') || 'Not recorded'}
+                            </Typography>
+                          </Grid>
+                          <Grid xs={12} sm={6}>
+                            <Typography variant="caption" color="text.secondary">
+                              AWB Created
+                            </Typography>
+                            <Typography variant="body2">
+                              {shipment.createdAt ? fDateTime(shipment.createdAt) : 'Not recorded'}
+                            </Typography>
+                          </Grid>
+                          <Grid xs={12} sm={6}>
+                            <Typography variant="caption" color="text.secondary">
+                              Pickup Registered
+                            </Typography>
+                            <Typography variant="body2">
+                              {shipment.pickupRegisteredAt
+                                ? fDateTime(shipment.pickupRegisteredAt)
+                                : 'Not registered'}
+                            </Typography>
+                          </Grid>
+                        </Grid>
+
+                        {shipment.pickupRegistrationError && (
+                          <Alert severity="error">
+                            Pickup creation failed: {shipment.pickupRegistrationError}
+                          </Alert>
+                        )}
+                      </Stack>
+                    </Card>
+                  ))}
+                </Stack>
+              )}
             </Card>
 
             {/* Barcode Scanner */}
