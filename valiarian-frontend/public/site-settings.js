@@ -43,15 +43,22 @@
     },
     offers: {
       marquee: [
-        { text: 'Flat 20% off on premium polos' },
-        { text: 'Free shipping on orders above ₹1999' },
-        { text: 'Limited edition drop - Shop now' }
+        { text: 'Free Shipping' },
+        { text: 'Get 10% off on all orders using coupon code SAVE10' },
+        { text: 'Minimum purchase of 2,400 to get 20% off. Use code DEAL20' }
       ]
     }
   };
 
-  // API endpoint
-  const API_URL = 'http://localhost:3035/api/cms/settings';
+  // This public file is copied as-is into the React build, so CRA environment
+  // variables are not interpolated here. Resolve the API from the storefront host.
+  const API_ORIGIN_BY_HOST = {
+    'uat.valiarian.com': 'https://uatapi.valiarian.com',
+    'valiarian.com': 'https://api.valiarian.com',
+    'www.valiarian.com': 'https://api.valiarian.com'
+  };
+  const API_ORIGIN = API_ORIGIN_BY_HOST[window.location.hostname] || 'http://localhost:3035';
+  const API_URL = `${API_ORIGIN}/api/cms/settings`;
 
   // Global settings object
   window.siteSettings = DEFAULT_SETTINGS;
@@ -256,7 +263,7 @@
   function fetchSiteSettings() {
     console.log('🔄 Fetching site settings from:', API_URL);
 
-    return fetch(API_URL)
+    return fetch(API_URL, { cache: 'no-store' })
       .then(function (response) {
         if (!response.ok) {
           throw new Error(`HTTP ${response.status}: ${response.statusText}`);
