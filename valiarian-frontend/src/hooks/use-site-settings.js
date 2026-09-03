@@ -17,20 +17,19 @@ export function useSiteSettings() {
   const [loading, setLoading] = useState(!window.siteSettings);
 
   useEffect(() => {
-    // If settings are already loaded, use them
-    if (window.siteSettings) {
-      setSettings(window.siteSettings);
-      setLoading(false);
-      return undefined;
-    }
-
-    // Listen for settings loaded event
     const handleSettingsLoaded = (event) => {
       setSettings(event.detail);
       setLoading(false);
     };
 
+    // The loader exposes defaults synchronously and replaces them after the API
+    // request. Always subscribe so this hook receives that later replacement.
     window.addEventListener('siteSettingsLoaded', handleSettingsLoaded);
+
+    if (window.siteSettings) {
+      setSettings(window.siteSettings);
+      setLoading(false);
+    }
 
     return () => {
       window.removeEventListener('siteSettingsLoaded', handleSettingsLoaded);
