@@ -26,6 +26,9 @@ export type InternalShipmentStatus =
 export interface ServiceabilityParams {
   pincode: string;
   weightGrams?: number;
+  /** Forward-delivery policy used to keep cache/results service-specific. */
+  deliveryMode?: 'configured' | 'surface' | 'air' | 'domestic_priority';
+  paymentType?: 'prepaid' | 'cod';
 }
 
 export interface ServiceabilityResult {
@@ -35,6 +38,8 @@ export interface ServiceabilityResult {
   courierName: string;
   areaCode?: string;
   originArea?: string;
+  surfacePrepaidAvailable?: boolean;
+  surfaceCodAvailable?: boolean;
   rawResponse?: unknown;
 }
 
@@ -79,7 +84,7 @@ export interface CreateShipmentParams {
   // Service
   productCode?: string; // e.g. "A" for Air Express
   subProductCode?: string; // e.g. "P"
-  serviceType?: string; // "A" = Air, "D" = Surface
+  serviceType?: string; // Application classification, e.g. "surface"
   /** Blue Dart ProductType: 0 for non-document merchandise, 1 for documents. */
   productType?: 0 | 1;
 

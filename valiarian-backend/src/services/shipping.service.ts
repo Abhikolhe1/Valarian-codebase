@@ -177,7 +177,9 @@ export class ShippingService {
   async checkServiceability(
     params: ServiceabilityParams,
   ): Promise<ServiceabilityResult> {
-    const cacheKey = `shipping:serviceability:${params.pincode}`;
+    const cacheKey = params.deliveryMode && params.paymentType
+      ? `shipping:serviceability:${params.pincode}:${params.deliveryMode}:${params.paymentType}`
+      : `shipping:serviceability:${params.pincode}`;
     const ttlHours = Number(process.env.SERVICEABILITY_CACHE_TTL_HOURS || '24');
     const ttlSeconds = ttlHours * 3600;
 
@@ -188,7 +190,7 @@ export class ShippingService {
       if (cached) return cached;
     } else {
       // 2. Fallback to in-memory map
-      const cached = this.localServiceabilityCache.get(params.pincode);
+      const cached = this.localServiceabilityCache.get(cacheKey);
       if (cached && cached.expiresAt > Date.now()) {
         return cached.data;
       }
@@ -203,7 +205,7 @@ export class ShippingService {
     if (this.cacheService) {
       await this.cacheService.set(cacheKey, result, ttlSeconds);
     } else {
-      this.localServiceabilityCache.set(params.pincode, {
+      this.localServiceabilityCache.set(cacheKey, {
         data: result,
         expiresAt: Date.now() + ttlSeconds * 1000,
       });

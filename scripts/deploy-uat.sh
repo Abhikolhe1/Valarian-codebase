@@ -113,6 +113,12 @@ deploy_static_app() {
   ( cd "$dir" && BUILD_PATH=build.new GENERATE_SOURCEMAP=false NODE_OPTIONS="--max-old-space-size=2048" npm run build )
   [ -f "${dir}/build.new/index.html" ] || { log "${name^^}" "build did not produce build.new/index.html"; rm -rf "${dir}/build.new"; return 1; }
 
+  # UAT crawl policy is deployment-specific. The stronger X-Robots-Tag header
+  # is configured in Nginx; this file is the secondary crawler safeguard.
+  if [ "$name" = "frontend" ]; then
+    cp "${SCRIPT_DIR}/robots.uat.txt" "${dir}/build.new/robots.txt"
+  fi
+
   log "${name^^}" "Swapping in new build"
   rm -rf "${dir}/build.prev"
   if [ -d "${dir}/build" ]; then mv "${dir}/build" "${dir}/build.prev"; fi

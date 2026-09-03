@@ -1,5 +1,6 @@
 import { m } from 'framer-motion';
 import PropTypes from 'prop-types';
+import { useEffect, useRef } from 'react';
 // @mui
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
@@ -90,6 +91,35 @@ export default function HomeHero({ imageSrc, videoSrc, cmsData, ...other }) {
   const hasVideo = Boolean(resolvedVideo);
   const hasImage = Boolean(resolvedImage);
 
+  // iOS (and some Android browsers) silently pause an autoplaying
+  // background video — most commonly Low Power Mode, but also happens on
+  // an app-switch/lock-screen interruption or an orientation change. The
+  // browser then shows its native paused state (a play/pause icon over the
+  // video) instead of silently continuing the loop. Force a resume
+  // whenever that happens, and again whenever the tab/app comes back into
+  // the foreground, since a pause caused by backgrounding doesn't always
+  // fire its own 'pause' event.
+  const videoRef = useRef(null);
+  const resumeVideo = () => {
+    const video = videoRef.current;
+    if (video && video.paused) {
+      video.play().catch(() => {
+        // Autoplay can still be legitimately blocked (e.g. Low Power Mode
+        // holding firm) — nothing more to do without a user gesture.
+      });
+    }
+  };
+
+  useEffect(() => {
+    if (!hasVideo) return undefined;
+    document.addEventListener('visibilitychange', resumeVideo);
+    window.addEventListener('pageshow', resumeVideo);
+    return () => {
+      document.removeEventListener('visibilitychange', resumeVideo);
+      window.removeEventListener('pageshow', resumeVideo);
+    };
+  }, [hasVideo]);
+
   const title = cmsData?.content?.title || cmsData?.content?.heading || 'Premium Cotton Polos.';
   const ctaText =
     cmsData?.content?.ctaText ||
@@ -109,11 +139,15 @@ export default function HomeHero({ imageSrc, videoSrc, cmsData, ...other }) {
         // source changes, e.g. when crossing the mobile/desktop breakpoint —
         // browsers don't reliably pick up a changed <source> otherwise.
         <StyledVideo
+          ref={videoRef}
           key={resolvedVideo}
           autoPlay
           loop
           muted
           playsInline
+          webkit-playsinline="true"
+          disablePictureInPicture
+          onPause={resumeVideo}
           onError={(e) => {
             console.error('Video failed to load:', e);
             e.target.style.display = 'none';
