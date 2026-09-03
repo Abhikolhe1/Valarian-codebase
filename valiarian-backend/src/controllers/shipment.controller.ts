@@ -177,7 +177,9 @@ export class ShipmentController {
     }
     const computedDims = calculateOrderShippingDimensions(products);
 
-    const weightGrams = req.weightGrams ?? computedDims.chargeableWeightGrams;
+    // Blue Dart receives Dimensions: [], so use actual/dead weight rather
+    // than the locally calculated volumetric chargeable weight.
+    const weightGrams = req.weightGrams ?? computedDims.deadWeightGrams;
     const lengthCm = req.lengthCm ?? computedDims.lengthCm;
     const breadthCm = req.breadthCm ?? computedDims.breadthCm;
     const heightCm = req.heightCm ?? computedDims.heightCm;

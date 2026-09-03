@@ -387,7 +387,8 @@ describe('Blue Dart confirmed request contracts (unit)', () => {
     expect(request.Request.Shipper.IsToPayCustomer).to.be.false();
     expect(request.Request.Shipper).to.not.have.property('isToPayCustomer');
     expect(request.Request.Services.ProductType).to.equal(0);
-    expect(request.Request.Services.Dimensions).to.deepEqual([{Breadth: 15, Count: 1, Height: 10, Length: 20}]);
+    expect(request.Request.Services.ActualWeight).to.equal(0.5);
+    expect(request.Request.Services.Dimensions).to.deepEqual([]);
     expect(request.Request.Services).to.not.have.property('CollectableAmount');
     expect(request.Request.Returnadds.ReturnPincode).to.equal('422001');
     expect(request.Request.Shipper.Sender).to.equal('');
@@ -398,7 +399,6 @@ describe('Blue Dart confirmed request contracts (unit)', () => {
     expect(() => mapWaybillRequest(validShipment({weightGrams: 0}), config)).to.throw(/weightGrams/);
     expect(() => mapWaybillRequest(validShipment({warehousePhone: ''}), config)).to.throw(/warehousePhone/);
     expect(() => mapWaybillRequest(validShipment({receiverPincode: '123'}), config)).to.throw(/receiverPincode/);
-    expect(() => mapWaybillRequest(validShipment({lengthCm: 0}), config)).to.throw(/lengthCm/);
   });
 
   it('maps COD only when explicitly requested', () => {
