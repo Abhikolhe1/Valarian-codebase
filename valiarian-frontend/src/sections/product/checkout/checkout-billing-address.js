@@ -47,18 +47,23 @@ export default function CheckoutBillingAddress({ checkout, onBackStep, onCreateB
       user
     );
 
-  // Returns a customer-facing block message only on a definitive "not
-  // serviceable" answer. A provider outage (thrown error) fails open — same
-  // policy as the backend's own gate — so it never returns a message.
+  // Invalid/unserviceable pincodes and provider failures all block checkout,
+  // while preserving a distinct customer-facing message for each case.
   const getUnserviceableMessage = async (pincode) => {
     try {
       const result = await checkPincodeServiceability(pincode);
-      return result && result.isServiceable === false
-        ? `We do not deliver to pincode ${pincode} yet. Please use a different address.`
-        : null;
-    } catch (checkError) {
-      console.error('Serviceability check failed, allowing checkout to proceed:', checkError);
+      if (result?.reason === 'invalid_pincode') {
+        return `Pincode ${pincode} is not a valid delivery pincode. Please check and try again.`;
+      }
+      if (result?.isServiceable === false) {
+        return `Blue Dart Surface delivery is not available for pincode ${pincode}. Please use a different address.`;
+      }
       return null;
+    } catch (checkError) {
+      console.error('Serviceability check failed:', checkError);
+      throw new Error(
+        'We could not verify delivery availability right now. Please try again shortly.'
+      );
     }
   };
 
@@ -72,6 +77,11 @@ export default function CheckoutBillingAddress({ checkout, onBackStep, onCreateB
         return;
       }
       onCreateBilling(buildBillingAddress(address));
+    } catch (checkError) {
+      setServiceabilityError(
+        checkError?.message ||
+          'We could not verify delivery availability right now. Please try again shortly.'
+      );
     } finally {
       setCheckingAddressId(null);
     }

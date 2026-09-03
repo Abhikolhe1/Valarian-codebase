@@ -1710,9 +1710,9 @@ export class OrderController {
    * Serviceability gate for order placement. Applies to prepaid and COD alike;
    * COD additionally requires the pincode to support cash collection.
    *
-   * Returns a customer-facing reason to reject, or null to allow. A provider
-   * outage returns null (fail open) so that Blue Dart being unreachable cannot
-   * stop checkout — the AWB-generation check remains the hard gate.
+   * Returns a customer-facing reason to reject, or null to allow. Provider
+   * failures block placement so an unverified destination cannot create an
+   * order that later fails during AWB generation.
    */
   private async checkDestinationServiceability(
     request: CreateOrderRequest,
@@ -1734,14 +1734,22 @@ export class OrderController {
         paymentType: forwardService.paymentType,
       });
     } catch (error) {
+      const isProduction = process.env.NODE_ENV === 'production';
       console.error(
-        `[OrderController] Serviceability unavailable for pincode ${pincode}; allowing order. Reason:`,
+        `[OrderController] Serviceability unavailable for pincode ${pincode}; ${
+          isProduction ? 'blocking order' : 'allowing local order'
+        }. Reason:`,
         error.message || error,
       );
-      return null;
+      return isProduction
+        ? 'We could not verify delivery availability right now. Please try again shortly.'
+        : null;
     }
 
     if (!serviceability.isServiceable) {
+      if (serviceability.reason === 'invalid_pincode') {
+        return `Pincode ${pincode} is not a valid delivery pincode. Please check and try again.`;
+      }
       return `We do not deliver to pincode ${pincode} yet. Please try a different delivery address.`;
     }
 

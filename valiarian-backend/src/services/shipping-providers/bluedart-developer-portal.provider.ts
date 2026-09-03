@@ -10,6 +10,17 @@ type Json = Record<string, any>;
 
 const isYes = (value: unknown) => value === 'Y' || value === 'Yes';
 
+const isInvalidPincodeMessage = (value: unknown): boolean => {
+  const normalized = String(value ?? '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  return [
+    'invalidpincode',
+    'pincodeinvalid',
+    'pincodenotfound',
+    'pincodedoesnotexist',
+    'invalidpostalcode',
+  ].some(message => normalized.includes(message));
+};
+
 const toBlueDartPickupTime = (value: string, field: string, operation: string): string => {
   const digits = value.replace(':', '');
   if (!/^\d{4}$/.test(digits)) {
@@ -79,6 +90,15 @@ export class BlueDartDeveloperPortalProvider implements ShippingProvider {
     // Keep both keys plus a raw fallback for resilience across accounts.
     const details: Json = (raw.GetServicesforPincodeResult ?? raw.ServiceCenterDetailsReference ?? raw) as Json;
     if (details.IsError === true || details.IsError === 'True' || details.IsError === 'true') {
+      if (isInvalidPincodeMessage(details.ErrorMessage)) {
+        return {
+          isServiceable: false,
+          isCodAvailable: false,
+          reason: 'invalid_pincode',
+          courierName: this.courierName,
+          rawResponse: raw,
+        };
+      }
       throw new BlueDartProviderError(String(details.ErrorMessage || 'Blue Dart returned an error for this pincode'), {operation: 'checkServiceability'});
     }
     // Which outbound flags count as "serviceable" depends on which Blue Dart
@@ -107,6 +127,7 @@ export class BlueDartDeveloperPortalProvider implements ShippingProvider {
     return {
       isServiceable,
       isCodAvailable: selectedCodAvailable,
+      reason: isServiceable ? undefined : 'not_serviceable',
       surfacePrepaidAvailable,
       surfaceCodAvailable,
       courierName: this.courierName,
