@@ -173,10 +173,12 @@ export default function CheckoutPayment({
         );
       })
       .catch((checkError) => {
-        // Provider outage — fail open, same policy as the backend's own gate,
-        // so COD is not blocked just because the serviceability check failed.
-        console.error('COD serviceability check failed, allowing checkout to proceed:', checkError);
-        if (!ignore) setCodUnavailable('');
+        console.error('COD serviceability check failed:', checkError);
+        if (!ignore) {
+          setCodUnavailable(
+            'We could not verify cash-on-delivery availability right now. Please choose online payment or try again shortly.'
+          );
+        }
       })
       .finally(() => {
         if (!ignore) setIsCheckingCod(false);

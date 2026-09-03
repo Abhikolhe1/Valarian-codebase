@@ -10,7 +10,8 @@
   // Default settings fallback
   const DEFAULT_SETTINGS = {
     siteName: 'Valiarian',
-    siteDescription: 'Welcome to Valiarian',
+    siteDescription:
+      "Discover Valiarian's premium clothing, crafted with refined design, exceptional comfort, and timeless style for the modern wardrobe.",
     logo: '/logo/logo_full.svg',
     favicon: '/favicon/favicon.ico',
     contactEmail: 'contact@valiarian.com',

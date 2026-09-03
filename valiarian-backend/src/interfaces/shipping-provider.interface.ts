@@ -34,6 +34,7 @@ export interface ServiceabilityParams {
 export interface ServiceabilityResult {
   isServiceable: boolean;
   isCodAvailable: boolean;
+  reason?: 'invalid_pincode' | 'not_serviceable';
   estimatedTransitDays?: number;
   courierName: string;
   areaCode?: string;

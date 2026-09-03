@@ -18,8 +18,11 @@ check_status() {
 check_status / 200
 
 shell="$(curl -fsS "${STORE_ORIGIN}/")"
-grep -Fq '<title>Valiarian | Premium Polo &amp; Apparel</title>' <<<"$shell"
-grep -Fq 'Discover premium apparel from Valiarian' <<<"$shell"
+grep -Fq '<title>Valiarian | Premium Clothing</title>' <<<"$shell"
+grep -Fq 'Discover Valiarian' <<<"$shell"
+grep -Fq 'property="og:title" content="Valiarian | Premium Clothing"' <<<"$shell"
+grep -Fq 'property="og:url" content="https://valiarian.com/"' <<<"$shell"
+grep -Fq 'name="twitter:card" content="summary_large_image"' <<<"$shell"
 ! grep -Fq 'Valiarian UI Kit' <<<"$shell"
 echo 'PASS fallback metadata'
 

@@ -211,6 +211,26 @@ describe('Blue Dart Location Finder response-wrapper regression (unit)', () => {
     await expect(provider.checkServiceability({pincode: '400001'})).to.be.rejectedWith(/UserDoesNotExists/);
   });
 
+  it('returns an invalid-pincode business result instead of treating it as an outage', async () => {
+    const config = loadBlueDartConfig(developerEnvWithSandboxHost());
+    const http = mockAuthAndBusinessHttp({
+      GetServicesforPincodeResult: {IsError: true, ErrorMessage: 'Invalid Pincode'},
+    });
+    const auth = new BlueDartAuthService(config, undefined, http);
+    const provider = new BlueDartDeveloperPortalProvider(
+      config,
+      new BlueDartApiClient(config, auth, http),
+    );
+
+    const result = await provider.checkServiceability({pincode: '900001'});
+
+    expect(result).to.containDeep({
+      isServiceable: false,
+      isCodAvailable: false,
+      reason: 'invalid_pincode',
+    });
+  });
+
   it('requires the payment-specific outbound Surface flag in Surface mode', async () => {
     const config = loadBlueDartConfig(developerEnvWithSandboxHost());
     const http = mockAuthAndBusinessHttp({

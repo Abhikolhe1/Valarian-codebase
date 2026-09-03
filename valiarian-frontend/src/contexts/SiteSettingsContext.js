@@ -187,15 +187,17 @@ function getDefaultSettings() {
   return {
     general: {
       siteName: 'Valiarian',
-      siteDescription: 'Premium Fashion E-commerce',
+      siteDescription:
+        "Discover Valiarian's premium clothing, crafted with refined design, exceptional comfort, and timeless style for the modern wardrobe.",
       logo: '/logo/footer-logo.png',
       favicon: '/favicon/favicon.ico',
       contactEmail: 'support@valiarian.in',
       contactPhone: '',
     },
     seo: {
-      defaultTitle: 'Valiarian - Premium Fashion',
-      defaultDescription: 'Discover premium fashion at Valiarian',
+      defaultTitle: 'Valiarian | Premium Clothing',
+      defaultDescription:
+        "Discover Valiarian's premium clothing, crafted with refined design, exceptional comfort, and timeless style for the modern wardrobe.",
       defaultKeywords: 'fashion, premium, clothing, e-commerce',
       ogImage: '/assets/images/og-image.jpg',
     },
