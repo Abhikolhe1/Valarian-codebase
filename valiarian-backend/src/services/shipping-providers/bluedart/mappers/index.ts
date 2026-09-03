@@ -139,9 +139,6 @@ export function mapWaybillRequest(params: CreateShipmentParams, config: BlueDart
   if (!Number.isInteger(pieceCount) || pieceCount < 1) {
     throw new BlueDartValidationError('numberOfPieces must be at least one', {operation});
   }
-  if ([params.lengthCm, params.breadthCm, params.heightCm].some(value => !Number.isFinite(value) || value <= 0)) {
-    throw new BlueDartValidationError('lengthCm, breadthCm, and heightCm must be greater than zero', {operation});
-  }
   const warehousePhone = required(params.warehousePhone, 'warehousePhone', operation);
   const receiverPhone = required(params.receiverPhone, 'receiverPhone', operation);
 
@@ -217,7 +214,9 @@ export function mapWaybillRequest(params: CreateShipmentParams, config: BlueDart
     ActualWeight: params.weightGrams / 1000, // grams -> kg, per spec ("kg" in field description)
     Commodity: {},
     CreditReferenceNo: creditReferenceNo,
-    Dimensions: [{Breadth: params.breadthCm, Count: pieceCount, Height: params.heightCm, Length: params.lengthCm}],
+    // Dimensions are optional in Blue Dart's Waybill contract. Send an empty
+    // list so billing uses the required ActualWeight supplied above.
+    Dimensions: [],
     ECCN: '',
     PickupDate: formatBlueDartDate(now),
     PickupTime: pickupTime,
