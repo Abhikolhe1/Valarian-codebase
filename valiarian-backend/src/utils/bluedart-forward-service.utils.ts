@@ -8,6 +8,7 @@ export interface ForwardWaybillService {
   paymentType: ForwardPaymentType;
   productCode?: string;
   subProductCode?: string;
+  packType?: string;
   serviceType?: string;
 }
 
@@ -41,8 +42,11 @@ export function selectForwardWaybillService(
     return {
       deliveryMode,
       paymentType,
-      productCode: 'E',
+      productCode: 'A',
       subProductCode: isCod ? 'C' : 'P',
+      // Blue Dart's confirmed forward matrix uses Apex COD (blank PackType)
+      // and Bharat Dart Prepaid (PackType L) for our Surface checkout mode.
+      packType: isCod ? '' : 'L',
       serviceType: 'surface',
     };
   }
@@ -53,6 +57,7 @@ export function selectForwardWaybillService(
       paymentType,
       productCode: 'A',
       subProductCode: isCod ? 'C' : 'P',
+      packType: '',
       serviceType: 'air',
     };
   }

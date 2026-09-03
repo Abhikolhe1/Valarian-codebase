@@ -105,8 +105,10 @@ export class BlueDartDeveloperPortalProvider implements ShippingProvider {
     // product/service Valiarian is contracted for — this defaults to "any
     // standard delivery service is available" and should be verified against
     // the actual account setup (see BLUEDART_PRODUCT_CODE/SERVICE_TYPE).
-    const surfacePrepaidAvailable = isYes(details.eTailPrePaidGroundOutbound);
-    const surfaceCodAvailable = isYes(details.eTailCODGroundOutbound);
+    // Confirmed account matrix: Bharat Dart Prepaid is A/P with PackType L
+    // and uses GroundOutbound; COD is Apex A/C and uses the Air COD flag.
+    const surfacePrepaidAvailable = isYes(details.GroundOutbound);
+    const surfaceCodAvailable = isYes(details.eTailCODAirOutbound);
     const airPrepaidAvailable = isYes(details.eTailPrePaidAirOutbound);
     const airCodAvailable = isYes(details.eTailCODAirOutbound);
     const domesticPriorityAvailable = isYes(details.DomesticPriorityOutbound);
