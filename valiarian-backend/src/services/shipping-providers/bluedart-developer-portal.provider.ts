@@ -85,9 +85,34 @@ export class BlueDartDeveloperPortalProvider implements ShippingProvider {
     // product/service Valiarian is contracted for — this defaults to "any
     // standard delivery service is available" and should be verified against
     // the actual account setup (see BLUEDART_PRODUCT_CODE/SERVICE_TYPE).
-    const isServiceable = [details.GroundOutbound, details.DomesticPriorityOutbound, details.ApexOutbound, details.ApexEconomyOutbound].some(isYes);
+    const surfacePrepaidAvailable = isYes(details.eTailPrePaidGroundOutbound);
+    const surfaceCodAvailable = isYes(details.eTailCODGroundOutbound);
+    const airPrepaidAvailable = isYes(details.eTailPrePaidAirOutbound);
+    const airCodAvailable = isYes(details.eTailCODAirOutbound);
+    const domesticPriorityAvailable = isYes(details.DomesticPriorityOutbound);
+    const genericServiceable = [details.GroundOutbound, details.DomesticPriorityOutbound, details.ApexOutbound, details.ApexEconomyOutbound].some(isYes);
     const isCodAvailable = [details.eTailCODAirOutbound, details.eTailCODGroundOutbound, details.eTailExpressCODAirOutbound, details.DPCODServiceOutbound].some(isYes);
-    return {isServiceable, isCodAvailable, courierName: this.courierName, areaCode: this.text(details.AreaCode), rawResponse: raw};
+    let isServiceable = genericServiceable;
+    let selectedCodAvailable = isCodAvailable;
+    if (params.deliveryMode === 'surface') {
+      isServiceable = params.paymentType === 'cod' ? surfaceCodAvailable : surfacePrepaidAvailable;
+      selectedCodAvailable = surfaceCodAvailable;
+    } else if (params.deliveryMode === 'air') {
+      isServiceable = params.paymentType === 'cod' ? airCodAvailable : airPrepaidAvailable;
+      selectedCodAvailable = airCodAvailable;
+    } else if (params.deliveryMode === 'domestic_priority') {
+      isServiceable = domesticPriorityAvailable;
+      selectedCodAvailable = false;
+    }
+    return {
+      isServiceable,
+      isCodAvailable: selectedCodAvailable,
+      surfacePrepaidAvailable,
+      surfaceCodAvailable,
+      courierName: this.courierName,
+      areaCode: this.text(details.AreaCode),
+      rawResponse: raw,
+    };
   }
 
   /**

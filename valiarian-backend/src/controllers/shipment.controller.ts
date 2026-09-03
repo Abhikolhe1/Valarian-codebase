@@ -35,6 +35,7 @@ import {
   calculateOrderShippingDimensions,
   ProductShippingData,
 } from '../utils/shipping-dimensions.utils';
+import {selectForwardWaybillService} from '../utils/bluedart-forward-service.utils';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -181,16 +182,26 @@ export class ShipmentController {
     const breadthCm = req.breadthCm ?? computedDims.breadthCm;
     const heightCm = req.heightCm ?? computedDims.heightCm;
 
-    // 5. Check serviceability
+    const isCod = order.paymentMethod === 'cod';
+    const forwardService = selectForwardWaybillService(isCod);
+
+    // 5. Check the exact service that will be used for the waybill.
     const servCheck = await this.shippingService.checkServiceability({
       pincode: order.shippingAddress.zipCode,
+      deliveryMode: forwardService.deliveryMode,
+      paymentType: forwardService.paymentType,
     });
     if (!servCheck.isServiceable) {
+      if (forwardService.deliveryMode === 'surface') {
+        throw new HttpErrors.UnprocessableEntity(
+          'Surface delivery is not available for this PIN code.',
+        );
+      }
       throw new HttpErrors.UnprocessableEntity(
         'Pincode is not serviceable by Blue Dart.',
       );
     }
-    if (order.paymentMethod === 'cod' && !servCheck.isCodAvailable) {
+    if (isCod && !servCheck.isCodAvailable) {
       throw new HttpErrors.UnprocessableEntity(
         'COD is not available for this pincode.',
       );
@@ -236,8 +247,11 @@ export class ShipmentController {
       breadthCm,
       heightCm,
       declaredValue: order.total,
-      isCod: order.paymentMethod === 'cod',
-      codAmount: order.paymentMethod === 'cod' ? order.total : 0,
+      productCode: forwardService.productCode,
+      subProductCode: forwardService.subProductCode,
+      serviceType: forwardService.serviceType,
+      isCod,
+      codAmount: isCod ? order.total : 0,
       codFavorOf: process.env.BLUEDART_COD_FAVOR_OF || 'Valarian Pvt Ltd',
     });
 
@@ -251,8 +265,11 @@ export class ShipmentController {
       lengthCm,
       breadthCm,
       heightCm,
-      isCod: order.paymentMethod === 'cod',
-      codAmount: order.paymentMethod === 'cod' ? order.total : 0,
+      isCod,
+      codAmount: isCod ? order.total : 0,
+      productCode: forwardService.productCode,
+      subProductCode: forwardService.subProductCode,
+      serviceType: forwardService.serviceType,
       status: 'created',
       estimatedDelivery: creationResult.estimatedDelivery,
       warehouseId: req.warehouseId,

@@ -2,6 +2,7 @@ import {inject} from '@loopback/core';
 import {get, HttpErrors, param} from '@loopback/rest';
 import {ShippingService} from '../services/shipping.service';
 import {ServiceabilityResult} from '../interfaces/shipping-provider.interface';
+import {selectForwardWaybillService} from '../utils/bluedart-forward-service.utils';
 
 export class ShippingController {
   constructor(
@@ -19,8 +20,11 @@ export class ShippingController {
     }
 
     try {
+      const forwardService = selectForwardWaybillService(paymentMethod === 'cod');
       const result = await this.shippingService.checkServiceability({
         pincode,
+        deliveryMode: forwardService.deliveryMode,
+        paymentType: forwardService.paymentType,
       });
 
       // Filter/Adjust response based on paymentMethod if requested
