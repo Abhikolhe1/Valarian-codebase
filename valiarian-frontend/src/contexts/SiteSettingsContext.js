@@ -191,7 +191,7 @@ function getDefaultSettings() {
         "Discover Valiarian's premium clothing, crafted with refined design, exceptional comfort, and timeless style for the modern wardrobe.",
       logo: '/logo/footer-logo.png',
       favicon: '/favicon/favicon.ico',
-      contactEmail: 'support@valiarian.in',
+      contactEmail: 'support@valiarian.com',
       contactPhone: '',
     },
     seo: {
