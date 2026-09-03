@@ -229,7 +229,7 @@ export function mapWaybillRequest(params: CreateShipmentParams, config: BlueDart
     // Keeps the sandbox verification response small; label handling is a
     // separate, still-unconfirmed capability in this integration.
     PDFOutputNotRequired: true,
-    PackType: '',
+    PackType: params.packType ?? '',
     itemdtl: [],
     noOfDCGiven: 0,
   };
