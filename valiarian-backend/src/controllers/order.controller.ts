@@ -238,7 +238,11 @@ export class OrderController {
       coupon!.applicablePaymentMethods.length > 0 &&
       !coupon!.applicablePaymentMethods.includes(params.paymentMethod)
     ) {
-      throw new HttpErrors.BadRequest('This coupon is not valid for the selected payment method');
+      throw new HttpErrors.BadRequest(
+        params.paymentMethod === 'cod'
+          ? 'This coupon is not applicable for Cash on Delivery.'
+          : 'This coupon is not valid for the selected payment method',
+      );
     }
 
     if (coupon!.isFirstOrderOnly) {
