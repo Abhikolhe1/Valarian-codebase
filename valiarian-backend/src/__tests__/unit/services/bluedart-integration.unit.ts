@@ -231,15 +231,16 @@ describe('Blue Dart Location Finder response-wrapper regression (unit)', () => {
     });
   });
 
-  it('requires the payment-specific outbound Surface flag in Surface mode', async () => {
+  it('uses Bharat Dart ground for prepaid and Apex air COD in Surface mode', async () => {
     const config = loadBlueDartConfig(developerEnvWithSandboxHost());
     const http = mockAuthAndBusinessHttp({
       GetServicesforPincodeResult: {
         IsError: false,
-        GroundOutbound: 'Y',
+        GroundOutbound: 'N',
         DomesticPriorityOutbound: 'Y',
-        eTailPrePaidGroundOutbound: 'N',
+        eTailPrePaidGroundOutbound: 'Y',
         eTailCODGroundOutbound: 'Y',
+        eTailCODAirOutbound: 'Y',
       },
     });
     const auth = new BlueDartAuthService(config, undefined, http);
@@ -262,26 +263,26 @@ describe('Blue Dart Location Finder response-wrapper regression (unit)', () => {
 });
 
 describe('Blue Dart forward Surface policy (unit)', () => {
-  it('selects E/P for prepaid and E/C for COD with no Air/Priority fallback', () => {
+  it('selects Bharat Dart A/P/L for prepaid and Apex A/C for COD', () => {
     const env = {BLUEDART_DELIVERY_MODE: 'surface'};
     const prepaid = selectForwardWaybillService(false, env);
     const cod = selectForwardWaybillService(true, env);
 
     expect(prepaid).to.containDeep({
       deliveryMode: 'surface', paymentType: 'prepaid',
-      productCode: 'E', subProductCode: 'P', serviceType: 'surface',
+      productCode: 'A', subProductCode: 'P', packType: 'L', serviceType: 'surface',
     });
     expect(cod).to.containDeep({
       deliveryMode: 'surface', paymentType: 'cod',
-      productCode: 'E', subProductCode: 'C', serviceType: 'surface',
+      productCode: 'A', subProductCode: 'C', packType: '', serviceType: 'surface',
     });
-    expect([prepaid.productCode, cod.productCode]).to.not.containEql('A');
+    expect([prepaid.productCode, cod.productCode]).to.deepEqual(['A', 'A']);
     expect([prepaid.productCode, cod.productCode]).to.not.containEql('D');
   });
 
   it('keeps Air and Domestic Priority available as explicit environment choices', () => {
     expect(selectForwardWaybillService(false, {BLUEDART_DELIVERY_MODE: 'air'})).to.containDeep({
-      productCode: 'A', subProductCode: 'P', serviceType: 'air',
+      productCode: 'A', subProductCode: 'P', packType: '', serviceType: 'air',
     });
     expect(selectForwardWaybillService(true, {BLUEDART_DELIVERY_MODE: 'air'})).to.containDeep({
       productCode: 'A', subProductCode: 'C', serviceType: 'air',
@@ -405,14 +406,15 @@ describe('Blue Dart confirmed request contracts (unit)', () => {
     expect(request.Request.Services.CollectableAmount).to.equal(750);
   });
 
-  it('maps Surface prepaid as E/P and Surface COD as E/C with the correct collectable amount', () => {
+  it('maps Bharat Dart prepaid as A/P/L and Apex COD as A/C with the correct collectable amount', () => {
     const prepaidService = selectForwardWaybillService(false, {BLUEDART_DELIVERY_MODE: 'surface'});
     const prepaid = mapWaybillRequest(validShipment({
       isCod: false,
       productCode: prepaidService.productCode,
       subProductCode: prepaidService.subProductCode,
+      packType: prepaidService.packType,
     }), config);
-    expect(prepaid.Request.Services).to.containDeep({ProductCode: 'E', SubProductCode: 'P'});
+    expect(prepaid.Request.Services).to.containDeep({ProductCode: 'A', SubProductCode: 'P', PackType: 'L'});
     expect(prepaid.Request.Services).to.not.have.property('CollectableAmount');
 
     const codService = selectForwardWaybillService(true, {BLUEDART_DELIVERY_MODE: 'surface'});
@@ -422,9 +424,10 @@ describe('Blue Dart confirmed request contracts (unit)', () => {
       codFavorOf: 'Valiarian LLP',
       productCode: codService.productCode,
       subProductCode: codService.subProductCode,
+      packType: codService.packType,
     }), config);
     expect(cod.Request.Services).to.containDeep({
-      ProductCode: 'E', SubProductCode: 'C', CollectableAmount: 750,
+      ProductCode: 'A', SubProductCode: 'C', PackType: '', CollectableAmount: 750,
     });
   });
 
@@ -435,7 +438,7 @@ describe('Blue Dart confirmed request contracts (unit)', () => {
       productCode: service.productCode!, subProductCode: service.subProductCode,
       pickupDate: new Date(1700000000000), pickupTime: '1600',
     }, config);
-    expect(request).to.containDeep({pProductCode: 'E', pSubProductCode: 'C'});
+    expect(request).to.containDeep({pProductCode: 'A', pSubProductCode: 'C'});
   });
 
   it('makes CreditReferenceNo unique per order UUID even when orderNumber collides across environments', () => {

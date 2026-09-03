@@ -249,6 +249,7 @@ export class ShipmentController {
       declaredValue: order.total,
       productCode: forwardService.productCode,
       subProductCode: forwardService.subProductCode,
+      packType: forwardService.packType,
       serviceType: forwardService.serviceType,
       isCod,
       codAmount: isCod ? order.total : 0,

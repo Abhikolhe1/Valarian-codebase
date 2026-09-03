@@ -85,6 +85,8 @@ export interface CreateShipmentParams {
   // Service
   productCode?: string; // e.g. "A" for Air Express
   subProductCode?: string; // e.g. "P"
+  /** Blue Dart PackType: "L" for Bharat Dart Prepaid; blank for Apex. */
+  packType?: string;
   serviceType?: string; // Application classification, e.g. "surface"
   /** Blue Dart ProductType: 0 for non-document merchandise, 1 for documents. */
   productType?: 0 | 1;
