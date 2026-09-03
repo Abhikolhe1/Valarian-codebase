@@ -38,7 +38,7 @@ const LINKS = [
   },
   {
     headline: 'Contact',
-    children: [{ name: 'support@valiarian.cc', href: '#' }],
+    children: [{ name: 'support@valiarian.com', href: 'mailto:support@valiarian.com' }],
   },
 ];
 

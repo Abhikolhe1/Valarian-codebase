@@ -75,7 +75,7 @@ export function useFooterNavigation() {
       },
       {
         headline: 'Contact',
-        children: [{ name: 'support@valiarian.in', href: '#' },
+        children: [{ name: 'support@valiarian.com', href: 'mailto:support@valiarian.com' },
         { name: 'Contact Us', href: paths.contact }
         ],
       },
