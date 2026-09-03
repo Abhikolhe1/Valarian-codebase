@@ -123,7 +123,7 @@ export default function HomePricing() {
               color="inherit"
               size="large"
               variant="contained"
-              href="mailto:support@valiarian.cc?subject=[Feedback] from Customer"
+              href="mailto:support@valiarian.com?subject=[Feedback] from Customer"
             >
               Contact us
             </Button>
