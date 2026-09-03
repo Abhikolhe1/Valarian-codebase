@@ -115,9 +115,16 @@ export class CacheService {
       return true;
     }
 
-    // If we already tried to connect and failed, don't retry
+    // A request can arrive while the constructor-started connection is still
+    // being established. Wait for that attempt before deciding Redis is down.
     if (this.connectionPromise && !this.isConnected) {
-      return false;
+      try {
+        await this.connectionPromise;
+      } catch (error) {
+        return false;
+      }
+
+      return this.isConnected && this.client !== null;
     }
 
     try {
