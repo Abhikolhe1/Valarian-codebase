@@ -61,7 +61,12 @@ const PAYMENT_OPTIONS = [
 ];
 
 const getErrorMessage = (error, fallbackMessage) =>
-  error?.response?.data?.message || error?.data?.message || error?.message || fallbackMessage;
+  error?.response?.data?.error?.message ||
+  error?.response?.data?.message ||
+  error?.data?.error?.message ||
+  error?.data?.message ||
+  error?.message ||
+  fallbackMessage;
 
 const isStockError = (message = '') => {
   const normalized = String(message).toLowerCase();
