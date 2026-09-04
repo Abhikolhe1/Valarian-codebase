@@ -256,13 +256,41 @@ export default function ProductDetailsSummary({
   const isSizeAvailable = useCallback(
     (size) => {
       if (!variants || variants.length === 0) return true;
-      return variants.some((v) => v.size === size && v.color === values.colors && v.inStock);
+      return variants.some(
+        (v) =>
+          v.size === size &&
+          v.color === values.colors &&
+          v.inStock !== false &&
+          Number(v.stockQuantity) > 0
+      );
     },
     [variants, values.colors]
   );
 
+  const validateSelectedStock = useCallback(() => {
+    const hasVariants = variants && variants.length > 0;
+    const selectedStock = Number(selectedVariant?.stockQuantity ?? stockQuantity ?? 0);
+    const selectedInStock = selectedVariant?.inStock ?? inStock;
+
+    if ((hasVariants && !selectedVariant) || selectedInStock === false || selectedStock < 1) {
+      enqueueSnackbar('This size is out of stock. Please select another size.', {
+        variant: 'error',
+      });
+      return false;
+    }
+
+    if (Number(values.quantity) < 1 || Number(values.quantity) > selectedStock) {
+      enqueueSnackbar(`Only ${selectedStock} item(s) available in stock.`, { variant: 'error' });
+      return false;
+    }
+
+    return true;
+  }, [enqueueSnackbar, inStock, selectedVariant, stockQuantity, values.quantity, variants]);
+
   const onSubmit = handleSubmit(async (data) => {
     try {
+      if (!validateSelectedStock()) return;
+
       await onBuyNow({
         ...data,
         colors: [values.colors],
@@ -277,6 +305,8 @@ export default function ProductDetailsSummary({
 
   const handleAddCart = useCallback(async () => {
     try {
+      if (!validateSelectedStock()) return;
+
       await onAddCart({
         ...values,
         colors: [values.colors],
@@ -286,7 +316,7 @@ export default function ProductDetailsSummary({
     } catch (error) {
       console.error(error);
     }
-  }, [onAddCart, values, selectedVariant]);
+  }, [onAddCart, selectedVariant, validateSelectedStock, values]);
 
   const handleGoToCart = useCallback(() => {
     router.push(paths.product.checkout);
@@ -565,8 +595,8 @@ export default function ProductDetailsSummary({
         }}
       >
         {availableSizes.map((size) => (
-          <MenuItem key={size} value={size}>
-            {size}
+          <MenuItem key={size} value={size} disabled={!isSizeAvailable(size)}>
+            {size} {!isSizeAvailable(size) && '(Out of stock)'}
           </MenuItem>
         ))}
       </RHFSelect>

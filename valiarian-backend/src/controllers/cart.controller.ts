@@ -5,6 +5,7 @@ import {del, get, HttpErrors, param, patch, post, requestBody} from '@loopback/r
 import {SecurityBindings, UserProfile} from '@loopback/security';
 import {v4 as uuidv4} from 'uuid';
 import {authorize} from '../authorization';
+import {Product, ProductVariant} from '../models';
 import {CartItemsRepository, CartsRepository, ProductRepository} from '../repositories';
 
 interface AddToCartRequest {
@@ -28,6 +29,46 @@ export class CartController {
     @repository(ProductRepository)
     public productsRepository: ProductRepository,
   ) { }
+
+  private async getPurchasableStock(
+    product: Product,
+    productId: string,
+    variantId?: string,
+  ): Promise<{variant: ProductVariant | null; available: number}> {
+    const embeddedVariants = product.variants ?? [];
+
+    if (variantId) {
+      const normalizedVariant = await this.productsRepository.getVariant(productId, variantId);
+      const variant = normalizedVariant ?? embeddedVariants.find(item => item.id === variantId);
+
+      if (!variant || variant.isDeleted || variant.isActive === false) {
+        throw new HttpErrors.BadRequest('Selected product variant is not available');
+      }
+
+      const available = Math.max(0, Number(variant.stockQuantity) || 0);
+      return {variant, available: variant.inStock === false ? 0 : available};
+    }
+
+    if (embeddedVariants.length > 0) {
+      throw new HttpErrors.BadRequest('Please select a product size and color');
+    }
+
+    const available = product.trackInventory === false
+      ? MAX_CART_ITEM_QUANTITY
+      : Math.max(0, Number(product.stockQuantity) || 0);
+
+    return {variant: null, available: product.inStock === false ? 0 : available};
+  }
+
+  private assertStockAvailable(available: number, requestedQuantity: number): void {
+    if (available < 1) {
+      throw new HttpErrors.BadRequest('Selected product variant is out of stock');
+    }
+
+    if (requestedQuantity > available) {
+      throw new HttpErrors.BadRequest(`Only ${available} item(s) available in stock`);
+    }
+  }
 
   @get('/api/cart/{userId}')
   @authenticate('jwt')
@@ -65,9 +106,15 @@ export class CartController {
         }
         let variant = null;
         if (item.variantId) {
-          const variants = product.variants || [];
-          variant = variants.find((v: any) => v.id === item.variantId);
+          variant = await this.productsRepository.getVariant(item.productId, item.variantId);
+          if (!variant) {
+            const variants = product.variants || [];
+            variant = variants.find((v: any) => v.id === item.variantId);
+          }
         }
+        const available = variant
+          ? (variant.inStock === false ? 0 : Math.max(0, Number(variant.stockQuantity) || 0))
+          : (product.inStock === false ? 0 : Math.max(0, Number(product.stockQuantity) || 0));
         const price = product?.salePrice || variant?.price || product?.price || 0;
         const itemTotal = price * item.quantity;
         subtotal += itemTotal;
@@ -87,7 +134,7 @@ export class CartController {
             salePrice: product?.salePrice,
             coverImage: product?.coverImage,
             images: variant?.images ? variant?.images : product?.images,
-            available: product?.inStock,
+            available,
           },
           variant: variant ? variant : null,
           price,
@@ -174,9 +221,13 @@ export class CartController {
         },
       });
 
+      const {available} = await this.getPurchasableStock(product, productId, variantId);
+      const requestedTotal = (existingItem?.quantity ?? 0) + quantity;
+      this.assertStockAvailable(available, requestedTotal);
+
       let cartItem;
       if (existingItem) {
-        const nextQuantity = existingItem.quantity + quantity;
+        const nextQuantity = requestedTotal;
 
         if (nextQuantity > MAX_CART_ITEM_QUANTITY) {
           throw new HttpErrors.BadRequest(
@@ -253,6 +304,18 @@ export class CartController {
       if (cart.userId !== userId) {
         throw new HttpErrors.Forbidden('You can only modify your own cart');
       }
+
+      const product = await this.productsRepository.findById(cartItem.productId);
+      if (!product || product.isDeleted) {
+        throw new HttpErrors.NotFound('Product not found');
+      }
+
+      const {available} = await this.getPurchasableStock(
+        product,
+        cartItem.productId,
+        cartItem.variantId,
+      );
+      this.assertStockAvailable(available, quantity);
 
       await this.cartItemsRepository.updateById(itemId, {quantity});
 
