@@ -34,14 +34,16 @@ jobs:
         run: |
           ssh -i ~/.ssh/deploy_key -p "${{ secrets.PROD_SSH_PORT }}" \
             -o UserKnownHostsFile=~/.ssh/known_hosts -o StrictHostKeyChecking=yes \
+            -o ServerAliveInterval=30 -o ServerAliveCountMax=20 \
             "${{ secrets.PROD_USER }}@${{ secrets.PROD_HOST }}" \
             "set -euo pipefail && cd /var/www/valiarian/Valarian-codebase && git fetch origin && git reset --hard ${DEPLOY_SHA}"
       - name: Deploy production
         run: |
           ssh -i ~/.ssh/deploy_key -p "${{ secrets.PROD_SSH_PORT }}" \
             -o UserKnownHostsFile=~/.ssh/known_hosts -o StrictHostKeyChecking=yes \
+            -o ServerAliveInterval=30 -o ServerAliveCountMax=20 \
             "${{ secrets.PROD_USER }}@${{ secrets.PROD_HOST }}" \
-            "bash /var/www/valiarian/Valarian-codebase/scripts/deploy-production.sh ${DEPLOY_SHA}"
+            "bash /var/www/valiarian/Valarian-codebase/scripts/deploy-production.sh ${DEPLOY_SHA} & deploy_pid=\$!; while kill -0 \$deploy_pid 2>/dev/null; do echo '[KEEPALIVE] Production deployment is running'; sleep 30; done; wait \$deploy_pid"
       - name: Clean up SSH key
         if: always()
         run: rm -f ~/.ssh/deploy_key
