@@ -332,7 +332,10 @@ export default function CheckoutPayment({
     const fullName = billing?.fullName || billing?.name || user?.fullName || '';
     const phone = billing?.phone || billing?.phoneNumber || user?.phone || '';
     const email = billing?.email || user?.email || '';
-    const address = billing?.address || '';
+    const addressLine1 = billing?.addressLine1 || billing?.address || '';
+    const addressLine2 = billing?.addressLine2 || '';
+    const landmark = billing?.landmark || '';
+    const address = [addressLine1, addressLine2].filter(Boolean).join(', ');
     const city = billing?.city || '';
     const state = billing?.state || '';
     const zipCode = billing?.zipCode || billing?.zip || '';
@@ -347,6 +350,10 @@ export default function CheckoutPayment({
       phone,
       email,
       address,
+      addressLine1,
+      addressLine2,
+      landmark,
+      addressType: `${billing?.addressType || ''}`.toLowerCase() === 'work' ? 'work' : 'home',
       city,
       state,
       zipCode,

@@ -13,6 +13,7 @@ import {
   TrackingResult,
 } from '../../interfaces/shipping-provider.interface';
 import {mapCourierStatus} from '../../utils/courier-status-mapper';
+import {buildBlueDartConsigneeAddress} from '../../utils/shipping-address.utils';
 
 export class BlueDartProvider implements ShippingProvider {
   readonly courierName = 'BlueDart';
@@ -154,6 +155,7 @@ export class BlueDartProvider implements ShippingProvider {
   async createShipment(
     params: CreateShipmentParams,
   ): Promise<CreateShipmentResult> {
+    const receiverAddress = buildBlueDartConsigneeAddress(params);
     const wsdl = this.getWsdlUrl('WayBillGeneration');
     const creds = this.getSoapCredentials();
 
@@ -184,8 +186,9 @@ export class BlueDartProvider implements ShippingProvider {
           },
           Consignee: {
             CustomerName: params.receiverName,
-            CustomerAddress1: params.receiverAddress.substring(0, 45),
-            CustomerAddress2: params.receiverAddress.substring(45, 90) || '',
+            CustomerAddress1: receiverAddress[0],
+            CustomerAddress2: receiverAddress[1],
+            CustomerAddress3: receiverAddress[2],
             PinCode: params.receiverPincode,
             CustomerMobile: params.receiverPhone,
             CustomerEmailID: params.receiverEmail || '',

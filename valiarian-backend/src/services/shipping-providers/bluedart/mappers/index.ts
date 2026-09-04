@@ -1,5 +1,6 @@
 import {BlueDartConfig} from '../../../../config/bluedart.config';
 import {AlternateInstructionParams, CreateReversePickupParams, CreateShipmentParams, ServiceabilityParams, TransitTimeParams} from '../../../../interfaces/shipping-provider.interface';
+import {buildBlueDartConsigneeAddress} from '../../../../utils/shipping-address.utils';
 import {BlueDartConfigurationError, BlueDartValidationError} from '../../bluedart-errors';
 
 function required(value: string | undefined, name: string, operation: string): string {
@@ -141,6 +142,7 @@ export function mapWaybillRequest(params: CreateShipmentParams, config: BlueDart
   }
   const warehousePhone = required(params.warehousePhone, 'warehousePhone', operation);
   const receiverPhone = required(params.receiverPhone, 'receiverPhone', operation);
+  const receiverAddress = buildBlueDartConsigneeAddress(params);
 
   const Shipper: Record<string, unknown> = {
     CustomerAddress1: required(params.warehouseAddressLine1, 'BLUEDART_SHIPPER_ADDRESS_LINE1 (warehouse address)', operation),
@@ -166,9 +168,9 @@ export function mapWaybillRequest(params: CreateShipmentParams, config: BlueDart
 
   const Consignee: Record<string, unknown> = {
     ConsigneeName: required(params.receiverName, 'receiverName', operation),
-    ConsigneeAddress1: required(params.receiverAddress, 'receiverAddress', operation),
-    ConsigneeAddress2: params.receiverCity,
-    ConsigneeAddress3: params.receiverState,
+    ConsigneeAddress1: required(receiverAddress[0], 'receiverAddress', operation),
+    ConsigneeAddress2: receiverAddress[1],
+    ConsigneeAddress3: receiverAddress[2],
     ConsigneeAddressType: 'R',
     ConsigneeAttention: '',
     ConsigneeEmailID: params.receiverEmail || '',

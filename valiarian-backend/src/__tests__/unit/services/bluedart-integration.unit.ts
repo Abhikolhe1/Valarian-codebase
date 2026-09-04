@@ -395,6 +395,28 @@ describe('Blue Dart confirmed request contracts (unit)', () => {
     expect(JSON.stringify(request).includes('undefined')).to.be.false();
   });
 
+  it('sends the complete saved customer address across all consignee lines', () => {
+    const request = mapWaybillRequest(validShipment({
+      receiverAddress: 'Flat 12, Example Tower',
+      receiverAddressLine1: 'Flat 12',
+      receiverAddressLine2: 'Example Tower, Long Street Name',
+      receiverLandmark: 'Near Central Park',
+      receiverCity: 'Mumbai',
+      receiverState: 'Maharashtra',
+      receiverCountry: 'India',
+    }), config);
+    const consignee = request.Request.Consignee;
+    const sentAddress = [
+      consignee.ConsigneeAddress1,
+      consignee.ConsigneeAddress2,
+      consignee.ConsigneeAddress3,
+    ].join('');
+
+    expect(sentAddress).to.equal(
+      'Flat 12, Example Tower, Long Street Name, Near Central Park, Mumbai, Maharashtra, India',
+    );
+  });
+
   it('rejects malformed Waybill data locally before Blue Dart is called', () => {
     expect(() => mapWaybillRequest(validShipment({weightGrams: 0}), config)).to.throw(/weightGrams/);
     expect(() => mapWaybillRequest(validShipment({warehousePhone: ''}), config)).to.throw(/warehousePhone/);
