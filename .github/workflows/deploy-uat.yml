@@ -48,6 +48,7 @@ jobs:
           echo "[GIT] Deploying commit ${DEPLOY_SHA}"
           ssh -i ~/.ssh/deploy_key -p "${{ secrets.UAT_SSH_PORT }}" \
             -o UserKnownHostsFile=~/.ssh/known_hosts -o StrictHostKeyChecking=yes \
+            -o ServerAliveInterval=30 -o ServerAliveCountMax=20 \
             "${{ secrets.UAT_USER }}@${{ secrets.UAT_HOST }}" \
             "set -euo pipefail && cd /var/www/valiarian-uat/Valarian-codebase && git fetch origin && git reset --hard ${DEPLOY_SHA}"
 
@@ -55,6 +56,7 @@ jobs:
         run: |
           ssh -i ~/.ssh/deploy_key -p "${{ secrets.UAT_SSH_PORT }}" \
             -o UserKnownHostsFile=~/.ssh/known_hosts -o StrictHostKeyChecking=yes \
+            -o ServerAliveInterval=30 -o ServerAliveCountMax=20 \
             "${{ secrets.UAT_USER }}@${{ secrets.UAT_HOST }}" \
             "bash /var/www/valiarian-uat/Valarian-codebase/scripts/deploy-uat.sh ${DEPLOY_SHA}"
 
