@@ -1,6 +1,7 @@
 import isEqual from 'lodash/isEqual';
 import { startTransition, useCallback, useEffect, useMemo, useState } from 'react';
 // @mui
+import Box from '@mui/material/Box';
 import Container from '@mui/material/Container';
 import Stack from '@mui/material/Stack';
 import Tab from '@mui/material/Tab';
@@ -238,8 +239,8 @@ export default function ProductShopView() {
     <Stack
       spacing={3}
       justifyContent="space-between"
-      alignItems={{ xs: 'flex-end', sm: 'center' }}
-      direction="row"
+      alignItems={{ xs: 'stretch', sm: 'center' }}
+      direction={{ xs: 'column', sm: 'row' }}
     >
       {/* <ProductSearch
         query={debouncedQuery}
@@ -248,8 +249,17 @@ export default function ProductShopView() {
         loading={searchLoading}
         hrefItem={(id) => paths.product.details(id)}
       /> */}
-      <Stack>{canReset && renderResults}</Stack>
-      <Stack direction="row" spacing={1} flexShrink={0} justifyContent="end">
+      <Stack sx={{ order: { xs: 2, sm: 1 }, minWidth: 0 }}>{canReset && renderResults}</Stack>
+      <Box
+        sx={{
+          order: { xs: 1, sm: 2 },
+          display: { xs: 'grid', sm: 'flex' },
+          gridTemplateColumns: { xs: 'repeat(2, minmax(0, 1fr))', sm: 'none' },
+          gap: 1,
+          width: { xs: 1, sm: 'auto' },
+          minWidth: 0,
+        }}
+      >
         {/* <ProductFilters
           open={openFilters.value}
           onOpen={openFilters.onTrue}
@@ -274,7 +284,7 @@ export default function ProductShopView() {
         />
 
         <ProductSort sort={sortBy} onSort={handleSortBy} sortOptions={PRODUCT_SORT_OPTIONS} />
-      </Stack>
+      </Box>
     </Stack>
   );
 

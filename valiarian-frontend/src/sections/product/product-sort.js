@@ -25,10 +25,26 @@ export default function ProductSort({ sort, onSort, sortOptions }) {
             icon={popover.open ? 'eva:arrow-ios-upward-fill' : 'eva:arrow-ios-downward-fill'}
           />
         }
-        sx={{ fontWeight: 'fontWeightSemiBold' }}
+        sx={{
+          minWidth: 0,
+          width: { xs: 1, sm: 'auto' },
+          justifyContent: 'flex-start',
+          fontWeight: 'fontWeightSemiBold',
+          whiteSpace: 'nowrap',
+          '& .MuiButton-endIcon': { ml: { xs: 'auto', sm: 1 }, flexShrink: 0 },
+        }}
       >
         Sort By:
-        <Box component="span" sx={{ ml: 0.5, fontWeight: 'fontWeightBold' }}>
+        <Box
+          component="span"
+          sx={{
+            ml: 0.5,
+            minWidth: 0,
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            fontWeight: 'fontWeightBold',
+          }}
+        >
           {sortLabel}
         </Box>
       </Button>

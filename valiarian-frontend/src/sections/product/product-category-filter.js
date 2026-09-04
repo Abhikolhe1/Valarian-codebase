@@ -20,9 +20,8 @@ export default function ProductCategoryFilter({ category, onCategory, categories
   ];
 
   const activeLabel =
-    options.find(
-      (option) => option.value === category || String(option.label) === String(category)
-    )?.label || 'All';
+    options.find((option) => option.value === category || String(option.label) === String(category))
+      ?.label || 'All';
 
   return (
     <>
@@ -35,10 +34,26 @@ export default function ProductCategoryFilter({ category, onCategory, categories
             icon={popover.open ? 'eva:arrow-ios-upward-fill' : 'eva:arrow-ios-downward-fill'}
           />
         }
-        sx={{ fontWeight: 'fontWeightSemiBold' }}
+        sx={{
+          minWidth: 0,
+          width: { xs: 1, sm: 'auto' },
+          justifyContent: 'flex-start',
+          fontWeight: 'fontWeightSemiBold',
+          whiteSpace: 'nowrap',
+          '& .MuiButton-endIcon': { ml: { xs: 'auto', sm: 1 }, flexShrink: 0 },
+        }}
       >
         Category:
-        <Box component="span" sx={{ ml: 0.5, fontWeight: 'fontWeightBold' }}>
+        <Box
+          component="span"
+          sx={{
+            ml: 0.5,
+            minWidth: 0,
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            fontWeight: 'fontWeightBold',
+          }}
+        >
           {activeLabel}
         </Box>
       </Button>
