@@ -156,7 +156,7 @@ export default function Footer() {
             >
               <Box
                 component="img"
-                src={settings.general?.logo || '/logo/footer-logo.png'}
+                src="/logo/valiarian-mark.png"
                 alt={settings.general?.siteName || 'Valiarian'}
                 sx={{
                   width: 32,
