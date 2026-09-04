@@ -3156,6 +3156,7 @@ export class OrderController {
       trackingNumber?: string;
       carrier?: string;
       estimatedDelivery?: string;
+      skipBlueDart?: boolean;
     },
     @inject(SecurityBindings.USER) currentUser: UserProfile,
   ): Promise<{success: boolean; order: Order}> {
@@ -3200,7 +3201,9 @@ export class OrderController {
         pending: ['confirmed', 'cancelled'],
         confirmed: ['processing', 'cancelled'],
         processing: ['packed', 'cancelled'],
-        packed: ['shipped', 'cancelled'],
+        packed: order.blueDartForwardSkipped
+          ? ['out_for_delivery', 'delivered', 'cancelled']
+          : ['shipped', 'cancelled'],
         shipped: ['out_for_delivery', 'delivered'],
         out_for_delivery: ['delivered'],
         delivered: ['return_requested'],
@@ -3272,6 +3275,10 @@ export class OrderController {
         status: request.status,
         updatedAt: new Date(),
       };
+
+      if (request.status === 'packed') {
+        updateData.blueDartForwardSkipped = request.skipBlueDart === true;
+      }
 
       if (request.trackingNumber) {
         updateData.trackingNumber = request.trackingNumber;
@@ -3402,7 +3409,12 @@ export class OrderController {
   @authorize({roles: ['super_admin', 'admin']})
   async adminProcessReturn(
     @param.path.string('orderId') orderId: string,
-    @requestBody() request: {action: 'approve' | 'reject'; comment?: string},
+    @requestBody()
+    request: {
+      action: 'approve' | 'reject';
+      comment?: string;
+      skipBlueDart?: boolean;
+    },
     @inject(SecurityBindings.USER) currentUser: UserProfile,
   ): Promise<{success: boolean; order: Order}> {
     try {
@@ -3443,6 +3455,8 @@ export class OrderController {
               ? 'original_payment'
               : 'cash'
             : order.refundMethod,
+        blueDartReturnSkipped:
+          request.action === 'approve' ? request.skipBlueDart === true : false,
         updatedAt: new Date(),
       });
 
@@ -3472,7 +3486,10 @@ export class OrderController {
               refundAmount: formatCurrencyValue(order.total),
               comment:
                 request.comment ||
-                'Please keep the product packed safely with all original accessories for the pickup.',
+                (request.skipBlueDart
+                  ? 'Please bring the product to the warehouse with all original accessories.'
+                  : 'Please keep the product packed safely with all original accessories for the pickup.'),
+              pickupSkipped: request.skipBlueDart === true,
               returnStatusUrl: `${frontendUrl}/orders/${order.id}`,
               year: new Date().getFullYear(),
               companyName: 'Valiarian',

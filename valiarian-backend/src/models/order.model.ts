@@ -564,6 +564,20 @@ export class Order extends Entity {
   })
   manualShippingReason?: string;
 
+  @property({
+    type: 'boolean',
+    default: false,
+    postgresql: {columnName: 'bluedartforwardskipped'},
+  })
+  blueDartForwardSkipped?: boolean;
+
+  @property({
+    type: 'boolean',
+    default: false,
+    postgresql: {columnName: 'bluedartreturnskipped'},
+  })
+  blueDartReturnSkipped?: boolean;
+
   // COD Tracking
   @property({
     type: 'boolean',
