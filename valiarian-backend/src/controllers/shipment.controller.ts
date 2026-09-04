@@ -146,6 +146,12 @@ export class ShipmentController {
       );
     }
 
+    if (order.blueDartForwardSkipped) {
+      throw new HttpErrors.UnprocessableEntity(
+        'Blue Dart shipment was skipped for this warehouse handover order.',
+      );
+    }
+
     // 3. Idempotent check
     const existing = await this.shipmentRepository.findOne({
       where: {orderId: id, isReverse: false, status: {neq: 'cancelled'}},
@@ -729,6 +735,12 @@ export class ShipmentController {
     if (order.reversePickupAwb) {
       throw new HttpErrors.Conflict(
         `Reverse AWB ${order.reversePickupAwb} already exists but its shipment record requires reconciliation. Do not create another reverse pickup.`,
+      );
+    }
+
+    if (order.blueDartReturnSkipped) {
+      throw new HttpErrors.UnprocessableEntity(
+        'Blue Dart pickup was skipped for this warehouse return.',
       );
     }
 

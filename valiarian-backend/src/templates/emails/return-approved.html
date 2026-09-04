@@ -208,7 +208,11 @@
 
       <div class="success-message">
         <h2>Great News! Your return has been approved</h2>
+        {{#if pickupSkipped}}
+        <p>Please hand over your items directly at our warehouse</p>
+        {{else}}
         <p>We'll arrange a pickup for your items</p>
+        {{/if}}
       </div>
 
       <div class="order-info">
@@ -256,8 +260,12 @@
         <ul>
           <li>Keep the items in their original condition and packaging</li>
           <li>Include all accessories, manuals, and free gifts (if any)</li>
+          {{#if pickupSkipped}}
+          <li>Bring the package to the warehouse and hand it over to our team</li>
+          {{else}}
           <li>Be available at the pickup address during the scheduled time</li>
           <li>Hand over the package to the delivery person</li>
+          {{/if}}
           <li>Refund will be initiated within 5-7 business days after inspection</li>
         </ul>
       </div>
