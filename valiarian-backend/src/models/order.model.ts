@@ -60,6 +60,10 @@ export interface OrderAddress {
   phone: string;
   email?: string;
   address: string;
+  addressLine1?: string;
+  addressLine2?: string;
+  landmark?: string;
+  addressType?: 'home' | 'work';
   city: string;
   state: string;
   zipCode: string;

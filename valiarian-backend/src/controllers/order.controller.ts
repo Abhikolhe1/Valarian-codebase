@@ -90,6 +90,10 @@ interface CreateOrderRequest {
     phone: string;
     email?: string;
     address: string;
+    addressLine1?: string;
+    addressLine2?: string;
+    landmark?: string;
+    addressType?: 'home' | 'work';
     city: string;
     state: string;
     zipCode: string;
@@ -100,6 +104,10 @@ interface CreateOrderRequest {
     phone: string;
     email?: string;
     address: string;
+    addressLine1?: string;
+    addressLine2?: string;
+    landmark?: string;
+    addressType?: 'home' | 'work';
     city: string;
     state: string;
     zipCode: string;

@@ -57,6 +57,9 @@ export interface CreateShipmentParams {
   receiverPhone: string;
   receiverEmail?: string;
   receiverAddress: string;
+  receiverAddressLine1?: string;
+  receiverAddressLine2?: string;
+  receiverLandmark?: string;
   receiverCity: string;
   receiverState: string;
   receiverPincode: string;
