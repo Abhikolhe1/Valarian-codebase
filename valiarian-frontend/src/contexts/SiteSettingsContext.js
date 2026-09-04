@@ -199,7 +199,7 @@ function getDefaultSettings() {
       defaultDescription:
         "Discover Valiarian's premium clothing, crafted with refined design, exceptional comfort, and timeless style for the modern wardrobe.",
       defaultKeywords: 'fashion, premium, clothing, e-commerce',
-      ogImage: '/assets/images/og-image.jpg',
+      ogImage: '/assets/images/social/valiarian-share-preview.jpeg',
     },
     socialMedia: {
       facebook: '',
