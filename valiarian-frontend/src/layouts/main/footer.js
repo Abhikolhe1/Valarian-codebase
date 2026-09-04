@@ -219,19 +219,29 @@ export default function Footer() {
           </Grid>
 
           <Grid item xs={12} md={6}>
-            <Stack spacing={5} direction={{ xs: 'column', md: 'row' }}>
+            <Box
+              sx={{
+                display: { xs: 'grid', md: 'flex' },
+                gridTemplateColumns: { xs: 'repeat(2, minmax(0, 1fr))', md: 'none' },
+                columnGap: { xs: 3, md: 0 },
+                rowGap: { xs: 5, md: 0 },
+              }}
+            >
               {footerLinks.map((list) => (
                 <Stack
                   key={list.headline}
                   spacing={2}
                   alignItems={{ xs: 'center', md: 'flex-start' }}
-                  sx={{ width: 1 }}
+                  sx={{
+                    width: 1,
+                    textAlign: { xs: 'center', md: 'left' },
+                  }}
                 >
                   <Typography component="div" variant="overline">
                     {list.headline}
                   </Typography>
 
-                  {list.children.map((link) => (
+                  {list.children.map((link) =>
                     (() => {
                       const resolvedLink = resolveFooterLink(list.headline, link);
 
@@ -249,10 +259,10 @@ export default function Footer() {
                         </Link>
                       );
                     })()
-                  ))}
+                  )}
                 </Stack>
               ))}
-            </Stack>
+            </Box>
           </Grid>
         </Grid>
 
