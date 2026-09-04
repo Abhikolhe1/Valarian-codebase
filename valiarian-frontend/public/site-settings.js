@@ -7,6 +7,8 @@
 (function () {
   'use strict';
 
+  const SOCIAL_PREVIEW_IMAGE = '/assets/images/social/valiarian-share-preview.jpeg';
+
   // Default settings fallback
   const DEFAULT_SETTINGS = {
     siteName: 'Valiarian',
@@ -143,17 +145,13 @@
     updateOGTag('og:title', settings.siteName);
     updateOGTag('og:description', settings.siteDescription);
     updateOGTag('og:site_name', settings.siteName);
-    if (settings.logo) {
-      updateOGTag('og:image', settings.logo);
-    }
+    updateOGTag('og:image', SOCIAL_PREVIEW_IMAGE);
 
     // Update Twitter Card tags
     updateMetaTag('twitter:card', 'summary_large_image');
     updateMetaTag('twitter:title', settings.siteName);
     updateMetaTag('twitter:description', settings.siteDescription);
-    if (settings.logo) {
-      updateMetaTag('twitter:image', settings.logo);
-    }
+    updateMetaTag('twitter:image', SOCIAL_PREVIEW_IMAGE);
 
     console.log('✅ Site settings applied:', {
       title: document.title,

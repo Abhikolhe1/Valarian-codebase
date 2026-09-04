@@ -69,7 +69,7 @@ export default function AuthClassicLayout({ children, image, title }) {
       <Box
         component="img"
         alt="auth"
-        src={image || '/logo/Valarian_LOGO.png'}
+        src={image || '/logo/valiarian-mark.png'}
         sx={{ width: 1, maxWidth: 360, objectFit: 'contain' }}
       />
 
