@@ -58,7 +58,7 @@ jobs:
             -o UserKnownHostsFile=~/.ssh/known_hosts -o StrictHostKeyChecking=yes \
             -o ServerAliveInterval=30 -o ServerAliveCountMax=20 \
             "${{ secrets.UAT_USER }}@${{ secrets.UAT_HOST }}" \
-            "bash /var/www/valiarian-uat/Valarian-codebase/scripts/deploy-uat.sh ${DEPLOY_SHA}"
+            "bash /var/www/valiarian-uat/Valarian-codebase/scripts/deploy-uat.sh ${DEPLOY_SHA} & deploy_pid=\$!; while kill -0 \$deploy_pid 2>/dev/null; do echo '[KEEPALIVE] UAT deployment is running'; sleep 30; done; wait \$deploy_pid"
 
       - name: Clean up SSH key
         if: always()
