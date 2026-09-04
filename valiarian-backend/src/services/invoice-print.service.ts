@@ -47,8 +47,13 @@ export class InvoicePrintService {
 
   private addressBlock(address?: OrderAddress): string {
     if (!address) return '';
+
+    const streetParts = address.addressLine1
+      ? [address.addressLine1, address.addressLine2]
+      : [address.address];
     const parts = [
-      address.address,
+      ...streetParts,
+      address.landmark ? `Landmark: ${address.landmark}` : '',
       [address.city, address.state].filter(Boolean).join(', '),
       address.zipCode,
       address.country,
