@@ -56,9 +56,11 @@ const getAvailableStatusOptions = (order) => {
     case 'confirmed':
       return ['processing', 'cancelled'];
     case 'processing':
-      return ['packed', 'cancelled'];
+      return ['packed', 'packed_skip_bluedart', 'cancelled'];
     case 'packed':
-      return ['shipped', 'cancelled'];
+      return order.blueDartForwardSkipped
+        ? ['out_for_delivery', 'delivered', 'cancelled']
+        : ['shipped', 'cancelled'];
     case 'shipped':
       return ['out_for_delivery', 'delivered'];
     case 'out_for_delivery':
@@ -66,7 +68,10 @@ const getAvailableStatusOptions = (order) => {
     case 'delivered':
       return ['return_requested'];
     case 'return_requested':
-      return order.returnStatus === 'approved' && order.reversePickupAwb ? ['returned'] : [];
+      return order.returnStatus === 'approved' &&
+        (order.reversePickupAwb || order.blueDartReturnSkipped)
+        ? ['returned']
+        : [];
     case 'returned':
       return ['parcel_received'];
     case 'refunded':
@@ -204,19 +209,23 @@ export default function OrderDetailsView() {
     try {
       setUpdating(true);
 
+      const skipBlueDart = newStatus === 'packed_skip_bluedart';
+      const orderStatus = skipBlueDart ? 'packed' : newStatus;
+
       const payload = {
-        status: newStatus,
+        status: orderStatus,
         comment: statusComment,
         trackingNumber: trackingNumber || undefined,
         carrier: carrier || undefined,
         estimatedDelivery: estimatedDelivery || undefined,
+        skipBlueDart,
       };
 
       console.log('📤 Updating order status:', payload);
 
       const response = await axios.patch(`/api/admin/orders/${id}/status`, payload);
 
-      if (newStatus === 'packed') {
+      if (orderStatus === 'packed' && !skipBlueDart) {
         await axios.post(`/api/admin/orders/${id}/shipments`, {
           generateLabelNow: false,
         });
@@ -230,12 +239,13 @@ export default function OrderDetailsView() {
       setTrackingNumber('');
       setCarrier('');
       setEstimatedDelivery('');
-      enqueueSnackbar(
-        newStatus === 'packed'
-          ? 'Order packed, AWB generated, and Blue Dart pickup requested.'
-          : 'Order status updated successfully.',
-        { variant: 'success' }
-      );
+      let successMessage = 'Order status updated successfully.';
+      if (skipBlueDart) {
+        successMessage = 'Order packed for warehouse handover. Blue Dart was skipped.';
+      } else if (newStatus === 'packed') {
+        successMessage = 'Order packed, AWB generated, and Blue Dart pickup requested.';
+      }
+      enqueueSnackbar(successMessage, { variant: 'success' });
       await fetchOrderDetails();
     } catch (err) {
       console.error('❌ Error updating status:', err);
@@ -260,14 +270,17 @@ export default function OrderDetailsView() {
     let returnApproved = false;
     try {
       setUpdating(true);
+      const skipBlueDart = returnAction === 'approve_skip_bluedart';
+      const action = skipBlueDart ? 'approve' : returnAction;
       await axios.patch(`/api/admin/orders/${id}/return`, {
-        action: returnAction,
+        action,
         comment: returnComment,
+        skipBlueDart,
       });
 
-      returnApproved = returnAction === 'approve';
+      returnApproved = action === 'approve';
       let reverseShipment;
-      if (returnApproved) {
+      if (returnApproved && !skipBlueDart) {
         const reverseResponse = await axios.post(`/api/admin/orders/${id}/reverse-pickup`, {});
         reverseShipment = reverseResponse.data;
       }
@@ -275,12 +288,13 @@ export default function OrderDetailsView() {
       setReturnDialogOpen(false);
       setReturnAction('');
       setReturnComment('');
-      enqueueSnackbar(
-        returnApproved
-          ? `Return approved and Blue Dart pickup registered${reverseShipment?.awbNumber ? ` (AWB ${reverseShipment.awbNumber})` : ''}.`
-          : 'Return rejected successfully.',
-        { variant: 'success' }
-      );
+      let successMessage = 'Return rejected successfully.';
+      if (skipBlueDart) {
+        successMessage = 'Return approved for warehouse handover. Blue Dart pickup was skipped.';
+      } else if (returnApproved) {
+        successMessage = `Return approved and Blue Dart pickup registered${reverseShipment?.awbNumber ? ` (AWB ${reverseShipment.awbNumber})` : ''}.`;
+      }
+      enqueueSnackbar(successMessage, { variant: 'success' });
       await fetchOrderDetails();
     } catch (err) {
       console.error('Error processing return:', err);
@@ -773,7 +787,9 @@ export default function OrderDetailsView() {
                   color={getOrderStatusColor(order.status)}
                   sx={{ textTransform: 'capitalize' }}
                 >
-                  {formatOrderStatusLabel(order.status)}
+                  {order.status === 'packed' && order.blueDartForwardSkipped
+                    ? 'Packed — Blue Dart Skipped'
+                    : formatOrderStatusLabel(order.status)}
                 </Label>
               </Stack>
 
@@ -814,7 +830,9 @@ export default function OrderDetailsView() {
                       color={getReturnStatusColor(order.returnStatus)}
                       sx={{ textTransform: 'capitalize' }}
                     >
-                      {formatOrderStatusLabel(order.returnStatus)}
+                      {order.returnStatus === 'approved' && order.blueDartReturnSkipped
+                        ? 'Approved — Blue Dart Skipped'
+                        : formatOrderStatusLabel(order.returnStatus)}
                     </Label>
                   </Stack>
                 )}
@@ -1290,7 +1308,9 @@ export default function OrderDetailsView() {
                 >
                   <Typography variant="h6">Return Request</Typography>
                   <Label variant="soft" color={getReturnStatusColor(order.returnStatus)}>
-                    {formatOrderStatusLabel(order.returnStatus)}
+                    {order.returnStatus === 'approved' && order.blueDartReturnSkipped
+                      ? 'Approved — Blue Dart Skipped'
+                      : formatOrderStatusLabel(order.returnStatus)}
                   </Label>
                 </Stack>
 
@@ -1433,7 +1453,9 @@ export default function OrderDetailsView() {
                   </Button>
                 )}
 
-                {order.returnStatus === 'approved' && !order.reversePickupAwb && (
+                {order.returnStatus === 'approved' &&
+                  !order.blueDartReturnSkipped &&
+                  !order.reversePickupAwb && (
                   <Button
                     fullWidth
                     variant="outlined"
@@ -1537,10 +1559,12 @@ export default function OrderDetailsView() {
             >
               {availableStatusOptions.map((option) => (
                 <MenuItem key={option} value={option}>
-                  {option
-                    .split('_')
-                    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-                    .join(' ')}
+                  {option === 'packed_skip_bluedart'
+                    ? 'Packed — Skip Blue Dart'
+                    : option
+                        .split('_')
+                        .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+                        .join(' ')}
                 </MenuItem>
               ))}
             </TextField>
@@ -1610,6 +1634,9 @@ export default function OrderDetailsView() {
               onChange={(e) => setReturnAction(e.target.value)}
             >
               <MenuItem value="approve">Approve</MenuItem>
+              <MenuItem value="approve_skip_bluedart">
+                Approve — Skip Blue Dart Pickup
+              </MenuItem>
               <MenuItem value="reject">Reject</MenuItem>
             </TextField>
 
