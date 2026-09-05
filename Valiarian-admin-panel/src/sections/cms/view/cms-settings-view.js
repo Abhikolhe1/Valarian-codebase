@@ -208,6 +208,8 @@ export default function CMSSettingsView() {
 
   const buildSettingsPayload = (data) => ({
     ...data,
+    gaId: String(data.gaId || '').trim(),
+    gtmId: String(data.gtmId || '').trim(),
     contactPage: {
       ...data.contactPage,
       locations: (data.contactPage?.locations || []).map((location) => ({
@@ -485,34 +487,32 @@ export default function CMSSettingsView() {
         fullWidth
         label="Google Tag Manager ID"
         placeholder="GTM-XXXXXXX"
-        {...methods.register('gtmId')}
-        helperText="Your Google Tag Manager container ID"
-        InputProps={{
-          startAdornment: (
-            <Box sx={{ mr: 1, display: 'flex', alignItems: 'center' }}>
-              <Typography variant="caption" color="text.secondary">
-                GTM-
-              </Typography>
-            </Box>
-          ),
-        }}
+        {...methods.register('gtmId', {
+          setValueAs: (value) => String(value || '').trim(),
+          pattern: {
+            value: /^$|^GTM-[A-Z0-9]{4,14}$/,
+            message: 'Enter a valid GTM container ID (for example, GTM-XXXXXXX)',
+          },
+        })}
+        error={Boolean(methods.formState.errors.gtmId)}
+        helperText={
+          methods.formState.errors.gtmId?.message || 'Optional. Format: GTM-XXXXXXX'
+        }
       />
 
       <TextField
         fullWidth
         label="Google Analytics ID"
-        placeholder="G-XXXXXXXXXX or UA-XXXXXXXXX-X"
-        {...methods.register('gaId')}
-        helperText="Your Google Analytics measurement ID or tracking ID"
-        InputProps={{
-          startAdornment: (
-            <Box sx={{ mr: 1, display: 'flex', alignItems: 'center' }}>
-              <Typography variant="caption" color="text.secondary">
-                GA-
-              </Typography>
-            </Box>
-          ),
-        }}
+        placeholder="G-XXXXXXXXXX"
+        {...methods.register('gaId', {
+          setValueAs: (value) => String(value || '').trim(),
+          pattern: {
+            value: /^$|^G-[A-Z0-9]{4,14}$/,
+            message: 'Enter a valid GA4 Measurement ID (for example, G-XXXXXXXXXX)',
+          },
+        })}
+        error={Boolean(methods.formState.errors.gaId)}
+        helperText={methods.formState.errors.gaId?.message || 'Optional. Format: G-XXXXXXXXXX'}
       />
 
       <Box

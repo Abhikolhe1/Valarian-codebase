@@ -108,6 +108,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Verify analytics loader
+        run: node ../scripts/verify-analytics-loader.js
+
       # Non-blocking: this app has ~309 pre-existing lint problems (including
       # actual parsing errors on .ts files under an eslint config that isn't
       # wired for TypeScript) — none introduced by this pipeline. Making this

@@ -61,6 +61,11 @@
   };
   const API_ORIGIN = API_ORIGIN_BY_HOST[window.location.hostname] || 'http://localhost:3035';
   const API_URL = `${API_ORIGIN}/api/cms/settings`;
+  const PRODUCTION_HOSTS = new Set(['valiarian.com', 'www.valiarian.com']);
+  const GA4_ID_PATTERN = /^G-[A-Z0-9]{4,14}$/;
+  const GTM_ID_PATTERN = /^GTM-[A-Z0-9]{4,14}$/;
+  const GA4_SCRIPT_ID = 'valiarian-ga4-script';
+  const GTM_SCRIPT_ID = 'valiarian-gtm-script';
 
   // Global settings object
   window.siteSettings = DEFAULT_SETTINGS;
@@ -164,65 +169,46 @@
    * Inject Google Analytics
    */
   function injectGoogleAnalytics(gaId) {
-    if (!gaId) return;
+    if (!GA4_ID_PATTERN.test(gaId) || document.getElementById(GA4_SCRIPT_ID)) return;
 
     console.log('📊 Injecting Google Analytics:', gaId);
 
-    // Google Analytics 4
-    if (gaId.startsWith('G-')) {
-      const script1 = document.createElement('script');
-      script1.async = true;
-      script1.src = `https://www.googletagmanager.com/gtag/js?id=${gaId}`;
-      document.head.appendChild(script1);
+    const script = document.createElement('script');
+    script.id = GA4_SCRIPT_ID;
+    script.async = true;
+    script.src = `https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(gaId)}`;
+    document.head.appendChild(script);
 
-      const script2 = document.createElement('script');
-      script2.innerHTML = `
-        window.dataLayer = window.dataLayer || [];
-        function gtag(){dataLayer.push(arguments);}
-        gtag('js', new Date());
-        gtag('config', '${gaId}');
-      `;
-      document.head.appendChild(script2);
-    }
-    // Universal Analytics
-    else if (gaId.startsWith('UA-')) {
-      const script = document.createElement('script');
-      script.innerHTML = `
-        (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
-        (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
-        m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
-        })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
-        ga('create', '${gaId}', 'auto');
-        ga('send', 'pageview');
-      `;
-      document.head.appendChild(script);
-    }
+    window.dataLayer = window.dataLayer || [];
+    window.gtag = window.gtag || function () {
+      window.dataLayer.push(arguments);
+    };
+    window.gtag('js', new Date());
+    window.gtag('config', gaId);
   }
 
   /**
    * Inject Google Tag Manager
    */
   function injectGoogleTagManager(gtmId) {
-    if (!gtmId) return;
+    if (!GTM_ID_PATTERN.test(gtmId) || document.getElementById(GTM_SCRIPT_ID)) return;
 
     console.log('📊 Injecting Google Tag Manager:', gtmId);
 
-    // GTM script in head
+    window.dataLayer = window.dataLayer || [];
+    window.dataLayer.push({'gtm.start': new Date().getTime(), event: 'gtm.js'});
+
     const script = document.createElement('script');
-    script.innerHTML = `
-      (function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
-      new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
-      j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
-      'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
-      })(window,document,'script','dataLayer','${gtmId}');
-    `;
+    script.id = GTM_SCRIPT_ID;
+    script.async = true;
+    script.src = `https://www.googletagmanager.com/gtm.js?id=${encodeURIComponent(gtmId)}`;
     document.head.appendChild(script);
 
     // GTM noscript in body (wait for body to be available)
     const addNoScript = () => {
       const noscript = document.createElement('noscript');
       const iframe = document.createElement('iframe');
-      iframe.src = `https://www.googletagmanager.com/ns.html?id=${gtmId}`;
+      iframe.src = `https://www.googletagmanager.com/ns.html?id=${encodeURIComponent(gtmId)}`;
       iframe.height = '0';
       iframe.width = '0';
       iframe.style.display = 'none';
@@ -244,14 +230,20 @@
   function injectAnalytics() {
     const settings = window.siteSettings;
 
+    if (!PRODUCTION_HOSTS.has(window.location.hostname)) return;
+
+    const gtmId = typeof settings.gtmId === 'string' ? settings.gtmId.trim() : '';
+    const gaId = typeof settings.gaId === 'string' ? settings.gaId.trim() : '';
+
     // Inject Google Tag Manager first (if available)
-    if (settings.gtmId) {
-      injectGoogleTagManager(settings.gtmId);
+    if (GTM_ID_PATTERN.test(gtmId)) {
+      injectGoogleTagManager(gtmId);
+      return;
     }
 
     // Inject Google Analytics (if available and GTM not used)
-    if (settings.gaId && !settings.gtmId) {
-      injectGoogleAnalytics(settings.gaId);
+    if (GA4_ID_PATTERN.test(gaId)) {
+      injectGoogleAnalytics(gaId);
     }
   }
 

@@ -205,8 +205,8 @@ export class CMSSettingsController {
               },
               footerText: {type: 'string'},
               copyrightText: {type: 'string'},
-              gtmId: {type: 'string'},
-              gaId: {type: 'string'},
+              gtmId: {type: 'string', pattern: '^$|^GTM-[A-Z0-9]{4,14}$'},
+              gaId: {type: 'string', pattern: '^$|^G-[A-Z0-9]{4,14}$'},
               contactPage: {
                 type: 'object',
                 properties: {
