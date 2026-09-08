@@ -117,6 +117,13 @@ export class Product extends Entity {
   })
   coverImage?: string;
 
+  // Size chart — an admin-uploaded image or PDF shown in a popup on the
+  // storefront's product detail page (next to the size selector).
+  @property({
+    type: 'string',
+  })
+  sizeChartUrl?: string;
+
   @property({
     type: 'array',
     itemType: 'string',

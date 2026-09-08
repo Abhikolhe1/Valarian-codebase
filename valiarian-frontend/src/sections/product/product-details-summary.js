@@ -4,8 +4,12 @@ import { Controller, useForm } from 'react-hook-form';
 // @mui
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
+import Dialog from '@mui/material/Dialog';
+import DialogContent from '@mui/material/DialogContent';
+import DialogTitle from '@mui/material/DialogTitle';
 import Divider from '@mui/material/Divider';
 import { formHelperTextClasses } from '@mui/material/FormHelperText';
+import IconButton from '@mui/material/IconButton';
 import Link from '@mui/material/Link';
 import MenuItem from '@mui/material/MenuItem';
 import Rating from '@mui/material/Rating';
@@ -15,6 +19,8 @@ import Typography from '@mui/material/Typography';
 import { addFavorite, removeFavorite } from 'src/api/favorites';
 // auth
 import { useAuthContext } from 'src/auth/hooks';
+// hooks
+import { useBoolean } from 'src/hooks/use-boolean';
 // routes
 import { useRouter } from 'src/routes/hook';
 import { paths } from 'src/routes/paths';
@@ -52,6 +58,7 @@ export default function ProductDetailsSummary({
   const { enqueueSnackbar } = useSnackbar();
   const { authenticated } = useAuthContext();
   const sharePopover = usePopover();
+  const sizeChartDialog = useBoolean();
   const [isFavoriteSubmitting, setIsFavoriteSubmitting] = useState(false);
   const favorites = useSelector((state) => state.favorites.items);
 
@@ -68,7 +75,10 @@ export default function ProductDetailsSummary({
     isNewArrival,
     shortDescription,
     variants,
+    sizeChartUrl,
   } = product;
+
+  const isSizeChartPdf = Boolean(sizeChartUrl) && /\.pdf($|\?)/i.test(sizeChartUrl);
 
   // State for selected variant
   const [selectedVariant, setSelectedVariant] = useState(null);
@@ -580,9 +590,17 @@ export default function ProductDetailsSummary({
         size="small"
         onChange={(e) => handleSizeChange(e.target.value)}
         helperText={
-          <Link underline="always" color="textPrimary">
-            Size Chart
-          </Link>
+          sizeChartUrl && (
+            <Link
+              component="button"
+              type="button"
+              underline="always"
+              color="textPrimary"
+              onClick={sizeChartDialog.onTrue}
+            >
+              Size Chart
+            </Link>
+          )
         }
         sx={{
           maxWidth: 88,
@@ -724,35 +742,68 @@ export default function ProductDetailsSummary({
   );
 
   return (
-    <FormProvider methods={methods} onSubmit={onSubmit}>
-      <Stack spacing={3} sx={{ pt: 3 }} {...other}>
-        <Stack spacing={2} alignItems="flex-start">
-          {renderLabels}
+    <>
+      <FormProvider methods={methods} onSubmit={onSubmit}>
+        <Stack spacing={3} sx={{ pt: 3 }} {...other}>
+          <Stack spacing={2} alignItems="flex-start">
+            {renderLabels}
 
-          {renderInventoryType}
+            {renderInventoryType}
 
-          <Typography variant="h5">{name}</Typography>
+            <Typography variant="h5">{name}</Typography>
 
-          {renderRating}
+            {renderRating}
 
-          {renderPrice}
+            {renderPrice}
 
-          {renderSubDescription}
+            {renderSubDescription}
+          </Stack>
+
+          <Divider sx={{ borderStyle: 'dashed' }} />
+          {renderSizeOptions}
+          {renderColorOptions}
+
+          {renderQuantity}
+
+          <Divider sx={{ borderStyle: 'dashed' }} />
+
+          {renderActions}
+
+          {renderShare}
         </Stack>
+      </FormProvider>
 
-        <Divider sx={{ borderStyle: 'dashed' }} />
-        {renderSizeOptions}
-        {renderColorOptions}
+      {sizeChartUrl && (
+        <Dialog fullWidth maxWidth="sm" open={sizeChartDialog.value} onClose={sizeChartDialog.onFalse}>
+          <DialogTitle
+            sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', pr: 2 }}
+          >
+            Size Chart
+            <IconButton onClick={sizeChartDialog.onFalse}>
+              <Iconify icon="eva:close-fill" />
+            </IconButton>
+          </DialogTitle>
 
-        {renderQuantity}
-
-        <Divider sx={{ borderStyle: 'dashed' }} />
-
-        {renderActions}
-
-        {renderShare}
-      </Stack>
-    </FormProvider>
+          <DialogContent sx={{ p: 0 }}>
+            {isSizeChartPdf ? (
+              <Box
+                component="iframe"
+                title="Size Chart"
+                src={sizeChartUrl}
+                sx={{ width: '100%', height: '75vh', border: 'none', display: 'block' }}
+              />
+            ) : (
+              <Box
+                component="img"
+                src={sizeChartUrl}
+                alt="Size Chart"
+                sx={{ width: '100%', height: 'auto', display: 'block' }}
+              />
+            )}
+          </DialogContent>
+        </Dialog>
+      )}
+    </>
   );
 }
 
