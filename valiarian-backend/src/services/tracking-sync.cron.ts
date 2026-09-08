@@ -11,7 +11,7 @@ import {ShippingService} from './shipping.service';
 import {InventoryLifecycleService} from './inventory-lifecycle.service';
 import {NdrService} from './ndr.service';
 import {areBackgroundJobsEnabled} from '../utils/background-jobs';
-import {BlueDartRateLimitError} from './shipping-providers/bluedart-errors';
+import {BlueDartAuthenticationError, BlueDartConfigurationError, BlueDartRateLimitError, BlueDartUnauthorizedError} from './shipping-providers/bluedart-errors';
 import {Order} from '../models';
 
 const DEFAULT_SYNC_INTERVAL_MS = 30 * 60 * 1000; // 30 minutes
@@ -361,6 +361,13 @@ export class TrackingSyncCronJob implements LifeCycleObserver {
             });
           }
         } catch (shipmentErr) {
+          if (shipmentErr instanceof BlueDartConfigurationError || shipmentErr instanceof BlueDartAuthenticationError || shipmentErr instanceof BlueDartUnauthorizedError) {
+            const configured = Number(process.env.TRACKING_SYNC_CONFIG_ERROR_COOLDOWN_MS);
+            const cooldown = Number.isFinite(configured) && configured >= 60_000 ? configured : 6 * 60 * 60 * 1000;
+            this.rateLimitCooldownUntil = Date.now() + cooldown;
+            console.error(`[Tracking Sync Cron] Tracking configuration rejected: ${shipmentErr.message} Pausing this batch and further sweeps until ${new Date(this.rateLimitCooldownUntil).toISOString()}. Correct configuration and restart to retry sooner.`);
+            break;
+          }
           if (shipmentErr instanceof BlueDartRateLimitError) {
             this.rateLimitCooldownUntil =
               Date.now() + this.getRateLimitCooldownMs();

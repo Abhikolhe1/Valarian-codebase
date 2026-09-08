@@ -28,7 +28,7 @@ import {loadBlueDartConfig} from '../config/bluedart.config';
 import {CacheService} from './cache.service';
 import {ShippingAuditService} from './shipping-audit.service';
 import {ShippingMonitorService} from './shipping-monitor.service';
-import {BlueDartRateLimitError} from './shipping-providers/bluedart-errors';
+import {BlueDartAuthenticationError, BlueDartConfigurationError, BlueDartProviderError, BlueDartRateLimitError, BlueDartUnauthorizedError} from './shipping-providers/bluedart-errors';
 
 @injectable({scope: BindingScope.SINGLETON})
 export class ShippingService {
@@ -139,14 +139,16 @@ export class ShippingService {
         }
 
         // Do not retry on auth (403) or bad request / validation (400, 422) errors
-        const status = err.status || err.statusCode;
-        if (status === 400 || status === 403 || status === 422) {
+        const status = err.status || err.statusCode || err.httpStatus;
+        if (status === 400 || status === 401 || status === 403 || status === 422 ||
+          (err instanceof BlueDartProviderError && !err.retryable)) {
           this.releaseLock();
           if (this.monitorService) {
             await this.monitorService.recordFailure(
               this.activeProvider.courierName,
               operationName,
               err.message || 'Validation error',
+              err instanceof BlueDartConfigurationError || err instanceof BlueDartAuthenticationError || err instanceof BlueDartUnauthorizedError,
             );
           }
           throw err;
