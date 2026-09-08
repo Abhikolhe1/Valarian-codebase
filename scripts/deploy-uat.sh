@@ -47,7 +47,7 @@ deploy_backend() {
   ( cd "$BACKEND_DIR" && npm ci )
 
   # Reject unsafe startup configuration before replacing the healthy build.
-  if ! node "${SCRIPT_DIR}/check-backend-deploy-config.cjs" "$BACKEND_DIR"; then
+  if ! node "${SCRIPT_DIR}/check-backend-deploy-config.cjs" "$BACKEND_DIR" https://uat.valiarian.com https://uatadmin.valiarian.com; then
     log BACKEND "Configuration preflight failed; live backend build was not replaced"
     return 1
   fi
