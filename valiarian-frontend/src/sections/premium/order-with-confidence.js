@@ -6,7 +6,6 @@ import {
   Card,
   CardContent,
 } from '@mui/material';
-import Iconify from 'src/components/iconify';
 
 const confidenceFeatures = [
   {

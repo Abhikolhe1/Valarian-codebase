@@ -72,7 +72,7 @@ export function AuthProvider({ children }) {
   const initialize = useCallback(async () => {
     try {
       const accessToken = localStorage.getItem(STORAGE_KEY);
-      const storedUser = getStoredUser();
+      getStoredUser();
 
       if (accessToken && isValidToken(accessToken)) {
         setSession(accessToken);

@@ -56,7 +56,7 @@ export default function OrderConfirmationView() {
     }
   }, [orderId, fetchOrder]);
 
-  const themeStretch = settings.themeStretch;
+  const {themeStretch} = settings;
 
   if (loading) {
     return (

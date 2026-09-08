@@ -1,6 +1,5 @@
 import { Box, Button, Chip, Container, Typography } from '@mui/material';
 import { keyframes, styled } from '@mui/material/styles';
-import { color } from '@mui/system';
 import Iconify from 'src/components/iconify';
 
 // Keyframe animations
@@ -24,14 +23,6 @@ const float = keyframes`
   }
 `;
 
-const shimmer = keyframes`
-  0% {
-    background-position: -1000px 0;
-  }
-  100% {
-    background-position: 1000px 0;
-  }
-`;
 
 // Styled Components
 const HeroSection = styled(Box)(({ theme }) => ({

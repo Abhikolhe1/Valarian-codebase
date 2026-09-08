@@ -166,14 +166,7 @@ export default function CMSNavigationEditorView() {
   );
 
   // Add child item
-  const handleAddChild = (parentIndex) => {
-    const parentItem = menuItems[parentIndex];
-    setEditingItem({
-      parentId: parentItem.id || `temp-${parentIndex}`,
-    });
-    setEditingIndex(null);
-    setItemDialogOpen(true);
-  };
+
 
   const locationConfig = MENU_LOCATIONS.find((loc) => loc.value === selectedLocation);
 

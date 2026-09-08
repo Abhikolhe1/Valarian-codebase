@@ -39,7 +39,7 @@ export class EventRetentionCronJob implements LifeCycleObserver {
 
     this.timer = setInterval(() => {
       console.log('[Event Retention Cron] tick triggered');
-      void this.runRetentionSweep();
+      this.runRetentionSweep().catch(error => console.error('[Event Retention Cron] Sweep failed:', error));
     }, this.sweepIntervalMs);
 
     this.timer.unref?.();

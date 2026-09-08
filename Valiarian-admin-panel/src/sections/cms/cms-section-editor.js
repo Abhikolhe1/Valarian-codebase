@@ -175,7 +175,7 @@ export default function CMSSectionEditor({ open, onClose, section, sectionType, 
       <DialogTitle>
         <Stack direction="row" alignItems="center" justifyContent="space-between">
           <Typography variant="h6">{title}</Typography>
-          <IconButton onClick={onClose} disabled={isSaving}>
+          <IconButton aria-label="Close section editor" onClick={onClose} disabled={isSaving}>
             <Iconify icon="mingcute:close-line" />
           </IconButton>
         </Stack>

@@ -333,7 +333,6 @@ export class ProductRepository extends TimeStampRepositoryMixin<
       saleOnly,
       inStock,
       categoryId,
-      tags,
       minPrice,
       maxPrice,
       limit = 50,

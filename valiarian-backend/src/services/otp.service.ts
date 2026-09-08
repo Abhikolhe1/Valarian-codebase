@@ -1,5 +1,5 @@
 import {BindingScope, inject, injectable} from '@loopback/core';
-import {repository} from '@loopback/repository';
+import {repository as injectRepository} from '@loopback/repository';
 import {HttpErrors} from '@loopback/rest';
 import {randomInt, randomUUID} from 'crypto';
 import {Otp} from '../models';
@@ -14,7 +14,7 @@ export interface IssueOtpOptions {identifier: string; identifierType: OtpIdentif
 @injectable({scope: BindingScope.TRANSIENT})
 export class OtpService {
   constructor(
-    @repository(OtpRepository) private repository: OtpRepository,
+    @injectRepository(OtpRepository) private repository: OtpRepository,
     @inject('service.hasher') private hasher: BcryptHasher,
     @inject('services.otp.rate-limit') private limiter: OtpRateLimitService,
   ) {}

@@ -156,6 +156,8 @@ export function loadBlueDartConfig(env: NodeJS.ProcessEnv = process.env): BlueDa
       customerCode: env.BLUEDART_CUSTOMER_CODE,
       loginId: env.BLUEDART_LOGIN_ID,
       licenceKey: env.BLUEDART_LICENCE_KEY,
+      trackingLoginId: env.BLUEDART_TRACKING_LOGIN_ID?.trim() || env.BLUEDART_LOGIN_ID,
+      trackingLicenceKey: env.BLUEDART_TRACKING_LICENCE_KEY?.trim() || env.BLUEDART_LICENCE_KEY,
       originArea: scoped('ORIGIN_AREA'),
       areaCode: scoped('AREA_CODE'),
       pickupLocationCode: env.BLUEDART_PICKUP_LOCATION_CODE,

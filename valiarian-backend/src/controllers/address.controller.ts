@@ -96,9 +96,12 @@ export class AddressController {
     content: {'application/json': {schema: CountSchema}},
   })
   async count(
+    @inject(SecurityBindings.USER) currentUser: UserProfile,
     @param.where(Address) where?: Where<Address>,
   ): Promise<Count> {
-    return this.addressRepository.count(where);
+    return this.addressRepository.count({
+      and: [where ?? {}, {userId: currentUser.id}],
+    });
   }
 
   @authenticate('jwt')

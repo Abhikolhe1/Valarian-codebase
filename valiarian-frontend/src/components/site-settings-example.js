@@ -1,4 +1,3 @@
-import React from 'react';
 import { useSiteSettings, useSiteSetting } from '../hooks/use-site-settings';
 
 /**
@@ -14,8 +13,15 @@ import { useSiteSettings, useSiteSetting } from '../hooks/use-site-settings';
  *    const logo = useSiteSetting('logo', '/default-logo.png');
  *    const facebook = useSiteSetting('socialMedia.facebook', '');
  *
- * 3. Use i
-Loading site settings...</div>;
+ */
+export default function SiteSettingsExample() {
+  const { settings, loading } = useSiteSettings();
+  const siteName = useSiteSetting('siteName', 'Valiarian');
+  const logo = useSiteSetting('logo', '');
+  const facebook = useSiteSetting('socialMedia.facebook', '');
+
+  if (loading) {
+    return <div>Loading site settings...</div>;
   }
 
   return (
@@ -45,12 +51,12 @@ Loading site settings...</div>;
       Facebook
     </a>
   )}
-  {settings.socialMedia.instagram && (
+  {settings.socialMedia?.instagram && (
     <a href={settings.socialMedia.instagram} target="_blank" rel="noopener noreferrer">
       Instagram
     </a>
   )}
-  {settings.socialMedia.twitter && (
+  {settings.socialMedia?.twitter && (
     <a href={settings.socialMedia.twitter} target="_blank" rel="noopener noreferrer">
       Twitter
     </a>

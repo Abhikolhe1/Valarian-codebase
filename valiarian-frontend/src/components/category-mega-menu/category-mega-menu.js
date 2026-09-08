@@ -132,7 +132,7 @@ const ImagePreview = styled(Box)(({ theme }) => ({
   },
 }));
 
-const PreviewTitle = styled(Typography)(({ theme }) => ({
+styled(Typography)(({ theme }) => ({
   position: 'absolute',
   top: theme.spacing(2),
   left: theme.spacing(2),
@@ -340,11 +340,6 @@ export default function CategoryMegaMenu({
   );
 
   // Get current preview data
-  const previewData = hoveredSubcategory || {
-    name: categoryGroups[0]?.subcategories[0]?.name || '',
-    groupName: categoryGroups[0]?.group || '',
-    image: fallbackImage,
-  };
 
   // 🔹 derive title
   const previewTitle = hoveredSubcategory
@@ -352,8 +347,8 @@ export default function CategoryMegaMenu({
     : '';
 
   // 🔹 title animation state
-  const [displayTitle, setDisplayTitle] = useState(previewTitle);
-  const [titleVisible, setTitleVisible] = useState(true);
+  const [, setDisplayTitle] = useState(previewTitle);
+  const [, setTitleVisible] = useState(true);
 
   // 🔹 image animation state
   const [displayImage, setDisplayImage] = useState(hoveredSubcategory?.image || fallbackImage);

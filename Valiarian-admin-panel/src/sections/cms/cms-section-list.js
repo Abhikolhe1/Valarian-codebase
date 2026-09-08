@@ -223,6 +223,7 @@ export default function CMSSectionList({ pageId, sections, onSectionsChange }) {
   const handleEditSection = useCallback((sectionId) => {
     const section = sections.find((s) => s.id === sectionId);
     if (section) {
+      setSelectedTemplate(null);
       setSelectedSection(section);
       setEditorOpen(true);
     }
@@ -276,6 +277,7 @@ export default function CMSSectionList({ pageId, sections, onSectionsChange }) {
     setEditorOpen(false);
     setSelectedSection(null);
     setSelectedType(null);
+    setSelectedTemplate(null);
   }, []);
 
   const handleDeleteSection = useCallback(
@@ -337,6 +339,7 @@ export default function CMSSectionList({ pageId, sections, onSectionsChange }) {
           onClose={handleCloseEditor}
           section={selectedSection}
           sectionType={selectedType}
+          template={selectedTemplate}
           pageId={pageId}
           onSave={handleSectionSaved}
         />
@@ -485,6 +488,7 @@ const SectionItem = forwardRef(({
         {/* Drag Handle */}
         <Box
           {...dragHandleProps}
+          aria-label={`Reorder ${section.name || 'section'}`}
           sx={{
             cursor: 'grab',
             display: 'flex',
@@ -532,6 +536,7 @@ const SectionItem = forwardRef(({
             {section.enabled ? 'Enabled' : 'Disabled'}
           </Typography>
           <Switch
+            inputProps={{ 'aria-label': `Enable ${section.name || 'section'}` }}
             checked={section.enabled}
             onChange={() => onToggleEnabled(section.id, section.enabled)}
             size="small"

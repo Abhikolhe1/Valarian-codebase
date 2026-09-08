@@ -1,4 +1,6 @@
 import {inject} from '@loopback/core';
+import {authenticate} from '@loopback/authentication';
+import {authorize} from '../authorization';
 import {repository} from '@loopback/repository';
 import {
   get,
@@ -40,6 +42,12 @@ export class FileUploadController {
       .replace(/^-|-$/g, '');      // trim hyphens
   }
 
+  private isWithinStorage(candidate: string): boolean {
+    const root = path.resolve(this.storageDirectory);
+    const relative = path.relative(root, path.resolve(candidate));
+    return relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative));
+  }
+
   private async uploadToFolder(
     processId: string,
     request: Request,
@@ -48,7 +56,7 @@ export class FileUploadController {
     const slug = processId ? this.slugify(processId) : '';
     const uploadDir = path.resolve(this.storageDirectory, slug);
 
-    if (!uploadDir.startsWith(this.storageDirectory)) {
+    if (!this.isWithinStorage(uploadDir)) {
       throw new HttpErrors.BadRequest('Invalid folder path');
     }
 
@@ -62,11 +70,15 @@ export class FileUploadController {
       destination: uploadDir,
       filename: (req: Request, file: Express.Multer.File, cb: Function) => {
         const timestamp = new Date().toISOString().replace(/[-:.]/g, '');
-        cb(null, `${timestamp}_${file.originalname}`);
+        const safeOriginalName = path.basename(file.originalname).replace(/[^a-zA-Z0-9._-]/g, '_');
+        cb(null, `${timestamp}_${safeOriginalName}`);
       },
     });
 
-    const handler = multer({storage}).any();
+    const handler = multer({
+      storage,
+      limits: {fileSize: 20 * 1024 * 1024, files: 10, fields: 50, fieldSize: 64 * 1024},
+    }).any();
 
     return new Promise<object>((resolve, reject) => {
       handler(request, response, (err: unknown) => {
@@ -80,6 +92,8 @@ export class FileUploadController {
   }
 
   @post('/files/{processId}')
+  @authenticate('jwt')
+  @authorize({roles: ['super_admin', 'admin', 'editor']})
   async uploadWithProcessId(
     @param.path.string('processId') processId: string,
     @requestBody.file() request: Request,
@@ -89,6 +103,8 @@ export class FileUploadController {
   }
 
   @post('/files')
+  @authenticate('jwt')
+  @authorize({roles: ['super_admin', 'admin', 'editor']})
   async uploadToRoot(
     @requestBody.file() request: Request,
     @inject(RestBindings.Http.RESPONSE) response: Response,
@@ -170,6 +186,8 @@ export class FileUploadController {
       },
     },
   })
+  @authenticate('jwt')
+  @authorize({roles: ['super_admin', 'admin', 'editor']})
   async listFiles() {
     const files = await readdir(this.storageDirectory);
     return files;
@@ -193,13 +211,15 @@ export class FileUploadController {
       },
     },
   })
+  @authenticate('jwt')
+  @authorize({roles: ['super_admin', 'admin', 'editor']})
   async listFolderFiles(
     @param.path.string('folderName') folderName: string,
   ) {
     const folderPath = path.resolve(this.storageDirectory, folderName);
 
     // Security check to prevent directory traversal
-    if (!folderPath.startsWith(this.storageDirectory)) {
+    if (!this.isWithinStorage(folderPath)) {
       throw new HttpErrors.BadRequest('Invalid folder path');
     }
 
@@ -270,7 +290,7 @@ export class FileUploadController {
   private validateFileName(filePath: string): string {
     const resolved = path.resolve(this.storageDirectory, filePath);
 
-    if (!resolved.startsWith(this.storageDirectory)) {
+    if (!this.isWithinStorage(resolved)) {
       throw new HttpErrors.BadRequest(`Invalid file path: ${filePath}`);
     }
 

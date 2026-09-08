@@ -1,0 +1,10 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "allowJs": true,
+    "checkJs": false,
+    "rootDir": ".",
+    "noEmit": true
+  },
+  "include": ["src", "ecosystem.config.js", "test-e2e-admin.js"]
+}

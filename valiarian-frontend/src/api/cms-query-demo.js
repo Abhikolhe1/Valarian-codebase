@@ -4,6 +4,8 @@
  * alongside the existing SWR hooks
  */
 
+import PropTypes from 'prop-types';
+import Markdown from 'src/components/markdown';
 import {
   useInvalidateCMS,
   useMedia,
@@ -16,7 +18,7 @@ import {
   useSection,
   useSections,
   useSettings,
-} from './cms-query';
+} from './cms-react-query';
 
 // ----------------------------------------------------------------------
 // PAGES EXAMPLES
@@ -38,7 +40,7 @@ export function PagesListDemo() {
   return (
     <div>
       <h2>Pages ({data?.pages?.length || 0})</h2>
-      <button onClick={() => refetch()}>Refresh</button>
+      <button type="button" onClick={() => refetch()}>Refresh</button>
       <ul>
         {data?.pages?.map((page) => (
           <li key={page.id}>
@@ -80,7 +82,7 @@ export function PublicPageDemo({ slug }) {
   return (
     <div>
       <h1>{data?.page?.title}</h1>
-      <div dangerouslySetInnerHTML={{ __html: data?.page?.content }} />
+      <Markdown>{data?.page?.content || ''}</Markdown>
     </div>
   );
 }
@@ -195,7 +197,7 @@ export function MediaDetailDemo({ mediaId }) {
     <div>
       <img src={data?.media?.url} alt={data?.media?.altText} style={{ maxWidth: '100%' }} />
       <p>{data?.media?.caption}</p>
-      <p>Size: {(data?.media?.size / 1024).toFixed(2)} KB</p>
+      <p>Size: {((data?.media?.size ?? 0) / 1024).toFixed(2)} KB</p>
     </div>
   );
 }
@@ -293,8 +295,8 @@ export function PageActionsDemo({ pageId }) {
 
   return (
     <div>
-      <button onClick={handlePublish}>Publish Page</button>
-      <button onClick={handleUpdate}>Update Page</button>
+      <button type="button" onClick={handlePublish}>Publish Page</button>
+      <button type="button" onClick={handleUpdate}>Update Page</button>
     </div>
   );
 }
@@ -355,10 +357,21 @@ export function ComparisonDemo({ pageId }) {
     <div>
       <h3>React Query Result:</h3>
       {rqLoading && <p>Loading...</p>}
-      {rqError && <p>Error: {rqerror?.error?.message}</p>}
+      {rqError && <p>Error: {rqError?.error?.message}</p>}
       {rqData && <p>Title: {rqData?.page?.title}</p>}
 
       {/* SWR result would be similar */}
     </div>
   );
 }
+
+PageDetailDemo.propTypes = { pageId: PropTypes.string };
+PublicPageDemo.propTypes = { slug: PropTypes.string };
+VersionHistoryDemo.propTypes = { pageId: PropTypes.string };
+SectionsListDemo.propTypes = { pageId: PropTypes.string };
+SectionDetailDemo.propTypes = { sectionId: PropTypes.string };
+MediaDetailDemo.propTypes = { mediaId: PropTypes.string };
+NavigationDemo.propTypes = { location: PropTypes.string };
+PageActionsDemo.propTypes = { pageId: PropTypes.string };
+PageWithSectionsDemo.propTypes = { slug: PropTypes.string };
+ComparisonDemo.propTypes = { pageId: PropTypes.string };

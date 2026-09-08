@@ -1,6 +1,6 @@
 import {AuthenticationComponent, registerAuthenticationStrategy} from '@loopback/authentication';
 import {BootMixin} from '@loopback/boot';
-import {ApplicationConfig} from '@loopback/core';
+import {ApplicationConfig, BindingScope} from '@loopback/core';
 import {RepositoryMixin} from '@loopback/repository';
 import {RestApplication} from '@loopback/rest';
 import {
@@ -44,6 +44,7 @@ import {MyUserService} from './services/user-service';
 
 // ── Shipping Services & Cron Jobs ──────────────────────────────────────────
 import {ShippingService} from './services/shipping.service';
+import {PostalPincodeService} from './services/postal-pincode.service';
 import {InventoryLifecycleService} from './services/inventory-lifecycle.service';
 import {WarehouseService} from './services/warehouse.service';
 import {NdrService} from './services/ndr.service';
@@ -132,6 +133,7 @@ export class ValiarianBackendApplication extends BootMixin(
 
     // Bind shipping services
     this.bind('services.shipping').toClass(ShippingService);
+    this.bind('services.postal-pincode').toClass(PostalPincodeService).inScope(BindingScope.SINGLETON);
     this.bind('services.inventory-lifecycle').toClass(InventoryLifecycleService);
     this.bind('services.warehouse').toClass(WarehouseService);
     this.bind('services.ndr').toClass(NdrService);
@@ -172,10 +174,19 @@ export class ValiarianBackendApplication extends BootMixin(
         destination,
         filename: (req, file, cb) => {
           const timestamp = new Date().toISOString().replace(/[-:.]/g, '');
-          const fileName = `${timestamp}_${file.originalname}`;
+          // Never trust the client supplied name: multer's disk storage treats
+          // path separators as directories and could otherwise escape uploads/.
+          const safeOriginalName = path.basename(file.originalname).replace(/[^a-zA-Z0-9._-]/g, '_');
+          const fileName = `${timestamp}_${safeOriginalName}`;
           cb(null, fileName);
         },
       }),
+      limits: {
+        fileSize: 20 * 1024 * 1024,
+        files: 10,
+        fields: 50,
+        fieldSize: 64 * 1024,
+      },
     };
 
     this.configure(FILE_UPLOAD_SERVICE).to(multerOptions);

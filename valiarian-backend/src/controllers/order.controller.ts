@@ -37,6 +37,7 @@ import {
   ShipmentRepository,
 } from '../repositories';
 import {ShippingService} from '../services/shipping.service';
+import {PostalPincodeService} from '../services/postal-pincode.service';
 import {InventoryLifecycleService} from '../services/inventory-lifecycle.service';
 import {EmailTemplateService} from '../services/email-template.service';
 import {EmailService} from '../services/email.service';
@@ -51,6 +52,7 @@ import {
   resolveWebhookRawBody,
 } from '../utils/razorpay-webhook.utils';
 import {selectForwardWaybillService} from '../utils/bluedart-forward-service.utils';
+import {DeliveryEligibility, evaluateDeliveryEligibility, isIndianDeliveryAddress} from '../utils/delivery-eligibility';
 import {
   calculateCouponDiscount,
   getCouponAvailabilityError,
@@ -183,6 +185,8 @@ export class OrderController {
     public shippingService: ShippingService,
     @inject('services.inventory-lifecycle')
     public inventoryLifecycleService: InventoryLifecycleService,
+    @inject('services.postal-pincode')
+    public postalPincodeService: PostalPincodeService,
   ) {}
 
   private async countCouponUsage(couponId: string, userId?: string): Promise<number> {
@@ -1718,58 +1722,29 @@ export class OrderController {
     }
   }
 
-  /**
-   * Serviceability gate for order placement. Applies to prepaid and COD alike;
-   * COD additionally requires the pincode to support cash collection.
-   *
-   * Returns a customer-facing reason to reject, or null to allow. Provider
-   * failures block placement so an unverified destination cannot create an
-   * order that later fails during AWB generation.
-   */
   private async checkDestinationServiceability(
-    request: CreateOrderRequest,
-  ): Promise<string | null> {
+    request: Pick<CreateOrderRequest, 'shippingAddress' | 'paymentMethod'>,
+    forceRefresh = false,
+  ): Promise<DeliveryEligibility> {
     const pincode = (request.shippingAddress?.zipCode ?? '').trim();
-
-    if (!/^\d{6}$/.test(pincode) || pincode === '000000') {
-      return 'Please enter a valid 6-digit delivery pincode.';
+    if (!isIndianDeliveryAddress(pincode, request.shippingAddress?.country ?? '')) {
+      throw new HttpErrors.UnprocessableEntity('Delivery is available only to Indian addresses with a valid 6-digit PIN code.');
     }
-
-    let serviceability;
+    // Required even for direct order/payment requests; a Blue Dart outage must
+    // never bypass the independent postal-directory check.
+    await this.postalPincodeService.assertExists(pincode);
+    let result;
     try {
-      const forwardService = selectForwardWaybillService(
-        request.paymentMethod === 'cod',
-      );
-      serviceability = await this.shippingService.checkServiceability({
+      const forwardService = selectForwardWaybillService(request.paymentMethod === 'cod');
+      result = await this.shippingService.checkServiceability({
         pincode,
         deliveryMode: forwardService.deliveryMode,
         paymentType: forwardService.paymentType,
-      });
-    } catch (error) {
-      const isProduction = process.env.NODE_ENV === 'production';
-      console.error(
-        `[OrderController] Serviceability unavailable for pincode ${pincode}; ${
-          isProduction ? 'blocking order' : 'allowing local order'
-        }. Reason:`,
-        error.message || error,
-      );
-      return isProduction
-        ? 'We could not verify delivery availability right now. Please try again shortly.'
-        : null;
+      }, forceRefresh);
+    } catch {
+      console.error('[OrderController] Blue Dart availability check failed; recording unconfirmed delivery.');
     }
-
-    if (!serviceability.isServiceable) {
-      if (serviceability.reason === 'invalid_pincode') {
-        return `Pincode ${pincode} is not a valid delivery pincode. Please check and try again.`;
-      }
-      return `We do not deliver to pincode ${pincode} yet. Please try a different delivery address.`;
-    }
-
-    if (request.paymentMethod === 'cod' && !serviceability.isCodAvailable) {
-      return `Cash on delivery is not available for pincode ${pincode}. Please choose online payment instead.`;
-    }
-
-    return null;
+    return evaluateDeliveryEligibility(result, request.paymentMethod === 'cod');
   }
 
   @post('/api/orders/prepare-payment')
@@ -1799,10 +1774,10 @@ export class OrderController {
         );
       }
 
-      const unserviceableReason =
+      const delivery =
         await this.checkDestinationServiceability(request);
-      if (unserviceableReason) {
-        throw new HttpErrors.UnprocessableEntity(unserviceableReason);
+      if (!delivery.checkoutAllowed) {
+        throw new HttpErrors.UnprocessableEntity(delivery.message);
       }
 
       const {subtotal, discount, shipping, tax, total} =
@@ -1861,21 +1836,12 @@ export class OrderController {
     try {
       const userId = currentUser.id;
 
-      const unserviceableReason =
-        await this.checkDestinationServiceability(request);
-      let needsManualShipping = false;
-      if (unserviceableReason) {
-        // Money already moved on this path; rejecting here would strand a
-        // captured payment with no order, so record it and let packing catch it.
-        if (request.paymentMethod === 'razorpay' && request.paymentDetails) {
-          needsManualShipping = true;
-          console.error(
-            `[OrderController] Order accepted despite serviceability failure because payment was already captured. Reason: ${unserviceableReason}`,
-          );
-        } else {
-          throw new HttpErrors.UnprocessableEntity(unserviceableReason);
-        }
+      const delivery = await this.checkDestinationServiceability(request);
+      if (!delivery.checkoutAllowed) {
+        throw new HttpErrors.UnprocessableEntity(delivery.message);
       }
+      const {needsManualShipping} = delivery;
+      const unserviceableReason = needsManualShipping ? delivery.message : undefined;
 
       const {orderItems, subtotal, discount, couponApplication, shipping, tax, total} =
         await this.buildOrderDraft(request, userId);
@@ -1949,6 +1915,8 @@ export class OrderController {
           shippingAddress: request.shippingAddress,
           items: orderItems,
           needsManualShipping,
+          blueDartDeliveryStatus: delivery.blueDartDeliveryStatus,
+          blueDartCheckedAt: new Date(),
           manualShippingReason: needsManualShipping
             ? unserviceableReason ?? undefined
             : undefined,
@@ -2106,7 +2074,7 @@ export class OrderController {
     invoice: any;
   }> {
     try {
-      return this.verifyExistingPayment(request, currentUser);
+      return await this.verifyExistingPayment(request, currentUser);
     } catch (error) {
       console.error('Error verifying payment:', error);
       if (error instanceof HttpErrors.HttpError) {
@@ -2132,7 +2100,7 @@ export class OrderController {
     invoice: any;
   }> {
     try {
-      return this.verifyExistingPayment(request, currentUser);
+      return await this.verifyExistingPayment(request, currentUser);
     } catch (error) {
       console.error('Error verifying payment via alias endpoint:', error);
       if (error instanceof HttpErrors.HttpError) {
@@ -2422,14 +2390,15 @@ export class OrderController {
     return response;
   }
 
-  private async buildOrderBarcodeDataUri(
-    orderNumber: string,
+  private async buildAwbBarcodeDataUri(
+    awbNumber: string | undefined,
   ): Promise<string | undefined> {
+    if (!awbNumber) return undefined;
     try {
-      const buffer = await this.barcodeService.renderBarcodeBuffer(orderNumber);
+      const buffer = await this.barcodeService.renderBarcodeBuffer(awbNumber);
       return `data:image/png;base64,${buffer.toString('base64')}`;
     } catch (error) {
-      console.error('Error rendering order barcode:', error);
+      console.error('Error rendering AWB barcode:', error);
       return undefined;
     }
   }
@@ -2483,14 +2452,21 @@ export class OrderController {
     @inject(RestBindings.Http.RESPONSE) response: Response,
   ): Promise<Response> {
     const order = await this.orderRepository.findById(orderId);
+    if (!['packed', 'shipped', 'out_for_delivery', 'delivered'].includes(order.status)) {
+      throw new HttpErrors.Conflict('Pack the order before printing its shipping label.');
+    }
+    if (!order.blueDartForwardSkipped && !order.trackingNumber?.trim()) {
+      throw new HttpErrors.Conflict('Wait for the Blue Dart AWB before printing its shipping label.');
+    }
     const withItems = await this.withOrderItems(order);
     const invoice = buildInvoiceFromOrder(withItems);
+    const awbNumber = order.trackingNumber?.trim() || undefined;
 
     return this.sendHtml(
       response,
       this.invoicePrintService.buildShippingLabelHtml(withItems, invoice, {
-        awbNumber: order.trackingNumber,
-        barcodeDataUri: await this.buildOrderBarcodeDataUri(order.orderNumber),
+        awbNumber,
+        barcodeDataUri: await this.buildAwbBarcodeDataUri(awbNumber),
       }),
     );
   }
@@ -3152,6 +3128,26 @@ export class OrderController {
     }
   }
 
+  @post('/api/admin/orders/{orderId}/delivery-check')
+  @authenticate('jwt')
+  @authorize({roles: ['super_admin', 'admin']})
+  async adminCheckDelivery(
+    @param.path.string('orderId') orderId: string,
+  ): Promise<DeliveryEligibility> {
+    const order = await this.orderRepository.findById(orderId);
+    const delivery = await this.checkDestinationServiceability(order, true);
+    if (!delivery.checkoutAllowed && !delivery.needsManualShipping) {
+      throw new HttpErrors.UnprocessableEntity(delivery.message);
+    }
+    await this.orderRepository.updateById(orderId, {
+      blueDartDeliveryStatus: delivery.blueDartDeliveryStatus,
+      blueDartCheckedAt: new Date(),
+      needsManualShipping: delivery.needsManualShipping,
+      manualShippingReason: delivery.needsManualShipping ? delivery.message : '',
+    });
+    return delivery;
+  }
+
   @patch('/api/admin/orders/{orderId}/status')
   @authenticate('jwt')
   @authorize({roles: ['super_admin', 'admin']})
@@ -3285,6 +3281,17 @@ export class OrderController {
       };
 
       if (request.status === 'packed') {
+        if (request.skipBlueDart === true &&
+          order.blueDartDeliveryStatus !== 'available' &&
+          (!order.needsManualShipping || !['unavailable', 'check_failed'].includes(order.blueDartDeliveryStatus ?? ''))) {
+          throw new HttpErrors.BadRequest('Check delivery availability before choosing self-delivery or an external courier.');
+        }
+        if (request.skipBlueDart === true) {
+          const existingShipment = await this.shipmentRepository.findOne({where: {orderId: order.id, isReverse: false, status: {neq: 'cancelled'}}});
+          if (existingShipment) {
+            throw new HttpErrors.BadRequest('A Blue Dart shipment already exists. Resolve that shipment before arranging another courier.');
+          }
+        }
         updateData.blueDartForwardSkipped = request.skipBlueDart === true;
       }
 

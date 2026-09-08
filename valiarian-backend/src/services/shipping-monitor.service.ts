@@ -5,6 +5,7 @@ import {EmailService} from './email.service';
 export class ShippingMonitorService {
   private failureCounts: Record<string, number> = {};
   private lastSyncTimestamps: Record<string, Date> = {};
+  private lastAlertTimestamps: Record<string, number> = {};
   private connectivityStatus: Record<string, boolean> = {
     BlueDart: true,
   };
@@ -19,14 +20,15 @@ export class ShippingMonitorService {
   }
 
   private getThreshold(): number {
-    return Number(process.env.SHIPPING_FAILURE_ALERT_THRESHOLD || '5');
+    const value = Number(process.env.SHIPPING_FAILURE_ALERT_THRESHOLD || '5');
+    return Number.isInteger(value) && value > 0 ? value : 5;
   }
 
   private areAlertsEnabled(): boolean {
-    return (
-      process.env.NODE_ENV?.trim().toLowerCase() !== 'test' &&
-      process.env.SHIPPING_ALERTS_ENABLED?.trim().toLowerCase() !== 'false'
-    );
+    const environment = process.env.NODE_ENV?.trim().toLowerCase();
+    const enabled = process.env.SHIPPING_ALERTS_ENABLED?.trim().toLowerCase();
+    return environment !== 'test' &&
+      (enabled === 'true' || (environment === 'production' && enabled !== 'false'));
   }
 
   /**
@@ -41,13 +43,21 @@ export class ShippingMonitorService {
   /**
    * Log a failed API call. Send alert if it exceeds threshold.
    */
-  async recordFailure(provider: string, operation: string, errorMsg: string) {
+  async recordFailure(provider: string, operation: string, errorMsg: string, configurationError = false) {
     this.failureCounts[operation] = (this.failureCounts[operation] || 0) + 1;
     this.connectivityStatus[provider] = false;
 
     const threshold = this.getThreshold();
-    if (this.areAlertsEnabled() && this.failureCounts[operation] === threshold) {
-      await this.sendAlertEmail(provider, operation, errorMsg, this.failureCounts[operation]);
+    const key = `${provider}:${operation}`;
+    const configuredCooldown = Number(process.env.SHIPPING_ALERT_COOLDOWN_MS);
+    const cooldown = Number.isFinite(configuredCooldown) && configuredCooldown >= 60_000
+      ? configuredCooldown : 6 * 60 * 60 * 1000;
+    const lastAlert = this.lastAlertTimestamps[key];
+    if (this.areAlertsEnabled() && (configurationError || this.failureCounts[operation] >= threshold) &&
+      (lastAlert === undefined || Date.now() - lastAlert >= cooldown)) {
+      // Reserve before awaiting mail delivery to deduplicate concurrent failures.
+      this.lastAlertTimestamps[key] = Date.now();
+      await this.sendAlertEmail(provider, operation, errorMsg, this.failureCounts[operation], configurationError);
     }
   }
 
@@ -56,12 +66,15 @@ export class ShippingMonitorService {
     operation: string,
     errorMsg: string,
     consecutiveCount: number,
+    configurationError: boolean,
   ) {
     const alertEmail = this.getAlertEmail();
     const mailObj = {
       from: process.env.EMAIL_FROM || 'valiarian.wear@gmail.com',
       to: alertEmail,
-      subject: `[CRITICAL] Shipping API Alert: ${provider} consecutive failures`,
+      subject: configurationError
+        ? `[CONFIGURATION] Shipping API Alert: ${provider} tracking credentials/configuration`
+        : `[CRITICAL] Shipping API Alert: ${provider} consecutive failures`,
       html: `
         <h2>Courier API Connectivity Alert</h2>
         <p>This is an automated system alert from Valarian. The courier provider <strong>${provider}</strong> has encountered consecutive failures.</p>

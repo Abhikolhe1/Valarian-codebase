@@ -26,7 +26,7 @@ export class NdrFollowUpCronJob implements LifeCycleObserver {
 
     this.timer = setInterval(() => {
       console.log('[NDR Follow-Up Cron] tick triggered');
-      void this.runNdrFollowUp();
+      this.runNdrFollowUp().catch(error => console.error('[NDR Follow-Up Cron] Sweep failed:', error));
     }, this.sweepIntervalMs);
 
     this.timer.unref?.();

@@ -32,7 +32,7 @@ export class OrderExpiryService implements LifeCycleObserver {
     await this.expireStaleOrders();
 
     this.timer = setInterval(() => {
-      void this.expireStaleOrders();
+      this.expireStaleOrders().catch(error => console.error('[Order Expiry] Sweep failed:', error));
     }, this.sweepIntervalMs);
 
     this.timer.unref?.();

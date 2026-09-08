@@ -3,7 +3,7 @@ import {AlternateInstructionParams, AlternateInstructionResult, CreateReversePic
 import {mapCourierStatus} from '../../utils/courier-status-mapper';
 import {BlueDartApiClient} from './bluedart-api.client';
 import {BlueDartAuthService} from './bluedart-auth.service';
-import {BlueDartProviderError, LabelGenerationNotSupportedError} from './bluedart-errors';
+import {BlueDartConfigurationError, BlueDartProviderError, LabelGenerationNotSupportedError} from './bluedart-errors';
 import {mapAlternateInstructionRequest, mapCancelWaybillRequest, mapMasterDownloadRequest, mapProductsRequest, mapReversePickupRequest, mapServiceabilityRequest, mapTransitTimeRequest, mapWaybillRequest} from './bluedart/mappers';
 
 type Json = Record<string, any>;
@@ -252,13 +252,22 @@ export class BlueDartDeveloperPortalProvider implements ShippingProvider {
   async trackShipment(awbNumber: string): Promise<TrackingResult> {
     const operation = 'trackShipment';
     assertBlueDartBaseUrlConfigured(this.config.trackingBaseUrl, 'BLUEDART_SANDBOX_TRACKING_BASE_URL / BLUEDART_PRODUCTION_TRACKING_BASE_URL', operation);
+    const loginId = this.config.account.trackingLoginId || this.config.account.loginId;
+    const licenceKey = this.config.account.trackingLicenceKey || this.config.account.licenceKey;
+    if (!loginId?.trim() || !licenceKey?.trim()) {
+      throw new BlueDartConfigurationError('Blue Dart tracking credentials are missing. Configure BLUEDART_TRACKING_LOGIN_ID and BLUEDART_TRACKING_LICENCE_KEY.', operation);
+    }
     const query = new URLSearchParams({
-      handler: 'tnt', action: 'custawbquery', loginid: this.config.account.loginId || '',
+      handler: 'tnt', action: 'custawbquery', loginid: loginId,
       awb: 'awb', numbers: awbNumber, format: 'xml',
-      lickey: this.config.account.licenceKey || '', verno: '1', scan: '1',
+      lickey: licenceKey, verno: '1', scan: '1',
     });
     const raw = await this.client.get<string>(this.config.trackingBaseUrl, `?${query.toString()}`, operation);
     if (typeof raw !== 'string') throw new BlueDartProviderError('Blue Dart tracking response was not XML', {operation});
+    const providerError = xmlTag(raw, 'Error') || xmlTag(raw, 'Instructions');
+    if (providerError && /licen[cs]e\s*(?:key\s*)?mismatch|invalid\s+(?:licen[cs]e|login)|authentication\s+failed/i.test(providerError)) {
+      throw new BlueDartConfigurationError('Blue Dart rejected the tracking login/licence (License Mismatch). Verify the tracking credentials and BLUEDART_ENV with Blue Dart; retrying the same credentials will not fix this.', operation);
+    }
     const parseTimestamp = (dateValue: unknown, timeValue: unknown): Date => {
       const dateText = String(dateValue || '').trim();
       const timeText = String(timeValue || '').trim();
