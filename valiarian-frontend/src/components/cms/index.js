@@ -1,5 +1,5 @@
 // Section Renderer Components
-export * from './section-renderer';
+export { SectionList, SectionSkeleton, SectionRenderer as TypedSectionRenderer } from './section-renderer';
 
 // Section Components
 export { default as FeaturesSection } from './FeaturesSection';

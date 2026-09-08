@@ -251,6 +251,7 @@ export class ProductController {
               saleEndDate: {type: 'string', format: 'date-time'},
               currency: {type: 'string'},
               coverImage: {type: 'string'},
+              sizeChartUrl: {type: 'string'},
               images: {type: 'array', items: {type: 'string'}},
               variants: {
                 type: 'array',
@@ -432,6 +433,7 @@ export class ProductController {
               saleEndDate: {type: 'string', format: 'date-time'},
               currency: {type: 'string'},
               coverImage: {type: 'string'},
+              sizeChartUrl: {type: 'string'},
               images: {type: 'array', items: {type: 'string'}},
               variants: {
                 type: 'array',

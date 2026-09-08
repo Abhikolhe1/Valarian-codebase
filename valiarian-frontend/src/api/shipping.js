@@ -1,6 +1,7 @@
 import axiosInstance from 'src/utils/axios';
 
 const getErrorMessage = (error, fallbackMessage) =>
+  error?.error?.message ||
   error?.response?.data?.error?.message ||
   error?.response?.data?.message ||
   error?.message ||

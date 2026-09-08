@@ -1,7 +1,8 @@
 import {BindingScope, inject, injectable} from '@loopback/core';
 import {repository} from '@loopback/repository';
-import {HttpErrors} from '@loopback/rest';
+import {HttpErrors, Request} from '@loopback/rest';
 import {v4 as uuidv4} from 'uuid';
+import {UsersWithRelations} from '../models';
 import {MediaRepository, OtpRepository, UsersRepository} from '../repositories';
 import {BcryptHasher} from './hash.password.bcrypt';
 import {OtpNotificationService} from './otp-notification.service';
@@ -31,14 +32,16 @@ export class UserProfileService {
   async getUserProfile(userId: string) {
     const user = await this.usersRepository.findById(userId, {
       include: ['avatar'],
-    }) as any;
+    }) as UsersWithRelations;
 
     if (!user) {
       throw new HttpErrors.NotFound('User not found');
     }
 
     // Return user without sensitive fields
-    const {password, passwordHistory, ...profile} = user;
+    const profile: Partial<typeof user> = {...user};
+    delete profile.password;
+    delete profile.passwordHistory;
 
     // Include avatar URL if available
     const result = {
@@ -107,7 +110,7 @@ export class UserProfileService {
   /**
    * Update user avatar
    */
-  async updateAvatar(userId: string, request: any) {
+  async updateAvatar(userId: string, request: Request) {
     const user = await this.usersRepository.findById(userId);
 
     if (!user) {
@@ -186,7 +189,6 @@ export class UserProfileService {
       throw new HttpErrors.BadRequest('Email is already in use');
     }
 
-    void hasher;
     const {record: otp, code: otpCode} = await this.otpService.issue({
       identifier: newEmail,
       identifierType: OtpIdentifierType.EMAIL,
@@ -247,7 +249,6 @@ export class UserProfileService {
       throw new HttpErrors.BadRequest('OTP expired or not found');
     }
 
-    void hasher;
     await this.otpService.verifyAndConsume(otpEntry.id, newEmail, OtpIdentifierType.EMAIL, OtpPurpose.EMAIL_VERIFICATION, otp);
 
     // Update email
@@ -283,7 +284,6 @@ export class UserProfileService {
       throw new HttpErrors.BadRequest('Mobile number is already in use');
     }
 
-    void hasher;
     const {record: otp, code: otpCode} = await this.otpService.issue({
       identifier: newMobile,
       identifierType: OtpIdentifierType.PHONE,
@@ -337,7 +337,6 @@ export class UserProfileService {
       throw new HttpErrors.BadRequest('OTP expired or not found');
     }
 
-    void hasher;
     await this.otpService.verifyAndConsume(otpEntry.id, newMobile, OtpIdentifierType.PHONE, OtpPurpose.PROFILE_MOBILE, otp);
 
     // Update mobile

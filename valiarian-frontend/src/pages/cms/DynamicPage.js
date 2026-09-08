@@ -7,7 +7,7 @@ import Box from '@mui/material/Box';
 import Container from '@mui/material/Container';
 import Skeleton from '@mui/material/Skeleton';
 // hooks
-import { usePageBySlug } from 'src/api/cms-query';
+import { usePageBySlug } from 'src/api/cms-react-query';
 // components
 import { SectionList } from 'src/components/cms/section-renderer/SectionRenderer';
 import PageSEO from 'src/components/seo/PageSEO';
@@ -104,12 +104,12 @@ export default function DynamicPage({ slug: slugProp }) {
         <SectionList
           sections={page.sections || []}
           showErrorDetails={process.env.NODE_ENV === 'development'}
-          onError={(error, errorInfo, section) => {
+          onError={(sectionError, errorInfo, section) => {
             // Log errors in production
             console.error('Section rendering error:', {
               page: page.slug,
               section: section?.name,
-              error: error?.error?.message,
+              error: sectionError?.error?.message,
               errorInfo,
             });
           }}

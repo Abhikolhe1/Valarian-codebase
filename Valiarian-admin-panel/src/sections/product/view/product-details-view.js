@@ -1,4 +1,5 @@
 import { useCallback, useState } from 'react';
+import Markdown from 'src/components/markdown';
 // @mui
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
@@ -371,7 +372,7 @@ export default function ProductDetailsView() {
         {currentTab === 'description' && (
           <Box sx={{ p: 3 }}>
             {product.description ? (
-              <div dangerouslySetInnerHTML={{ __html: product.description }} />
+              <Markdown>{product.description}</Markdown>
             ) : (
               <Typography variant="body2" color="text.secondary">
                 No description available

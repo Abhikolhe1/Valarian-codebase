@@ -2,7 +2,6 @@ import PropTypes from 'prop-types';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
-import Card from '@mui/material/Card';
 import Chip from '@mui/material/Chip';
 import Container from '@mui/material/Container';
 import IconButton from '@mui/material/IconButton';
@@ -69,8 +68,6 @@ export default function PremiumProductShowcaseSection({ section }) {
   );
   const currentPrice = Number(product?.salePrice || product?.price || 0);
   const originalPrice = Number(product?.price || currentPrice || 0);
-  const mobileRemainingCount = Math.max(0, images.length - MOBILE_VISIBLE_THUMBNAILS);
-  const desktopRemainingCount = Math.max(0, images.length - DESKTOP_VISIBLE_THUMBNAILS);
   const scrollRef = useRef(null);
   const showThumbnailScrollButtons = images.length > DESKTOP_VISIBLE_THUMBNAILS;
 
@@ -232,10 +229,6 @@ export default function PremiumProductShowcaseSection({ section }) {
                   >
                   {images.map((image, index) => {
                     const isActive = image === activeImage;
-                    const showMobileRemaining =
-                      index === MOBILE_VISIBLE_THUMBNAILS - 1 && mobileRemainingCount > 0;
-                    const showDesktopRemaining =
-                      index === DESKTOP_VISIBLE_THUMBNAILS - 1 && desktopRemainingCount > 0;
 
                     return (
                       <Box

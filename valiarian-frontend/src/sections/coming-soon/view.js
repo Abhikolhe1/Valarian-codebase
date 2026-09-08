@@ -122,7 +122,7 @@ import { useGetComingSoonPage } from 'src/api/coming-soon';
 
 
 export default function ComingSoon() {
-  const { comingSoonPage, comingSoonPageLoading } = useGetComingSoonPage();
+  const { comingSoonPage } = useGetComingSoonPage();
 
   const bgImages = {
     summer: comingSoonPage?.background?.summer,
@@ -134,15 +134,7 @@ export default function ComingSoon() {
 
   const overlayOpacity = comingSoonPage?.background?.overlayOpacity || 0.5;
 
-  const getSeason = () => {
-    const month = new Date().getMonth() + 1;
-
-    // if (month >= 3 && month <= 6) return 'summer';
-    // if (month >= 7 && month <= 9) return 'monsoon';
-    return 'default';
-  };
-
-  const season = getSeason();
+  const season = 'default';
   const bgImage = bgImages[season];
 
   return (

@@ -172,8 +172,8 @@ export default function CheckoutPayment({
       .then((result) => {
         if (ignore) return;
         setCodUnavailable(
-          result && result.isServiceable === false
-            ? `Cash on delivery is not available for pincode ${pincode}. Please choose online payment instead.`
+          result && result.checkoutAllowed === false
+            ? result.message || `Cash on delivery is not available for pincode ${pincode}. Please choose online payment instead.`
             : ''
         );
       })

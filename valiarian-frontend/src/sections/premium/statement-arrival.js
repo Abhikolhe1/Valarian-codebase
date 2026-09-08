@@ -1,10 +1,9 @@
-import { Icon } from '@iconify/react';
-import { Box, Typography, Stack, IconButton } from '@mui/material';
-import { LazyMotion, domAnimation, m, AnimatePresence } from 'framer-motion';
+import { Box, Typography } from '@mui/material';
+import { LazyMotion, domAnimation } from 'framer-motion';
 import { useState } from 'react';
 
 export default function StatementArrivalDetail() {
-  const [index, setIndex] = useState(0);
+  useState(0);
 
 
   return (

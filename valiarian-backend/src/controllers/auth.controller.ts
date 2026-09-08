@@ -71,11 +71,10 @@ export class AuthController {
 
   // Helper method to get client IP address
   private getClientIp(): string {
-    const forwarded = this.request.headers['x-forwarded-for'];
-    if (forwarded) {
-      return (forwarded as string).split(',')[0].trim();
-    }
-    return this.request.socket.remoteAddress || '127.0.0.1';
+    // Express only uses X-Forwarded-For when `trust proxy` is explicitly
+    // configured. Reading the header directly lets an attacker choose a new
+    // rate-limit key for every request.
+    return this.request.ip || this.request.socket.remoteAddress || 'unknown';
   }
 
   // Resolves which panel role a user should be signed in as.
@@ -145,6 +144,26 @@ export class AuthController {
       password: string
     },
   ): Promise<{success: boolean; message: string; userId: string}> {
+    this.rateLimiterService.checkBootstrapAttempt(this.getClientIp());
+    const configuredToken = process.env.SUPER_ADMIN_BOOTSTRAP_TOKEN;
+    const suppliedToken = this.request.get('x-bootstrap-token');
+
+    // Bootstrap is disabled unless an operator supplies a high-entropy secret
+    // out of band. JWT authentication is not possible before the first
+    // privileged account exists.
+    if (!configuredToken || !suppliedToken) {
+      throw new HttpErrors.NotFound('Not found');
+    }
+
+    const expected = Buffer.from(configuredToken);
+    const received = Buffer.from(suppliedToken);
+    if (
+      expected.length !== received.length ||
+      !crypto.timingSafeEqual(expected, received)
+    ) {
+      throw new HttpErrors.NotFound('Not found');
+    }
+
     const superadminRole = await this.rolesRepository.findOne({
       where: {value: 'super_admin'},
     });
@@ -960,6 +979,12 @@ export class AuthController {
     // Validate and sanitize mobile number
     const sanitizedPhone = validateAndSanitizeMobile(body.phone);
 
+    // Public registration may only create ordinary users. Never allow the
+    // caller to select an administrative role for the later registration step.
+    if (body.role !== 'user') {
+      throw new HttpErrors.BadRequest('Invalid registration role');
+    }
+
     // Rate limiting: 3 OTP requests per hour per phone number
     this.rateLimiterService.checkOtpRequest(sanitizedPhone);
 
@@ -1147,6 +1172,7 @@ export class AuthController {
     assertMobileAuthEnabled();
 
     const {sessionId, fullName, email, password} = body;
+    validateAndCheckPassword(password);
 
     // Verify session exists and is verified
     const session = await this.registrationSessionsRepository.findById(sessionId);
@@ -1157,6 +1183,10 @@ export class AuthController {
 
     if (!session.phoneVerified) {
       throw new HttpErrors.BadRequest('Phone number not verified');
+    }
+
+    if (session.roleValue !== 'user') {
+      throw new HttpErrors.BadRequest('Invalid registration role');
     }
 
     if (new Date(session.expiresAt) < new Date()) {
@@ -2261,16 +2291,11 @@ export class AuthController {
     @inject(RestBindings.Http.RESPONSE) response: Response,
   ): Promise<{success: boolean; message: string; avatarUrl?: string}> {
     return new Promise((resolve, reject) => {
-      this.handler(request, response, async (err: any) => {
+      this.handler(request, response, (err: unknown) => {
         if (err) {
           reject(new HttpErrors.InternalServerError('Avatar upload failed'));
         } else {
-          try {
-            const result = await this.userProfileService.updateAvatar(currentUser.id, request);
-            resolve(result);
-          } catch (error) {
-            reject(error);
-          }
+          this.userProfileService.updateAvatar(currentUser.id, request).then(resolve, reject);
         }
       });
     });

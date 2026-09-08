@@ -1,6 +1,6 @@
 import { Helmet } from 'react-helmet-async';
 // sections
-import { OverviewAnalyticsView } from 'src/sections/overview/analytics/view';
+import StoreDashboardView from 'src/sections/overview/analytics/view/store-dashboard-view';
 
 // ----------------------------------------------------------------------
 
@@ -8,10 +8,10 @@ export default function OverviewAnalyticsPage() {
   return (
     <>
       <Helmet>
-        <title> Dashboard: Analytics</title>
+        <title>Valiarian | Store dashboard</title>
       </Helmet>
 
-      <OverviewAnalyticsView />
+      <StoreDashboardView />
     </>
   );
 }

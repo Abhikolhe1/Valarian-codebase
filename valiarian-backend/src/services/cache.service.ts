@@ -38,7 +38,7 @@ export class CacheService {
 
   constructor() {
     // Initialize Redis connection
-    this.initializeRedis();
+    this.initializeRedis().catch(error => console.error('Cache initialization failed:', error));
   }
 
   /**

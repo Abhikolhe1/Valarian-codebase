@@ -47,22 +47,25 @@ export default function CheckoutBillingAddress({ checkout, onBackStep, onCreateB
       user
     );
 
-  // Invalid/unserviceable pincodes and provider failures all block checkout,
-  // while preserving a distinct customer-facing message for each case.
+  // Courier coverage is separate from checkout eligibility. The backend decides
+  // whether an Indian destination can proceed with manual courier fulfilment.
   const getUnserviceableMessage = async (pincode) => {
+    if (!/^[1-9]\d{5}$/.test(String(pincode || '').trim())) {
+      return 'Please enter a valid 6-digit Indian PIN code.';
+    }
     try {
       const result = await checkPincodeServiceability(pincode);
       if (result?.reason === 'invalid_pincode') {
         return `Pincode ${pincode} is not a valid delivery pincode. Please check and try again.`;
       }
-      if (result?.isServiceable === false) {
-        return `Blue Dart Surface delivery is not available for pincode ${pincode}. Please use a different address.`;
+      if (result?.checkoutAllowed === false) {
+        return result.message || 'Please check your delivery address.';
       }
       return null;
     } catch (checkError) {
       console.error('Serviceability check failed:', checkError);
       throw new Error(
-        'We could not verify delivery availability right now. Please try again shortly.'
+        checkError?.message || 'We could not verify delivery availability right now. Please try again shortly.'
       );
     }
   };

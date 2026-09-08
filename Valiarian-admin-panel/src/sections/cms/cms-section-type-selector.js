@@ -222,7 +222,7 @@ export default function CMSSectionTypeSelector({ open, onClose, onSelect }) {
         <DialogTitle>
           <Stack direction="row" alignItems="center" justifyContent="space-between">
             <Typography variant="h6">Choose Section Type</Typography>
-            <IconButton onClick={onClose}>
+            <IconButton aria-label="Close section type selector" onClick={onClose}>
               <Iconify icon="mingcute:close-line" />
             </IconButton>
           </Stack>

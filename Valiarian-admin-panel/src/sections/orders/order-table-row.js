@@ -6,6 +6,7 @@ import TableRow from '@mui/material/TableRow';
 import { fCurrency } from 'src/utils/format-number';
 import Iconify from 'src/components/iconify';
 import Label from 'src/components/label';
+import { getDeliveryStatusLabel } from 'src/utils/delivery-status';
 import {
   formatOrderStatusLabel,
   getOrderStatusColor,
@@ -28,6 +29,9 @@ export default function OrderTableRow({ row, onViewRow, onEditRow }) {
       <TableCell>
         <Label variant="soft" color={getOrderStatusColor(status)} sx={{ textTransform: 'capitalize' }}>
           {formatOrderStatusLabel(status)}
+        </Label>
+        <Label variant="soft" color={row.blueDartDeliveryStatus === 'available' ? 'success' : 'warning'} sx={{ mt: 1 }}>
+          {getDeliveryStatusLabel(row)}
         </Label>
       </TableCell>
 

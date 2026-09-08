@@ -24,6 +24,7 @@ import { paths } from 'src/routes/paths';
 import axios from 'src/utils/axios';
 import { fCurrency } from 'src/utils/format-number';
 import { fDateTime } from 'src/utils/format-time';
+import { canSkipBlueDart, getDeliveryStatusLabel, getPackingStatusOptions, getShippingLabelBlockReason } from 'src/utils/delivery-status';
 // components
 import { BrowserMultiFormatReader } from '@zxing/browser';
 import CustomBreadcrumbs from 'src/components/custom-breadcrumbs';
@@ -56,11 +57,8 @@ const getAvailableStatusOptions = (order) => {
     case 'confirmed':
       return ['processing', 'cancelled'];
     case 'processing':
-      return ['packed', 'packed_skip_bluedart', 'cancelled'];
     case 'packed':
-      return order.blueDartForwardSkipped
-        ? ['out_for_delivery', 'delivered', 'cancelled']
-        : ['shipped', 'cancelled'];
+      return getPackingStatusOptions(order);
     case 'shipped':
       return ['out_for_delivery', 'delivered'];
     case 'out_for_delivery':
@@ -97,6 +95,7 @@ export default function OrderDetailsView() {
   const [shipments, setShipments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [checkingDelivery, setCheckingDelivery] = useState(false);
 
   // Status Update Dialog
   const [statusDialogOpen, setStatusDialogOpen] = useState(false);
@@ -205,6 +204,20 @@ export default function OrderDetailsView() {
     return () => clearInterval(interval);
   }, [fetchOrderDetails, id]);
 
+  const handleCheckDelivery = async () => {
+    setCheckingDelivery(true);
+    try {
+      await axios.post(`/api/admin/orders/${id}/delivery-check`);
+      await fetchOrderDetails();
+      setNewStatus('');
+      enqueueSnackbar('Delivery check updated. Review the courier status.', { variant: 'info' });
+    } catch (err) {
+      enqueueSnackbar(err?.error?.message || err?.message || 'Unable to update delivery check.', { variant: 'error' });
+    } finally {
+      setCheckingDelivery(false);
+    }
+  };
+
   const handleUpdateStatus = async () => {
     try {
       setUpdating(true);
@@ -241,7 +254,7 @@ export default function OrderDetailsView() {
       setEstimatedDelivery('');
       let successMessage = 'Order status updated successfully.';
       if (skipBlueDart) {
-        successMessage = 'Order packed for warehouse handover. Blue Dart was skipped.';
+        successMessage = 'Order packed for self-delivery or an external courier. Blue Dart was skipped.';
       } else if (newStatus === 'packed') {
         successMessage = 'Order packed, AWB generated, and Blue Dart pickup requested.';
       }
@@ -754,6 +767,7 @@ export default function OrderDetailsView() {
             </Button>
             <Button
               variant="contained"
+              disabled={Boolean(getShippingLabelBlockReason(order))}
               startIcon={<Iconify icon="solar:printer-minimalistic-bold" />}
               onClick={() =>
                 handlePrintDocument(
@@ -762,12 +776,33 @@ export default function OrderDetailsView() {
                 )
               }
             >
-              Print Shipping Label
+              {order.blueDartForwardSkipped ? 'Print Address Label' : 'Print Shipping Label'}
             </Button>
+            {getShippingLabelBlockReason(order) && ['packed', 'shipped', 'out_for_delivery', 'delivered'].includes(order.status) && (
+              <Typography variant="caption" color="text.secondary" sx={{ alignSelf: 'center', maxWidth: 220 }}>
+                {getShippingLabelBlockReason(order)}
+              </Typography>
+            )}
           </Stack>
         }
         sx={{ mb: { xs: 3, md: 5 } }}
       />
+
+      <Alert severity={order.blueDartDeliveryStatus === 'available' ? 'success' : 'warning'} sx={{ mb: 3 }}>
+        <Stack spacing={1} alignItems="flex-start">
+          <Typography variant="subtitle2">{getDeliveryStatusLabel(order)}</Typography>
+          <Typography variant="body2">
+            {order.manualShippingReason || (order.blueDartDeliveryStatus === 'available'
+              ? 'This order can use Blue Dart. Final booking is verified when creating the shipment.'
+              : 'Check this order before choosing a courier. A failed check is not proof that Blue Dart cannot deliver.')}
+          </Typography>
+          {order.blueDartCheckedAt && <Typography variant="caption">Last checked: {fDateTime(order.blueDartCheckedAt)}</Typography>}
+          {canSkipBlueDart(order) && <Typography variant="body2">Choose “Packed — Self-delivery / external courier (Skip Blue Dart)” for local warehouse delivery or another courier. Enter “Self delivery” as the carrier for your own delivery team; tracking is optional. An active Blue Dart shipment must be resolved before switching.</Typography>}
+          <Button onClick={handleCheckDelivery} disabled={checkingDelivery} size="small">
+            {checkingDelivery ? 'Checking Blue Dart…' : 'Recheck Blue Dart availability'}
+          </Button>
+        </Stack>
+      </Alert>
 
       <Grid container spacing={3}>
         {/* Main Content */}
@@ -1560,7 +1595,7 @@ export default function OrderDetailsView() {
               {availableStatusOptions.map((option) => (
                 <MenuItem key={option} value={option}>
                   {option === 'packed_skip_bluedart'
-                    ? 'Packed — Skip Blue Dart'
+                    ? 'Packed — Self-delivery / external courier (Skip Blue Dart)'
                     : option
                         .split('_')
                         .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
@@ -1578,7 +1613,8 @@ export default function OrderDetailsView() {
               onChange={(e) => setStatusComment(e.target.value)}
             />
 
-            {newStatus === 'shipped' && (
+            {(newStatus === 'shipped' || newStatus === 'packed_skip_bluedart' ||
+              (order.blueDartForwardSkipped && ['out_for_delivery', 'delivered'].includes(newStatus))) && (
               <>
                 <TextField
                   fullWidth

@@ -88,7 +88,7 @@ export default function CMSTemplateLibraryDialog({ open, onClose, onSelect }) {
     try {
       setLoading(true);
       const response = await axiosInstance.get(`${endpoints.cms.templates.list}?grouped=true`);
-      const data = response.data;
+      const {data} = response;
       setGroupedTemplates(data);
 
       // Flatten for 'all' tab

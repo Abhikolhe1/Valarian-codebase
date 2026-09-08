@@ -72,7 +72,7 @@ export default function OrdersDebug() {
 
         <Box sx={{ mt: 2 }}>
           <Typography variant="subtitle2">3. API Response</Typography>
-          {debugInfo.apiStatus === 200 ? (
+          {debugInfo.apiStatus === 200 && (
             <Alert severity="success" sx={{ mt: 1 }}>
               ✅ API Working!
               <br />
@@ -80,25 +80,29 @@ export default function OrdersDebug() {
               <br />
               Total in database: {debugInfo.totalInDb}
             </Alert>
-          ) : debugInfo.apiStatus === 401 ? (
+          )}
+          {debugInfo.apiStatus === 401 && (
             <Alert severity="error" sx={{ mt: 1 }}>
               ❌ 401 Unauthorized
               <br />
               Token is invalid or expired. Please login again.
             </Alert>
-          ) : debugInfo.apiStatus === 403 ? (
+          )}
+          {debugInfo.apiStatus === 403 && (
             <Alert severity="error" sx={{ mt: 1 }}>
               ❌ 403 Forbidden
               <br />
               User is not super_admin. Login with super admin account.
             </Alert>
-          ) : debugInfo.apiStatus ? (
+          )}
+          {!!debugInfo.apiStatus && ![200, 401, 403].includes(debugInfo.apiStatus) && (
             <Alert severity="error" sx={{ mt: 1 }}>
               ❌ Error {debugInfo.apiStatus}
               <br />
               {JSON.stringify(debugInfo.error)}
             </Alert>
-          ) : (
+          )}
+          {!debugInfo.apiStatus && (
             <Alert severity="info" sx={{ mt: 1 }}>
               Testing API...
             </Alert>

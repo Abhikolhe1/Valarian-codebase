@@ -68,7 +68,7 @@ export default function CMSMediaPicker({
   const [uploadFolder, setUploadFolder] = useState('/');
   const [newUploadFolder, setNewUploadFolder] = useState('');
 
-  const uploadDialog = useBoolean();
+  useBoolean();
   const deleteConfirm = useBoolean();
   const bulkDialog = useBoolean();
 

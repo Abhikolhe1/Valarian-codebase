@@ -54,7 +54,7 @@ const FABRICS = [
 // Fabric Item Component - handles individual fabric animation
 function FabricItem({ fabric, index: fabricIndex, smoothIndex, isMobile, totalFabrics }) {
   // Determine if this fabric is the active one
-  const isActive = useTransform(
+  useTransform(
     smoothIndex,
     (latest) => Math.floor(latest) === fabricIndex
   );
@@ -420,7 +420,7 @@ export default function HomeFabricSection({ fabrics: propFabrics, cmsData, ...ot
   // Wrapper ref for scroll tracking
   const wrapperRef = useRef(null);
   const containerRef = useRef(null);
-  const spacerRef = useRef(null);
+  useRef(null);
 
   // Use CMS data for title and subtitle
   const title = cmsData?.content?.title || 'Premium Fabrics';

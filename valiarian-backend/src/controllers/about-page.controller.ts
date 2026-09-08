@@ -105,7 +105,6 @@ export class AboutPageController {
   async getAdminAboutPage(
     @inject(SecurityBindings.USER) currentUser: UserProfile,
   ): Promise<AboutPage> {
-    void currentUser;
     return this.findOrCreateAboutPage();
   }
 
@@ -125,7 +124,6 @@ export class AboutPageController {
     })
     body: Partial<AboutPage>,
   ): Promise<AboutPage> {
-    void currentUser;
 
     const existing = await this.findOrCreateAboutPage();
 

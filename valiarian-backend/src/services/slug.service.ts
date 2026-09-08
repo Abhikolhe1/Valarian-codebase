@@ -28,7 +28,7 @@ export class SlugService {
     repository: ProductRepository,
     excludeId?: string,
   ): Promise<string> {
-    let slug = this.generateSlug(text);
+    const slug = this.generateSlug(text);
 
     // Check if slug exists
     let counter = 1;

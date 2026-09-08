@@ -21,7 +21,6 @@ import { paths } from 'src/routes/paths';
 import { useResponsive } from 'src/hooks/use-responsive';
 // api
 import { useGetCategories } from 'src/api/category';
-import { useGetVariants } from 'src/api/product';
 // utils
 // components
 import { Alert, Tab, Tabs } from '@mui/material';
@@ -34,7 +33,7 @@ import FormProvider, {
 } from 'src/components/hook-form';
 import { useSnackbar } from 'src/components/snackbar';
 import { useRouter } from 'src/routes/hook';
-import useSWR, { mutate } from 'swr';
+import { mutate } from 'swr';
 import axiosInstance, { endpoints } from 'src/utils/axios';
 import CMSMediaPickerField from '../cms/cms-media-picker-field';
 import ProductVariantManager from './product-variant-manager';
@@ -42,6 +41,11 @@ import ProductVariantManager from './product-variant-manager';
 const PRODUCT_IMAGE_MAX_SIZE = 10 * 1024 * 1024; // 10MB, matches backend MAX_IMAGE_SIZE
 const PRODUCT_IMAGE_ACCEPT = {
   'image/*': ['.jpg', '.jpeg', '.png', '.webp', '.svg'],
+};
+const SIZE_CHART_MAX_SIZE = 20 * 1024 * 1024; // 20MB, matches backend MAX_DOCUMENT_SIZE (PDF)
+const SIZE_CHART_ACCEPT = {
+  'image/*': ['.jpg', '.jpeg', '.png', '.webp', '.svg'],
+  'application/pdf': ['.pdf'],
 };
 
 // ----------------------------------------------------------------------
@@ -175,6 +179,7 @@ export default function ProductNewEditForm({ currentProduct }) {
       currency: currentProduct?.currency || 'INR',
       coverImage: currentProduct?.coverImage || null,
       images: currentProduct?.images || [],
+      sizeChartUrl: currentProduct?.sizeChartUrl || null,
       colors: currentProduct?.colors || [],
       sizes: currentProduct?.sizes || [],
       stockQuantity: currentProduct?.stockQuantity || 0,
@@ -316,6 +321,13 @@ export default function ProductNewEditForm({ currentProduct }) {
         const uploadedImages = await Promise.all(imageUploadPromises);
         const imageUrls = uploadedImages.filter(url => url); // Remove nulls
 
+        // Upload size chart if it's a File object (image or PDF)
+        let { sizeChartUrl } = data;
+        if (data.sizeChartUrl && typeof data.sizeChartUrl !== 'string') {
+          enqueueSnackbar('Uploading size chart...', { variant: 'info' });
+          sizeChartUrl = await uploadFile(data.sizeChartUrl);
+        }
+
         console.log('✓ Final image URLs:', imageUrls);
         console.log('✓ Final cover URL:', coverImageUrl);
 
@@ -324,6 +336,7 @@ export default function ProductNewEditForm({ currentProduct }) {
           ...data,
           coverImage: coverImageUrl || '',
           images: imageUrls,
+          sizeChartUrl: sizeChartUrl || '',
           variants,
           categoryId: normalizeUuidValue(data.categoryId),
         };
@@ -518,6 +531,17 @@ export default function ProductNewEditForm({ currentProduct }) {
                   errors.images?.message || 'Select from the media library or upload new images. Max size: 10MB each.'
                 }
                 error={!!errors.images}
+              />
+            </Stack>
+
+            <Stack spacing={1.5}>
+              <Typography variant="subtitle2">Size Chart (Optional)</Typography>
+              <CMSMediaPickerField
+                value={values.sizeChartUrl}
+                onChange={(url) => setValue('sizeChartUrl', url, { shouldValidate: true })}
+                accept={SIZE_CHART_ACCEPT}
+                maxSize={SIZE_CHART_MAX_SIZE}
+                helperText="Shown to shoppers in a popup next to the size selector. Image or PDF, max size: 20MB."
               />
             </Stack>
           </Stack>

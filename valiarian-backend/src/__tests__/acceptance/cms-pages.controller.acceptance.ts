@@ -20,7 +20,6 @@ describe('CMSPageController (acceptance)', () => {
   let hasher: BcryptHasher;
   let adminToken: string;
   let adminUserId: string;
-  let editorToken: string;
   let editorUserId: string;
 
   before('setupApplication', async () => {
@@ -98,7 +97,7 @@ describe('CMSPageController (acceptance)', () => {
       email: 'editor@test.com',
       roles: ['editor'],
     };
-    editorToken = await jwtService.generateToken(editorProfile);
+    await jwtService.generateToken(editorProfile);
   });
 
   describe('GET /api/cms/pages', () => {

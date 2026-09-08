@@ -35,7 +35,7 @@ export default function ProfileEditForm({
   const { refreshUser } = useAuthContext();
 
   const [emailVerificationStep, setEmailVerificationStep] = useState(null);
-  const [emailOtpId, setEmailOtpId] = useState('');
+  const [, setEmailOtpId] = useState('');
   const [newEmail, setNewEmail] = useState('');
   const [isSendingEmailOtp, setIsSendingEmailOtp] = useState(false);
   const [isVerifyingEmailOtp, setIsVerifyingEmailOtp] = useState(false);
@@ -44,7 +44,7 @@ export default function ProfileEditForm({
   const emailOtpRefs = useRef([]);
 
   const [mobileVerificationStep, setMobileVerificationStep] = useState(null);
-  const [mobileOtpId, setMobileOtpId] = useState('');
+  const [, setMobileOtpId] = useState('');
   const [newMobile, setNewMobile] = useState('');
   const [isSendingMobileOtp, setIsSendingMobileOtp] = useState(false);
   const [isVerifyingMobileOtp, setIsVerifyingMobileOtp] = useState(false);
@@ -55,7 +55,6 @@ export default function ProfileEditForm({
 
   const displayUser = user;
   const isEmailLogin = user.authProvider === 'local' || user.authProvider === 'google';
-  const isMobileLogin = user.authProvider === 'otp' || (user.phone && !user.email);
 
   const ProfileSchema = Yup.object().shape({
     fullName: Yup.string().required('Full name is required'),

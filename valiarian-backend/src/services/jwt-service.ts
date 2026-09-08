@@ -25,7 +25,7 @@ export class JWTService implements TokenService {
       jwt.sign(
         payload,
         this.jwtSecret,
-        {expiresIn},
+        {expiresIn, algorithm: 'HS256'},
         (err: any, token: string | undefined) => {
           if (err || !token) return reject(err ?? new Error('Token generation failed'));
           resolve(token);
@@ -37,7 +37,7 @@ export class JWTService implements TokenService {
 
   private async verifyJwt(token: string): Promise<any> {
     return new Promise((resolve, reject) => {
-      jwt.verify(token, this.jwtSecret, (err: any, decoded: any) => {
+      jwt.verify(token, this.jwtSecret, {algorithms: ['HS256']}, (err: any, decoded: any) => {
         if (err) return reject(err);
         resolve(decoded);
       });

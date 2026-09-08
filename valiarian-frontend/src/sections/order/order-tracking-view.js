@@ -314,10 +314,6 @@ export default function OrderTrackingView() {
     (['delivered', 'completed'].includes(normalizedStatus) && returnDecision !== 'rejected');
   const showReturnReviewMessage = isReturnFlow && !returnDecision;
 
-  const StepIconComponent = (props) => (
-    <ColorlibStepIcon {...props} deliveredTheme={isDeliveredTheme} />
-  );
-
   const getTrackingMessage = () => {
     switch (tracking?.status) {
       case 'delivered':
@@ -493,7 +489,7 @@ export default function OrderTrackingView() {
                 >
                   {stepperSteps.map((label) => (
                     <Step key={label}>
-                    <StepLabel StepIconComponent={StepIconComponent}>{label}</StepLabel>
+                    <StepLabel StepIconComponent={ColorlibStepIcon} StepIconProps={{ deliveredTheme: isDeliveredTheme }}>{label}</StepLabel>
                   </Step>
                 ))}
                 </Stepper>

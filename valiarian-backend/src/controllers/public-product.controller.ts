@@ -18,6 +18,13 @@ export class PublicProductController {
     public categoryRepository: CategoryRepository,
   ) { }
 
+  private pagination(limit: number, offset: number): {limit: number; offset: number} {
+    return {
+      limit: Number.isFinite(limit) ? Math.min(Math.max(Math.floor(limit), 1), 100) : 20,
+      offset: Number.isFinite(offset) ? Math.min(Math.max(Math.floor(offset), 0), 100000) : 0,
+    };
+  }
+
   @get('/api/public/products/new-arrivals')
   @response(200, {
     description: 'New arrival products',
@@ -40,6 +47,7 @@ export class PublicProductController {
     @param.query.number('limit') limit = 10,
     @param.query.number('offset') offset = 0,
   ): Promise<{products: Product[]; total: number}> {
+    ({limit, offset} = this.pagination(limit, offset));
     const now = new Date();
 
     console.log(`Fetching New Arrivals: limit=${limit}, offset=${offset}, now=${now.toISOString()}`);
@@ -134,6 +142,7 @@ export class PublicProductController {
     @param.query.number('limit') limit = 10,
     @param.query.number('offset') offset = 0,
   ): Promise<{products: Product[]; total: number}> {
+    ({limit, offset} = this.pagination(limit, offset));
     console.log(`Fetching Best Sellers: limit=${limit}, offset=${offset}`);
 
     // First try to find products explicitly marked as best sellers
@@ -220,6 +229,7 @@ export class PublicProductController {
     @param.query.number('limit') limit = 10,
     @param.query.number('offset') offset = 0,
   ): Promise<{products: Product[]; total: number}> {
+    ({limit, offset} = this.pagination(limit, offset));
     console.log(`Fetching Featured Products: limit=${limit}, offset=${offset}`);
 
     const products = await this.productRepository.findFeatured(limit, offset);
@@ -314,6 +324,7 @@ export class PublicProductController {
     @param.query.number('limit') limit = 20,
     @param.query.number('offset') offset = 0,
   ): Promise<{products: Product[]; total: number}> {
+    ({limit, offset} = this.pagination(limit, offset));
     let resolvedCategoryId = categoryId;
     const sortFilters = this.getProductSortFilters(sortBy);
 

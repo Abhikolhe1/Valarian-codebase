@@ -68,16 +68,16 @@ export class WhatsAppService {
     } catch (error) {
       if (error instanceof WhatsAppProviderError) throw error;
       const axiosError = error as AxiosCompatibleError;
-      const code = axiosError.response?.data?.error?.code;
+      const providerCode = axiosError.response?.data?.error?.code;
       const type = axiosError.response?.data?.error?.type;
       let category: WhatsAppErrorCategory = 'provider';
       if (axiosError.code === 'ECONNABORTED') category = 'timeout';
       else if (!axiosError.response) category = 'network';
-      else if (axiosError.response.status === 401 || axiosError.response.status === 403 || code === 190) category = 'authentication';
-      else if (axiosError.response.status === 429 || code === 4 || code === 80007) category = 'rate_limit';
-      else if (code === 132000 || code === 132001 || code === 132012) category = 'template';
-      else if (code === 131030 || code === 131026) category = 'recipient';
-      console.error('[WhatsApp] OTP rejected', {recipient: this.mask(phone), category, metaCode: code, metaType: type, durationMs: Date.now() - started});
+      else if (axiosError.response.status === 401 || axiosError.response.status === 403 || providerCode === 190) category = 'authentication';
+      else if (axiosError.response.status === 429 || providerCode === 4 || providerCode === 80007) category = 'rate_limit';
+      else if (providerCode === 132000 || providerCode === 132001 || providerCode === 132012) category = 'template';
+      else if (providerCode === 131030 || providerCode === 131026) category = 'recipient';
+      console.error('[WhatsApp] OTP rejected', {recipient: this.mask(phone), category, metaCode: providerCode, metaType: type, durationMs: Date.now() - started});
       throw new WhatsAppProviderError(category, 'WhatsApp provider rejected the message');
     }
   }

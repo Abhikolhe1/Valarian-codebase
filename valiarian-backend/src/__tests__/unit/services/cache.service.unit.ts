@@ -22,7 +22,7 @@ describe('CacheService (unit)', () => {
   let cacheService: CacheService;
   let isRedisAvailable = false;
 
-  before(async function () {
+  before(/** @this {Mocha.Context} */ async function () {
     this.timeout(10000);
     suppressRedisErrors = true;
     cacheService = new CacheService();
@@ -48,7 +48,7 @@ describe('CacheService (unit)', () => {
     }
   });
 
-  after(async function () {
+  after(/** @this {Mocha.Context} */ async function () {
     this.timeout(5000);
     if (isRedisAvailable && cacheService) {
       try {
@@ -59,7 +59,7 @@ describe('CacheService (unit)', () => {
     }
   });
 
-  beforeEach(async function () {
+  beforeEach(/** @this {Mocha.Context} */ async function () {
     this.timeout(5000);
     if (!isRedisAvailable) {
       return this.skip();
@@ -152,7 +152,7 @@ describe('CacheService (unit)', () => {
   });
 
   describe('TTL expiration', () => {
-    it('should expire key after TTL', async function () {
+    it('should expire key after TTL', /** @this {Mocha.Context} */ async function () {
       this.timeout(5000);
 
       const key = 'test:expire';
