@@ -25,6 +25,7 @@ import {authorize} from '../authorization';
 import {ContactSubmission} from '../models';
 import {ContactSubmissionRepository} from '../repositories';
 import {EmailService} from '../services/email.service';
+import {OtpRateLimitService} from '../services/otp-rate-limit.service';
 
 const CONTACT_SUBMISSION_STATUSES = [
   'new',
@@ -38,6 +39,8 @@ export class ContactSubmissionController {
     public contactSubmissionRepository: ContactSubmissionRepository,
     @inject('services.email')
     public emailService: EmailService,
+    @inject('services.otp.rate-limit')
+    private abuseRateLimiter: OtpRateLimitService,
   ) {}
 
   private normalizeContactTokenId(token?: string): string {
@@ -110,6 +113,13 @@ export class ContactSubmissionController {
     })
     payload: Partial<ContactSubmission>,
   ): Promise<ContactSubmission> {
+    const clientIp = request.ip || request.socket.remoteAddress || 'unknown';
+    await this.abuseRateLimiter.assertLimit(
+      `contact:submit:${clientIp}`,
+      Number(process.env.CONTACT_SUBMISSION_LIMIT_PER_HOUR ?? 5),
+      60 * 60,
+    );
+
     const customIssueType = payload.customIssueType?.trim();
 
     if (payload.issueType === 'other' && !customIssueType) {

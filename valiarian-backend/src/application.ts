@@ -172,10 +172,19 @@ export class ValiarianBackendApplication extends BootMixin(
         destination,
         filename: (req, file, cb) => {
           const timestamp = new Date().toISOString().replace(/[-:.]/g, '');
-          const fileName = `${timestamp}_${file.originalname}`;
+          // Never trust the client supplied name: multer's disk storage treats
+          // path separators as directories and could otherwise escape uploads/.
+          const safeOriginalName = path.basename(file.originalname).replace(/[^a-zA-Z0-9._-]/g, '_');
+          const fileName = `${timestamp}_${safeOriginalName}`;
           cb(null, fileName);
         },
       }),
+      limits: {
+        fileSize: 20 * 1024 * 1024,
+        files: 10,
+        fields: 50,
+        fieldSize: 64 * 1024,
+      },
     };
 
     this.configure(FILE_UPLOAD_SERVICE).to(multerOptions);

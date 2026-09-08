@@ -12,12 +12,22 @@ export class RateLimiterService {
   private loginAttempts: Map<string, RateLimitEntry> = new Map();
   private otpRequests: Map<string, RateLimitEntry> = new Map();
   private passwordResetRequests: Map<string, RateLimitEntry> = new Map();
+  private bootstrapAttempts: Map<string, RateLimitEntry> = new Map();
+
+  private cap(map: Map<string, RateLimitEntry>): void {
+    // Prevent attacker-controlled identifiers/IPs from growing these in-memory
+    // maps without bound when the service is exposed to the internet.
+    if (map.size < 10000) return;
+    const oldest = map.keys().next().value;
+    if (oldest) map.delete(oldest);
+  }
 
   /**
    * Check and track login attempts
    * Limit: 5 attempts per 15 minutes per IP
    */
   checkLoginAttempt(ipAddress: string): void {
+    this.cap(this.loginAttempts);
     const key = `login:${ipAddress}`;
     const entry = this.loginAttempts.get(key);
     const now = new Date();
@@ -68,6 +78,7 @@ export class RateLimiterService {
    * Limit: 3 requests per hour per identifier (mobile/email)
    */
   checkOtpRequest(identifier: string): void {
+    this.cap(this.otpRequests);
     const key = `otp:${identifier}`;
     const entry = this.otpRequests.get(key);
     const now = new Date();
@@ -110,6 +121,7 @@ export class RateLimiterService {
    * Limit: 3 requests per hour per identifier
    */
   checkPasswordResetRequest(identifier: string): void {
+    this.cap(this.passwordResetRequests);
     const key = `reset:${identifier}`;
     const entry = this.passwordResetRequests.get(key);
     const now = new Date();
@@ -145,6 +157,22 @@ export class RateLimiterService {
     } else {
       this.passwordResetRequests.set(key, {count: 1, firstAttempt: now});
     }
+  }
+
+  /** Limit bootstrap-token guesses to 5 attempts per hour per source IP. */
+  checkBootstrapAttempt(ipAddress: string): void {
+    this.cap(this.bootstrapAttempts);
+    const key = `bootstrap:${ipAddress}`;
+    const now = new Date();
+    const entry = this.bootstrapAttempts.get(key);
+    if (entry && now.getTime() - entry.firstAttempt.getTime() <= 60 * 60 * 1000 && entry.count >= 5) {
+      throw new HttpErrors.TooManyRequests('Too many bootstrap attempts. Please try again later.');
+    }
+    if (!entry || now.getTime() - entry.firstAttempt.getTime() > 60 * 60 * 1000) {
+      this.bootstrapAttempts.set(key, {count: 1, firstAttempt: now});
+      return;
+    }
+    entry.count++;
   }
 
   /**

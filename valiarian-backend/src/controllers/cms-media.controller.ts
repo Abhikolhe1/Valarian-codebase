@@ -154,7 +154,10 @@ export class CMSMediaController {
     return new Promise((resolve, reject) => {
       const multer = require('multer');
       const storage = multer.memoryStorage();
-      const upload = multer({storage}).single('file');
+      const upload = multer({
+        storage,
+        limits: {fileSize: 20 * 1024 * 1024, files: 1, fields: 20, fieldSize: 64 * 1024},
+      }).single('file');
 
       upload(request, httpResponse, async (err: any) => {
         if (err) {
