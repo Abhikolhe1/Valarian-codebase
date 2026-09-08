@@ -33,6 +33,12 @@ deploy_backend() {
   log BACKEND "Installing dependencies"
   ( cd "$BACKEND_DIR" && npm ci )
 
+  # Reject unsafe startup configuration before replacing the healthy build.
+  if ! node "${SCRIPT_DIR}/check-backend-deploy-config.cjs" "$BACKEND_DIR"; then
+    log BACKEND "Configuration preflight failed; live backend build was not replaced"
+    return 1
+  fi
+
   log BACKEND "Building (staged, not yet live)"
   rm -rf "${BACKEND_DIR}/dist.new"
   # See scripts/deploy-uat.sh for why *.tsbuildinfo must be cleared first.
