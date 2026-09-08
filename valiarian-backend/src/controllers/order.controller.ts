@@ -2390,14 +2390,15 @@ export class OrderController {
     return response;
   }
 
-  private async buildOrderBarcodeDataUri(
-    orderNumber: string,
+  private async buildAwbBarcodeDataUri(
+    awbNumber: string | undefined,
   ): Promise<string | undefined> {
+    if (!awbNumber) return undefined;
     try {
-      const buffer = await this.barcodeService.renderBarcodeBuffer(orderNumber);
+      const buffer = await this.barcodeService.renderBarcodeBuffer(awbNumber);
       return `data:image/png;base64,${buffer.toString('base64')}`;
     } catch (error) {
-      console.error('Error rendering order barcode:', error);
+      console.error('Error rendering AWB barcode:', error);
       return undefined;
     }
   }
@@ -2451,14 +2452,21 @@ export class OrderController {
     @inject(RestBindings.Http.RESPONSE) response: Response,
   ): Promise<Response> {
     const order = await this.orderRepository.findById(orderId);
+    if (!['packed', 'shipped', 'out_for_delivery', 'delivered'].includes(order.status)) {
+      throw new HttpErrors.Conflict('Pack the order before printing its shipping label.');
+    }
+    if (!order.blueDartForwardSkipped && !order.trackingNumber?.trim()) {
+      throw new HttpErrors.Conflict('Wait for the Blue Dart AWB before printing its shipping label.');
+    }
     const withItems = await this.withOrderItems(order);
     const invoice = buildInvoiceFromOrder(withItems);
+    const awbNumber = order.trackingNumber?.trim() || undefined;
 
     return this.sendHtml(
       response,
       this.invoicePrintService.buildShippingLabelHtml(withItems, invoice, {
-        awbNumber: order.trackingNumber,
-        barcodeDataUri: await this.buildOrderBarcodeDataUri(order.orderNumber),
+        awbNumber,
+        barcodeDataUri: await this.buildAwbBarcodeDataUri(awbNumber),
       }),
     );
   }

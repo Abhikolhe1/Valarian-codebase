@@ -1,3 +1,13 @@
+export function getShippingLabelBlockReason(order) {
+  if (!['packed', 'shipped', 'out_for_delivery', 'delivered'].includes(order?.status)) {
+    return 'Pack the order before printing its shipping label.';
+  }
+  if (!order.blueDartForwardSkipped && !order.trackingNumber?.trim()) {
+    return 'Wait for the Blue Dart AWB before printing its shipping label.';
+  }
+  return '';
+}
+
 export function canSkipBlueDart(order) {
   return order?.blueDartDeliveryStatus === 'available' ||
     (order?.needsManualShipping === true &&

@@ -1,4 +1,20 @@
-import { canSkipBlueDart, getDeliveryStatusLabel, getPackingStatusOptions } from './delivery-status';
+import { canSkipBlueDart, getDeliveryStatusLabel, getPackingStatusOptions, getShippingLabelBlockReason } from './delivery-status';
+
+describe('Shipping label printing eligibility', () => {
+  it.each(['pending', 'processing', 'cancelled', 'returned'])('blocks %s even with an AWB', (status) => {
+    expect(getShippingLabelBlockReason({ status, trackingNumber: '21102442793' })).toContain('Pack');
+  });
+  it.each([undefined, '', '   '])('blocks packed Blue Dart orders without an AWB (%s)', (trackingNumber) => {
+    expect(getShippingLabelBlockReason({ status: 'packed', trackingNumber })).toContain('AWB');
+  });
+  it.each(['packed', 'shipped', 'out_for_delivery', 'delivered'])('allows printing/reprinting for %s with an AWB', (status) => {
+    expect(getShippingLabelBlockReason({ status, trackingNumber: '21102442793' })).toBe('');
+  });
+  it('allows an address label for self-delivery only after packing', () => {
+    expect(getShippingLabelBlockReason({ status: 'packed', blueDartForwardSkipped: true })).toBe('');
+    expect(getShippingLabelBlockReason({ status: 'processing', blueDartForwardSkipped: true })).toContain('Pack');
+  });
+});
 
 describe('Blue Dart order status', () => {
   it.each(['unavailable', 'check_failed'])('allows external courier for %s', (status) => {

@@ -24,7 +24,7 @@ import { paths } from 'src/routes/paths';
 import axios from 'src/utils/axios';
 import { fCurrency } from 'src/utils/format-number';
 import { fDateTime } from 'src/utils/format-time';
-import { canSkipBlueDart, getDeliveryStatusLabel, getPackingStatusOptions } from 'src/utils/delivery-status';
+import { canSkipBlueDart, getDeliveryStatusLabel, getPackingStatusOptions, getShippingLabelBlockReason } from 'src/utils/delivery-status';
 // components
 import { BrowserMultiFormatReader } from '@zxing/browser';
 import CustomBreadcrumbs from 'src/components/custom-breadcrumbs';
@@ -767,6 +767,7 @@ export default function OrderDetailsView() {
             </Button>
             <Button
               variant="contained"
+              disabled={Boolean(getShippingLabelBlockReason(order))}
               startIcon={<Iconify icon="solar:printer-minimalistic-bold" />}
               onClick={() =>
                 handlePrintDocument(
@@ -775,8 +776,13 @@ export default function OrderDetailsView() {
                 )
               }
             >
-              Print Shipping Label
+              {order.blueDartForwardSkipped ? 'Print Address Label' : 'Print Shipping Label'}
             </Button>
+            {getShippingLabelBlockReason(order) && ['packed', 'shipped', 'out_for_delivery', 'delivered'].includes(order.status) && (
+              <Typography variant="caption" color="text.secondary" sx={{ alignSelf: 'center', maxWidth: 220 }}>
+                {getShippingLabelBlockReason(order)}
+              </Typography>
+            )}
           </Stack>
         }
         sx={{ mb: { xs: 3, md: 5 } }}

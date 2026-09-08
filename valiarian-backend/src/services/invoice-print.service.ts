@@ -323,7 +323,7 @@ ${autoPrint ? '<script>window.addEventListener("load", function () { window.prin
         ${order.shippingAddress?.phone ? `<div class="phone">Phone: ${this.esc(order.shippingAddress.phone)}</div>` : ''}
       </div>
       <div class="routing">
-        <div class="code">${context.barcodeDataUri ? `<img src="${context.barcodeDataUri}" alt="Order barcode" />` : `<strong>${this.esc(order.orderNumber)}</strong>`}</div>
+        <div class="code">${context.awbNumber && context.barcodeDataUri ? `<img src="${context.barcodeDataUri}" alt="AWB barcode ${this.esc(context.awbNumber)}" />` : `<strong>${context.awbNumber ? 'AWB barcode unavailable' : 'AWB pending'}</strong>`}</div>
         <div class="awb">
           ${context.courierName ? `<strong>${this.esc(context.courierName)}</strong><br />` : ''}
           ${context.awbNumber ? `AWB<br /><strong>${this.esc(context.awbNumber)}</strong>` : 'AWB pending'}
