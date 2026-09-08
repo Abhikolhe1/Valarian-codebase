@@ -1,409 +1,103 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, act } from '@testing-library/react';
 import { SnackbarProvider } from 'notistack';
+import axiosInstance, { endpoints } from 'src/utils/axios';
+
 import CMSSectionEditor from './cms-section-editor';
 
-// Mock fetch
-global.fetch = jest.fn();
+// Browser-only media/lightbox, rich-text and remote icons are outside these
+// section workflow tests. Keep the actual section forms and API payloads real.
+jest.mock('./cms-media-picker', () => () => null);
+jest.mock('src/components/editor', () => () => null);
+jest.mock('src/components/iconify', () => () => <svg data-testid="cms-icon" />);
+jest.mock('src/utils/axios', () => ({
+  __esModule: true,
+  ...jest.requireActual('src/utils/axios'),
+  default: { get: jest.fn(), post: jest.fn(), patch: jest.fn(), delete: jest.fn() },
+}));
 
-// Wrapper component for providers
-const Wrapper = ({ children }) => <SnackbarProvider>{children}</SnackbarProvider>;
+const onClose = jest.fn();
+const onSave = jest.fn();
+const saved = { id: 'section-1', name: 'My Hero', type: 'hero', content: { title: 'Welcome' } };
+const show = (props = {}) => render(
+  <SnackbarProvider><CMSSectionEditor open onClose={onClose} onSave={onSave} pageId="page-123" sectionType="hero" {...props} /></SnackbarProvider>
+);
+const submit = () => fireEvent.click(screen.getByRole('button', { name: /^(Create|Update) Section$/ }));
+beforeEach(() => jest.resetAllMocks());
 
-describe('CMSSectionEditor', () => {
-  const mockOnClose = jest.fn();
-  const mockOnSave = jest.fn();
-  const mockPageId = 'page-123';
-
-  beforeEach(() => {
-    jest.clearAllMocks();
-    global.fetch.mockClear();
-  });
-
-  describe('Dialog Rendering', () => {
-    it('renders dialog when open is true', () => {
-      render(
-        <CMSSectionEditor
-          open
-          onClose={mockOnClose}
-          sectionType="hero"
-          pageId={mockPageId}
-          onSave={mockOnSave}
-        />,
-        { wrapper: Wrapper }
-      );
-
-      expect(screen.getByText('Create Hero Section')).toBeInTheDocument();
-    });
-
-    it('does not render dialog when open is false', () => {
-      render(
-        <CMSSectionEditor
-          open={false}
-          onClose={mockOnClose}
-          sectionType="hero"
-          pageId={mockPageId}
-          onSave={mockOnSave}
-        />,
-        { wrapper: Wrapper }
-      );
-
-      expect(screen.queryByText('Create Hero Section')).not.toBeInTheDocument();
-    });
-
-    it('displays correct title for create mode', () => {
-      render(
-        <CMSSectionEditor
-          open
-          onClose={mockOnClose}
-          sectionType="features"
-          pageId={mockPageId}
-          onSave={mockOnSave}
-        />,
-        { wrapper: Wrapper }
-      );
-
-      expect(screen.getByText('Create Features Section')).toBeInTheDocument();
-    });
-
-    it('displays correct title for edit mode', () => {
-      const mockSection = {
-        id: 'section-1',
-        type: 'hero',
-        name: 'Hero Section',
-        content: {},
-      };
-
-      render(
-        <CMSSectionEditor
-          open
-          onClose={mockOnClose}
-          section={mockSection}
-          pageId={mockPageId}
-          onSave={mockOnSave}
-        />,
-        { wrapper: Wrapper }
-      );
-
-      expect(screen.getByText('Edit Hero Section')).toBeInTheDocument();
-    });
-  });
-
-  describe('Section Type Switching', () => {
-    it('renders hero section editor for hero type', () => {
-      render(
-        <CMSSectionEditor
-          open
-          onClose={mockOnClose}
-          sectionType="hero"
-          pageId={mockPageId}
-          onSave={mockOnSave}
-        />,
-        { wrapper: Wrapper }
-      );
-
-      expect(screen.getByText('Create Hero Section')).toBeInTheDocument();
-      // Hero editor should have specific fields
-      expect(screen.getByLabelText(/section name/i)).toBeInTheDocument();
-    });
-
-    it('renders features section editor for features type', () => {
-      render(
-        <CMSSectionEditor
-          open
-          onClose={mockOnClose}
-          sectionType="features"
-          pageId={mockPageId}
-          onSave={mockOnSave}
-        />,
-        { wrapper: Wrapper }
-      );
-
-      expect(screen.getByText('Create Features Section')).toBeInTheDocument();
-    });
-
-    it('renders testimonials section editor for testimonials type', () => {
-      render(
-        <CMSSectionEditor
-          open
-          onClose={mockOnClose}
-          sectionType="testimonials"
-          pageId={mockPageId}
-          onSave={mockOnSave}
-        />,
-        { wrapper: Wrapper }
-      );
-
-      expect(screen.getByText('Create Testimonials Section')).toBeInTheDocument();
-    });
-
-    it('renders gallery section editor for gallery type', () => {
-      render(
-        <CMSSectionEditor
-          open
-          onClose={mockOnClose}
-          sectionType="gallery"
-          pageId={mockPageId}
-          onSave={mockOnSave}
-        />,
-        { wrapper: Wrapper }
-      );
-
-      expect(screen.getByText('Create Gallery Section')).toBeInTheDocument();
-    });
-
-    it('renders CTA section editor for cta type', () => {
-      render(
-        <CMSSectionEditor
-          open
-          onClose={mockOnClose}
-          sectionType="cta"
-          pageId={mockPageId}
-          onSave={mockOnSave}
-        />,
-        { wrapper: Wrapper }
-      );
-
-      expect(screen.getByText('Create Call to Action Section')).toBeInTheDocument();
-    });
-
-    it('renders text section editor for text type', () => {
-      render(
-        <CMSSectionEditor
-          open
-          onClose={mockOnClose}
-          sectionType="text"
-          pageId={mockPageId}
-          onSave={mockOnSave}
-        />,
-        { wrapper: Wrapper }
-      );
-
-      expect(screen.getByText('Create Text Section')).toBeInTheDocument();
-    });
-  });
-
-  describe('Close Functionality', () => {
-    it('calls onClose when close button is clicked', () => {
-      render(
-        <CMSSectionEditor
-          open
-          onClose={mockOnClose}
-          sectionType="hero"
-          pageId={mockPageId}
-          onSave={mockOnSave}
-        />,
-        { wrapper: Wrapper }
-      );
-
-      const closeButtons = screen.getAllByRole('button');
-      const closeIconButton = closeButtons.find((button) => button.querySelector('svg'));
-
-      if (closeIconButton) {
-        fireEvent.click(closeIconButton);
-        expect(mockOnClose).toHaveBeenCalled();
-      }
-    });
-
-    it('calls onClose when cancel button is clicked', async () => {
-      render(
-        <CMSSectionEditor
-          open
-          onClose={mockOnClose}
-          sectionType="hero"
-          pageId={mockPageId}
-          onSave={mockOnSave}
-        />,
-        { wrapper: Wrapper }
-      );
-
-      const cancelButton = screen.getByRole('button', { name: /cancel/i });
-      fireEvent.click(cancelButton);
-
-      expect(mockOnClose).toHaveBeenCalled();
-    });
-  });
-
-  describe('Save Functionality', () => {
-    it('creates new section when save is clicked in create mode', async () => {
-      global.fetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          id: 'new-section-id',
-          type: 'hero',
-          name: 'New Hero Section',
-          pageId: mockPageId,
-        }),
-      });
-
-      render(
-        <CMSSectionEditor
-          open
-          onClose={mockOnClose}
-          sectionType="hero"
-          pageId={mockPageId}
-          onSave={mockOnSave}
-        />,
-        { wrapper: Wrapper }
-      );
-
-      // Fill in section name
-      const nameInput = screen.getByLabelText(/section name/i);
-      fireEvent.change(nameInput, { target: { value: 'New Hero Section' } });
-
-      // Click save
-      const saveButton = screen.getByRole('button', { name: /save/i });
-      fireEvent.click(saveButton);
-
-      await waitFor(() => {
-        expect(global.fetch).toHaveBeenCalledWith(
-          'http://localhost:3035/api/cms/sections',
-          expect.objectContaining({
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-          })
-        );
-      });
-    });
-
-    it('updates existing section when save is clicked in edit mode', async () => {
-      const mockSection = {
-        id: 'section-1',
-        type: 'hero',
-        name: 'Existing Hero Section',
-        content: {},
-      };
-
-      global.fetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          ...mockSection,
-          name: 'Updated Hero Section',
-        }),
-      });
-
-      render(
-        <CMSSectionEditor
-          open
-          onClose={mockOnClose}
-          section={mockSection}
-          pageId={mockPageId}
-          onSave={mockOnSave}
-        />,
-        { wrapper: Wrapper }
-      );
-
-      // Update section name
-      const nameInput = screen.getByLabelText(/section name/i);
-      fireEvent.change(nameInput, { target: { value: 'Updated Hero Section' } });
-
-      // Click save
-      const saveButton = screen.getByRole('button', { name: /save/i });
-      fireEvent.click(saveButton);
-
-      await waitFor(() => {
-        expect(global.fetch).toHaveBeenCalledWith(
-          `http://localhost:3035/api/cms/sections/${mockSection.id}`,
-          expect.objectContaining({
-            method: 'PATCH',
-          })
-        );
-      });
-    });
-
-    it('calls onSave callback after successful save', async () => {
-      const savedSection = {
-        id: 'new-section-id',
-        type: 'hero',
-        name: 'New Hero Section',
-        pageId: mockPageId,
-      };
-
-      global.fetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => savedSection,
-      });
-
-      render(
-        <CMSSectionEditor
-          open
-          onClose={mockOnClose}
-          sectionType="hero"
-          pageId={mockPageId}
-          onSave={mockOnSave}
-        />,
-        { wrapper: Wrapper }
-      );
-
-      const nameInput = screen.getByLabelText(/section name/i);
-      fireEvent.change(nameInput, { target: { value: 'New Hero Section' } });
-
-      const saveButton = screen.getByRole('button', { name: /save/i });
-      fireEvent.click(saveButton);
-
-      await waitFor(() => {
-        expect(mockOnSave).toHaveBeenCalledWith(savedSection);
-      });
-    });
-
-    it('closes dialog after successful save', async () => {
-      global.fetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          id: 'new-section-id',
-          type: 'hero',
-          name: 'New Hero Section',
-        }),
-      });
-
-      render(
-        <CMSSectionEditor
-          open
-          onClose={mockOnClose}
-          sectionType="hero"
-          pageId={mockPageId}
-          onSave={mockOnSave}
-        />,
-        { wrapper: Wrapper }
-      );
-
-      const nameInput = screen.getByLabelText(/section name/i);
-      fireEvent.change(nameInput, { target: { value: 'New Hero Section' } });
-
-      const saveButton = screen.getByRole('button', { name: /save/i });
-      fireEvent.click(saveButton);
-
-      await waitFor(() => {
-        expect(mockOnClose).toHaveBeenCalled();
-      });
-    });
-
-    it('displays error message when save fails', async () => {
-      global.fetch.mockResolvedValueOnce({
-        ok: false,
-        status: 500,
-      });
-
-      render(
-        <CMSSectionEditor
-          open
-          onClose={mockOnClose}
-          sectionType="hero"
-          pageId={mockPageId}
-          onSave={mockOnSave}
-        />,
-        { wrapper: Wrapper }
-      );
-
-      const nameInput = screen.getByLabelText(/section name/i);
-      fireEvent.change(nameInput, { target: { value: 'New Hero Section' } });
-
-      const saveButton = screen.getByRole('button', { name: /save/i });
-      fireEvent.click(saveButton);
-
-      await waitFor(() => {
-        expect(screen.getByText(/failed to save section/i)).toBeInTheDocument();
-      });
-    });
-  });
+it.each([
+  ['hero', 'Hero'], ['features', 'Features'], ['testimonials', 'Testimonials'],
+  ['gallery', 'Gallery'], ['cta', 'Call to Action'], ['text', 'Text'],
+])('renders the actual %s form', (type, title) => {
+  show({ sectionType: type });
+  expect(screen.getByText(`Create ${title} Section`)).toBeVisible();
+  expect(screen.getByLabelText(/section name/i)).toBeInTheDocument();
+});
+it('does not render a closed editor', () => {
+  show({ open: false });
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+});
+it('loads existing content for editing', () => {
+  show({ section: saved });
+  expect(screen.getByText('Edit Hero Section')).toBeVisible();
+  expect(screen.getByLabelText('Section Name')).toHaveValue('My Hero');
+  expect(screen.getByLabelText('Title')).toHaveValue('Welcome');
+});
+it.each(['Cancel', 'Close section editor'])('closes with %s without saving', (name) => {
+  show();
+  fireEvent.click(screen.getByRole('button', { name }));
+  expect(onClose).toHaveBeenCalledTimes(1);
+  expect(axiosInstance.post).not.toHaveBeenCalled();
+});
+it('creates with the page ID, enabled flag and actual form content', async () => {
+  axiosInstance.post.mockResolvedValue({ data: saved });
+  show();
+  fireEvent.change(screen.getByLabelText('Section Name'), { target: { value: 'My Hero' } });
+  fireEvent.change(screen.getByLabelText('Title'), { target: { value: 'Welcome' } });
+  submit();
+  await waitFor(() => expect(onSave).toHaveBeenCalledWith(saved));
+  expect(axiosInstance.post).toHaveBeenCalledWith(endpoints.cms.sections.list, expect.objectContaining({
+    pageId: 'page-123', enabled: true, type: 'hero', name: 'My Hero',
+    content: expect.objectContaining({ title: 'Welcome', heading: 'Welcome' }),
+  }));
+  expect(axiosInstance.patch).not.toHaveBeenCalled();
+  expect(onClose).toHaveBeenCalledTimes(1);
+  expect(await screen.findByText('Section created successfully!')).toBeInTheDocument();
+});
+it('updates the selected section without overwriting page or enabled state', async () => {
+  axiosInstance.patch.mockResolvedValue({ data: saved });
+  show({ section: saved });
+  submit();
+  await waitFor(() => expect(onSave).toHaveBeenCalledWith(saved));
+  expect(axiosInstance.patch).toHaveBeenCalledWith(endpoints.cms.sections.details(saved.id), expect.objectContaining({ name: 'My Hero', type: 'hero' }));
+  const payload = axiosInstance.patch.mock.calls[0][1];
+  expect(payload).not.toHaveProperty('pageId');
+  expect(payload).not.toHaveProperty('enabled');
+  expect(axiosInstance.post).not.toHaveBeenCalled();
+  expect(onClose).toHaveBeenCalledTimes(1);
+});
+it.each(['create', 'update'])('keeps the %s form open after an API failure and allows retry', async (mode) => {
+  const api = mode === 'create' ? axiosInstance.post : axiosInstance.patch;
+  api.mockRejectedValueOnce(new Error('Unavailable')).mockResolvedValueOnce({ data: saved });
+  const log = jest.spyOn(console, 'error').mockImplementation(() => {});
+  show(mode === 'update' ? { section: saved } : {});
+  submit();
+  expect(await screen.findByText('Failed to save section')).toBeVisible();
+  expect(onClose).not.toHaveBeenCalled();
+  expect(onSave).not.toHaveBeenCalled();
+  await waitFor(() => expect(screen.getByRole('button', { name: /^(Create|Update) Section$/ })).toBeEnabled());
+  submit();
+  await waitFor(() => expect(onSave).toHaveBeenCalledWith(saved));
+  expect(api).toHaveBeenCalledTimes(2);
+  log.mockRestore();
+});
+it('disables submit while a save is pending', async () => {
+  let resolve;
+  axiosInstance.post.mockImplementation(() => new Promise((done) => { resolve = done; }));
+  show();
+  submit();
+  await waitFor(() => expect(axiosInstance.post).toHaveBeenCalledTimes(1));
+  expect(screen.getByRole('button', { name: 'Create Section' })).toBeDisabled();
+  expect(screen.getByRole('button', { name: 'Close section editor' })).toBeDisabled();
+  await act(async () => resolve({ data: saved }));
+  await waitFor(() => expect(onSave).toHaveBeenCalledWith(saved));
 });
