@@ -24,7 +24,6 @@ describe('Authorization and Audit Logging (acceptance)', () => {
   let rolesRepository: RolesRepository;
   let permissionsRepository: PermissionsRepository;
   let userRolesRepository: UserRolesRepository;
-  let rolePermissionsRepository: RolePermissionsRepository;
   let jwtService: JWTService;
   let hasher: BcryptHasher;
 
@@ -46,7 +45,7 @@ describe('Authorization and Audit Logging (acceptance)', () => {
     rolesRepository = await app.getRepository(RolesRepository);
     permissionsRepository = await app.getRepository(PermissionsRepository);
     userRolesRepository = await app.getRepository(UserRolesRepository);
-    rolePermissionsRepository = await app.getRepository(RolePermissionsRepository);
+    await app.getRepository(RolePermissionsRepository);
     jwtService = await app.get('service.jwt.service');
     hasher = await app.get('service.hasher');
   });
@@ -586,7 +585,7 @@ describe('Authorization and Audit Logging (acceptance)', () => {
           updatedBy: adminUserId,
         });
 
-        const res = await client
+        await client
           .put(`/api/cms/pages/${page.id}`)
           .set('Authorization', `Bearer ${adminToken}`)
           .send({title: 'Updated Title', description: 'Updated description'})
@@ -621,7 +620,7 @@ describe('Authorization and Audit Logging (acceptance)', () => {
           updatedBy: adminUserId,
         });
 
-        const res = await client
+        await client
           .post(`/api/cms/pages/${page.id}/publish`)
           .set('Authorization', `Bearer ${adminToken}`)
           .send({comment: 'Publishing page'})

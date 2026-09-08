@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/return-await */
+
 import * as nodemailer from 'nodemailer';
 // eslint-disable-next-line @typescript-eslint/naming-convention
 import SITE_SETTINGS from '../utils/config';

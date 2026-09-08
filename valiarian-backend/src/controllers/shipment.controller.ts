@@ -14,7 +14,7 @@ import {
 import {SecurityBindings, UserProfile} from '@loopback/security';
 import {authorize} from '../authorization';
 import {TrackingResult} from '../interfaces/shipping-provider.interface';
-import {Shipment, ShipmentEvent, ShipmentItem, ShipmentLabel} from '../models';
+import {Shipment} from '../models';
 import {
   ShipmentRepository,
   ShipmentEventRepository,

@@ -52,14 +52,14 @@ export function validatePasswordStrength(password: string): {
  * Sanitize UUID string by trimming whitespace and stripping repeated quotes.
  * Handles cases like: "uuid", ""uuid"", 'uuid', etc.
  */
-export function sanitizeUuid(value: any): string | null {
+export function sanitizeUuid(value: unknown): string | null {
   if (!value) {
     return null;
   }
 
   let sanitized = String(value).trim();
 
-  while (true) {
+  for (;;) {
     const cleaned = sanitized.replace(/^['"]+|['"]+$/g, '').trim();
     if (cleaned === sanitized) {
       break;

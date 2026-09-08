@@ -1,5 +1,8 @@
 {
   "root": true,
+  "overrides": [
+    { "files": ["**/*.test.js", "**/*.test.jsx", "src/setupTests.js"], "env": { "jest": true } }
+  ],
   "env": {
     "browser": true,
     "es2021": true

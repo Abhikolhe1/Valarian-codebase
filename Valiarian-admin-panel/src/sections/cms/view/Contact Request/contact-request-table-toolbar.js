@@ -2,18 +2,11 @@ import PropTypes from 'prop-types';
 import { useCallback, useEffect, useState } from 'react';
 // @mui
 import Stack from '@mui/material/Stack';
-import MenuItem from '@mui/material/MenuItem';
-import Checkbox from '@mui/material/Checkbox';
 import TextField from '@mui/material/TextField';
-import InputLabel from '@mui/material/InputLabel';
-import IconButton from '@mui/material/IconButton';
-import FormControl from '@mui/material/FormControl';
-import OutlinedInput from '@mui/material/OutlinedInput';
 import InputAdornment from '@mui/material/InputAdornment';
-import Select from '@mui/material/Select';
 // components
 import Iconify from 'src/components/iconify';
-import CustomPopover, { usePopover } from 'src/components/custom-popover';
+import { usePopover } from 'src/components/custom-popover';
 import { useDebounce } from 'src/hooks/use-debounce';
 
 // ----------------------------------------------------------------------
@@ -24,7 +17,7 @@ export default function ConatctRequestTableToolbar({
   //
   roleOptions,
 }) {
-  const popover = usePopover();
+  usePopover();
   const [searchValue, setSearchValue] = useState(filters.name || '');
   const debouncedSearch = useDebounce(searchValue, 500);
 
@@ -45,7 +38,7 @@ export default function ConatctRequestTableToolbar({
     }
   }, [debouncedSearch, filters.name, onFilters]);
 
-  const handleFilterRole = useCallback(
+  useCallback(
     (event) => {
       onFilters(
         'role',

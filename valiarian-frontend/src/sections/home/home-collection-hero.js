@@ -22,7 +22,6 @@ export default function HomeCollectionHero({ imageSrc, videoSrc, cmsData, ...oth
 
   // Use CMS data if available
   const title = cmsData?.content?.title || 'COLLECTION';
-  const subtitle = cmsData?.content?.subtitle || 'Explore our latest designs';
   const ctaText = cmsData?.content?.ctaText || 'View All';
   const ctaLink = cmsData?.content?.ctaLink || paths.product.root;
   const desktopVideo = cmsData?.content?.backgroundVideo || videoSrc;

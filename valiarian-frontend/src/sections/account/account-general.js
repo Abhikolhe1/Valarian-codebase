@@ -28,7 +28,6 @@ export default function AccountGeneral() {
 
   const { user } = useAuthContext();
 
-  const displayUser = user;
 
   const UpdateUserSchema = Yup.object().shape({
     fullName: Yup.string().required('Name is required'),

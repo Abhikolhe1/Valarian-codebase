@@ -53,15 +53,7 @@ export default function UserAddressManagementView() {
     }, 5000);
   };
 
-  const handleError = (errorMessage) => {
-    setMessage(errorMessage);
-    setMessageType('error');
 
-    // Clear message after 5 seconds
-    setTimeout(() => {
-      setMessage('');
-    }, 5000);
-  };
 
   return (
     <Box>

@@ -121,7 +121,6 @@ export default function ProductDetailsSummary({
 
   // Map our product structure to what the component expects
   const coverUrl = coverImage;
-  const priceSale = salePrice && salePrice < price ? price : null; // Original price when on sale
   const subDescription = shortDescription || '';
   const totalRatings = product.rating || 0;
   const totalReviews = product.totalReviews || 0;

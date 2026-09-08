@@ -2106,7 +2106,7 @@ export class OrderController {
     invoice: any;
   }> {
     try {
-      return this.verifyExistingPayment(request, currentUser);
+      return await this.verifyExistingPayment(request, currentUser);
     } catch (error) {
       console.error('Error verifying payment:', error);
       if (error instanceof HttpErrors.HttpError) {
@@ -2132,7 +2132,7 @@ export class OrderController {
     invoice: any;
   }> {
     try {
-      return this.verifyExistingPayment(request, currentUser);
+      return await this.verifyExistingPayment(request, currentUser);
     } catch (error) {
       console.error('Error verifying payment via alias endpoint:', error);
       if (error instanceof HttpErrors.HttpError) {

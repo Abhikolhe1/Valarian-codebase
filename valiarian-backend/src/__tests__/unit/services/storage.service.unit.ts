@@ -1,11 +1,6 @@
 import {expect} from '@loopback/testlab';
-import * as fs from 'fs';
-import * as path from 'path';
-import {promisify} from 'util';
 import {LocalStorageService} from '../../../services/storage.service';
 
-const unlink = promisify(fs.unlink);
-const rmdir = promisify(fs.rmdir);
 
 describe('LocalStorageService (unit)', () => {
   let storageService: LocalStorageService;
@@ -16,15 +11,6 @@ describe('LocalStorageService (unit)', () => {
     storageService = new LocalStorageService();
   });
 
-  after(async () => {
-    // Clean up test files
-    try {
-      const uploadsDir = path.join(process.cwd(), 'uploads');
-      // Note: This is a simple cleanup, in production you'd want more robust cleanup
-    } catch (error) {
-      // Ignore cleanup errors
-    }
-  });
 
   describe('uploadFile', () => {
     it('uploads a file and returns relative path', async () => {

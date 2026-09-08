@@ -7,7 +7,7 @@ import Box from '@mui/material/Box';
 import Container from '@mui/material/Container';
 import Skeleton from '@mui/material/Skeleton';
 // hooks
-import { usePageBySlug, useSettings } from 'src/api/cms-query';
+import { usePageBySlug, useSettings } from 'src/api/cms-react-query';
 // components
 import { SectionList } from 'src/components/cms/section-renderer/SectionRenderer';
 import { PageSEO } from 'src/components/seo';
@@ -63,7 +63,7 @@ export default function DynamicPageWithSEO({ slug: slugProp }) {
       <Container maxWidth="lg" sx={{ py: 8 }}>
         <Alert severity="error">
           <AlertTitle>Error Loading Page</AlertTitle>
-          {pageerror?.error?.message || 'Failed to load page content. Please try again later.'}
+          {pageError?.error?.message || 'Failed to load page content. Please try again later.'}
         </Alert>
       </Container>
     );

@@ -1,5 +1,19 @@
 {
   "root": true,
+  "overrides": [
+    { "files": ["**/*.test.js", "**/*.test.jsx", "src/setupTests.js"], "env": { "jest": true } },
+    {
+      "files": ["**/*.ts", "**/*.tsx"],
+      "parser": "@typescript-eslint/parser",
+      "plugins": ["@typescript-eslint"],
+      "extends": ["plugin:import/typescript"],
+      "rules": {
+        "no-undef": "off",
+        "no-unused-vars": "off",
+        "@typescript-eslint/no-unused-vars": ["warn", { "args": "none" }]
+      }
+    }
+  ],
   "env": {
     "browser": true,
     "es2021": true
@@ -40,12 +54,15 @@
         "extensions": [
           ".js",
           ".jsx",
+          ".ts",
+          ".tsx",
           ".json"
         ]
       }
     }
   },
   "rules": {
+    "import/extensions": ["error", "ignorePackages", {"js": "never", "jsx": "never", "ts": "never", "tsx": "never"}],
     "no-alert": 0,
     "camelcase": 0,
     "no-console": 0,

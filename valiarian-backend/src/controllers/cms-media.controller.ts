@@ -149,14 +149,14 @@ export class CMSMediaController {
     @inject(AuthenticationBindings.CURRENT_USER) currentUser: UserProfile,
     @requestBody.file()
     request: Request,
-    @inject(RestBindings.Http.RESPONSE) response: Response,
+    @inject(RestBindings.Http.RESPONSE) httpResponse: Response,
   ): Promise<{success: boolean; message: string; media: Media}> {
     return new Promise((resolve, reject) => {
       const multer = require('multer');
       const storage = multer.memoryStorage();
       const upload = multer({storage}).single('file');
 
-      upload(request, response, async (err: any) => {
+      upload(request, httpResponse, async (err: any) => {
         if (err) {
           return reject(
             new HttpErrors.InternalServerError(`Upload failed: ${err.message}`),

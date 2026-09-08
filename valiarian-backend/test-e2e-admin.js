@@ -35,7 +35,7 @@ async function runTest() {
     console.log(`Using order: ${orderNumber} (Status: ${testOrder.status})\n`);
 
     console.log('3. Getting order details...');
-    const orderDetails = await axios.get(`${API_BASE}/api/admin/orders/${orderId}`, {
+    await axios.get(`${API_BASE}/api/admin/orders/${orderId}`, {
       headers: { Authorization: `Bearer ${adminToken}` }
     });
     console.log(`✅ Order details retrieved\n`);
@@ -93,4 +93,7 @@ async function runTest() {
   }
 }
 
-runTest();
+runTest().catch(error => {
+  console.error('Admin E2E test failed:', error);
+  process.exitCode = 1;
+});

@@ -21,7 +21,6 @@ import { paths } from 'src/routes/paths';
 import { useResponsive } from 'src/hooks/use-responsive';
 // api
 import { useGetCategories } from 'src/api/category';
-import { useGetVariants } from 'src/api/product';
 // utils
 // components
 import { Alert, Tab, Tabs } from '@mui/material';
@@ -34,7 +33,7 @@ import FormProvider, {
 } from 'src/components/hook-form';
 import { useSnackbar } from 'src/components/snackbar';
 import { useRouter } from 'src/routes/hook';
-import useSWR, { mutate } from 'swr';
+import { mutate } from 'swr';
 import axiosInstance, { endpoints } from 'src/utils/axios';
 import CMSMediaPickerField from '../cms/cms-media-picker-field';
 import ProductVariantManager from './product-variant-manager';

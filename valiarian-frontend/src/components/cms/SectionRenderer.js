@@ -1,8 +1,8 @@
 import { Box, Typography } from '@mui/material';
 import PropTypes from 'prop-types';
+import PremiumCountdownSection from 'src/sections/cms/PremiumCountdownSection';
 import FeaturesSection from './FeaturesSection';
 import HeroSection from './HeroSection';
-import PremiumCountdownSection from 'src/sections/cms/PremiumCountdownSection';
 
 /**
  * Section Renderer Component

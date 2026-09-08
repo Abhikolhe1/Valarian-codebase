@@ -4,7 +4,7 @@ import { LazyMotion, domAnimation } from 'framer-motion';
 import { useState } from 'react';
 
 export default function ReserveTodayDetail() {
-  const [index, setIndex] = useState(0);
+  useState(0);
 
 
   return (

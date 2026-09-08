@@ -1,12 +1,24 @@
 import {authenticate} from '@loopback/authentication';
 import {inject} from '@loopback/core';
 import {repository} from '@loopback/repository';
-import {del, get, HttpErrors, param, patch, post, requestBody} from '@loopback/rest';
+import {
+  del,
+  get,
+  HttpErrors,
+  param,
+  patch,
+  post,
+  requestBody,
+} from '@loopback/rest';
 import {SecurityBindings, UserProfile} from '@loopback/security';
 import {v4 as uuidv4} from 'uuid';
 import {authorize} from '../authorization';
 import {Product, ProductVariant} from '../models';
-import {CartItemsRepository, CartsRepository, ProductRepository} from '../repositories';
+import {
+  CartItemsRepository,
+  CartsRepository,
+  ProductRepository,
+} from '../repositories';
 
 interface AddToCartRequest {
   productId: string;
@@ -28,7 +40,7 @@ export class CartController {
     public cartItemsRepository: CartItemsRepository,
     @repository(ProductRepository)
     public productsRepository: ProductRepository,
-  ) { }
+  ) {}
 
   private async getPurchasableStock(
     product: Product,
@@ -38,11 +50,18 @@ export class CartController {
     const embeddedVariants = product.variants ?? [];
 
     if (variantId) {
-      const normalizedVariant = await this.productsRepository.getVariant(productId, variantId);
-      const variant = normalizedVariant ?? embeddedVariants.find(item => item.id === variantId);
+      const normalizedVariant = await this.productsRepository.getVariant(
+        productId,
+        variantId,
+      );
+      const variant =
+        normalizedVariant ??
+        embeddedVariants.find(item => item.id === variantId);
 
       if (!variant || variant.isDeleted || variant.isActive === false) {
-        throw new HttpErrors.BadRequest('Selected product variant is not available');
+        throw new HttpErrors.BadRequest(
+          'Selected product variant is not available',
+        );
       }
 
       const available = Math.max(0, Number(variant.stockQuantity) || 0);
@@ -53,20 +72,31 @@ export class CartController {
       throw new HttpErrors.BadRequest('Please select a product size and color');
     }
 
-    const available = product.trackInventory === false
-      ? MAX_CART_ITEM_QUANTITY
-      : Math.max(0, Number(product.stockQuantity) || 0);
+    const available =
+      product.trackInventory === false
+        ? MAX_CART_ITEM_QUANTITY
+        : Math.max(0, Number(product.stockQuantity) || 0);
 
-    return {variant: null, available: product.inStock === false ? 0 : available};
+    return {
+      variant: null,
+      available: product.inStock === false ? 0 : available,
+    };
   }
 
-  private assertStockAvailable(available: number, requestedQuantity: number): void {
+  private assertStockAvailable(
+    available: number,
+    requestedQuantity: number,
+  ): void {
     if (available < 1) {
-      throw new HttpErrors.BadRequest('Selected product variant is out of stock');
+      throw new HttpErrors.BadRequest(
+        'Selected product variant is out of stock',
+      );
     }
 
     if (requestedQuantity > available) {
-      throw new HttpErrors.BadRequest(`Only ${available} item(s) available in stock`);
+      throw new HttpErrors.BadRequest(
+        `Only ${available} item(s) available in stock`,
+      );
     }
   }
 
@@ -77,45 +107,53 @@ export class CartController {
     @param.path.string('userId') userId: string,
     @inject(SecurityBindings.USER) currentUser: UserProfile,
   ): Promise<{success: boolean; cart: any}> {
-    try {
-      if (currentUser.id !== userId) {
-        throw new HttpErrors.Forbidden('You can only access your own cart');
-      }
+    if (currentUser.id !== userId) {
+      throw new HttpErrors.Forbidden('You can only access your own cart');
+    }
 
-      let cart = await this.cartsRepository.findOne({
-        where: {userId, isActive: true},
+    let cart = await this.cartsRepository.findOne({
+      where: {userId, isActive: true},
+    });
+
+    if (!cart) {
+      cart = await this.cartsRepository.create({
+        id: uuidv4(),
+        userId,
+        isActive: true,
       });
+    }
 
-      if (!cart) {
-        cart = await this.cartsRepository.create({
-          id: uuidv4(),
-          userId,
-          isActive: true,
-        });
-      }
+    const cartItems = await this.cartItemsRepository.find({
+      where: {cartId: cart.id},
+    });
 
-      const cartItems = await this.cartItemsRepository.find({
-        where: {cartId: cart.id},
-      });
-
-      let subtotal = 0;
-      const items = await Promise.all(cartItems.map(async (item: any) => {
+    let subtotal = 0;
+    const items = await Promise.all(
+      cartItems.map(async (item: any) => {
         const product = await this.productsRepository.findById(item.productId);
         if (!product || product.isDeleted) {
           throw new HttpErrors.NotFound('Product not found');
         }
         let variant = null;
         if (item.variantId) {
-          variant = await this.productsRepository.getVariant(item.productId, item.variantId);
+          variant = await this.productsRepository.getVariant(
+            item.productId,
+            item.variantId,
+          );
           if (!variant) {
             const variants = product.variants || [];
             variant = variants.find((v: any) => v.id === item.variantId);
           }
         }
         const available = variant
-          ? (variant.inStock === false ? 0 : Math.max(0, Number(variant.stockQuantity) || 0))
-          : (product.inStock === false ? 0 : Math.max(0, Number(product.stockQuantity) || 0));
-        const price = product?.salePrice || variant?.price || product?.price || 0;
+          ? variant.inStock === false
+            ? 0
+            : Math.max(0, Number(variant.stockQuantity) || 0)
+          : product.inStock === false
+            ? 0
+            : Math.max(0, Number(product.stockQuantity) || 0);
+        const price =
+          product?.salePrice || variant?.price || product?.price || 0;
         const itemTotal = price * item.quantity;
         subtotal += itemTotal;
 
@@ -140,20 +178,18 @@ export class CartController {
           price,
           total: itemTotal,
         };
-      }))
+      }),
+    );
 
-      return {
-        success: true,
-        cart: {
-          id: cart.id,
-          items,
-          subtotal,
-          itemCount: items.length,
-        },
-      };
-    } catch (error) {
-      throw error;
-    }
+    return {
+      success: true,
+      cart: {
+        id: cart.id,
+        items,
+        subtotal,
+        itemCount: items.length,
+      },
+    };
   }
 
   @post('/api/cart/{userId}/items')
@@ -179,84 +215,84 @@ export class CartController {
     })
     request: AddToCartRequest,
   ): Promise<{success: boolean; message: string; cartItem: any}> {
-    try {
-      if (currentUser.id !== userId) {
-        throw new HttpErrors.Forbidden('You can only modify your own cart');
-      }
+    if (currentUser.id !== userId) {
+      throw new HttpErrors.Forbidden('You can only modify your own cart');
+    }
 
-      const {productId, variantId, quantity} = request;
+    const {productId, variantId, quantity} = request;
 
-      if (quantity < 1) {
-        throw new HttpErrors.BadRequest('Quantity must be at least 1');
-      }
+    if (quantity < 1) {
+      throw new HttpErrors.BadRequest('Quantity must be at least 1');
+    }
 
-      if (quantity > MAX_CART_ITEM_QUANTITY) {
+    if (quantity > MAX_CART_ITEM_QUANTITY) {
+      throw new HttpErrors.BadRequest(
+        `You can add a maximum of ${MAX_CART_ITEM_QUANTITY} quantity for a single variant.`,
+      );
+    }
+
+    const product = await this.productsRepository.findById(productId);
+    if (!product || product.isDeleted) {
+      throw new HttpErrors.NotFound('Product not found');
+    }
+
+    let cart = await this.cartsRepository.findOne({
+      where: {userId, isActive: true},
+    });
+
+    if (!cart) {
+      cart = await this.cartsRepository.create({
+        id: uuidv4(),
+        userId,
+        isActive: true,
+      });
+    }
+
+    const existingItem = await this.cartItemsRepository.findOne({
+      where: {
+        cartId: cart.id,
+        productId,
+        variantId: variantId || undefined,
+      },
+    });
+
+    const {available} = await this.getPurchasableStock(
+      product,
+      productId,
+      variantId,
+    );
+    const requestedTotal = (existingItem?.quantity ?? 0) + quantity;
+    this.assertStockAvailable(available, requestedTotal);
+
+    let cartItem;
+    if (existingItem) {
+      const nextQuantity = requestedTotal;
+
+      if (nextQuantity > MAX_CART_ITEM_QUANTITY) {
         throw new HttpErrors.BadRequest(
           `You can add a maximum of ${MAX_CART_ITEM_QUANTITY} quantity for a single variant.`,
         );
       }
 
-      const product = await this.productsRepository.findById(productId);
-      if (!product || product.isDeleted) {
-        throw new HttpErrors.NotFound('Product not found');
-      }
-
-      let cart = await this.cartsRepository.findOne({
-        where: {userId, isActive: true},
+      await this.cartItemsRepository.updateById(existingItem.id, {
+        quantity: nextQuantity,
       });
-
-      if (!cart) {
-        cart = await this.cartsRepository.create({
-          id: uuidv4(),
-          userId,
-          isActive: true,
-        });
-      }
-
-      const existingItem = await this.cartItemsRepository.findOne({
-        where: {
-          cartId: cart.id,
-          productId,
-          variantId: variantId || undefined,
-        },
+      cartItem = await this.cartItemsRepository.findById(existingItem.id);
+    } else {
+      cartItem = await this.cartItemsRepository.create({
+        id: uuidv4(),
+        cartId: cart.id,
+        productId,
+        variantId: variantId || undefined,
+        quantity,
       });
-
-      const {available} = await this.getPurchasableStock(product, productId, variantId);
-      const requestedTotal = (existingItem?.quantity ?? 0) + quantity;
-      this.assertStockAvailable(available, requestedTotal);
-
-      let cartItem;
-      if (existingItem) {
-        const nextQuantity = requestedTotal;
-
-        if (nextQuantity > MAX_CART_ITEM_QUANTITY) {
-          throw new HttpErrors.BadRequest(
-            `You can add a maximum of ${MAX_CART_ITEM_QUANTITY} quantity for a single variant.`,
-          );
-        }
-
-        await this.cartItemsRepository.updateById(existingItem.id, {
-          quantity: nextQuantity,
-        });
-        cartItem = await this.cartItemsRepository.findById(existingItem.id);
-      } else {
-        cartItem = await this.cartItemsRepository.create({
-          id: uuidv4(),
-          cartId: cart.id,
-          productId,
-          variantId: variantId || undefined,
-          quantity,
-        });
-      }
-
-      return {
-        success: true,
-        message: 'Item added to cart',
-        cartItem,
-      };
-    } catch (error) {
-      throw error;
     }
+
+    return {
+      success: true,
+      message: 'Item added to cart',
+      cartItem,
+    };
   }
 
   @patch('/api/cart/{userId}/items/{itemId}')
@@ -281,51 +317,47 @@ export class CartController {
     })
     request: UpdateCartItemRequest,
   ): Promise<{success: boolean; message: string}> {
-    try {
-      if (currentUser.id !== userId) {
-        throw new HttpErrors.Forbidden('You can only modify your own cart');
-      }
-
-      const {quantity} = request;
-
-      if (quantity < 1) {
-        throw new HttpErrors.BadRequest('Quantity must be at least 1');
-      }
-
-      if (quantity > MAX_CART_ITEM_QUANTITY) {
-        throw new HttpErrors.BadRequest(
-          `You can add a maximum of ${MAX_CART_ITEM_QUANTITY} quantity for a single variant.`,
-        );
-      }
-
-      const cartItem = await this.cartItemsRepository.findById(itemId);
-      const cart = await this.cartsRepository.findById(cartItem.cartId);
-
-      if (cart.userId !== userId) {
-        throw new HttpErrors.Forbidden('You can only modify your own cart');
-      }
-
-      const product = await this.productsRepository.findById(cartItem.productId);
-      if (!product || product.isDeleted) {
-        throw new HttpErrors.NotFound('Product not found');
-      }
-
-      const {available} = await this.getPurchasableStock(
-        product,
-        cartItem.productId,
-        cartItem.variantId,
-      );
-      this.assertStockAvailable(available, quantity);
-
-      await this.cartItemsRepository.updateById(itemId, {quantity});
-
-      return {
-        success: true,
-        message: 'Cart item updated',
-      };
-    } catch (error) {
-      throw error;
+    if (currentUser.id !== userId) {
+      throw new HttpErrors.Forbidden('You can only modify your own cart');
     }
+
+    const {quantity} = request;
+
+    if (quantity < 1) {
+      throw new HttpErrors.BadRequest('Quantity must be at least 1');
+    }
+
+    if (quantity > MAX_CART_ITEM_QUANTITY) {
+      throw new HttpErrors.BadRequest(
+        `You can add a maximum of ${MAX_CART_ITEM_QUANTITY} quantity for a single variant.`,
+      );
+    }
+
+    const cartItem = await this.cartItemsRepository.findById(itemId);
+    const cart = await this.cartsRepository.findById(cartItem.cartId);
+
+    if (cart.userId !== userId) {
+      throw new HttpErrors.Forbidden('You can only modify your own cart');
+    }
+
+    const product = await this.productsRepository.findById(cartItem.productId);
+    if (!product || product.isDeleted) {
+      throw new HttpErrors.NotFound('Product not found');
+    }
+
+    const {available} = await this.getPurchasableStock(
+      product,
+      cartItem.productId,
+      cartItem.variantId,
+    );
+    this.assertStockAvailable(available, quantity);
+
+    await this.cartItemsRepository.updateById(itemId, {quantity});
+
+    return {
+      success: true,
+      message: 'Cart item updated',
+    };
   }
 
   @del('/api/cart/{userId}/items/{itemId}')
@@ -336,27 +368,23 @@ export class CartController {
     @param.path.string('itemId') itemId: string,
     @inject(SecurityBindings.USER) currentUser: UserProfile,
   ): Promise<{success: boolean; message: string}> {
-    try {
-      if (currentUser.id !== userId) {
-        throw new HttpErrors.Forbidden('You can only modify your own cart');
-      }
-
-      const cartItem = await this.cartItemsRepository.findById(itemId);
-      const cart = await this.cartsRepository.findById(cartItem.cartId);
-
-      if (cart.userId !== userId) {
-        throw new HttpErrors.Forbidden('You can only modify your own cart');
-      }
-
-      await this.cartItemsRepository.deleteById(itemId);
-
-      return {
-        success: true,
-        message: 'Item removed from cart',
-      };
-    } catch (error) {
-      throw error;
+    if (currentUser.id !== userId) {
+      throw new HttpErrors.Forbidden('You can only modify your own cart');
     }
+
+    const cartItem = await this.cartItemsRepository.findById(itemId);
+    const cart = await this.cartsRepository.findById(cartItem.cartId);
+
+    if (cart.userId !== userId) {
+      throw new HttpErrors.Forbidden('You can only modify your own cart');
+    }
+
+    await this.cartItemsRepository.deleteById(itemId);
+
+    return {
+      success: true,
+      message: 'Item removed from cart',
+    };
   }
 
   @del('/api/cart/{userId}')
@@ -366,30 +394,26 @@ export class CartController {
     @param.path.string('userId') userId: string,
     @inject(SecurityBindings.USER) currentUser: UserProfile,
   ): Promise<{success: boolean; message: string}> {
-    try {
-      if (currentUser.id !== userId) {
-        throw new HttpErrors.Forbidden('You can only modify your own cart');
-      }
+    if (currentUser.id !== userId) {
+      throw new HttpErrors.Forbidden('You can only modify your own cart');
+    }
 
-      const cart = await this.cartsRepository.findOne({
-        where: {userId, isActive: true},
-      });
+    const cart = await this.cartsRepository.findOne({
+      where: {userId, isActive: true},
+    });
 
-      if (!cart) {
-        return {
-          success: true,
-          message: 'Cart is already empty',
-        };
-      }
-
-      await this.cartItemsRepository.deleteAll({cartId: cart.id});
-
+    if (!cart) {
       return {
         success: true,
-        message: 'Cart cleared',
+        message: 'Cart is already empty',
       };
-    } catch (error) {
-      throw error;
     }
+
+    await this.cartItemsRepository.deleteAll({cartId: cart.id});
+
+    return {
+      success: true,
+      message: 'Cart cleared',
+    };
   }
 }

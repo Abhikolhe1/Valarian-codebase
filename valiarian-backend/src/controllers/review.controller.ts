@@ -16,7 +16,7 @@ import {
 } from '@loopback/rest';
 import {securityId, UserProfile} from '@loopback/security';
 import {authorize} from '../authorization';
-import {Order, Product, Review, Users} from '../models';
+import {Product, Review, Users} from '../models';
 import {
   OrderItemRepository,
   OrderRepository,
@@ -66,7 +66,7 @@ export class ReviewController {
         return undefined;
       }
 
-      return this.jwtService.verifyToken(token);
+      return await this.jwtService.verifyToken(token);
     } catch (error) {
       return undefined;
     }

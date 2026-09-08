@@ -26,15 +26,7 @@ import MailBox from './mail-box';
 
 // ----------------------------------------------------------------------
 
-function formatIssueTypeLabel(value) {
-  if (!value) return '-';
 
-  return value
-    .split('_')
-    .filter(Boolean)
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(' ');
-}
 
 export default function ContactUsDetails({ currentUser, renderLabel = () => null }) {
   const showAttachments = useBoolean(true);

@@ -58,7 +58,7 @@ export class PendingOrderCleanupService implements LifeCycleObserver {
       console.log('[Pending Order Cleanup] Cron tick started', {
         runAt: new Date().toISOString(),
       });
-      void this.cleanupExpiredPendingOrders();
+      this.cleanupExpiredPendingOrders().catch(error => console.error('[Pending Order Cleanup] Sweep failed:', error));
     }, this.sweepIntervalMs);
 
     this.timer.unref?.();

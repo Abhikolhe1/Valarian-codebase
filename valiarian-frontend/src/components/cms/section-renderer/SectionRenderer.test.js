@@ -45,7 +45,7 @@ describe('SectionRenderer', () => {
 
   it('should show loading skeleton when isLoading is true', () => {
     const { container } = render(
-      <SectionRenderer section={mockHeroSection} isLoading={true} />,
+      <SectionRenderer section={mockHeroSection} isLoading />,
       { wrapper }
     );
     // Skeleton should be rendered
@@ -116,7 +116,7 @@ describe('SectionRenderer', () => {
     };
 
     render(
-      <SectionRenderer section={errorSection} showErrorDetails={true} />,
+      <SectionRenderer section={errorSection} showErrorDetails />,
       { wrapper }
     );
 
@@ -304,7 +304,7 @@ describe('SectionList', () => {
 
   it('should show loading skeletons when isLoading is true', () => {
     const { container } = render(
-      <SectionList sections={mockSections} isLoading={true} />,
+      <SectionList sections={mockSections} isLoading />,
       { wrapper }
     );
 

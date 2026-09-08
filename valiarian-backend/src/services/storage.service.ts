@@ -78,7 +78,7 @@ export class LocalStorageService implements IStorageService {
     this.baseUrl = process.env.STORAGE_URL || process.env.API_ENDPOINT || 'http://localhost:3035';
 
     // Ensure base directory exists
-    this.ensureBaseDir();
+    this.ensureBaseDir().catch(error => console.error('Storage initialization failed:', error));
   }
 
   /**

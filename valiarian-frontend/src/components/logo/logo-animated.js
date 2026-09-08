@@ -2,10 +2,9 @@ import PropTypes from 'prop-types';
 import { useEffect, useState, useMemo } from 'react';
 import { useScroll, useTransform, m } from 'framer-motion';
 // @mui
-import { styled, alpha } from '@mui/material/styles';
+import { styled } from '@mui/material/styles';
 import Box from '@mui/material/Box';
 import Link from '@mui/material/Link';
-import Typography from '@mui/material/Typography';
 // routes
 import { RouterLink } from 'src/routes/components';
 // layouts
@@ -92,7 +91,7 @@ export default function LogoAnimated({ onTransitionComplete, ...other }) {
 
     window.addEventListener('resize', updateHeaderPosition);
     window.addEventListener('scroll', updateHeaderPosition, { passive: true });
-    
+
     return () => {
       window.removeEventListener('resize', updateHeaderPosition);
       window.removeEventListener('scroll', updateHeaderPosition);
@@ -136,16 +135,16 @@ export default function LogoAnimated({ onTransitionComplete, ...other }) {
       // Total reserved: 144px + 16px + 32px = 192px
       const reservedSpace = 192;
       const availableWidth = Math.max(100, viewportWidth - reservedSpace);
-      
+
       // Logo should use max 22% of available space (very conservative to prevent overlap)
       // This ensures proper responsive scaling based on screen size (like desktop)
       const maxLogoWidth = availableWidth * 0.22;
-      
+
       // Calculate font size accounting for character width and letter spacing
       // Formula: fontSize * charCount * (avgCharWidth + letterSpacing)
       const avgCharWidthWithSpacing = AVG_CHAR_WIDTH_RATIO + 0.12; // Includes letter spacing
       const calculatedSize = maxLogoWidth / (CHAR_COUNT * avgCharWidthWithSpacing);
-      
+
       // Responsive scaling: scales with viewport width proportionally (like desktop)
       // Use viewport-based calculation: smaller screens = smaller font, larger screens = larger font
       // Minimum: 10px (readable on small phones), Maximum: 13px (safe on all mobile devices)
@@ -154,7 +153,7 @@ export default function LogoAnimated({ onTransitionComplete, ...other }) {
       const maxSize = 13;
       const viewportRatio = (viewportWidth - 320) / (768 - 320); // Normalize between 320px and 768px
       const viewportBasedSize = minSize + (maxSize - minSize) * Math.max(0, Math.min(1, viewportRatio));
-      
+
       // Use the smaller of calculated size or viewport-based size for safety
       return Math.min(viewportBasedSize, Math.max(minSize, Math.min(maxSize, calculatedSize)));
     }
@@ -167,14 +166,7 @@ export default function LogoAnimated({ onTransitionComplete, ...other }) {
   // Formula: textWidth = (fontSize * avgCharWidth * charCount) + (letterSpacing * (charCount - 1))
   // We want: textWidth = viewportWidth * 0.8
   // Solving: letterSpacing = (viewportWidth * 0.8 - fontSize * avgCharWidth * charCount) / (charCount - 1)
-  const calculateLetterSpacing = (fontSize, targetWidthPercent = 0.8) => {
-    const targetWidth = viewportWidth * targetWidthPercent;
-    const charWidth = fontSize * AVG_CHAR_WIDTH_RATIO;
-    const totalCharWidth = charWidth * CHAR_COUNT;
-    const letterSpacingPx = (targetWidth - totalCharWidth) / (CHAR_COUNT - 1);
-    // Convert to em units (relative to font size)
-    return letterSpacingPx / fontSize;
-  };
+
 
   const finalLetterSpacing = isMobile ? 0.12 : 0.15; // Final letter spacing for header (em)
 
@@ -208,7 +200,7 @@ export default function LogoAnimated({ onTransitionComplete, ...other }) {
     [0, scrollThreshold],
     [initialLetterSpacing, finalLetterSpacing]
   );
-  
+
   const letterSpacingWithUnit = useTransform(letterSpacing, (spacing) => `${spacing}em`);
 
   // Compensate for letter-spacing's extra space after last character

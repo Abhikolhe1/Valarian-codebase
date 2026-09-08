@@ -53,7 +53,7 @@ export class TrackingSyncCronJob implements LifeCycleObserver {
 
     this.timer = setInterval(() => {
       console.log('[Tracking Sync Cron] tick triggered');
-      void this.syncAllActiveShipments();
+      this.syncAllActiveShipments().catch(error => console.error('[Tracking Sync Cron] Sweep failed:', error));
     }, this.getSyncIntervalMs());
 
     this.timer.unref?.();

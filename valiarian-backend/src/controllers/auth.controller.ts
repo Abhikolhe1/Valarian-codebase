@@ -2261,16 +2261,11 @@ export class AuthController {
     @inject(RestBindings.Http.RESPONSE) response: Response,
   ): Promise<{success: boolean; message: string; avatarUrl?: string}> {
     return new Promise((resolve, reject) => {
-      this.handler(request, response, async (err: any) => {
+      this.handler(request, response, (err: unknown) => {
         if (err) {
           reject(new HttpErrors.InternalServerError('Avatar upload failed'));
         } else {
-          try {
-            const result = await this.userProfileService.updateAvatar(currentUser.id, request);
-            resolve(result);
-          } catch (error) {
-            reject(error);
-          }
+          this.userProfileService.updateAvatar(currentUser.id, request).then(resolve, reject);
         }
       });
     });

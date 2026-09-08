@@ -21,7 +21,7 @@ export const OTP_CONFIG = {
 export function validateOtpProviderConfig(): void {
   const provider = process.env.OTP_PHONE_PROVIDER ?? 'whatsapp';
   if (provider === 'disabled') {
-    // eslint-disable-next-line no-console
+
     console.warn('[OTP] WhatsApp OTP provider disabled via OTP_PHONE_PROVIDER=disabled — OTP-via-WhatsApp requests will fail until real credentials are configured.');
     return;
   }

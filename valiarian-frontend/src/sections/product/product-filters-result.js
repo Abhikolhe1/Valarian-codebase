@@ -4,13 +4,10 @@ import { alpha } from '@mui/material/styles';
 import Box from '@mui/material/Box';
 import Chip from '@mui/material/Chip';
 import Paper from '@mui/material/Paper';
-import Button from '@mui/material/Button';
 import Stack from '@mui/material/Stack';
 // components
-import Iconify from 'src/components/iconify';
 import { useRouter } from 'src/routes/hook';
 import { paths } from 'src/routes/paths';
-import { useTheme } from '@emotion/react';
 import { useMediaQuery } from '@mui/system';
 
 // ----------------------------------------------------------------------

@@ -75,12 +75,12 @@ export default function CMSPageNewEditForm({ currentPage }) {
   const [isDuplicating, setIsDuplicating] = useState(false);
 
   // Use the hook to get sections
-  const { sections: sectionsData, sectionsLoading } = useGetSections(
+  const { sections: sectionsData } = useGetSections(
     currentPage?.id ? { filter: JSON.stringify({ where: { pageId: currentPage.id }, order: ['order ASC'] }) } : null
   );
 
   // Get the mutate function to revalidate page data
-  const { page: _, pageLoading: __, pageMutate } = useGetPage(currentPage?.id);
+  const { pageMutate } = useGetPage(currentPage?.id);
 
   const [sections, setSections] = useState([]);
 

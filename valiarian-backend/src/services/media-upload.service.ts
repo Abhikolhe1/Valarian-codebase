@@ -7,7 +7,7 @@ import {MediaRepository} from '../repositories';
 import {IStorageService, LocalStorageService} from './storage.service';
 
 // Import sharp using require for CommonJS compatibility
-const sharp = require('sharp');
+const sharp: typeof import('sharp') = require('sharp');
 
 /**
  * Allowed file types for upload
@@ -358,9 +358,6 @@ export class MediaUploadService {
   generateSafeFilename(originalName: string): string {
     // Remove any path components
     const basename = originalName.replace(/^.*[\\\/]/, '');
-
-    // Get extension
-    const ext = this.getFileExtension(basename);
 
     // Generate timestamp
     const timestamp = Date.now();

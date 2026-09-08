@@ -80,11 +80,7 @@ export default function UserProfileView() {
     setSuccessMsg('');
   };
 
-  const handleChangePasswordToggle = () => {
-    setViewMode(viewMode === 'change-password' ? 'display' : 'change-password');
-    setErrorMsg('');
-    setSuccessMsg('');
-  };
+
 
   return (
     <Container maxWidth="lg">

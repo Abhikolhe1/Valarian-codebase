@@ -1,7 +1,6 @@
 import PropTypes from 'prop-types';
 import { memo, useCallback, useMemo, useState } from 'react';
 // @mui
-import { LoadingButton } from '@mui/lab';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import Link from '@mui/material/Link';
@@ -20,7 +19,6 @@ import { fCurrency } from 'src/utils/format-number';
 // components
 import { ColorPreview } from 'src/components/color-utils';
 import FavoritesButton from 'src/components/favorites-button';
-import Iconify from 'src/components/iconify';
 import Image from 'src/components/image';
 import Label from 'src/components/label';
 // checkout
@@ -33,7 +31,7 @@ function ProductItem({ product }) {
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const router = useRouter();
   const cart = useSelector((state) => state.checkout.cart);
-  const [loadingCart, setLoadingCart] = useState(false);
+  const [, setLoadingCart] = useState(false);
   const { onAddCart } = useCheckout();
 
   const productView = useMemo(() => {
@@ -96,7 +94,7 @@ function ProductItem({ product }) {
     productView.displayStock < 1 ||
     !hasResolvedVariantConstraints;
 
-  const handleAddCart = useCallback(
+  useCallback(
     async (event) => {
       event.stopPropagation();
       if (isAddToCartDisabled) {
@@ -134,7 +132,7 @@ function ProductItem({ product }) {
     }
   }, [isMobile, productView.linkTo, router]);
 
-  const handleGoToCart = useCallback(
+  useCallback(
     (event) => {
       event.stopPropagation();
       router.push(paths.product.checkout);

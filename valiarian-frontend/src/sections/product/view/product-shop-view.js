@@ -65,7 +65,7 @@ export default function ProductShopView() {
 
   const { checkout } = useCheckout();
 
-  const openFilters = useBoolean();
+  useBoolean();
 
   const [sortBy, setSortBy] = useState('newest');
   const [page, setPage] = useState(1);
@@ -112,7 +112,7 @@ export default function ProductShopView() {
   const activeSearchQuery =
     debouncedQuery === normalizedSearchFromQuery ? normalizedSearchFromQuery : debouncedQuery;
 
-  const { searchResults, searchLoading } = useSearchProducts(activeSearchQuery);
+  useSearchProducts(activeSearchQuery);
 
   // Update filters when category query parameter changes from URL
   useEffect(() => {
@@ -189,7 +189,7 @@ export default function ProductShopView() {
     setSortBy(newValue);
   }, []);
 
-  const handleSearch = useCallback((inputValue) => {
+  useCallback((inputValue) => {
     startTransition(() => {
       setPage(1);
       setSearchQuery(inputValue);
@@ -363,7 +363,7 @@ export default function ProductShopView() {
 // ----------------------------------------------------------------------
 
 function applyFilter({ inputData, filters, searchQuery }) {
-  const { gender, category, colors, priceRange, rating } = filters;
+  const { gender, colors, priceRange, rating } = filters;
 
   const min = priceRange[0];
 

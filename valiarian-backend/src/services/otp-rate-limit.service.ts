@@ -72,7 +72,9 @@ export class OtpRateLimitService {
   }
 
   async clearCooldown(key: string): Promise<void> {
-    try {if (await this.connect() && this.client?.isReady) await this.client.del(key);} catch {}
+    try {if (await this.connect() && this.client?.isReady) await this.client.del(key);} catch {
+      // Redis is optional; always clear the in-memory fallback below.
+    }
     this.counters.delete(key);
   }
 }
