@@ -36,6 +36,7 @@ import {
   ProductShippingData,
 } from '../utils/shipping-dimensions.utils';
 import {selectForwardWaybillService} from '../utils/bluedart-forward-service.utils';
+import {evaluateDeliveryEligibility} from '../utils/delivery-eligibility';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -128,6 +129,10 @@ export class ShipmentController {
   ): Promise<Shipment> {
     const order = await this.orderRepository.findById(id);
 
+    if (order.blueDartForwardSkipped) {
+      throw new HttpErrors.UnprocessableEntity('This order is assigned to an external courier. Blue Dart shipment creation is disabled.');
+    }
+
     // 1. Enforce order packed state
     if (order.status !== 'packed') {
       throw new HttpErrors.UnprocessableEntity(
@@ -194,10 +199,29 @@ export class ShipmentController {
     const forwardService = selectForwardWaybillService(isCod);
 
     // 5. Check the exact service that will be used for the waybill.
-    const servCheck = await this.shippingService.checkServiceability({
-      pincode: order.shippingAddress.zipCode,
-      deliveryMode: forwardService.deliveryMode,
-      paymentType: forwardService.paymentType,
+    let servCheck;
+    try {
+      servCheck = await this.shippingService.checkServiceability({
+        pincode: order.shippingAddress.zipCode,
+        deliveryMode: forwardService.deliveryMode,
+        paymentType: forwardService.paymentType,
+      });
+    } catch {
+      const failed = evaluateDeliveryEligibility(undefined, isCod);
+      await this.orderRepository.updateById(order.id, {
+        blueDartDeliveryStatus: failed.blueDartDeliveryStatus,
+        blueDartCheckedAt: new Date(),
+        needsManualShipping: true,
+        manualShippingReason: failed.message,
+      });
+      throw new HttpErrors.UnprocessableEntity('Blue Dart delivery check failed. Recheck availability or arrange an external courier from the order panel.');
+    }
+    const delivery = evaluateDeliveryEligibility(servCheck, isCod);
+    await this.orderRepository.updateById(order.id, {
+      blueDartDeliveryStatus: delivery.blueDartDeliveryStatus,
+      blueDartCheckedAt: new Date(),
+      needsManualShipping: delivery.needsManualShipping,
+      manualShippingReason: delivery.needsManualShipping ? delivery.message : '',
     });
     if (!servCheck.isServiceable) {
       if (forwardService.deliveryMode === 'surface') {

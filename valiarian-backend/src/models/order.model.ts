@@ -552,9 +552,14 @@ export class Order extends Entity {
   })
   inventoryRestored?: boolean; // true after restoreOnReturn or restoreOnRto
 
-  // Manual Shipping Fallback — set when payment was already captured but the
-  // destination pincode failed Blue Dart serviceability, so the order was
-  // let through instead of stranding a captured payment with no order.
+  @property({type: 'string', jsonSchema: {enum: ['available', 'unavailable', 'check_failed']},
+    postgresql: {columnName: 'bluedartdeliverystatus'}})
+  blueDartDeliveryStatus?: 'available' | 'unavailable' | 'check_failed';
+
+  @property({type: 'date', postgresql: {columnName: 'bluedartcheckedat'}})
+  blueDartCheckedAt?: Date;
+
+  // Courier coverage failure does not reject an otherwise eligible Indian order.
   @property({
     type: 'boolean',
     default: false,

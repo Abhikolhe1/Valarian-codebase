@@ -178,6 +178,7 @@ export class ShippingService {
    */
   async checkServiceability(
     params: ServiceabilityParams,
+    forceRefresh = false,
   ): Promise<ServiceabilityResult> {
     const cacheKey = params.deliveryMode && params.paymentType
       ? `shipping:serviceability:${params.pincode}:${params.deliveryMode}:${params.paymentType}`
@@ -186,11 +187,11 @@ export class ShippingService {
     const ttlSeconds = ttlHours * 3600;
 
     // 1. Try Redis cache if available
-    if (this.cacheService) {
+    if (!forceRefresh && this.cacheService) {
       const cached =
         await this.cacheService.get<ServiceabilityResult>(cacheKey);
       if (cached) return cached;
-    } else {
+    } else if (!forceRefresh) {
       // 2. Fallback to in-memory map
       const cached = this.localServiceabilityCache.get(cacheKey);
       if (cached && cached.expiresAt > Date.now()) {

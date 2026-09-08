@@ -34,7 +34,7 @@ export default function AddressFormDialog({
       .required('Mobile number is required'),
     pincode: Yup.string()
       .trim()
-      .matches(/^[0-9]{6}$/, 'Pincode must be 6 digits')
+      .matches(/^[1-9][0-9]{5}$/, 'Enter a valid 6-digit Indian PIN code')
       .required('Pincode is required'),
     state: Yup.string().trim().required('State is required'),
     city: Yup.string().trim().required('City is required'),
