@@ -45,7 +45,7 @@ export const _faqs = [
     value: 'panel5',
     heading: 'Why is delivery unavailable for my postcode?',
     detail:
-      'Delivery availability depends on Blue Dart serviceability for your six-digit postcode. If the postcode is not serviceable, we cannot deliver the order to that location at this time.',
+      'We check Delhivery first and Blue Dart second for your six-digit PIN. For eligible prepaid orders, we may also arrange India Post or another delivery method after confirming the service.',
   },
   {
     id: 'faq-damaged-wrong-product',

@@ -29,10 +29,34 @@ import {CacheService} from './cache.service';
 import {ShippingAuditService} from './shipping-audit.service';
 import {ShippingMonitorService} from './shipping-monitor.service';
 import {BlueDartAuthenticationError, BlueDartConfigurationError, BlueDartProviderError, BlueDartRateLimitError, BlueDartUnauthorizedError} from './shipping-providers/bluedart-errors';
+import {
+  DelhiveryProvider,
+  DelhiveryShipmentUpdate,
+  DelhiveryShippingCostParams,
+  DelhiveryWarehouseRequest,
+} from './shipping-providers/delhivery.provider';
+import {
+  DelhiveryAuthenticationError,
+  DelhiveryConfigurationError,
+  DelhiveryProviderError,
+  DelhiveryRateLimitError,
+} from './shipping-providers/delhivery-errors';
+
+export type ForwardShippingProvider = 'Delhivery' | 'BlueDart' | 'Manual';
+
+export interface PreferredServiceabilityResult {
+  selectedProvider: ForwardShippingProvider;
+  result?: ServiceabilityResult;
+  delhivery?: ServiceabilityResult;
+  blueDart?: ServiceabilityResult;
+  delhiveryCheckFailed: boolean;
+  blueDartCheckFailed: boolean;
+}
 
 @injectable({scope: BindingScope.SINGLETON})
 export class ShippingService {
   private activeProvider: ShippingProvider;
+  private readonly delhiveryProvider: DelhiveryProvider;
   private localServiceabilityCache = new Map<
     string,
     {data: ServiceabilityResult; expiresAt: number}
@@ -54,6 +78,13 @@ export class ShippingService {
       blueDartConfig.providerMode === 'developer-portal'
         ? new BlueDartDeveloperPortalProvider(blueDartConfig)
         : new BlueDartProvider();
+    this.delhiveryProvider = new DelhiveryProvider();
+  }
+
+  private getProvider(courierName = 'BlueDart'): ShippingProvider {
+    if (courierName.toLowerCase() === 'delhivery') return this.delhiveryProvider;
+    if (courierName.toLowerCase() === 'bluedart') return this.activeProvider;
+    throw new HttpErrors.BadRequest(`Unsupported shipping provider: ${courierName}`);
   }
 
   private getMaxConcurrent(): number {
@@ -99,6 +130,7 @@ export class ShippingService {
     operationName: string,
     action: () => Promise<T>,
     allowRetry = true,
+    provider: ShippingProvider = this.activeProvider,
   ): Promise<T> {
     await this.acquireLock();
 
@@ -112,7 +144,7 @@ export class ShippingService {
         this.releaseLock();
         if (this.monitorService) {
           await this.monitorService.recordSuccess(
-            this.activeProvider.courierName,
+            provider.courierName,
             operationName,
           );
         }
@@ -126,11 +158,14 @@ export class ShippingService {
 
         // Do not retry account-wide throttling here. The tracking scheduler
         // applies a longer cooldown before making another Blue Dart request.
-        if (err instanceof BlueDartRateLimitError) {
+        if (
+          err instanceof BlueDartRateLimitError ||
+          err instanceof DelhiveryRateLimitError
+        ) {
           this.releaseLock();
           if (this.monitorService) {
             await this.monitorService.recordFailure(
-              this.activeProvider.courierName,
+              provider.courierName,
               operationName,
               err.message,
             );
@@ -141,14 +176,20 @@ export class ShippingService {
         // Do not retry on auth (403) or bad request / validation (400, 422) errors
         const status = err.status || err.statusCode || err.httpStatus;
         if (status === 400 || status === 401 || status === 403 || status === 422 ||
-          (err instanceof BlueDartProviderError && !err.retryable)) {
+          ((err instanceof BlueDartProviderError ||
+            err instanceof DelhiveryProviderError) &&
+            !err.retryable)) {
           this.releaseLock();
           if (this.monitorService) {
             await this.monitorService.recordFailure(
-              this.activeProvider.courierName,
+              provider.courierName,
               operationName,
               err.message || 'Validation error',
-              err instanceof BlueDartConfigurationError || err instanceof BlueDartAuthenticationError || err instanceof BlueDartUnauthorizedError,
+              err instanceof BlueDartConfigurationError ||
+                err instanceof BlueDartAuthenticationError ||
+                err instanceof BlueDartUnauthorizedError ||
+                err instanceof DelhiveryConfigurationError ||
+                err instanceof DelhiveryAuthenticationError,
             );
           }
           throw err;
@@ -164,7 +205,7 @@ export class ShippingService {
     this.releaseLock();
     if (this.monitorService) {
       await this.monitorService.recordFailure(
-        this.activeProvider.courierName,
+        provider.courierName,
         operationName,
         lastError.message || 'Operation exhausted all retries',
       );
@@ -217,31 +258,155 @@ export class ShippingService {
     return result;
   }
 
+  private async checkProviderServiceability(
+    provider: ShippingProvider,
+    params: ServiceabilityParams,
+    forceRefresh: boolean,
+  ): Promise<ServiceabilityResult> {
+    const cacheKey =
+      `shipping:serviceability:${provider.courierName.toLowerCase()}:` +
+      `${params.pincode}:${params.deliveryMode ?? 'configured'}:` +
+      `${params.paymentType ?? 'prepaid'}`;
+    const ttlHours = Number(process.env.SERVICEABILITY_CACHE_TTL_HOURS || '24');
+    const ttlSeconds = ttlHours * 3600;
+
+    if (!forceRefresh && this.cacheService) {
+      const cached = await this.cacheService.get<ServiceabilityResult>(cacheKey);
+      if (cached) return cached;
+    } else if (!forceRefresh) {
+      const cached = this.localServiceabilityCache.get(cacheKey);
+      if (cached && cached.expiresAt > Date.now()) return cached.data;
+    }
+
+    const result = await this.runWithRetry(
+      'checkServiceability',
+      () => provider.checkServiceability(params),
+      true,
+      provider,
+    );
+    if (this.cacheService) {
+      await this.cacheService.set(cacheKey, result, ttlSeconds);
+    } else {
+      this.localServiceabilityCache.set(cacheKey, {
+        data: result,
+        expiresAt: Date.now() + ttlSeconds * 1000,
+      });
+    }
+    return result;
+  }
+
+  async checkServiceabilityForProvider(
+    courierName: 'Delhivery' | 'BlueDart',
+    params: ServiceabilityParams,
+    forceRefresh = false,
+  ): Promise<ServiceabilityResult> {
+    return this.checkProviderServiceability(
+      this.getProvider(courierName),
+      params,
+      forceRefresh,
+    );
+  }
+
+  /**
+   * Checks Delhivery first, then Blue Dart. A provider outage is distinct from
+   * a genuine non-serviceable response and does not stop the next provider.
+   */
+  async checkPreferredServiceability(
+    params: ServiceabilityParams,
+    forceRefresh = false,
+  ): Promise<PreferredServiceabilityResult> {
+    const isCod = params.paymentType === 'cod';
+    let delhivery: ServiceabilityResult | undefined;
+    let blueDart: ServiceabilityResult | undefined;
+    let delhiveryCheckFailed = false;
+    let blueDartCheckFailed = false;
+
+    if (this.delhiveryProvider.isConfigured) {
+      try {
+        delhivery = await this.checkProviderServiceability(
+          this.delhiveryProvider,
+          params,
+          forceRefresh,
+        );
+      } catch (error) {
+        delhiveryCheckFailed = true;
+        console.error(
+          '[ShippingService] Delhivery serviceability check failed:',
+          error instanceof Error ? error.message : error,
+        );
+      }
+    } else {
+      delhiveryCheckFailed = true;
+    }
+
+    try {
+      blueDart = await this.checkProviderServiceability(
+        this.activeProvider,
+        params,
+        forceRefresh,
+      );
+    } catch (error) {
+      blueDartCheckFailed = true;
+      console.error(
+        '[ShippingService] Blue Dart serviceability check failed:',
+        error instanceof Error ? error.message : error,
+      );
+    }
+
+    const delhiveryUsable =
+      delhivery?.isServiceable === true && (!isCod || delhivery.isCodAvailable);
+    const blueDartUsable =
+      blueDart?.isServiceable === true && (!isCod || blueDart.isCodAvailable);
+    let selectedProvider: ForwardShippingProvider = 'Manual';
+    let result = blueDart ?? delhivery;
+    if (delhiveryUsable) {
+      selectedProvider = 'Delhivery';
+      result = delhivery;
+    } else if (blueDartUsable) {
+      selectedProvider = 'BlueDart';
+      result = blueDart;
+    }
+    return {
+      selectedProvider,
+      result,
+      delhivery,
+      blueDart,
+      delhiveryCheckFailed,
+      blueDartCheckFailed,
+    };
+  }
+
   async createShipment(
     params: CreateShipmentParams,
+    courierName = 'BlueDart',
   ): Promise<CreateShipmentResult> {
+    const provider = this.getProvider(courierName);
     return this.runWithRetry(
       'createShipment',
-      () => this.activeProvider.createShipment(params),
+      () => provider.createShipment(params),
       false,
+      provider,
     );
   }
 
   async registerPickup(
     params: PickupRegistrationParams,
+    courierName = 'BlueDart',
   ): Promise<PickupRegistrationResult> {
-    const provider = this.activeProvider as ShippingProvider & {
+    const activeProvider = this.getProvider(courierName);
+    const provider = activeProvider as ShippingProvider & {
       registerPickup?: (request: PickupRegistrationParams) => Promise<PickupRegistrationResult>;
     };
     if (!provider.registerPickup) {
       throw new HttpErrors.NotImplemented(
-        `${this.activeProvider.courierName} does not support pickup registration`,
+        `${activeProvider.courierName} does not support pickup registration`,
       );
     }
     return this.runWithRetry(
       'registerPickup',
       () => provider.registerPickup!(params),
       false,
+      activeProvider,
     );
   }
 
@@ -263,35 +428,55 @@ export class ShippingService {
     );
   }
 
-  async cancelShipment(awbNumber: string): Promise<CancelShipmentResult> {
+  async cancelShipment(
+    awbNumber: string,
+    courierName = 'BlueDart',
+  ): Promise<CancelShipmentResult> {
+    const provider = this.getProvider(courierName);
     return this.runWithRetry(
       'cancelShipment',
-      () => this.activeProvider.cancelShipment(awbNumber),
+      () => provider.cancelShipment(awbNumber),
       false,
+      provider,
     );
   }
 
-  async trackShipment(awbNumber: string): Promise<TrackingResult> {
-    return this.runWithRetry('trackShipment', () =>
-      this.activeProvider.trackShipment(awbNumber),
+  async trackShipment(
+    awbNumber: string,
+    courierName = 'BlueDart',
+  ): Promise<TrackingResult> {
+    const provider = this.getProvider(courierName);
+    return this.runWithRetry(
+      'trackShipment',
+      () => provider.trackShipment(awbNumber),
+      true,
+      provider,
     );
   }
 
-  async generateLabel(awbNumber: string): Promise<GenerateLabelResult> {
+  async generateLabel(
+    awbNumber: string,
+    courierName = 'BlueDart',
+  ): Promise<GenerateLabelResult> {
+    const provider = this.getProvider(courierName);
     return this.runWithRetry(
       'generateLabel',
-      () => this.activeProvider.generateLabel(awbNumber),
+      () => provider.generateLabel(awbNumber),
       false,
+      provider,
     );
   }
 
   async createReversePickup(
     params: CreateReversePickupParams,
+    courierName = 'BlueDart',
   ): Promise<CreateReversePickupResult> {
+    const provider = this.getProvider(courierName);
     return this.runWithRetry(
       'createReversePickup',
-      () => this.activeProvider.createReversePickup(params),
+      () => provider.createReversePickup(params),
       false,
+      provider,
     );
   }
 
@@ -315,8 +500,8 @@ export class ShippingService {
     );
   }
 
-  getProviderVersion(): string {
-    return this.activeProvider.providerVersion || 'bluedart-legacy-soap';
+  getProviderVersion(courierName = 'BlueDart'): string {
+    return this.getProvider(courierName).providerVersion || 'bluedart-legacy-soap';
   }
 
   /**
@@ -348,5 +533,103 @@ export class ShippingService {
       throw new Error(`${this.activeProvider.courierName} does not support master data download`);
     }
     return this.runWithRetry('downloadPinCodeMaster', () => provider.downloadPinCodeMaster!(lastSynchDate));
+  }
+
+  async updateDelhiveryShipment(params: DelhiveryShipmentUpdate): Promise<unknown> {
+    return this.runWithRetry(
+      'updateShipment',
+      () => this.delhiveryProvider.updateShipment(params),
+      false,
+      this.delhiveryProvider,
+    );
+  }
+
+  async updateDelhiveryEwaybill(
+    waybill: string,
+    invoice: string,
+    ewaybill: string,
+  ): Promise<unknown> {
+    return this.runWithRetry(
+      'updateEwaybill',
+      () => this.delhiveryProvider.updateEwaybill(waybill, invoice, ewaybill),
+      false,
+      this.delhiveryProvider,
+    );
+  }
+
+  async calculateDelhiveryShippingCost(
+    params: DelhiveryShippingCostParams,
+  ): Promise<unknown> {
+    return this.runWithRetry(
+      'calculateShippingCost',
+      () => this.delhiveryProvider.calculateShippingCost(params),
+      true,
+      this.delhiveryProvider,
+    );
+  }
+
+  async fetchDelhiveryWaybills(count?: number): Promise<unknown> {
+    return this.runWithRetry(
+      count ? 'fetchBulkWaybills' : 'fetchSingleWaybill',
+      () => this.delhiveryProvider.fetchWaybills(count),
+      true,
+      this.delhiveryProvider,
+    );
+  }
+
+  async createDelhiveryWarehouse(params: DelhiveryWarehouseRequest): Promise<unknown> {
+    return this.runWithRetry(
+      'createWarehouse',
+      () => this.delhiveryProvider.createWarehouse(params),
+      false,
+      this.delhiveryProvider,
+    );
+  }
+
+  async updateDelhiveryWarehouse(
+    name: string,
+    pin: string,
+    address?: string,
+    phone?: string,
+  ): Promise<unknown> {
+    return this.runWithRetry(
+      'updateWarehouse',
+      () => this.delhiveryProvider.updateWarehouse(name, pin, address, phone),
+      false,
+      this.delhiveryProvider,
+    );
+  }
+
+  async downloadDelhiveryDocument(
+    waybill: string,
+    documentType: string,
+  ): Promise<unknown> {
+    return this.runWithRetry(
+      'downloadDocument',
+      () => this.delhiveryProvider.downloadDocument(waybill, documentType),
+      true,
+      this.delhiveryProvider,
+    );
+  }
+
+  async submitDelhiveryNdr(
+    waybill: string,
+    action: 'RE-ATTEMPT' | 'PICKUP_RESCHEDULE',
+  ): Promise<unknown> {
+    return this.runWithRetry(
+      'submitNdr',
+      () => this.delhiveryProvider.submitNdr(waybill, action),
+      false,
+      this.delhiveryProvider,
+    );
+  }
+
+  async getDelhiveryNdrStatus(requestId: string): Promise<unknown> {
+    return this.runWithRetry(
+      'getNdrStatus',
+      () => this.delhiveryProvider.getNdrStatus(requestId),
+      true,
+      this.delhiveryProvider,
+    );
   }
 }

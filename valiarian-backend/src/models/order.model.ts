@@ -552,12 +552,23 @@ export class Order extends Entity {
   })
   inventoryRestored?: boolean; // true after restoreOnReturn or restoreOnRto
 
-  @property({type: 'string', jsonSchema: {enum: ['available', 'unavailable', 'check_failed']},
+  @property({type: 'string', jsonSchema: {enum: ['available', 'unavailable', 'check_failed', 'not_checked']},
     postgresql: {columnName: 'bluedartdeliverystatus'}})
-  blueDartDeliveryStatus?: 'available' | 'unavailable' | 'check_failed';
+  blueDartDeliveryStatus?: 'available' | 'unavailable' | 'check_failed' | 'not_checked';
 
   @property({type: 'date', postgresql: {columnName: 'bluedartcheckedat'}})
   blueDartCheckedAt?: Date;
+
+  @property({type: 'string', jsonSchema: {enum: ['available', 'unavailable', 'check_failed', 'not_checked']},
+    postgresql: {columnName: 'delhiverydeliverystatus'}})
+  delhiveryDeliveryStatus?: 'available' | 'unavailable' | 'check_failed' | 'not_checked';
+
+  @property({type: 'date', postgresql: {columnName: 'delhiverycheckedat'}})
+  delhiveryCheckedAt?: Date;
+
+  @property({type: 'string', jsonSchema: {enum: ['delhivery', 'bluedart', 'manual']},
+    postgresql: {columnName: 'selectedshippingprovider'}})
+  selectedShippingProvider?: 'delhivery' | 'bluedart' | 'manual';
 
   // Courier coverage failure does not reject an otherwise eligible Indian order.
   @property({

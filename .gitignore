@@ -48,3 +48,7 @@ database-backups/
 .kiro
 *.md
 *.txt
+
+# Version the Delhivery integration reference assembled from provider documentation.
+!delhivery/
+!delhivery/*.md

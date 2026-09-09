@@ -52,7 +52,7 @@ import {
   resolveWebhookRawBody,
 } from '../utils/razorpay-webhook.utils';
 import {selectForwardWaybillService} from '../utils/bluedart-forward-service.utils';
-import {DeliveryEligibility, evaluateDeliveryEligibility, isIndianDeliveryAddress} from '../utils/delivery-eligibility';
+import {DeliveryEligibility, evaluatePreferredDeliveryEligibility, isIndianDeliveryAddress} from '../utils/delivery-eligibility';
 import {
   calculateCouponDiscount,
   getCouponAvailabilityError,
@@ -1733,18 +1733,14 @@ export class OrderController {
     // Required even for direct order/payment requests; a Blue Dart outage must
     // never bypass the independent postal-directory check.
     await this.postalPincodeService.assertExists(pincode);
-    let result;
-    try {
-      const forwardService = selectForwardWaybillService(request.paymentMethod === 'cod');
-      result = await this.shippingService.checkServiceability({
-        pincode,
-        deliveryMode: forwardService.deliveryMode,
-        paymentType: forwardService.paymentType,
-      }, forceRefresh);
-    } catch {
-      console.error('[OrderController] Blue Dart availability check failed; recording unconfirmed delivery.');
-    }
-    return evaluateDeliveryEligibility(result, request.paymentMethod === 'cod');
+    const isCod = request.paymentMethod === 'cod';
+    const forwardService = selectForwardWaybillService(isCod);
+    const result = await this.shippingService.checkPreferredServiceability({
+      pincode,
+      deliveryMode: forwardService.deliveryMode,
+      paymentType: forwardService.paymentType,
+    }, forceRefresh);
+    return evaluatePreferredDeliveryEligibility(result, isCod);
   }
 
   @post('/api/orders/prepare-payment')
@@ -1917,6 +1913,9 @@ export class OrderController {
           needsManualShipping,
           blueDartDeliveryStatus: delivery.blueDartDeliveryStatus,
           blueDartCheckedAt: new Date(),
+          delhiveryDeliveryStatus: delivery.delhiveryDeliveryStatus,
+          delhiveryCheckedAt: new Date(),
+          selectedShippingProvider: delivery.selectedShippingProvider,
           manualShippingReason: needsManualShipping
             ? unserviceableReason ?? undefined
             : undefined,
@@ -2455,8 +2454,13 @@ export class OrderController {
     if (!['packed', 'shipped', 'out_for_delivery', 'delivered'].includes(order.status)) {
       throw new HttpErrors.Conflict('Pack the order before printing its shipping label.');
     }
-    if (!order.blueDartForwardSkipped && !order.trackingNumber?.trim()) {
-      throw new HttpErrors.Conflict('Wait for the Blue Dart AWB before printing its shipping label.');
+    const usesManualShipping =
+      order.selectedShippingProvider === 'manual' || order.blueDartForwardSkipped;
+    if (!usesManualShipping && !order.trackingNumber?.trim()) {
+      throw new HttpErrors.Conflict('Wait for the courier AWB before printing its shipping label.');
+    }
+    if (order.selectedShippingProvider === 'delhivery' || order.carrier === 'Delhivery') {
+      throw new HttpErrors.Conflict('Use the official Delhivery PDF label from the shipment record.');
     }
     const withItems = await this.withOrderItems(order);
     const invoice = buildInvoiceFromOrder(withItems);
@@ -2534,7 +2538,10 @@ export class OrderController {
 
         if (isStale) {
           try {
-            const tracking = await this.shippingService.trackShipment(shipment.awbNumber);
+            const tracking = await this.shippingService.trackShipment(
+              shipment.awbNumber,
+              shipment.courierName,
+            );
             await this.shipmentRepository.updateById(shipment.id, {
               status: tracking.currentStatus,
               currentLocation: tracking.currentLocation,
@@ -2654,7 +2661,10 @@ export class OrderController {
         // the courier's answer — not the row above — decides the outcome.
         let cancelRes;
         try {
-          cancelRes = await this.shippingService.cancelShipment(activeShipment.awbNumber);
+          cancelRes = await this.shippingService.cancelShipment(
+            activeShipment.awbNumber,
+            activeShipment.courierName,
+          );
         } catch (err) {
           await this.shipmentRepository.updateById(activeShipment.id, {
             status: 'cancel_pending',
@@ -3142,6 +3152,9 @@ export class OrderController {
     await this.orderRepository.updateById(orderId, {
       blueDartDeliveryStatus: delivery.blueDartDeliveryStatus,
       blueDartCheckedAt: new Date(),
+      delhiveryDeliveryStatus: delivery.delhiveryDeliveryStatus,
+      delhiveryCheckedAt: new Date(),
+      selectedShippingProvider: delivery.selectedShippingProvider,
       needsManualShipping: delivery.needsManualShipping,
       manualShippingReason: delivery.needsManualShipping ? delivery.message : '',
     });
@@ -3161,6 +3174,7 @@ export class OrderController {
       carrier?: string;
       estimatedDelivery?: string;
       skipBlueDart?: boolean;
+      shippingProvider?: 'delhivery' | 'bluedart' | 'manual';
     },
     @inject(SecurityBindings.USER) currentUser: UserProfile,
   ): Promise<{success: boolean; order: Order}> {
@@ -3205,7 +3219,7 @@ export class OrderController {
         pending: ['confirmed', 'cancelled'],
         confirmed: ['processing', 'cancelled'],
         processing: ['packed', 'cancelled'],
-        packed: order.blueDartForwardSkipped
+        packed: order.selectedShippingProvider === 'manual' || order.blueDartForwardSkipped
           ? ['out_for_delivery', 'delivered', 'cancelled']
           : ['shipped', 'cancelled'],
         shipped: ['out_for_delivery', 'delivered'],
@@ -3281,18 +3295,31 @@ export class OrderController {
       };
 
       if (request.status === 'packed') {
-        if (request.skipBlueDart === true &&
-          order.blueDartDeliveryStatus !== 'available' &&
-          (!order.needsManualShipping || !['unavailable', 'check_failed'].includes(order.blueDartDeliveryStatus ?? ''))) {
-          throw new HttpErrors.BadRequest('Check delivery availability before choosing self-delivery or an external courier.');
+        const selectedProvider = request.shippingProvider ??
+          (request.skipBlueDart === true ? 'manual' : order.selectedShippingProvider ?? 'bluedart');
+        if (selectedProvider === 'delhivery' && order.delhiveryDeliveryStatus !== 'available') {
+          throw new HttpErrors.BadRequest('Delhivery is not confirmed as available for this order. Recheck delivery or choose another option.');
         }
-        if (request.skipBlueDart === true) {
+        if (selectedProvider === 'bluedart' && order.blueDartDeliveryStatus !== 'available') {
+          throw new HttpErrors.BadRequest('Blue Dart is not confirmed as available for this order. Recheck delivery or choose another option.');
+        }
+        if (selectedProvider === 'manual' &&
+          !order.delhiveryDeliveryStatus && !order.blueDartDeliveryStatus) {
+          throw new HttpErrors.BadRequest('Check delivery availability before choosing India Post, self-delivery, or an external courier.');
+        }
+        if (selectedProvider === 'manual') {
           const existingShipment = await this.shipmentRepository.findOne({where: {orderId: order.id, isReverse: false, status: {neq: 'cancelled'}}});
           if (existingShipment) {
-            throw new HttpErrors.BadRequest('A Blue Dart shipment already exists. Resolve that shipment before arranging another courier.');
+            throw new HttpErrors.BadRequest('A courier shipment already exists. Resolve that shipment before arranging manual delivery.');
           }
         }
-        updateData.blueDartForwardSkipped = request.skipBlueDart === true;
+        updateData.selectedShippingProvider = selectedProvider;
+        updateData.blueDartForwardSkipped = selectedProvider === 'manual';
+        updateData.carrier = selectedProvider === 'manual'
+          ? request.carrier || 'India Post / Manual'
+          : selectedProvider === 'delhivery'
+            ? 'Delhivery'
+            : 'BlueDart';
       }
 
       if (request.trackingNumber) {

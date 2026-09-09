@@ -27,10 +27,39 @@ test('rejects missing and short secrets without echoing them', () => {
   }
 });
 test('accepts strong secret and production origins', () => {
-  assert.deepEqual(validate({JWT_SECRET: 'x'.repeat(32), NODE_ENV: 'production', CORS_ORIGIN: 'https://example.test'}), []);
+  assert.deepEqual(validate({
+    JWT_SECRET: 'x'.repeat(32),
+    NODE_ENV: 'production',
+    CORS_ORIGIN: 'https://example.test',
+    DELHIVERY_API_TOKEN: 'test-token',
+  }), []);
 });
 test('rejects missing or empty production origin list', () => {
   for (const origin of [undefined, '', ' , ']) {
-    assert.equal(validate({JWT_SECRET: 'x'.repeat(32), NODE_ENV: 'production', CORS_ORIGIN: origin}).length, 1);
+    assert.equal(validate({
+      JWT_SECRET: 'x'.repeat(32),
+      NODE_ENV: 'production',
+      CORS_ORIGIN: origin,
+      DELHIVERY_API_TOKEN: 'test-token',
+    }).length, 1);
   }
+});
+
+test('requires Delhivery credentials for production shipping', () => {
+  const errors = validate({
+    JWT_SECRET: 'x'.repeat(32),
+    NODE_ENV: 'production',
+    CORS_ORIGIN: 'https://example.test',
+  });
+  assert.equal(errors.length, 1);
+  assert.ok(errors[0].includes('DELHIVERY_API_TOKEN'));
+});
+
+test('rejects invalid Delhivery environment and base URL overrides', () => {
+  const errors = validate({
+    JWT_SECRET: 'x'.repeat(32),
+    DELHIVERY_ENV: 'unknown',
+    DELHIVERY_BASE_URL: 'http://localhost:3035',
+  });
+  assert.equal(errors.length, 2);
 });

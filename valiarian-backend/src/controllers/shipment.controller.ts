@@ -48,6 +48,7 @@ interface CreateShipmentRequest {
   serviceType?: string;
   generateLabelNow?: boolean;
   warehouseId?: string;
+  provider?: 'Delhivery' | 'BlueDart';
 }
 
 interface CreateReversePickupRequest {
@@ -129,8 +130,23 @@ export class ShipmentController {
   ): Promise<Shipment> {
     const order = await this.orderRepository.findById(id);
 
-    if (order.blueDartForwardSkipped) {
-      throw new HttpErrors.UnprocessableEntity('This order is assigned to an external courier. Blue Dart shipment creation is disabled.');
+    const courierName =
+      req.provider ??
+      (order.selectedShippingProvider === 'delhivery' ? 'Delhivery' : 'BlueDart');
+
+    const selectedCourier = order.selectedShippingProvider === 'delhivery'
+      ? 'Delhivery'
+      : order.selectedShippingProvider === 'bluedart'
+        ? 'BlueDart'
+        : undefined;
+    if (selectedCourier && req.provider && req.provider !== selectedCourier) {
+      throw new HttpErrors.Conflict(
+        `This order was packed for ${selectedCourier}. Repack it before selecting another courier.`,
+      );
+    }
+
+    if (order.selectedShippingProvider === 'manual' || order.blueDartForwardSkipped) {
+      throw new HttpErrors.UnprocessableEntity('This order is assigned to self-delivery, India Post, or another external courier. API shipment creation is disabled.');
     }
 
     // 1. Enforce order packed state
@@ -148,12 +164,6 @@ export class ShipmentController {
           message: 'Shipment address is invalid.',
           errors: validation.errors,
         }),
-      );
-    }
-
-    if (order.blueDartForwardSkipped) {
-      throw new HttpErrors.UnprocessableEntity(
-        'Blue Dart shipment was skipped for this warehouse handover order.',
       );
     }
 
@@ -201,7 +211,7 @@ export class ShipmentController {
     // 5. Check the exact service that will be used for the waybill.
     let servCheck;
     try {
-      servCheck = await this.shippingService.checkServiceability({
+      servCheck = await this.shippingService.checkServiceabilityForProvider(courierName, {
         pincode: order.shippingAddress.zipCode,
         deliveryMode: forwardService.deliveryMode,
         paymentType: forwardService.paymentType,
@@ -209,17 +219,19 @@ export class ShipmentController {
     } catch {
       const failed = evaluateDeliveryEligibility(undefined, isCod);
       await this.orderRepository.updateById(order.id, {
-        blueDartDeliveryStatus: failed.blueDartDeliveryStatus,
-        blueDartCheckedAt: new Date(),
+        ...(courierName === 'BlueDart'
+          ? {blueDartDeliveryStatus: failed.blueDartDeliveryStatus, blueDartCheckedAt: new Date()}
+          : {delhiveryDeliveryStatus: 'check_failed' as const, delhiveryCheckedAt: new Date()}),
         needsManualShipping: true,
         manualShippingReason: failed.message,
       });
-      throw new HttpErrors.UnprocessableEntity('Blue Dart delivery check failed. Recheck availability or arrange an external courier from the order panel.');
+      throw new HttpErrors.UnprocessableEntity(`${courierName} delivery check failed. Recheck availability or choose another packing option.`);
     }
     const delivery = evaluateDeliveryEligibility(servCheck, isCod);
     await this.orderRepository.updateById(order.id, {
-      blueDartDeliveryStatus: delivery.blueDartDeliveryStatus,
-      blueDartCheckedAt: new Date(),
+      ...(courierName === 'BlueDart'
+        ? {blueDartDeliveryStatus: servCheck.isServiceable ? 'available' as const : 'unavailable' as const, blueDartCheckedAt: new Date()}
+        : {delhiveryDeliveryStatus: servCheck.isServiceable ? 'available' as const : 'unavailable' as const, delhiveryCheckedAt: new Date()}),
       needsManualShipping: delivery.needsManualShipping,
       manualShippingReason: delivery.needsManualShipping ? delivery.message : '',
     });
@@ -230,7 +242,7 @@ export class ShipmentController {
         );
       }
       throw new HttpErrors.UnprocessableEntity(
-        'Pincode is not serviceable by Blue Dart.',
+        `Pincode is not serviceable by ${courierName}.`,
       );
     }
     if (isCod && !servCheck.isCodAvailable) {
@@ -289,13 +301,13 @@ export class ShipmentController {
       isCod,
       codAmount: isCod ? order.total : 0,
       codFavorOf: process.env.BLUEDART_COD_FAVOR_OF || 'Valarian Pvt Ltd',
-    });
+    }, courierName);
 
     // 8. Create Shipment record
     const shipment = existing ?? await this.shipmentRepository.create({
       orderId: order.id,
       awbNumber: creationResult.awbNumber,
-      courierName: 'BlueDart',
+      courierName,
       courierReferenceNumber: creationResult.courierReferenceNumber,
       weightGrams,
       lengthCm,
@@ -317,7 +329,7 @@ export class ShipmentController {
       totalCourierCost: creationResult.totalCourierCost,
       chargesUnavailable: creationResult.chargesUnavailable,
       providerRequestId: `forward:${order.id}`,
-      providerMode: this.shippingService.getProviderVersion() as any,
+      providerMode: this.shippingService.getProviderVersion(courierName) as any,
       creationState: 'CREATED',
       reconciliationRequired: false,
       isReverse: false,
@@ -327,7 +339,7 @@ export class ShipmentController {
 
     // 9. Register the packed shipment for collection at the warehouse.
     // Waybill generation and pickup registration are separate Blue Dart APIs.
-    if (!shipment.pickupReference) try {
+    if (courierName === 'BlueDart' && !shipment.pickupReference) try {
       const now = new Date();
       const pickupTime = process.env.BLUEDART_PICKUP_TIME || '09:00';
       const officeCloseTime = process.env.BLUEDART_OFFICE_CLOSE_TIME || '22:00';
@@ -416,7 +428,7 @@ export class ShipmentController {
     // tracking confirms that the parcel was physically collected.
     await this.orderRepository.updateById(order.id, {
       trackingNumber: creationResult.awbNumber,
-      carrier: 'BlueDart',
+      carrier: courierName,
       estimatedDelivery: creationResult.estimatedDelivery,
       updatedAt: new Date(),
     });
@@ -425,6 +437,7 @@ export class ShipmentController {
     if (req.generateLabelNow) {
       const labelRes = await this.shippingService.generateLabel(
         creationResult.awbNumber,
+        courierName,
       );
       const storageDir =
         process.env.STORAGE_PATH || path.join(__dirname, '../../uploads');
@@ -469,16 +482,17 @@ export class ShipmentController {
   ): Promise<{success: boolean; message: string}> {
     const shipment = await this.shipmentRepository.findById(shipmentId);
 
-    // Cancellable states: created, pickup_pending
-    const cancellableStates = ['created', 'pickup_pending'];
+    const cancellableStates = shipment.courierName === 'Delhivery'
+      ? ['created', 'pickup_pending', 'in_transit', 'exception']
+      : ['created', 'pickup_pending'];
     if (!cancellableStates.includes(shipment.status)) {
       throw new HttpErrors.Conflict(
-        `Shipment status '${shipment.status}' cannot be cancelled via API. Standard fallback: Contact Blue Dart customer service to recall.`,
+        `Shipment status '${shipment.status}' cannot be cancelled through ${shipment.courierName}. Contact the courier to arrange a recall.`,
       );
     }
 
     try {
-      if (shipment.pickupReference && shipment.pickupRegisteredAt) {
+      if (shipment.courierName === 'BlueDart' && shipment.pickupReference && shipment.pickupRegisteredAt) {
         const pickupCancelResult = await this.shippingService.cancelPickup({
           pickupReference: shipment.pickupReference,
           pickupRegistrationDate: shipment.pickupRegisteredAt,
@@ -493,6 +507,7 @@ export class ShipmentController {
 
       const cancelRes = await this.shippingService.cancelShipment(
         shipment.awbNumber,
+        shipment.courierName,
       );
       if (!cancelRes.success) {
         await this.shipmentRepository.updateById(shipmentId, {
@@ -504,6 +519,25 @@ export class ShipmentController {
         throw new HttpErrors.UnprocessableEntity(
           `Courier rejected cancellation request: ${cancelRes.message || 'Unknown reason'}`,
         );
+      }
+
+      if (shipment.courierName === 'Delhivery') {
+        await this.shipmentRepository.updateById(shipmentId, {
+          status: 'cancel_pending',
+          reconciliationRequired: true,
+          cancellationReason: reason,
+          updatedAt: new Date(),
+        });
+        await this.auditService.logCancelShipment(
+          currentUser.id,
+          currentUser.email,
+          shipment,
+          reason,
+        );
+        return {
+          success: true,
+          message: 'Delhivery accepted the cancellation request. Tracking reconciliation will confirm UD, RT, or CN before inventory is changed.',
+        };
       }
 
       // Success cancellation
@@ -597,6 +631,7 @@ export class ShipmentController {
 
     const tracking = await this.shippingService.trackShipment(
       shipment.awbNumber,
+      shipment.courierName,
     );
 
     const updates: Partial<Shipment> = {
@@ -686,13 +721,16 @@ export class ShipmentController {
       } else {
         const labelRes = await this.shippingService.generateLabel(
           shipment.awbNumber,
+          shipment.courierName,
         );
         pdfBuffer = labelRes.pdf;
+        fs.mkdirSync(path.dirname(filePath), {recursive: true});
         fs.writeFileSync(filePath, pdfBuffer);
       }
     } else {
       const labelRes = await this.shippingService.generateLabel(
         shipment.awbNumber,
+        shipment.courierName,
       );
       pdfBuffer = labelRes.pdf;
 
@@ -767,13 +805,16 @@ export class ShipmentController {
 
     if (order.blueDartReturnSkipped) {
       throw new HttpErrors.UnprocessableEntity(
-        'Blue Dart pickup was skipped for this warehouse return.',
+        'Courier pickup was skipped for this warehouse return.',
       );
     }
 
     const forwardShipment = await this.shipmentRepository.findOne({
       where: {orderId: id, isReverse: false},
     });
+    const courierName = forwardShipment?.courierName === 'Delhivery'
+      ? 'Delhivery'
+      : 'BlueDart';
 
     const weightGrams = req.weightGrams ?? 500;
     const origin = await this.warehouseService.getOriginDetailsForShipment();
@@ -801,14 +842,14 @@ export class ShipmentController {
       declaredValue: Number(order.total || order.totalAmount || 0),
       itemDescription: req.itemDescription,
       returnReason: returnRequest?.reason || order.returnReason,
-    });
+    }, courierName);
 
     let shipment: Shipment;
     try {
       shipment = await this.shipmentRepository.create({
         orderId: order.id,
         awbNumber: reverseRes.reverseAwbNumber,
-        courierName: 'BlueDart',
+        courierName,
         courierReferenceNumber: reverseRes.courierReferenceNumber,
         pickupReference: reverseRes.pickupTokenNumber,
         pickupRegisteredAt: reverseRes.pickupTokenNumber ? new Date() : undefined,
@@ -821,7 +862,7 @@ export class ShipmentController {
         isReverse: true,
         parentShipmentId: forwardShipment?.id,
         providerRequestId: `reverse:${returnReference}`,
-        providerMode: this.shippingService.getProviderVersion() as any,
+        providerMode: this.shippingService.getProviderVersion(courierName) as any,
         creationState: 'CREATED',
         reconciliationRequired: false,
         isActive: true,
@@ -845,7 +886,7 @@ export class ShipmentController {
         error: persistenceError instanceof Error ? persistenceError.message : String(persistenceError),
       });
       throw new HttpErrors.InternalServerError(
-        `Reverse AWB ${reverseRes.reverseAwbNumber} was created by Blue Dart, but the local shipment record could not be saved. Do not retry; reconciliation is required.`,
+        `Reverse AWB ${reverseRes.reverseAwbNumber} was created by ${courierName}, but the local shipment record could not be saved. Do not retry; reconciliation is required.`,
       );
     }
 

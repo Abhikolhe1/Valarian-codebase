@@ -4,7 +4,7 @@ import {ShippingService} from '../services/shipping.service';
 import {PostalPincodeService} from '../services/postal-pincode.service';
 import {ServiceabilityResult} from '../interfaces/shipping-provider.interface';
 import {selectForwardWaybillService} from '../utils/bluedart-forward-service.utils';
-import {DeliveryEligibility, evaluateDeliveryEligibility, isIndianDeliveryAddress} from '../utils/delivery-eligibility';
+import {DeliveryEligibility, evaluatePreferredDeliveryEligibility, isIndianDeliveryAddress} from '../utils/delivery-eligibility';
 
 export class ShippingController {
   constructor(
@@ -28,23 +28,28 @@ export class ShippingController {
 
     try {
       const forwardService = selectForwardWaybillService(paymentMethod === 'cod');
-      const result = await this.shippingService.checkServiceability({
+      const chain = await this.shippingService.checkPreferredServiceability({
         pincode,
         deliveryMode: forwardService.deliveryMode,
         paymentType: forwardService.paymentType,
       });
+      const result = chain.result;
+      const eligibility = evaluatePreferredDeliveryEligibility(
+        chain,
+        paymentMethod === 'cod',
+      );
 
       return {
-        isServiceable: result.isServiceable,
-        isCodAvailable: result.isCodAvailable,
-        reason: result.reason,
-        courierName: result.courierName,
-        estimatedTransitDays: result.estimatedTransitDays,
-        areaCode: result.areaCode,
-        originArea: result.originArea,
-        surfacePrepaidAvailable: result.surfacePrepaidAvailable,
-        surfaceCodAvailable: result.surfaceCodAvailable,
-        ...evaluateDeliveryEligibility(result, paymentMethod === 'cod'),
+        isServiceable: result?.isServiceable ?? false,
+        isCodAvailable: result?.isCodAvailable ?? false,
+        reason: result?.reason,
+        courierName: result?.courierName ?? chain.selectedProvider,
+        estimatedTransitDays: result?.estimatedTransitDays,
+        areaCode: result?.areaCode,
+        originArea: result?.originArea,
+        surfacePrepaidAvailable: result?.surfacePrepaidAvailable,
+        surfaceCodAvailable: result?.surfaceCodAvailable,
+        ...eligibility,
       };
     } catch (err) {
       // Full detail (provider, upstream status, sanitized error code) stays
@@ -57,8 +62,13 @@ export class ShippingController {
         providerCode: err.providerCode,
         message: err.message,
       });
-      return {isServiceable: false, isCodAvailable: false, courierName: 'BlueDart',
-        ...evaluateDeliveryEligibility(undefined, paymentMethod === 'cod')};
+      const eligibility = evaluatePreferredDeliveryEligibility({
+        selectedProvider: 'Manual',
+        delhiveryCheckFailed: true,
+        blueDartCheckFailed: true,
+      }, paymentMethod === 'cod');
+      return {isServiceable: false, isCodAvailable: false, courierName: 'Manual',
+        ...eligibility};
     }
   }
 }

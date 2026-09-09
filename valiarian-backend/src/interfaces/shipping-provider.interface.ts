@@ -314,7 +314,8 @@ export interface ShippingProvider {
   readonly courierName: string;
   readonly providerVersion?:
     | 'bluedart-legacy-soap'
-    | 'bluedart-developer-portal';
+    | 'bluedart-developer-portal'
+    | 'delhivery-b2c-v1';
 
   /**
    * Check if a destination pincode is serviceable.

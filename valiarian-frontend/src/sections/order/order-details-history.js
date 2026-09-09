@@ -38,11 +38,11 @@ const CUSTOMER_STATUS_CONTENT = {
   },
   shipped: {
     label: 'Shipped',
-    message: 'Your parcel has been dispatched from our warehouse and handed over to Blue Dart.',
+    message: 'Your parcel has been dispatched from our warehouse and handed to the delivery partner.',
   },
   out_for_delivery: {
     label: 'Out for Delivery',
-    message: 'Blue Dart will attempt delivery today, typically between 9:00 AM and 11:00 PM.',
+    message: 'The delivery partner is expected to attempt delivery today.',
   },
   delivered: {
     label: 'Delivered',

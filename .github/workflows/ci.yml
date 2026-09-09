@@ -42,7 +42,7 @@ jobs:
       PG_PASSWORD: ci
       PG_DATABASE: valiarian_ci
       NODE_ENV: test
-      JWT_SECRET: ci-test-only-not-a-real-secret
+      JWT_SECRET: ci-test-only-not-a-real-secret-32-plus
       JWT_EXPIRES_IN: 1h
       # RazorpayService throws at construction time if these are unset (it
       # only checks presence, never calls the real Razorpay API during
@@ -78,14 +78,18 @@ jobs:
       - name: Set up test database schema
         run: node ./dist/migrate
 
-      # Non-blocking: 217/229 tests pass cleanly against a fresh schema. The
-      # remaining 12 are acceptance tests that assume specific role/
-      # permission rows (super_admin, admin, editor, viewer) already exist —
-      # there's no seed script anywhere in this repo, so these were
-      # apparently only ever run against an already-seeded dev database, not
-      # a blank one. Not fixed here since guessing at seed data would be
-      # worse than no seed data; a real fix is a seed script, tracked
-      # separately.
+      - name: Delhivery integration regression gate
+        run: >-
+          npx lb-mocha --require dist/__tests__/test-env.js --allow-console-logs
+          "dist/__tests__/unit/services/delhivery-integration.unit.js"
+          "dist/__tests__/acceptance/delhivery-security.acceptance.js"
+
+      - name: Deployment configuration regression gate
+        run: node --test ../scripts/check-backend-deploy-config.test.cjs
+
+      # Keep the legacy full suite visible while its unrelated role-seeding,
+      # static test-user, and stale auth-route assumptions are repaired. The
+      # focused Delhivery suite above is blocking.
       - name: Test
         run: npm test
         continue-on-error: true
@@ -171,9 +175,13 @@ jobs:
           NODE_OPTIONS: '--max-old-space-size=2048'
           CI: 'false'
 
-      # Non-blocking: all 3 suites currently fail to even load because
-      # @testing-library/jest-dom (imported by src/setupTests.js) isn't in
-      # package.json's dependencies — pre-existing, not introduced here.
+      - name: Shipping workflow regression gate
+        run: npm test -- --watchAll=false src/utils/delivery-status.test.js
+        env:
+          CI: 'true'
+
+      # Keep the broad legacy UI suite visible while the focused shipping
+      # workflow regression test above remains a blocking gate.
       - name: Test
         run: npm test -- --watchAll=false
         env:
