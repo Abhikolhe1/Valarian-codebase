@@ -526,7 +526,7 @@ export default function CheckoutPayment({
         return;
       }
 
-      if (error) {
+      if (error && createdPaymentState?.orderId) {
         const failedState = {
           ...(createdPaymentState || {}),
           orderId: createdPaymentState?.orderId || '',
@@ -541,6 +541,9 @@ export default function CheckoutPayment({
         return;
       }
 
+      // Order creation errors (stock, address, coupon, delivery validation,
+      // authentication, etc.) happen before Razorpay opens. Surface the
+      // backend message in checkout instead of misreporting a payment failure.
       throw error?.error || error;
     } finally {
       setIsProcessingPayment(false);
