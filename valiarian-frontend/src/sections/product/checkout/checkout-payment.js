@@ -26,6 +26,7 @@ import {
 import { useDispatch } from 'src/redux/store';
 import { paths } from 'src/routes/paths';
 import axios, { endpoints } from 'src/utils/axios';
+import { trackEcommerceEvent, trackPurchase } from 'src/utils/analytics';
 import { getCartItemProductId } from 'src/utils/cart-utils';
 import {
   buildPaymentQuery,
@@ -300,7 +301,20 @@ export default function CheckoutPayment({
       };
 
       persistPaymentState(nextState);
-      navigate(buildPaymentRoute(resolvePaymentStatusRoute(nextState), nextState), {
+      const statusRoute = resolvePaymentStatusRoute(nextState);
+
+      if (statusRoute === paths.payment.success) {
+        trackPurchase({
+          transactionId: nextState.orderId || nextState.orderNumber,
+          items: eligibleCart,
+          value: nextState.amount || total,
+          tax,
+          coupon: appliedCoupon?.code,
+          payment_type: 'razorpay',
+        });
+      }
+
+      navigate(buildPaymentRoute(statusRoute, nextState), {
         replace: true,
       });
 
@@ -322,6 +336,14 @@ export default function CheckoutPayment({
   };
 
   const handleOrderSuccess = async (order, successMessage = 'Order placed successfully') => {
+    trackPurchase({
+      transactionId: order?.id || order?._id || order?.orderId || order?.orderNumber,
+      items: eligibleCart,
+      value: order?.total ?? total,
+      tax: order?.tax ?? tax,
+      coupon: appliedCoupon?.code,
+      payment_type: order?.paymentMethod || 'cod',
+    });
     await clearCheckoutCart();
     clearPersistedPaymentState();
     enqueueSnackbar(successMessage, { variant: 'success' });
@@ -499,6 +521,14 @@ export default function CheckoutPayment({
         return;
       }
 
+      trackPurchase({
+        transactionId: verifiedState.orderId || verifiedState.orderNumber,
+        items: eligibleCart,
+        value: verifiedState.amount || total,
+        tax,
+        coupon: appliedCoupon?.code,
+        payment_type: 'razorpay',
+      });
       await clearCheckoutCart();
       navigate(buildPaymentRoute(paths.payment.success, verifiedState), { replace: true });
     } catch (error) {
@@ -526,7 +556,7 @@ export default function CheckoutPayment({
         return;
       }
 
-      if (error) {
+      if (error && createdPaymentState?.orderId) {
         const failedState = {
           ...(createdPaymentState || {}),
           orderId: createdPaymentState?.orderId || '',
@@ -541,6 +571,9 @@ export default function CheckoutPayment({
         return;
       }
 
+      // Order creation errors (stock, address, coupon, delivery validation,
+      // authentication, etc.) happen before Razorpay opens. Surface the
+      // backend message in checkout instead of misreporting a payment failure.
       throw error?.error || error;
     } finally {
       setIsProcessingPayment(false);
@@ -557,6 +590,12 @@ export default function CheckoutPayment({
       }
 
       const orderData = createOrderPayload(data.payment);
+
+      trackEcommerceEvent('add_payment_info', eligibleCart, {
+        value: total,
+        coupon: appliedCoupon?.code,
+        payment_type: data.payment,
+      });
 
       if (data.payment === 'razorpay') {
         await handleRazorpayOrder(orderData);

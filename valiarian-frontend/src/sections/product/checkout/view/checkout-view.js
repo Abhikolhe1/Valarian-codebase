@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 // @mui
 import Button from '@mui/material/Button';
 import Container from '@mui/material/Container';
@@ -17,6 +17,7 @@ import { PRODUCT_CHECKOUT_STEPS } from 'src/_mock/_product';
 import EmptyContent from 'src/components/empty-content';
 import Iconify from 'src/components/iconify';
 import { useSettingsContext } from 'src/components/settings';
+import { trackEcommerceEvent } from 'src/utils/analytics';
 //
 import { useCheckout } from '../../hooks';
 import CheckoutAuthGate from '../checkout-auth-gate';
@@ -50,6 +51,21 @@ export default function CheckoutView() {
   } = useCheckout();
 
   const { cart, billing, activeStep } = checkoutSession;
+  const hasTrackedCartView = useRef(false);
+
+  useEffect(() => {
+    if (activeStep === 0 && cart.length && !hasTrackedCartView.current) {
+      trackEcommerceEvent('view_cart', checkoutSession.eligibleCart, {
+        value: checkoutSession.total,
+        coupon: checkoutSession.appliedCoupon?.code,
+      });
+      hasTrackedCartView.current = true;
+    }
+
+    if (!cart.length) {
+      hasTrackedCartView.current = false;
+    }
+  }, [activeStep, cart.length, checkoutSession]);
 
   useEffect(() => {
     if (authenticated && user?.id && cart.length) {
