@@ -63,7 +63,8 @@ export class InvoicePrintService {
 
   private baseStyles(): string {
     return `
-      @page { size: A4; margin: 12mm; }
+      /* A zero page margin prevents browsers from printing their URL header/footer. */
+      @page { size: A4; margin: 0; }
       * { box-sizing: border-box; }
       body {
         font-family: Arial, Helvetica, sans-serif;
@@ -130,7 +131,7 @@ export class InvoicePrintService {
         color: #666;
       }
       @media print {
-        body { background: #fff; padding: 0; font-size: 11px; }
+        body { background: #fff; padding: 12mm; font-size: 11px; }
         .sheet { border: none; max-width: none; padding: 0; }
         .no-print { display: none !important; }
       }
@@ -278,7 +279,7 @@ ${autoPrint ? '<script>window.addEventListener("load", function () { window.prin
   ): string {
     const isCod = order.paymentMethod === 'cod';
     const extraStyles = `
-      @page { size: 4in 6in; margin: 4mm; }
+      @page { size: 4in 6in; margin: 0; }
       body { padding: 8px; }
       .sheet { max-width: 4in; min-height: 5.7in; padding: 10px; border: 2px solid #111; }
       .label-head { display: flex; justify-content: space-between; gap: 8px; padding-bottom: 8px; border-bottom: 2px solid #111; }
@@ -298,7 +299,7 @@ ${autoPrint ? '<script>window.addEventListener("load", function () { window.prin
       .contents th, .contents td { padding: 5px 4px; font-size: 10px; }
       .contents th { font-size: 9px; }
       .label-foot { margin-top: 8px; font-size: 9px; color: #555; }
-      @media print { body { padding: 0; } .sheet { min-height: 0; border: 2px solid #111; padding: 8px; } }
+      @media print { body { padding: 4mm; } .sheet { min-height: 0; border: 2px solid #111; padding: 8px; } }
     `;
 
     const itemRows = invoice.items
