@@ -240,6 +240,8 @@ export class BarcodeService {
           <meta charset="utf-8" />
           <title>Valiarian Barcode Labels</title>
           <style>
+            /* A zero page margin prevents browsers from printing their URL header/footer. */
+            @page { margin: 0; }
             body { font-family: Arial, sans-serif; margin: 0; padding: 24px; background: #f4f4f4; }
             .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; }
             .label { background: white; border: 1px solid #d9d9d9; border-radius: 12px; padding: 20px; page-break-inside: avoid; }
@@ -248,7 +250,7 @@ export class BarcodeService {
             p { margin: 6px 0; color: #222; }
             img { width: 100%; margin-top: 16px; }
             @media print {
-              body { background: white; padding: 0; }
+              body { background: white; padding: 12mm; }
               .grid { gap: 8px; }
               .label { border-radius: 0; box-shadow: none; }
             }
@@ -285,6 +287,8 @@ export class BarcodeService {
           <meta charset="utf-8" />
           <title>Valiarian Barcode Labels</title>
           <style>
+            /* A zero page margin prevents browsers from printing their URL header/footer. */
+            @page { margin: 0; }
             body { font-family: Arial, sans-serif; margin: 0; padding: 24px; background: #f4f4f4; }
             .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
             .label { background: white; border: 1px solid #d9d9d9; border-radius: 12px; padding: 20px; page-break-inside: avoid; text-align: center; }
@@ -292,7 +296,7 @@ export class BarcodeService {
             .code { margin: 0 0 12px; font-size: 14px; color: #111; }
             img { width: 100%; margin-top: 6px; }
             @media print {
-              body { background: white; padding: 0; }
+              body { background: white; padding: 12mm; }
               .grid { gap: 8px; }
               .label { border-radius: 0; box-shadow: none; }
             }
