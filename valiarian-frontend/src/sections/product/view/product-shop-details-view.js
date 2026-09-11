@@ -1,4 +1,4 @@
-import { useCallback, useLayoutEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 // @mui
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
@@ -19,6 +19,7 @@ import EmptyContent from 'src/components/empty-content';
 import Iconify from 'src/components/iconify';
 import { useSettingsContext } from 'src/components/settings';
 import { RouterLink } from 'src/routes/components';
+import { trackEcommerceEvent } from 'src/utils/analytics';
 //
 import CartIcon from '../common/cart-icon';
 import { useCheckout } from '../hooks';
@@ -312,12 +313,25 @@ export default function ProductShopDetailsView() {
 
   const [currentTab, setCurrentTab] = useState('description');
   const [selectedVariant, setSelectedVariant] = useState(null);
+  const trackedProductId = useRef(null);
 
   const { product: apiProduct, productLoading } = useGetProduct(`${id}`);
 
   // Use dummy product if API doesn't return data
   const dummyProduct = useMemo(() => getDummyProductById(id), [id]);
   const product = apiProduct || dummyProduct;
+
+  useEffect(() => {
+    if (!productLoading && product && trackedProductId.current !== product.id) {
+      const defaultVariant =
+        product.variants?.find((variant) => variant.id === initialVariantId) ||
+        product.variants?.find((variant) => variant.isDefault) ||
+        product.variants?.[0];
+
+      trackEcommerceEvent('view_item', [{ ...product, variant: defaultVariant }]);
+      trackedProductId.current = product.id;
+    }
+  }, [initialVariantId, product, productLoading]);
 
   // Scroll to top when component mounts or product ID changes
   // Using useLayoutEffect to ensure scroll happens before paint
