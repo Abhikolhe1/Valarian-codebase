@@ -509,10 +509,17 @@ export class OrderController {
       let variant = null;
 
       if (item.variantId) {
-        variant = await this.productVariantRepository.findById(item.variantId).catch(() => null);
+        // The storefront receives the embedded variants from Product. Prefer
+        // that same inventory snapshot so a stale normalized row cannot show
+        // an item as available and then reject it during checkout.
+        variant = Array.isArray(product.variants)
+          ? product.variants.find(v => v.id === item.variantId) || null
+          : null;
 
-        if (!variant && Array.isArray(product.variants)) {
-          variant = product.variants.find(v => v.id === item.variantId) || null;
+        if (!variant) {
+          variant = await this.productVariantRepository
+            .findById(item.variantId)
+            .catch(() => null);
         }
 
         if (!variant) {

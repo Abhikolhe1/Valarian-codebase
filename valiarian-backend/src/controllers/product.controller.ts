@@ -321,12 +321,12 @@ export class ProductController {
     }
 
     const now = new Date();
-    const product = await this.productRepository.create({
+    const product = await this.productRepository.createWithVariantInventory({
       id: uuidv4(),
       ...normalizedProductData,
       createdAt: now,
       updatedAt: now,
-    });
+    }, normalizedProductData.variants as ProductVariant[] ?? []);
 
     await this.sendDefaultVariantLowStockAlert(product);
 
@@ -511,10 +511,16 @@ export class ProductController {
     }
 
     const now = new Date();
-    await this.productRepository.updateById(id, {
-      ...productData,
-      updatedAt: now,
-    });
+    const updateData = {...productData, updatedAt: now};
+    if (Array.isArray(productData.variants)) {
+      await this.productRepository.updateWithVariantInventory(
+        id,
+        updateData,
+        productData.variants as ProductVariant[],
+      );
+    } else {
+      await this.productRepository.updateById(id, updateData);
+    }
 
     const updatedProduct = await this.productRepository.findById(id);
     await this.sendDefaultVariantLowStockAlert(updatedProduct);
@@ -755,12 +761,12 @@ export class ProductController {
     const normalized = this.normalizeVariants(variants as ProductVariant[]);
     const now = new Date();
 
-    await this.productRepository.updateById(id, {
+    await this.productRepository.updateWithVariantInventory(id, {
       variants: normalized.variants,
       stockQuantity: normalized.stockQuantity,
       inStock: normalized.inStock,
       updatedAt: now,
-    });
+    }, normalized.variants);
 
     const updatedProduct = await this.productRepository.findById(id);
     await this.sendDefaultVariantLowStockAlert(updatedProduct);
@@ -847,12 +853,12 @@ export class ProductController {
     const normalized = this.normalizeVariants(product.variants as ProductVariant[]);
     const now = new Date();
 
-    await this.productRepository.updateById(id, {
+    await this.productRepository.updateWithVariantInventory(id, {
       variants: normalized.variants,
       stockQuantity: normalized.stockQuantity,
       inStock: normalized.inStock,
       updatedAt: now,
-    });
+    }, normalized.variants);
 
     const updatedProduct = await this.productRepository.findById(id);
     await this.sendDefaultVariantLowStockAlert(updatedProduct);
@@ -896,12 +902,12 @@ export class ProductController {
     const normalized = this.normalizeVariants(product.variants as ProductVariant[]);
     const now = new Date();
 
-    await this.productRepository.updateById(id, {
+    await this.productRepository.updateWithVariantInventory(id, {
       variants: normalized.variants,
       stockQuantity: normalized.stockQuantity,
       inStock: normalized.inStock,
       updatedAt: now,
-    });
+    }, normalized.variants);
 
     const updatedProduct = await this.productRepository.findById(id);
     await this.sendDefaultVariantLowStockAlert(updatedProduct);
@@ -962,12 +968,12 @@ export class ProductController {
     const normalized = this.normalizeVariants(product.variants as ProductVariant[]);
     const now = new Date();
 
-    await this.productRepository.updateById(id, {
+    await this.productRepository.updateWithVariantInventory(id, {
       variants: normalized.variants,
       stockQuantity: normalized.stockQuantity,
       inStock: normalized.inStock,
       updatedAt: now,
-    });
+    }, normalized.variants);
 
     const updatedProduct = await this.productRepository.findById(id);
     await this.sendDefaultVariantLowStockAlert(updatedProduct);

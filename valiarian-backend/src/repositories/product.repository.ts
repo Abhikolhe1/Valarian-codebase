@@ -3,6 +3,7 @@ import {
   BelongsToAccessor,
   DefaultCrudRepository,
   Filter,
+  IsolationLevel,
   Where,
   repository,
 } from '@loopback/repository';
@@ -78,6 +79,104 @@ export class ProductRepository extends TimeStampRepositoryMixin<
       categoryRepositoryGetter,
     );
     this.registerInclusionResolver('category', this.category.inclusionResolver);
+  }
+
+  /**
+   * Keep the normalized product_variants table identical to the variants JSON
+   * exposed by Product. Both representations are still used by existing
+   * inventory workflows, so every admin variant write must update both inside
+   * the same transaction.
+   */
+  async syncNormalizedVariants(
+    productId: string,
+    variants: ProductVariant[] = [],
+    options?: {transaction?: any},
+  ): Promise<void> {
+    const variantRepo = await this.productVariantRepositoryGetter();
+    const existing = await variantRepo.find({where: {productId}}, options);
+    const existingById = new Map(existing.map(variant => [variant.id, variant]));
+    const retainedIds = new Set<string>();
+    const now = new Date();
+
+    for (const variant of variants) {
+      if (!variant.id) {
+        throw new Error(`Variant id is required for product ${productId}`);
+      }
+
+      retainedIds.add(variant.id);
+      const current = existingById.get(variant.id);
+      const data: Partial<ProductVariant> = {
+        productId,
+        sku: variant.sku,
+        color: variant.color,
+        colorName: variant.colorName,
+        size: variant.size,
+        images: variant.images ?? [],
+        price: variant.price,
+        stockQuantity: Math.max(0, Number(variant.stockQuantity || 0)),
+        inStock: Number(variant.stockQuantity || 0) > 0,
+        isDefault: Boolean(variant.isDefault),
+        isActive: true,
+        isDeleted: false,
+        deletedAt: undefined,
+        updatedAt: now,
+      };
+
+      if (current) {
+        await variantRepo.updateById(variant.id, data, options);
+      } else {
+        await variantRepo.create({
+          id: variant.id,
+          reservedQuantity: 0,
+          createdAt: now,
+          ...data,
+        } as ProductVariant, options);
+      }
+    }
+
+    for (const variant of existing) {
+      if (!retainedIds.has(variant.id)) {
+        await variantRepo.deleteById(variant.id, options);
+      }
+    }
+  }
+
+  async createWithVariantInventory(
+    data: Partial<Product>,
+    variants: ProductVariant[] = [],
+  ): Promise<Product> {
+    const transaction = await this.dataSource.beginTransaction(
+      IsolationLevel.READ_COMMITTED,
+    );
+
+    try {
+      const product = await this.create(data as Product, {transaction});
+      await this.syncNormalizedVariants(product.id, variants, {transaction});
+      await transaction.commit();
+      return product;
+    } catch (error) {
+      await transaction.rollback();
+      throw error;
+    }
+  }
+
+  async updateWithVariantInventory(
+    productId: string,
+    data: Partial<Product>,
+    variants: ProductVariant[],
+  ): Promise<void> {
+    const transaction = await this.dataSource.beginTransaction(
+      IsolationLevel.READ_COMMITTED,
+    );
+
+    try {
+      await this.updateById(productId, data, {transaction});
+      await this.syncNormalizedVariants(productId, variants, {transaction});
+      await transaction.commit();
+    } catch (error) {
+      await transaction.rollback();
+      throw error;
+    }
   }
 
   /**

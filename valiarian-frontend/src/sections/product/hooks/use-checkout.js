@@ -29,6 +29,7 @@ import {
 import { useDispatch, useSelector } from 'src/redux/store';
 import axios, { endpoints } from 'src/utils/axios';
 // utils
+import { trackEcommerceEvent } from 'src/utils/analytics';
 import { calculateCheckoutTotals, findCartItem, isCartItemMatch } from 'src/utils/cart-utils';
 // _mock
 import { PRODUCT_CHECKOUT_STEPS } from 'src/_mock/_product';
@@ -100,8 +101,22 @@ export default function useCheckout() {
   );
 
   const onNextStep = useCallback(() => {
+    if (checkoutSession.activeStep === 0 && checkoutSession.eligibleCart.length) {
+      trackEcommerceEvent('begin_checkout', checkoutSession.eligibleCart, {
+        value: checkoutSession.total,
+        coupon: checkoutSession.appliedCoupon?.code,
+      });
+    }
+
     dispatch(gotoStep(normalizeStep(checkoutSession.activeStep + 1)));
-  }, [checkoutSession.activeStep, dispatch, normalizeStep]);
+  }, [
+    checkoutSession.activeStep,
+    checkoutSession.appliedCoupon?.code,
+    checkoutSession.eligibleCart,
+    checkoutSession.total,
+    dispatch,
+    normalizeStep,
+  ]);
 
   const onBackStep = useCallback(() => {
     const previousStep = checkoutSession.activeStep - 1;
@@ -123,8 +138,11 @@ export default function useCheckout() {
 
   const onDeleteCart = useCallback(
     async (identifier) => {
+      const removedItem = findCartItem(checkoutSession.cart, identifier);
+
       if (checkout.buyNowItem && isCartItemMatch(checkout.buyNowItem, identifier)) {
         dispatch(deleteCart(identifier));
+        if (removedItem) trackEcommerceEvent('remove_from_cart', [removedItem]);
         return;
       }
 
@@ -132,6 +150,7 @@ export default function useCheckout() {
       dispatch(deleteCart(identifier));
 
       if (!authenticated || !user?.id) {
+        if (removedItem) trackEcommerceEvent('remove_from_cart', [removedItem]);
         return;
       }
 
@@ -145,18 +164,20 @@ export default function useCheckout() {
       try {
         const syncedCart = await removeCartItemRequest(user.id, cartItem.cartItemId);
         dispatch(getCart(syncedCart));
+        trackEcommerceEvent('remove_from_cart', [cartItem]);
       } catch (error) {
         console.error('Failed to remove cart item:', error);
         dispatch(getCart(previousCart));
       }
     },
-    [authenticated, checkout.buyNowItem, checkout.cart, dispatch, user?.id]
+    [authenticated, checkout.buyNowItem, checkout.cart, checkoutSession.cart, dispatch, user?.id]
   );
 
   const onIncreaseQuantity = useCallback(
     async (identifier) => {
       if (checkout.buyNowItem && isCartItemMatch(checkout.buyNowItem, identifier)) {
         dispatch(increaseQuantity(identifier));
+        trackEcommerceEvent('add_to_cart', [{ ...checkout.buyNowItem, quantity: 1 }]);
         return;
       }
 
@@ -170,6 +191,7 @@ export default function useCheckout() {
       dispatch(increaseQuantity(identifier));
 
       if (!authenticated || !user?.id || !cartItem.cartItemId) {
+        trackEcommerceEvent('add_to_cart', [{ ...cartItem, quantity: 1 }]);
         return;
       }
 
@@ -180,6 +202,7 @@ export default function useCheckout() {
           cartItem.quantity + 1
         );
         dispatch(getCart(syncedCart));
+        trackEcommerceEvent('add_to_cart', [{ ...cartItem, quantity: 1 }]);
       } catch (error) {
         console.error('Failed to increase cart quantity:', error);
         dispatch(getCart(previousCart));
@@ -192,6 +215,7 @@ export default function useCheckout() {
     async (identifier) => {
       if (checkout.buyNowItem && isCartItemMatch(checkout.buyNowItem, identifier)) {
         dispatch(decreaseQuantity(identifier));
+        trackEcommerceEvent('remove_from_cart', [{ ...checkout.buyNowItem, quantity: 1 }]);
         return;
       }
 
@@ -205,6 +229,7 @@ export default function useCheckout() {
       dispatch(decreaseQuantity(identifier));
 
       if (!authenticated || !user?.id || !cartItem.cartItemId) {
+        trackEcommerceEvent('remove_from_cart', [{ ...cartItem, quantity: 1 }]);
         return;
       }
 
@@ -215,6 +240,7 @@ export default function useCheckout() {
           Math.max(1, cartItem.quantity - 1)
         );
         dispatch(getCart(syncedCart));
+        trackEcommerceEvent('remove_from_cart', [{ ...cartItem, quantity: 1 }]);
       } catch (error) {
         console.error('Failed to decrease cart quantity:', error);
         dispatch(getCart(previousCart));
@@ -226,6 +252,11 @@ export default function useCheckout() {
   const onCreateBilling = useCallback(
     (address) => {
       dispatch(createBilling(address));
+      trackEcommerceEvent('add_shipping_info', checkoutSession.eligibleCart, {
+        value: checkoutSession.total,
+        coupon: checkoutSession.appliedCoupon?.code,
+        shipping_tier: 'Standard',
+      });
       dispatch(
         gotoStep(
           normalizeStep(checkoutSession.activeStep + 1, {
@@ -234,7 +265,14 @@ export default function useCheckout() {
         )
       );
     },
-    [checkoutSession.activeStep, dispatch, normalizeStep]
+    [
+      checkoutSession.activeStep,
+      checkoutSession.appliedCoupon?.code,
+      checkoutSession.eligibleCart,
+      checkoutSession.total,
+      dispatch,
+      normalizeStep,
+    ]
   );
 
   const onResetBilling = useCallback(() => {
@@ -247,12 +285,14 @@ export default function useCheckout() {
       dispatch(addToCart(newProduct));
 
       if (!authenticated || !user?.id) {
+        trackEcommerceEvent('add_to_cart', [newProduct]);
         return;
       }
 
       try {
         const syncedCart = await addCartItemRequest(user.id, newProduct);
         dispatch(getCart(syncedCart));
+        trackEcommerceEvent('add_to_cart', [newProduct]);
       } catch (error) {
         console.error('Failed to add cart item:', error);
         dispatch(getCart(previousCart));
