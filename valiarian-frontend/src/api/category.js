@@ -7,7 +7,14 @@ import { endpoints, fetcher } from 'src/utils/axios';
 
 export const getCategoriesKey = () => {
   const params = new URLSearchParams();
-  params.append('filter', JSON.stringify({ include: [{ relation: 'parentCategory' }] }));
+  params.append(
+    'filter',
+    JSON.stringify({
+      where: {isActive: true, isDeleted: false},
+      include: [{relation: 'parentCategory'}],
+      order: ['name ASC'],
+    })
+  );
 
   return `${endpoints.category.list}?${params.toString()}`;
 };
