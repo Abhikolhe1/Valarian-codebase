@@ -1,16 +1,16 @@
 import isEqual from 'lodash/isEqual';
+import PropTypes from 'prop-types';
 import { startTransition, useCallback, useEffect, useMemo, useState } from 'react';
 // @mui
 import Box from '@mui/material/Box';
 import Container from '@mui/material/Container';
 import Stack from '@mui/material/Stack';
-import Tab from '@mui/material/Tab';
-import Tabs from '@mui/material/Tabs';
+import Typography from '@mui/material/Typography';
 // hooks
 import CustomBreadcrumbs from 'src/components/custom-breadcrumbs';
 import { useBoolean } from 'src/hooks/use-boolean';
 import { useDebounce } from 'src/hooks/use-debounce';
-import { useRouter, useSearchParams } from 'src/routes/hook';
+import { usePathname, useRouter, useSearchParams } from 'src/routes/hook';
 
 // routes
 import { paths } from 'src/routes/paths';
@@ -22,7 +22,9 @@ import { useGetCategories } from 'src/api/category';
 import { useGetProducts, useSearchProducts } from 'src/api/product';
 // components
 import EmptyContent from 'src/components/empty-content';
+import PageSEO from 'src/components/seo/PageSEO';
 import { useSettingsContext } from 'src/components/settings';
+import { listingSeo } from 'src/utils/storefront-seo';
 //
 import CartIcon from '../common/cart-icon';
 import { useCheckout } from '../hooks';
@@ -45,11 +47,12 @@ const PRODUCTS_PER_PAGE = 20;
 
 // ----------------------------------------------------------------------
 
-export default function ProductShopView() {
+export default function ProductShopView({categorySlug}) {
   const settings = useSettingsContext();
   const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
-  const categoryFromQuery = searchParams.get('category');
+  const categoryFromQuery = categorySlug || searchParams.get('category');
   const searchFromQuery = searchParams.get('search');
   const normalizedCategoryFromQuery = useMemo(() => {
     if (!categoryFromQuery) return 'products';
@@ -81,7 +84,7 @@ export default function ProductShopView() {
 
   // The filter drawer is disabled, so this was never enabled and categories
   // never loaded. The category dropdown needs them on first render.
-  const { categories = [] } = useGetCategories();
+  const { categories = [], categoriesLoading } = useGetCategories();
 
   const activeCategory = useMemo(() => {
     if (filters.category === 'all' || filters.category === 'products') return null;
@@ -93,6 +96,17 @@ export default function ProductShopView() {
         c.name?.toLowerCase() === String(filters.category).toLowerCase()
     );
   }, [categories, filters.category]);
+
+  const hasQueryParameters = Boolean(searchParams.toString()) || pathname === '/products/list';
+  const categoryNotFound = Boolean(categorySlug && !categoriesLoading && !activeCategory);
+  const seoCategory = activeCategory ||
+    (normalizedCategoryFromQuery !== 'products'
+      ? {slug: normalizedCategoryFromQuery, name: normalizedCategoryFromQuery.replace(/-/g, ' ')}
+      : null);
+  const seo = listingSeo({
+    category: seoCategory,
+    hasQueryParameters: hasQueryParameters || categoryNotFound,
+  });
 
   const productQueryFilters = useMemo(
     () => ({
@@ -143,14 +157,6 @@ export default function ProductShopView() {
       };
     });
   }, []);
-
-  const handleFilterCategory = useCallback(
-    (event, newValue) => {
-      handleFilters('category', newValue);
-      router.replace(buildShopUrl(newValue, activeSearchQuery));
-    },
-    [activeSearchQuery, handleFilters, router]
-  );
 
   const handleSelectCategory = useCallback(
     (newValue) => {
@@ -288,27 +294,15 @@ export default function ProductShopView() {
     </Stack>
   );
 
-  const renderTabs = (
+  const renderBreadcrumbs = (
     <CustomBreadcrumbs
       links={[
         { name: 'Home', href: '/' },
         {
           name: 'Products',
-          href: paths.product.root,
+          href: activeCategory ? paths.product.root : undefined,
         },
-        <Tabs
-          value={filters.category}
-          onChange={handleFilterCategory}
-          sx={{
-            mt: 4,
-            mb: { xs: 3, md: 5 },
-          }}
-        >
-          <Tab key="products" label="Products" value="products" />
-          {/* {categories.map((category) => (
-                <Tab key={category.id} label={category.name} value={category.id} />
-              ))} */}
-        </Tabs>,
+        ...(activeCategory ? [{name: activeCategory.name}] : []),
       ]}
       sx={{ mb: 1, mt: 5, pt: 0 }}
     />
@@ -317,24 +311,42 @@ export default function ProductShopView() {
   const renderNotFound = <EmptyContent filled title="No Data" sx={{ py: 10 }} />;
 
   return (
-    <Container
+    <>
+      <PageSEO
+        title={seo.title}
+        description={seo.description}
+        canonicalUrl={seo.canonicalUrl}
+        ogImage={seo.image}
+        ogImageAlt={activeCategory?.name}
+        structuredData={seo.structuredData}
+        noIndex={seo.noIndex}
+      />
+      <Container
       maxWidth={settings.themeStretch ? false : 'lg'}
       sx={{
         mb: 15,
       }}
-    >
+      >
       <CartIcon totalItems={checkout.totalItems} />
 
-      {/* <Typography
+      <Typography
+        component="h1"
         variant="h4"
         sx={{
-          my: { xs: 3, md: 5 },
+          mt: {xs: 3, md: 5},
+          mb: 1,
         }}
       >
-        Shop
-      </Typography> */}
+        {activeCategory?.name || 'Premium Polo T-Shirts'}
+      </Typography>
 
-      {renderTabs}
+      {activeCategory?.description && (
+        <Typography color="text.secondary" sx={{mb: 3, maxWidth: 800}}>
+          {activeCategory.description}
+        </Typography>
+      )}
+
+      {renderBreadcrumbs}
 
       <Stack
         spacing={2.5}
@@ -356,9 +368,14 @@ export default function ProductShopView() {
         totalPages={useServerPagination ? totalPages : undefined}
         onPageChange={useServerPagination ? setPage : undefined}
       />
-    </Container>
+      </Container>
+    </>
   );
 }
+
+ProductShopView.propTypes = {
+  categorySlug: PropTypes.string,
+};
 
 // ----------------------------------------------------------------------
 
@@ -410,17 +427,18 @@ function applyFilter({ inputData, filters, searchQuery }) {
 function buildShopUrl(category, search) {
   const params = new URLSearchParams();
 
-  if (category && category !== 'products' && category !== 'all') {
-    params.set('category', category);
-  }
-
   if (search?.trim()) {
     params.set('search', search.trim());
   }
 
   const queryString = params.toString();
 
-  return queryString ? `${paths.product.root}?${queryString}` : paths.product.root;
+  const basePath =
+    category && category !== 'products' && category !== 'all'
+      ? paths.product.category(category)
+      : paths.product.root;
+
+  return queryString ? `${basePath}?${queryString}` : basePath;
 }
 
 function normalizeSearchValue(value = '') {
