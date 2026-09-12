@@ -124,10 +124,10 @@ export default function ProductDetailsCarousel({ product, selectedVariant }) {
         asNavFor={carouselThumb.nav}
         ref={carouselLarge.carouselRef}
       >
-        {slides.map((slide) => (
+        {slides.map((slide, index) => (
           <Image
             key={slide.src}
-            alt={slide.src}
+            alt={`${product.name} product view ${index + 1}`}
             src={slide.src}
             ratio="1/1"
             onClick={() => lightbox.onOpen(slide.src)}
@@ -156,7 +156,7 @@ export default function ProductDetailsCarousel({ product, selectedVariant }) {
           <Box key={item.src} sx={{ px: 0.5 }}>
             <Avatar
               key={item.src}
-              alt={item.src}
+              alt={`${product.name} thumbnail ${index + 1}`}
               src={item.src}
               variant="rounded"
               onClick={() => {

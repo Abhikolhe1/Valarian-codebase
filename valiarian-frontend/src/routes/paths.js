@@ -51,7 +51,7 @@ export const paths = {
     root: `/products`,
     checkout: `/products/checkout`,
     details: (id) => `/products/${id}`,
-    category: (categoryName) => `/products?category=${encodeURIComponent(categoryName)}`,
+    category: (categorySlug) => `/category/${encodeURIComponent(categorySlug)}`,
     demo: {
       details: `/products/${MOCK_ID}`,
     },

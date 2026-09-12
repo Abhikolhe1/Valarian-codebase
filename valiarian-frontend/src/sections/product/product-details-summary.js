@@ -750,7 +750,7 @@ export default function ProductDetailsSummary({
 
             {renderInventoryType}
 
-            <Typography variant="h5">{name}</Typography>
+            <Typography component="h1" variant="h5">{name}</Typography>
 
             {renderRating}
 
