@@ -21,18 +21,22 @@ export function limitText(value, maxLength = 160) {
   return `${text.slice(0, maxLength - 3).trimEnd()}...`;
 }
 
+function normalizeBrandName(value) {
+  return String(value || '').replace(/\bValarian\b/g, 'Valiarian');
+}
+
 export function productSeo(product) {
   const name = plainText(product?.name || 'Product');
   const slug = product?.slug || product?.id || '';
   const canonicalUrl = `${SITE_ORIGIN}/products/${encodeURIComponent(slug)}`;
-  const title = limitText(product?.seoTitle || `${name} | Valiarian`, 60);
-  const description = limitText(
+  const title = normalizeBrandName(limitText(product?.seoTitle || `${name} | Valiarian`, 60));
+  const description = normalizeBrandName(limitText(
     product?.seoDescription ||
       product?.shortDescription ||
       product?.description ||
       `Shop ${name} by Valiarian and view its available colours, sizes and product details.`,
     160
-  );
+  ));
   const images = [product?.coverImage, ...(product?.images || [])]
     .filter(Boolean)
     .map(absoluteStorefrontUrl);
