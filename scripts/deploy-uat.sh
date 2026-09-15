@@ -123,6 +123,11 @@ deploy_static_app() {
   # is configured in Nginx; this file is the secondary crawler safeguard.
   if [ "$name" = "frontend" ]; then
     cp "${SCRIPT_DIR}/robots.uat.txt" "${dir}/build.new/robots.txt"
+    log "${name^^}" "Generating crawler-visible public storefront pages"
+    node "${dir}/scripts/generate-seo-pages.cjs" \
+      --build-dir "${dir}/build.new" \
+      --api-base "http://127.0.0.1:3055" \
+      --robots "noindex,nofollow"
   fi
 
   log "${name^^}" "Swapping in new build"

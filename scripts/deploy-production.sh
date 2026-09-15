@@ -114,6 +114,13 @@ build_static() {
   rm -rf "${dir}/build.new"
   ( cd "$dir" && BUILD_PATH=build.new GENERATE_SOURCEMAP=false NODE_OPTIONS="--max-old-space-size=2048" npm run build )
   [ -f "${dir}/build.new/index.html" ] || { log "${name^^}" "build did not produce build.new/index.html"; rm -rf "${dir}/build.new"; return 1; }
+  if [ "$name" = "frontend" ]; then
+    log "${name^^}" "Generating crawler-visible public storefront pages"
+    node "${dir}/scripts/generate-seo-pages.cjs" \
+      --build-dir "${dir}/build.new" \
+      --api-base "http://127.0.0.1:3035" \
+      --robots "index,follow"
+  fi
   return 0
 }
 

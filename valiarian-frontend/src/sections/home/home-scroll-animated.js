@@ -244,6 +244,7 @@ export default function HomeScrollAnimated({ products: propProducts, cmsData, ..
                     >
                       <Typography
                         variant="h1"
+                        component="h2"
                         sx={{
                           fontSize: { xs: '1.9rem', sm: '2.5rem', md: '4.35rem' },
                           lineHeight: { xs: 1.05, md: 1 },

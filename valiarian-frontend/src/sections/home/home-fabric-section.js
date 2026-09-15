@@ -545,7 +545,7 @@ export default function HomeFabricSection({ fabrics: propFabrics, cmsData, ...ot
           {/* Header - Fixed at top */}
           <Container maxWidth="lg" sx={{ mb: 8 }}>
             <Stack spacing={2} sx={{ textAlign: 'center' }}>
-              <Typography variant="h2" component="h1">
+              <Typography variant="h2" component="h2">
                 {title}
               </Typography>
               <Typography variant="body1" color="text.secondary" sx={{ maxWidth: 600, mx: 'auto' }}>
