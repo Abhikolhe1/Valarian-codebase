@@ -93,11 +93,19 @@ test('generates home, listing, category, slug and UUID route mappings from publi
   );
 
   assert.deepEqual(result, {routeCount: 5, productCount: 1, categoryCount: 1});
-  assert.equal(manifest['/products/obsidian-print-polo-white-vr'], manifest[`/products/${product.id}`]);
+  assert.notEqual(manifest['/products/obsidian-print-polo-white-vr'], manifest[`/products/${product.id}`]);
   const productHtml = fs.readFileSync(
     path.join(buildDir, ...manifest['/products/obsidian-print-polo-white-vr'].split('/')),
     'utf8'
   );
   assert.match(productHtml, /name="robots" content="noindex,nofollow"/);
   assert.match(productHtml, /<h1>Obsidian Print Polo - White VR<\/h1>/);
+  const uuidHtml = fs.readFileSync(
+    path.join(buildDir, ...manifest[`/products/${product.id}`].split('/')),
+    'utf8'
+  );
+  assert.match(
+    uuidHtml,
+    /rel="canonical" href="https:\/\/valiarian\.com\/products\/obsidian-print-polo-white-vr"/
+  );
 });
