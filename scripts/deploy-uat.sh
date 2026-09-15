@@ -195,4 +195,11 @@ if ! deploy_static_app admin "$ADMIN_DIR" "$ADMIN_PM2_NAME" "$ADMIN_HEALTH_URL";
   exit 1
 fi
 
+log NGINX "Activating crawler-visible UAT storefront routes"
+if ! bash "${SCRIPT_DIR}/apply-uat-storefront-nginx.sh" \
+  "${SCRIPT_DIR}/nginx/valiarian-uat.conf"; then
+  log DEPLOY "UAT deployment FAILED at Nginx stage. The previous Nginx configuration was restored."
+  exit 1
+fi
+
 log DEPLOY "UAT deployment successful — commit ${DEPLOY_SHA} is live"
