@@ -370,7 +370,10 @@ async function generate({buildDir, apiBase, robots = 'index,follow'}) {
     const document = productDocument(product);
     const slugRoute = `/products/${encodeURIComponent(product.slug)}`;
     writeRoute(buildDir, template, manifest, slugRoute, document, robots);
-    if (product.id) manifest[`/products/${encodeURIComponent(product.id)}`] = manifest[slugRoute];
+    if (product.id) {
+      const idRoute = `/products/${encodeURIComponent(product.id)}`;
+      writeRoute(buildDir, template, manifest, idRoute, document, robots);
+    }
   }
 
   const manifestFile = path.join(buildDir, 'seo', 'route-manifest.json');
