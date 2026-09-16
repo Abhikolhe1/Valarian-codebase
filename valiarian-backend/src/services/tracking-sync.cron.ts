@@ -12,6 +12,7 @@ import {InventoryLifecycleService} from './inventory-lifecycle.service';
 import {NdrService} from './ndr.service';
 import {areBackgroundJobsEnabled} from '../utils/background-jobs';
 import {BlueDartAuthenticationError, BlueDartConfigurationError, BlueDartRateLimitError, BlueDartUnauthorizedError} from './shipping-providers/bluedart-errors';
+import {DelhiveryAuthenticationError, DelhiveryConfigurationError, DelhiveryRateLimitError} from './shipping-providers/delhivery-errors';
 import {Order} from '../models';
 
 const DEFAULT_SYNC_INTERVAL_MS = 30 * 60 * 1000; // 30 minutes
@@ -119,7 +120,7 @@ export class TrackingSyncCronJob implements LifeCycleObserver {
     }
     if (Date.now() < this.rateLimitCooldownUntil) {
       console.warn(
-        `[Tracking Sync Cron] Blue Dart cooldown active until ${new Date(this.rateLimitCooldownUntil).toISOString()}; skipping sweep`,
+        `[Tracking Sync Cron] Courier cooldown active until ${new Date(this.rateLimitCooldownUntil).toISOString()}; skipping sweep`,
       );
       return;
     }
@@ -138,11 +139,17 @@ export class TrackingSyncCronJob implements LifeCycleObserver {
 
       for (const shipment of activeShipments) {
         try {
-          const tracking = await this.shippingService.trackShipment(shipment.awbNumber);
-          const nextShipmentStatus =
-            tracking.currentStatus === 'created' && shipment.status !== 'created'
-              ? shipment.status
-              : tracking.currentStatus;
+          const tracking = await this.shippingService.trackShipment(
+            shipment.awbNumber,
+            shipment.courierName,
+          );
+          const preservePendingCancellation =
+            shipment.status === 'cancel_pending' &&
+            ['created', 'exception'].includes(tracking.currentStatus);
+          const nextShipmentStatus = preservePendingCancellation ||
+            (tracking.currentStatus === 'created' && shipment.status !== 'created')
+            ? shipment.status
+            : tracking.currentStatus;
           await this.shipmentRepository.updateById(shipment.id, {
             status: nextShipmentStatus,
             currentLocation: tracking.currentLocation,
@@ -189,7 +196,8 @@ export class TrackingSyncCronJob implements LifeCycleObserver {
             'rto_in_transit',
             'rto_delivered',
           ].includes(tracking.currentStatus);
-          const trackedOrder = (confirmsPhysicalCollection || shipment.isReverse)
+          const trackedOrder = (confirmsPhysicalCollection || shipment.isReverse ||
+            shipment.status === 'cancel_pending')
             ? await this.orderRepository.findById(shipment.orderId)
             : undefined;
           if (!shipment.isReverse && trackedOrder && !trackedOrder.inventoryDeducted) {
@@ -209,7 +217,7 @@ export class TrackingSyncCronJob implements LifeCycleObserver {
                 shipment.orderId,
                 {status: 'returned', returnStatus: 'picked', returnPickedAt: new Date(), updatedAt: new Date()},
                 'returned',
-                `Blue Dart collected the customer return. Reverse AWB: ${shipment.awbNumber}`,
+                `${shipment.courierName} collected the customer return. Reverse AWB: ${shipment.awbNumber}`,
               );
             } else if (
               tracking.currentStatus === 'delivered' &&
@@ -219,7 +227,7 @@ export class TrackingSyncCronJob implements LifeCycleObserver {
                 shipment.orderId,
                 {status: 'parcel_received', returnStatus: 'completed', parcelReceivedAt: tracking.deliveredAt || new Date(), updatedAt: new Date()},
                 'parcel_received',
-                `Blue Dart delivered the return to the warehouse. Reverse AWB: ${shipment.awbNumber}. Awaiting QC/restock decision.`,
+                `${shipment.courierName} delivered the return to the warehouse. Reverse AWB: ${shipment.awbNumber}. Awaiting QC/restock decision.`,
               );
             }
             continue;
@@ -227,6 +235,30 @@ export class TrackingSyncCronJob implements LifeCycleObserver {
 
           // Close active NDR if shipment is delivered
           if (
+            tracking.currentStatus === 'cancelled' &&
+            shipment.status === 'cancel_pending'
+          ) {
+            await this.inventoryLifecycleService.restoreOnVoidedShipment(
+              shipment.orderId,
+              'system:tracking-sync-cron',
+              'system@valiarian.com',
+            );
+            if (trackedOrder?.status !== 'cancelled') {
+              await this.transitionOrder(
+                shipment.orderId,
+                {
+                  status: 'packed',
+                  trackingNumber: undefined,
+                  carrier: undefined,
+                  estimatedDelivery: undefined,
+                  updatedAt: new Date(),
+                },
+                'packed',
+                `${shipment.courierName} confirmed shipment cancellation. AWB: ${shipment.awbNumber}`,
+              );
+            }
+          }
+          else if (
             tracking.currentStatus === 'delivered' &&
             trackedOrder?.status !== 'delivered'
           ) {
@@ -245,7 +277,7 @@ export class TrackingSyncCronJob implements LifeCycleObserver {
                 updatedAt: new Date(),
               },
               'delivered',
-              `Blue Dart confirmed delivery. AWB: ${shipment.awbNumber}`,
+              `${shipment.courierName} confirmed delivery. AWB: ${shipment.awbNumber}`,
             );
           }
           // Auto-advance to out_for_delivery when Blue Dart reports it (OA/OFD
@@ -260,7 +292,7 @@ export class TrackingSyncCronJob implements LifeCycleObserver {
               shipment.orderId,
               {status: 'out_for_delivery', updatedAt: new Date()},
               'out_for_delivery',
-              `Blue Dart: shipment out for delivery. AWB: ${shipment.awbNumber}`,
+              `${shipment.courierName}: shipment out for delivery. AWB: ${shipment.awbNumber}`,
             );
           }
           // Mark the order shipped only after Blue Dart confirms physical
@@ -273,7 +305,7 @@ export class TrackingSyncCronJob implements LifeCycleObserver {
               shipment.orderId,
               {status: 'shipped', updatedAt: new Date()},
               'shipped',
-              `Blue Dart confirmed physical pickup. AWB: ${shipment.awbNumber}`,
+              `${shipment.courierName} confirmed physical pickup. AWB: ${shipment.awbNumber}`,
             );
           }
           // Close active NDR if RTO initiated
@@ -297,7 +329,7 @@ export class TrackingSyncCronJob implements LifeCycleObserver {
                 updatedAt: new Date(),
               },
               'rto_initiated',
-              `Blue Dart initiated Return to Origin (RTO). AWB: ${shipment.awbNumber}`,
+              `${shipment.courierName} initiated Return to Origin (RTO). AWB: ${shipment.awbNumber}`,
             );
           }
           else if (
@@ -312,7 +344,7 @@ export class TrackingSyncCronJob implements LifeCycleObserver {
                 updatedAt: new Date(),
               },
               'rto_in_transit',
-              `Blue Dart: RTO shipment in transit. AWB: ${shipment.awbNumber}`,
+              `${shipment.courierName}: RTO shipment in transit. AWB: ${shipment.awbNumber}`,
             );
           }
           // Close active NDR if RTO delivered
@@ -361,18 +393,18 @@ export class TrackingSyncCronJob implements LifeCycleObserver {
             });
           }
         } catch (shipmentErr) {
-          if (shipmentErr instanceof BlueDartConfigurationError || shipmentErr instanceof BlueDartAuthenticationError || shipmentErr instanceof BlueDartUnauthorizedError) {
+          if (shipmentErr instanceof BlueDartConfigurationError || shipmentErr instanceof BlueDartAuthenticationError || shipmentErr instanceof BlueDartUnauthorizedError || shipmentErr instanceof DelhiveryConfigurationError || shipmentErr instanceof DelhiveryAuthenticationError) {
             const configured = Number(process.env.TRACKING_SYNC_CONFIG_ERROR_COOLDOWN_MS);
             const cooldown = Number.isFinite(configured) && configured >= 60_000 ? configured : 6 * 60 * 60 * 1000;
             this.rateLimitCooldownUntil = Date.now() + cooldown;
             console.error(`[Tracking Sync Cron] Tracking configuration rejected: ${shipmentErr.message} Pausing this batch and further sweeps until ${new Date(this.rateLimitCooldownUntil).toISOString()}. Correct configuration and restart to retry sooner.`);
             break;
           }
-          if (shipmentErr instanceof BlueDartRateLimitError) {
+          if (shipmentErr instanceof BlueDartRateLimitError || shipmentErr instanceof DelhiveryRateLimitError) {
             this.rateLimitCooldownUntil =
               Date.now() + this.getRateLimitCooldownMs();
             console.warn(
-              `[Tracking Sync Cron] Blue Dart rate limit reached; pausing tracking requests until ${new Date(this.rateLimitCooldownUntil).toISOString()}`,
+              `[Tracking Sync Cron] Courier rate limit reached; pausing tracking requests until ${new Date(this.rateLimitCooldownUntil).toISOString()}`,
             );
             break;
           }

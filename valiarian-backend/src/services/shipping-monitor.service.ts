@@ -8,6 +8,7 @@ export class ShippingMonitorService {
   private lastAlertTimestamps: Record<string, number> = {};
   private connectivityStatus: Record<string, boolean> = {
     BlueDart: true,
+    Delhivery: true,
   };
 
   constructor(
@@ -35,29 +36,29 @@ export class ShippingMonitorService {
    * Log a successful API call.
    */
   async recordSuccess(provider: string, operation: string) {
-    this.failureCounts[operation] = 0;
+    this.failureCounts[`${provider}:${operation}`] = 0;
     this.connectivityStatus[provider] = true;
-    this.lastSyncTimestamps[operation] = new Date();
+    this.lastSyncTimestamps[`${provider}:${operation}`] = new Date();
   }
 
   /**
    * Log a failed API call. Send alert if it exceeds threshold.
    */
   async recordFailure(provider: string, operation: string, errorMsg: string, configurationError = false) {
-    this.failureCounts[operation] = (this.failureCounts[operation] || 0) + 1;
+    const key = `${provider}:${operation}`;
+    this.failureCounts[key] = (this.failureCounts[key] || 0) + 1;
     this.connectivityStatus[provider] = false;
 
     const threshold = this.getThreshold();
-    const key = `${provider}:${operation}`;
     const configuredCooldown = Number(process.env.SHIPPING_ALERT_COOLDOWN_MS);
     const cooldown = Number.isFinite(configuredCooldown) && configuredCooldown >= 60_000
       ? configuredCooldown : 6 * 60 * 60 * 1000;
     const lastAlert = this.lastAlertTimestamps[key];
-    if (this.areAlertsEnabled() && (configurationError || this.failureCounts[operation] >= threshold) &&
+    if (this.areAlertsEnabled() && (configurationError || this.failureCounts[key] >= threshold) &&
       (lastAlert === undefined || Date.now() - lastAlert >= cooldown)) {
       // Reserve before awaiting mail delivery to deduplicate concurrent failures.
       this.lastAlertTimestamps[key] = Date.now();
-      await this.sendAlertEmail(provider, operation, errorMsg, this.failureCounts[operation], configurationError);
+      await this.sendAlertEmail(provider, operation, errorMsg, this.failureCounts[key], configurationError);
     }
   }
 
@@ -84,7 +85,7 @@ export class ShippingMonitorService {
           <li><strong>Last Error Message:</strong> ${errorMsg}</li>
           <li><strong>Timestamp:</strong> ${new Date().toISOString()}</li>
         </ul>
-        <p>Please check the API credentials, network/WSDL statuses, or contact Blue Dart customer support immediately.</p>
+        <p>Please check the API credentials and provider status, then contact ${provider} support if the issue continues.</p>
       `,
     };
 

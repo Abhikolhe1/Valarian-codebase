@@ -24,6 +24,15 @@ function fixture(result: ServiceabilityResult | undefined, initial: Partial<Orde
     providerCalls++;
     if (!result) throw new Error('Provider unavailable');
     return result;
+  }, checkPreferredServiceability: async () => {
+    providerCalls++;
+    return {
+      selectedProvider: result?.isServiceable ? 'BlueDart' : 'Manual',
+      result,
+      blueDart: result,
+      delhiveryCheckFailed: true,
+      blueDartCheckFailed: !result,
+    };
   }} as unknown as ShippingService;
   const controller = Object.assign(Object.create(OrderController.prototype), {
     shippingService,
@@ -129,7 +138,9 @@ describe('Indian checkout and Blue Dart delivery classification', () => {
   });
   it('allows confirmed Blue Dart delivery', () => {
     assert.deepEqual(evaluateDeliveryEligibility(available, false), {
-      checkoutAllowed: true, blueDartDeliveryStatus: 'available', needsManualShipping: false,
+      checkoutAllowed: true, blueDartDeliveryStatus: 'available',
+      delhiveryDeliveryStatus: 'not_checked', selectedShippingProvider: 'bluedart',
+      needsManualShipping: false,
       message: 'Blue Dart delivery is available for this order.',
     });
   });
@@ -185,7 +196,7 @@ describe('Indian checkout and Blue Dart delivery classification', () => {
   });
   for (const status of ['processing', 'packed'] as const) {
     it(`allows self-delivery for an available ${status} order without changing courier availability`, async () => {
-      const setup = fixture(available, {status, blueDartDeliveryStatus: 'available', needsManualShipping: false});
+      const setup = fixture(available, {status, blueDartDeliveryStatus: 'available', delhiveryDeliveryStatus: 'not_checked', needsManualShipping: false});
       await setup.controller.adminUpdateOrderStatus('order-1', {status: 'packed', skipBlueDart: true, carrier: 'Self delivery'}, actor);
       assert.equal(setup.updates[0].blueDartForwardSkipped, true);
       assert.equal(setup.updates[0].carrier, 'Self delivery');
@@ -201,7 +212,7 @@ describe('Indian checkout and Blue Dart delivery classification', () => {
     assert.equal(setup.updates.length, 0);
   });
   it('permits skip for a failed check without creating any courier shipment', async () => {
-    const setup = fixture(undefined, {blueDartDeliveryStatus: 'check_failed', needsManualShipping: true});
+    const setup = fixture(undefined, {blueDartDeliveryStatus: 'check_failed', delhiveryDeliveryStatus: 'check_failed', needsManualShipping: true});
     const result = await setup.controller.adminUpdateOrderStatus('order-1', {status: 'packed', skipBlueDart: true}, actor);
     assert(result.success);
     assert.equal(setup.updates[0].blueDartForwardSkipped, true);

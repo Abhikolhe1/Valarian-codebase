@@ -308,10 +308,10 @@ export class Shipment extends Entity {
 
   @property({
     type: 'string',
-    jsonSchema: {enum: ['bluedart-legacy-soap', 'bluedart-developer-portal']},
+    jsonSchema: {enum: ['bluedart-legacy-soap', 'bluedart-developer-portal', 'delhivery-b2c-v1']},
     postgresql: {columnName: 'providermode'},
   })
-  providerMode?: 'bluedart-legacy-soap' | 'bluedart-developer-portal';
+  providerMode?: 'bluedart-legacy-soap' | 'bluedart-developer-portal' | 'delhivery-b2c-v1';
 
   @property({
     type: 'string',

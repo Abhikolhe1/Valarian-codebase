@@ -24,7 +24,7 @@ import { paths } from 'src/routes/paths';
 import axios from 'src/utils/axios';
 import { fCurrency } from 'src/utils/format-number';
 import { fDateTime } from 'src/utils/format-time';
-import { canSkipBlueDart, getDeliveryStatusLabel, getPackingStatusOptions, getShippingLabelBlockReason } from 'src/utils/delivery-status';
+import { canUseManualDelivery, getDeliveryStatusLabel, getPackingStatusOptions, getProviderStatusLabel, getShippingLabelBlockReason } from 'src/utils/delivery-status';
 // components
 import { BrowserMultiFormatReader } from '@zxing/browser';
 import CustomBreadcrumbs from 'src/components/custom-breadcrumbs';
@@ -45,6 +45,24 @@ import {
 
 const isPrepaidOrder = (order) =>
   order?.paymentMethod === 'razorpay' || order?.paymentMethod === 'wallet';
+
+const localDateInputValue = () => {
+  const now = new Date();
+  const local = new Date(now.getTime() - now.getTimezoneOffset() * 60000);
+  return local.toISOString().slice(0, 10);
+};
+
+const formatStatusOption = (option) => {
+  const packingLabels = {
+    packed_delhivery: 'Packed with Delhivery',
+    packed_bluedart: 'Packed with Blue Dart',
+    packed_manual: 'Packed for India Post / self-delivery / external courier',
+  };
+  return packingLabels[option] || option
+    .split('_')
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
+};
 
 const getAvailableStatusOptions = (order) => {
   if (!order) {
@@ -96,6 +114,14 @@ export default function OrderDetailsView() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [checkingDelivery, setCheckingDelivery] = useState(false);
+  const [courierAction, setCourierAction] = useState('');
+  const [pickupDialogOpen, setPickupDialogOpen] = useState(false);
+  const [pickupShipment, setPickupShipment] = useState(null);
+  const [pickupDate, setPickupDate] = useState(localDateInputValue);
+  const [pickupTime, setPickupTime] = useState('11:00');
+  const [cancelShipmentDialogOpen, setCancelShipmentDialogOpen] = useState(false);
+  const [shipmentToCancel, setShipmentToCancel] = useState(null);
+  const [shipmentCancellationReason, setShipmentCancellationReason] = useState('Cancelled by Admin');
 
   // Status Update Dialog
   const [statusDialogOpen, setStatusDialogOpen] = useState(false);
@@ -222,8 +248,15 @@ export default function OrderDetailsView() {
     try {
       setUpdating(true);
 
-      const skipBlueDart = newStatus === 'packed_skip_bluedart';
-      const orderStatus = skipBlueDart ? 'packed' : newStatus;
+      const packingProviders = {
+        packed_delhivery: 'delhivery',
+        packed_bluedart: 'bluedart',
+        packed_manual: 'manual',
+      };
+      const shippingProvider = packingProviders[newStatus];
+      const isPackingAction = Boolean(shippingProvider);
+      const orderStatus = isPackingAction ? 'packed' : newStatus;
+      const skipBlueDart = shippingProvider === 'manual';
 
       const payload = {
         status: orderStatus,
@@ -232,15 +265,17 @@ export default function OrderDetailsView() {
         carrier: carrier || undefined,
         estimatedDelivery: estimatedDelivery || undefined,
         skipBlueDart,
+        shippingProvider,
       };
 
       console.log('📤 Updating order status:', payload);
 
       const response = await axios.patch(`/api/admin/orders/${id}/status`, payload);
 
-      if (orderStatus === 'packed' && !skipBlueDart) {
+      if (isPackingAction && shippingProvider !== 'manual') {
         await axios.post(`/api/admin/orders/${id}/shipments`, {
-          generateLabelNow: false,
+          generateLabelNow: shippingProvider === 'delhivery',
+          provider: shippingProvider === 'delhivery' ? 'Delhivery' : 'BlueDart',
         });
       }
 
@@ -253,9 +288,11 @@ export default function OrderDetailsView() {
       setCarrier('');
       setEstimatedDelivery('');
       let successMessage = 'Order status updated successfully.';
-      if (skipBlueDart) {
-        successMessage = 'Order packed for self-delivery or an external courier. Blue Dart was skipped.';
-      } else if (newStatus === 'packed') {
+      if (shippingProvider === 'manual') {
+        successMessage = 'Order packed for India Post, self-delivery, or another external courier.';
+      } else if (shippingProvider === 'delhivery') {
+        successMessage = 'Order packed and manifested with Delhivery. The official label is ready to print.';
+      } else if (shippingProvider === 'bluedart') {
         successMessage = 'Order packed, AWB generated, and Blue Dart pickup requested.';
       }
       enqueueSnackbar(successMessage, { variant: 'success' });
@@ -274,6 +311,7 @@ export default function OrderDetailsView() {
 
       console.error('❌ Showing alert:', errorMessage);
       enqueueSnackbar(errorMessage, { variant: 'error' });
+      await fetchOrderDetails();
     } finally {
       setUpdating(false);
     }
@@ -281,6 +319,7 @@ export default function OrderDetailsView() {
 
   const handleProcessReturn = async () => {
     let returnApproved = false;
+    const reverseCourier = shipments.find((shipment) => !shipment.isReverse)?.courierName || 'Blue Dart';
     try {
       setUpdating(true);
       const skipBlueDart = returnAction === 'approve_skip_bluedart';
@@ -303,9 +342,9 @@ export default function OrderDetailsView() {
       setReturnComment('');
       let successMessage = 'Return rejected successfully.';
       if (skipBlueDart) {
-        successMessage = 'Return approved for warehouse handover. Blue Dart pickup was skipped.';
+        successMessage = 'Return approved for warehouse handover. Courier pickup was skipped.';
       } else if (returnApproved) {
-        successMessage = `Return approved and Blue Dart pickup registered${reverseShipment?.awbNumber ? ` (AWB ${reverseShipment.awbNumber})` : ''}.`;
+        successMessage = `Return approved and ${reverseCourier} pickup registered${reverseShipment?.awbNumber ? ` (AWB ${reverseShipment.awbNumber})` : ''}.`;
       }
       enqueueSnackbar(successMessage, { variant: 'success' });
       await fetchOrderDetails();
@@ -317,7 +356,7 @@ export default function OrderDetailsView() {
         err.response?.data?.message ||
         err.message;
       enqueueSnackbar(returnApproved
-        ? `Return was approved, but Blue Dart pickup registration failed: ${providerMessage || 'Unknown error'}. Use Retry Blue Dart Pickup after correcting the issue.`
+        ? `Return was approved, but ${reverseCourier} pickup registration failed: ${providerMessage || 'Unknown error'}. Use Retry Courier Pickup after correcting the issue.`
         : providerMessage || 'Failed to process return', {
         variant: 'error',
       });
@@ -328,11 +367,12 @@ export default function OrderDetailsView() {
   };
 
   const handleCreateReversePickup = async () => {
+    const reverseCourier = shipments.find((shipment) => !shipment.isReverse)?.courierName || 'Blue Dart';
     try {
       setUpdating(true);
       const response = await axios.post(`/api/admin/orders/${id}/reverse-pickup`, {});
       enqueueSnackbar(
-        `Blue Dart return pickup registered${response.data?.awbNumber ? ` (AWB ${response.data.awbNumber})` : ''}.`,
+        `${reverseCourier} return pickup registered${response.data?.awbNumber ? ` (AWB ${response.data.awbNumber})` : ''}.`,
         { variant: 'success' }
       );
       await fetchOrderDetails();
@@ -342,7 +382,7 @@ export default function OrderDetailsView() {
         err.response?.data?.error?.message ||
         err.response?.data?.message ||
         err.message;
-      enqueueSnackbar(`Blue Dart pickup registration failed: ${providerMessage || 'Unknown error'}`, {
+      enqueueSnackbar(`${reverseCourier} pickup registration failed: ${providerMessage || 'Unknown error'}`, {
         variant: 'error',
       });
     } finally {
@@ -455,6 +495,109 @@ export default function OrderDetailsView() {
       enqueueSnackbar(printError.response?.data?.message || `Failed to load ${title}`, {
         variant: 'error',
       });
+    }
+  };
+
+  const handlePrintShippingLabel = async (selectedShipment) => {
+    const forwardShipment = selectedShipment || shipments.find((shipment) => !shipment.isReverse);
+    if (forwardShipment?.courierName === 'Delhivery') {
+      try {
+        const response = await axios.get(
+          `/api/admin/shipments/${forwardShipment.id}/label`,
+          { responseType: 'blob' }
+        );
+        const labelUrl = URL.createObjectURL(
+          new Blob([response.data], { type: 'application/pdf' })
+        );
+        const printWindow = window.open(labelUrl, '_blank', 'noopener,noreferrer');
+        if (!printWindow) {
+          enqueueSnackbar('Allow pop-ups to open the official Delhivery label.', {
+            variant: 'warning',
+          });
+        }
+        setTimeout(() => URL.revokeObjectURL(labelUrl), 60000);
+      } catch (printError) {
+        enqueueSnackbar(
+          printError.response?.data?.message || 'Failed to download the official Delhivery label',
+          { variant: 'error' }
+        );
+      }
+      return;
+    }
+    await handlePrintDocument(
+      `/api/admin/orders/${id}/shipping-label/print`,
+      order?.selectedShippingProvider === 'manual' ? 'Address Label' : 'Shipping Label'
+    );
+  };
+
+  const handleSyncCourierTracking = async (shipment) => {
+    setCourierAction(`sync:${shipment.id}`);
+    try {
+      const response = await axios.post(`/api/admin/shipments/${shipment.id}/sync-tracking`);
+      enqueueSnackbar(
+        `Tracking updated: ${response.data?.courierRawStatus || response.data?.currentStatus || 'received'}.`,
+        { variant: 'success' }
+      );
+      await fetchOrderDetails();
+    } catch (syncError) {
+      enqueueSnackbar(
+        syncError.response?.data?.message || 'Unable to refresh courier tracking.',
+        { variant: 'error' }
+      );
+    } finally {
+      setCourierAction('');
+    }
+  };
+
+  const handleCreateDelhiveryPickup = async () => {
+    if (!pickupShipment) return;
+    setCourierAction(`pickup:${pickupShipment.id}`);
+    try {
+      const response = await axios.post('/api/admin/delhivery/pickups', {
+        shipmentIds: [pickupShipment.id],
+        pickupDate,
+        pickupTime,
+      });
+      enqueueSnackbar(
+        `Delhivery pickup requested${response.data?.pickupReference ? ` (${response.data.pickupReference})` : ''}.`,
+        { variant: 'success' }
+      );
+      setPickupDialogOpen(false);
+      setPickupShipment(null);
+      await fetchOrderDetails();
+    } catch (pickupError) {
+      enqueueSnackbar(
+        pickupError.response?.data?.message || 'Unable to create the Delhivery pickup request.',
+        { variant: 'error' }
+      );
+    } finally {
+      setCourierAction('');
+    }
+  };
+
+  const handleCancelCourierShipment = async () => {
+    if (!shipmentToCancel) return;
+    setCourierAction(`cancel:${shipmentToCancel.id}`);
+    try {
+      const response = await axios.delete(`/api/admin/shipments/${shipmentToCancel.id}`, {
+        params: { reason: shipmentCancellationReason.trim() || 'Cancelled by Admin' },
+      });
+      if (response.data?.success === false) {
+        throw new Error(response.data?.message || 'Courier cancellation was not confirmed.');
+      }
+      enqueueSnackbar(response.data?.message || 'Courier cancellation requested.', {
+        variant: 'success',
+      });
+      setCancelShipmentDialogOpen(false);
+      setShipmentToCancel(null);
+      await fetchOrderDetails();
+    } catch (cancelError) {
+      enqueueSnackbar(
+        cancelError.response?.data?.message || cancelError.message || 'Unable to cancel the shipment.',
+        { variant: 'error' }
+      );
+    } finally {
+      setCourierAction('');
     }
   };
 
@@ -769,14 +912,9 @@ export default function OrderDetailsView() {
               variant="contained"
               disabled={Boolean(getShippingLabelBlockReason(order))}
               startIcon={<Iconify icon="solar:printer-minimalistic-bold" />}
-              onClick={() =>
-                handlePrintDocument(
-                  `/api/admin/orders/${id}/shipping-label/print`,
-                  'Shipping Label'
-                )
-              }
+              onClick={() => handlePrintShippingLabel()}
             >
-              {order.blueDartForwardSkipped ? 'Print Address Label' : 'Print Shipping Label'}
+              {order.selectedShippingProvider === 'manual' ? 'Print Address Label' : 'Print Shipping Label'}
             </Button>
             {getShippingLabelBlockReason(order) && ['packed', 'shipped', 'out_for_delivery', 'delivered'].includes(order.status) && (
               <Typography variant="caption" color="text.secondary" sx={{ alignSelf: 'center', maxWidth: 220 }}>
@@ -788,18 +926,20 @@ export default function OrderDetailsView() {
         sx={{ mb: { xs: 3, md: 5 } }}
       />
 
-      <Alert severity={order.blueDartDeliveryStatus === 'available' ? 'success' : 'warning'} sx={{ mb: 3 }}>
+      <Alert severity={order.delhiveryDeliveryStatus === 'available' || order.blueDartDeliveryStatus === 'available' ? 'success' : 'warning'} sx={{ mb: 3 }}>
         <Stack spacing={1} alignItems="flex-start">
           <Typography variant="subtitle2">{getDeliveryStatusLabel(order)}</Typography>
           <Typography variant="body2">
-            {order.manualShippingReason || (order.blueDartDeliveryStatus === 'available'
-              ? 'This order can use Blue Dart. Final booking is verified when creating the shipment.'
-              : 'Check this order before choosing a courier. A failed check is not proof that Blue Dart cannot deliver.')}
+            {getProviderStatusLabel('delhivery', order.delhiveryDeliveryStatus)} — checked first
           </Typography>
-          {order.blueDartCheckedAt && <Typography variant="caption">Last checked: {fDateTime(order.blueDartCheckedAt)}</Typography>}
-          {canSkipBlueDart(order) && <Typography variant="body2">Choose “Packed — Self-delivery / external courier (Skip Blue Dart)” for local warehouse delivery or another courier. Enter “Self delivery” as the carrier for your own delivery team; tracking is optional. An active Blue Dart shipment must be resolved before switching.</Typography>}
+          <Typography variant="body2">
+            {getProviderStatusLabel('bluedart', order.blueDartDeliveryStatus)} — checked only when Delhivery cannot be used
+          </Typography>
+          {order.manualShippingReason && <Typography variant="body2">{order.manualShippingReason}</Typography>}
+          {(order.delhiveryCheckedAt || order.blueDartCheckedAt) && <Typography variant="caption">Last checked: {fDateTime(order.delhiveryCheckedAt || order.blueDartCheckedAt)}</Typography>}
+          {canUseManualDelivery(order) && <Typography variant="body2">Manual packing remains available for India Post, local delivery, or another courier. Confirm the selected service separately because a valid PIN alone does not guarantee every postal product or COD service.</Typography>}
           <Button onClick={handleCheckDelivery} disabled={checkingDelivery} size="small">
-            {checkingDelivery ? 'Checking Blue Dart…' : 'Recheck Blue Dart availability'}
+            {checkingDelivery ? 'Checking couriers…' : 'Recheck courier availability'}
           </Button>
         </Stack>
       </Alert>
@@ -822,8 +962,8 @@ export default function OrderDetailsView() {
                   color={getOrderStatusColor(order.status)}
                   sx={{ textTransform: 'capitalize' }}
                 >
-                  {order.status === 'packed' && order.blueDartForwardSkipped
-                    ? 'Packed — Blue Dart Skipped'
+                  {order.status === 'packed' && order.selectedShippingProvider
+                    ? `Packed — ${order.selectedShippingProvider === 'manual' ? 'India Post / Manual' : order.selectedShippingProvider}`
                     : formatOrderStatusLabel(order.status)}
                 </Label>
               </Stack>
@@ -866,7 +1006,7 @@ export default function OrderDetailsView() {
                       sx={{ textTransform: 'capitalize' }}
                     >
                       {order.returnStatus === 'approved' && order.blueDartReturnSkipped
-                        ? 'Approved — Blue Dart Skipped'
+                        ? 'Approved — Courier Pickup Skipped'
                         : formatOrderStatusLabel(order.returnStatus)}
                     </Label>
                   </Stack>
@@ -1024,16 +1164,16 @@ export default function OrderDetailsView() {
               </Stack>
             </Card>
 
-            {/* Blue Dart AWB and pickup response */}
+            {/* Courier AWB and pickup response */}
             <Card sx={{ p: 3 }}>
               <Typography variant="h6" sx={{ mb: 3 }}>
-                Blue Dart Shipment Response
+                Courier Shipment Response
               </Typography>
 
               {shipments.length === 0 ? (
                 <Alert severity="info">
-                  No Blue Dart shipment has been created for this order yet. Packing the order
-                  creates the AWB and requests pickup.
+                  No courier shipment has been created for this order yet. Choose a packing
+                  option to create the applicable Waybill.
                 </Alert>
               ) : (
                 <Stack spacing={3}>
@@ -1084,10 +1224,10 @@ export default function OrderDetailsView() {
                           </Grid>
                           <Grid xs={12} sm={6}>
                             <Typography variant="caption" color="text.secondary">
-                              Blue Dart Service
+                              Courier / Service
                             </Typography>
                             <Typography variant="body2">
-                              {[shipment.serviceType, shipment.productCode, shipment.subProductCode]
+                              {[shipment.courierName, shipment.serviceType, shipment.productCode, shipment.subProductCode]
                                 .filter(Boolean)
                                 .join(' / ') || 'Not recorded'}
                             </Typography>
@@ -1117,6 +1257,71 @@ export default function OrderDetailsView() {
                             Pickup creation failed: {shipment.pickupRegistrationError}
                           </Alert>
                         )}
+
+                        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} flexWrap="wrap">
+                          {!shipment.isReverse && shipment.awbNumber && (
+                            <Button
+                              size="small"
+                              variant="outlined"
+                              startIcon={<Iconify icon="solar:printer-bold" />}
+                              disabled={Boolean(courierAction)}
+                              onClick={() => handlePrintShippingLabel(shipment)}
+                            >
+                              {shipment.courierName === 'Delhivery'
+                                ? 'Official Delhivery Label'
+                                : 'Print Shipping Label'}
+                            </Button>
+                          )}
+                          {shipment.awbNumber && shipment.status !== 'cancelled' && (
+                            <Button
+                              size="small"
+                              variant="outlined"
+                              startIcon={<Iconify icon="solar:refresh-bold" />}
+                              disabled={Boolean(courierAction)}
+                              onClick={() => handleSyncCourierTracking(shipment)}
+                            >
+                              {courierAction === `sync:${shipment.id}` ? 'Refreshing...' : 'Refresh Tracking'}
+                            </Button>
+                          )}
+                          {shipment.courierName === 'Delhivery' &&
+                            !shipment.isReverse &&
+                            shipment.status === 'created' &&
+                            !shipment.pickupReference && (
+                            <Button
+                              size="small"
+                              variant="contained"
+                              startIcon={<Iconify icon="solar:box-bold" />}
+                              disabled={Boolean(courierAction)}
+                              onClick={() => {
+                                setPickupShipment(shipment);
+                                setPickupDate(localDateInputValue());
+                                setPickupDialogOpen(true);
+                              }}
+                            >
+                              Request Delhivery Pickup
+                            </Button>
+                          )}
+                          {(
+                            shipment.courierName === 'Delhivery'
+                              ? ['created', 'pickup_pending', 'in_transit', 'exception']
+                              : ['created', 'pickup_pending']
+                          ).includes(shipment.status) && (
+                            <Button
+                              size="small"
+                              variant="outlined"
+                              color="error"
+                              startIcon={<Iconify icon="solar:close-circle-bold" />}
+                              disabled={Boolean(courierAction)}
+                              onClick={() => {
+                                setShipmentToCancel(shipment);
+                                setShipmentCancellationReason('Cancelled by Admin');
+                                setCancelShipmentDialogOpen(true);
+                              }}
+                            >
+                              Cancel Shipment
+                            </Button>
+                          )}
+                        </Stack>
                       </Stack>
                     </Card>
                   ))}
@@ -1344,7 +1549,7 @@ export default function OrderDetailsView() {
                   <Typography variant="h6">Return Request</Typography>
                   <Label variant="soft" color={getReturnStatusColor(order.returnStatus)}>
                     {order.returnStatus === 'approved' && order.blueDartReturnSkipped
-                      ? 'Approved — Blue Dart Skipped'
+                      ? 'Approved — Courier Pickup Skipped'
                       : formatOrderStatusLabel(order.returnStatus)}
                   </Label>
                 </Stack>
@@ -1499,7 +1704,7 @@ export default function OrderDetailsView() {
                     disabled={updating}
                     onClick={handleCreateReversePickup}
                   >
-                    Retry Blue Dart Pickup
+                      Retry Courier Pickup
                   </Button>
                 )}
 
@@ -1593,13 +1798,15 @@ export default function OrderDetailsView() {
               onChange={(e) => setNewStatus(e.target.value)}
             >
               {availableStatusOptions.map((option) => (
-                <MenuItem key={option} value={option}>
-                  {option === 'packed_skip_bluedart'
-                    ? 'Packed — Self-delivery / external courier (Skip Blue Dart)'
-                    : option
-                        .split('_')
-                        .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-                        .join(' ')}
+                <MenuItem
+                  key={option}
+                  value={option}
+                  disabled={
+                    (option === 'packed_delhivery' && order.delhiveryDeliveryStatus !== 'available') ||
+                    (option === 'packed_bluedart' && order.blueDartDeliveryStatus !== 'available')
+                  }
+                >
+                  {formatStatusOption(option)}
                 </MenuItem>
               ))}
             </TextField>
@@ -1613,8 +1820,8 @@ export default function OrderDetailsView() {
               onChange={(e) => setStatusComment(e.target.value)}
             />
 
-            {(newStatus === 'shipped' || newStatus === 'packed_skip_bluedart' ||
-              (order.blueDartForwardSkipped && ['out_for_delivery', 'delivered'].includes(newStatus))) && (
+            {(newStatus === 'shipped' || newStatus === 'packed_manual' ||
+              (order.selectedShippingProvider === 'manual' && ['out_for_delivery', 'delivered'].includes(newStatus))) && (
               <>
                 <TextField
                   fullWidth
@@ -1671,7 +1878,7 @@ export default function OrderDetailsView() {
             >
               <MenuItem value="approve">Approve</MenuItem>
               <MenuItem value="approve_skip_bluedart">
-                Approve — Skip Blue Dart Pickup
+                Approve — Skip Courier Pickup
               </MenuItem>
               <MenuItem value="reject">Reject</MenuItem>
             </TextField>
@@ -1818,6 +2025,89 @@ export default function OrderDetailsView() {
           <Button onClick={() => setNotesDialogOpen(false)}>Cancel</Button>
           <Button variant="contained" onClick={handleAddNote} disabled={updating || !newNote}>
             {updating ? 'Adding...' : 'Add Note'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog
+        open={pickupDialogOpen}
+        onClose={() => !courierAction && setPickupDialogOpen(false)}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle>Request Delhivery Pickup</DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ mt: 1 }}>
+            <Alert severity="info">
+              Raise this request only when the parcel is packed, labelled, and ready for collection.
+            </Alert>
+            <TextField
+              type="date"
+              label="Pickup Date"
+              value={pickupDate}
+              inputProps={{ min: localDateInputValue() }}
+              InputLabelProps={{ shrink: true }}
+              onChange={(event) => setPickupDate(event.target.value)}
+            />
+            <TextField
+              type="time"
+              label="Pickup Time"
+              value={pickupTime}
+              InputLabelProps={{ shrink: true }}
+              onChange={(event) => setPickupTime(event.target.value)}
+            />
+            <Typography variant="caption" color="text.secondary">
+              AWB: {pickupShipment?.awbNumber || 'Not available'}
+            </Typography>
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button disabled={Boolean(courierAction)} onClick={() => setPickupDialogOpen(false)}>
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            disabled={!pickupDate || !pickupTime || Boolean(courierAction)}
+            onClick={handleCreateDelhiveryPickup}
+          >
+            {courierAction?.startsWith('pickup:') ? 'Requesting...' : 'Request Pickup'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog
+        open={cancelShipmentDialogOpen}
+        onClose={() => !courierAction && setCancelShipmentDialogOpen(false)}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle>Cancel Courier Shipment</DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ mt: 1 }}>
+            <Alert severity="warning">
+              Cancellation is sent to {shipmentToCancel?.courierName || 'the courier'}. Delhivery
+              remains in cancellation-pending state until tracking confirms the result.
+            </Alert>
+            <TextField
+              fullWidth
+              required
+              label="Cancellation Reason"
+              value={shipmentCancellationReason}
+              onChange={(event) => setShipmentCancellationReason(event.target.value)}
+            />
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button disabled={Boolean(courierAction)} onClick={() => setCancelShipmentDialogOpen(false)}>
+            Keep Shipment
+          </Button>
+          <Button
+            color="error"
+            variant="contained"
+            disabled={!shipmentCancellationReason.trim() || Boolean(courierAction)}
+            onClick={handleCancelCourierShipment}
+          >
+            {courierAction?.startsWith('cancel:') ? 'Cancelling...' : 'Cancel Shipment'}
           </Button>
         </DialogActions>
       </Dialog>

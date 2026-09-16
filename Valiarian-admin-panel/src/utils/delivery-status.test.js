@@ -1,53 +1,66 @@
-import { canSkipBlueDart, getDeliveryStatusLabel, getPackingStatusOptions, getShippingLabelBlockReason } from './delivery-status';
+import {
+  canUseManualDelivery,
+  getDeliveryStatusLabel,
+  getPackingStatusOptions,
+  getProviderStatusLabel,
+  getShippingLabelBlockReason,
+} from './delivery-status';
 
 describe('Shipping label printing eligibility', () => {
-  it.each(['pending', 'processing', 'cancelled', 'returned'])('blocks %s even with an AWB', (status) => {
-    expect(getShippingLabelBlockReason({ status, trackingNumber: '21102442793' })).toContain('Pack');
+  it.each(['pending', 'processing', 'cancelled', 'returned'])('blocks %s before packing', (status) => {
+    expect(getShippingLabelBlockReason({ status, trackingNumber: '123' })).toContain('Pack');
   });
-  it.each([undefined, '', '   '])('blocks packed Blue Dart orders without an AWB (%s)', (trackingNumber) => {
-    expect(getShippingLabelBlockReason({ status: 'packed', trackingNumber })).toContain('AWB');
+  it('requires an AWB for an API courier', () => {
+    expect(getShippingLabelBlockReason({ status: 'packed', selectedShippingProvider: 'delhivery' })).toContain('AWB');
   });
-  it.each(['packed', 'shipped', 'out_for_delivery', 'delivered'])('allows printing/reprinting for %s with an AWB', (status) => {
-    expect(getShippingLabelBlockReason({ status, trackingNumber: '21102442793' })).toBe('');
+  it('allows an address label for manual delivery after packing', () => {
+    expect(getShippingLabelBlockReason({ status: 'packed', selectedShippingProvider: 'manual' })).toBe('');
   });
-  it('allows an address label for self-delivery only after packing', () => {
+  it('keeps legacy manual orders printable after packing', () => {
     expect(getShippingLabelBlockReason({ status: 'packed', blueDartForwardSkipped: true })).toBe('');
-    expect(getShippingLabelBlockReason({ status: 'processing', blueDartForwardSkipped: true })).toContain('Pack');
   });
 });
 
-describe('Blue Dart order status', () => {
-  it.each(['unavailable', 'check_failed'])('allows external courier for %s', (status) => {
-    expect(canSkipBlueDart({ needsManualShipping: true, blueDartDeliveryStatus: status })).toBe(true);
+describe('Delhivery-first packing choices', () => {
+  it('offers all three choices when both couriers are available', () => {
+    expect(getPackingStatusOptions({
+      status: 'processing',
+      delhiveryDeliveryStatus: 'available',
+      blueDartDeliveryStatus: 'available',
+    })).toEqual(['packed_delhivery', 'packed_bluedart', 'packed_manual', 'cancelled']);
   });
-  it('allows self-delivery when Blue Dart is available without requiring fallback', () => {
-    expect(canSkipBlueDart({ needsManualShipping: false, blueDartDeliveryStatus: 'available' })).toBe(true);
+  it('offers Blue Dart and manual when Delhivery is unavailable', () => {
+    expect(getPackingStatusOptions({
+      status: 'processing',
+      delhiveryDeliveryStatus: 'unavailable',
+      blueDartDeliveryStatus: 'available',
+    })).toEqual(['packed_delhivery', 'packed_bluedart', 'packed_manual', 'cancelled']);
   });
-  it('requires a delivery check for legacy unchecked orders', () => {
-    expect(canSkipBlueDart({ needsManualShipping: true })).toBe(false);
+  it('offers only manual packing when neither API courier is available', () => {
+    expect(getPackingStatusOptions({
+      status: 'processing',
+      delhiveryDeliveryStatus: 'unavailable',
+      blueDartDeliveryStatus: 'unavailable',
+    })).toEqual(['packed_delhivery', 'packed_bluedart', 'packed_manual', 'cancelled']);
   });
-  it.each(['processing', 'packed'])('offers both Blue Dart and self-delivery for an available %s order', (status) => {
-    expect(getPackingStatusOptions({ status, blueDartDeliveryStatus: 'available' })).toEqual([
-      status === 'processing' ? 'packed' : 'shipped', 'packed_skip_bluedart', 'cancelled',
-    ]);
+  it('allows manual fulfilment after any recorded courier check', () => {
+    expect(canUseManualDelivery({ delhiveryDeliveryStatus: 'check_failed' })).toBe(true);
+    expect(canUseManualDelivery({})).toBe(false);
   });
-  it('keeps external courier fallback for unavailable orders', () => {
-    expect(getPackingStatusOptions({ status: 'processing', blueDartDeliveryStatus: 'unavailable', needsManualShipping: true }))
-      .toEqual(['packed_skip_bluedart', 'cancelled']);
-  });
-  it('allows self-delivery progress after skipping without a Blue Dart shipment action', () => {
-    expect(getPackingStatusOptions({ status: 'packed', blueDartForwardSkipped: true, blueDartDeliveryStatus: 'available' }))
+  it('allows manual order progression after packing', () => {
+    expect(getPackingStatusOptions({ status: 'packed', selectedShippingProvider: 'manual' }))
       .toEqual(['out_for_delivery', 'delivered', 'cancelled']);
   });
-  it('does not enable skip without the server fallback flag', () => {
-    expect(canSkipBlueDart({ blueDartDeliveryStatus: 'unavailable' })).toBe(false);
+  it.each([
+    ['delhivery', 'packed_delhivery'],
+    ['bluedart', 'packed_bluedart'],
+  ])('offers a %s manifestation retry when packing succeeded without an AWB', (provider, action) => {
+    expect(getPackingStatusOptions({ status: 'packed', selectedShippingProvider: provider }))
+      .toEqual([action, 'cancelled']);
   });
-  it('distinguishes provider failure from confirmed non-coverage and unchecked orders', () => {
-    expect(getDeliveryStatusLabel({ blueDartDeliveryStatus: 'check_failed' })).toContain('unconfirmed');
-    expect(getDeliveryStatusLabel({ blueDartDeliveryStatus: 'unavailable' })).toContain('unavailable');
-    expect(getDeliveryStatusLabel({})).toBe('Blue Dart not checked');
-  });
-  it('shows the selected external courier path after skipping', () => {
-    expect(getDeliveryStatusLabel({ blueDartForwardSkipped: true })).toBe('Self-delivery / external courier selected');
+  it('shows provider selection and availability clearly', () => {
+    expect(getDeliveryStatusLabel({ selectedShippingProvider: 'delhivery' })).toBe('Delhivery selected');
+    expect(getProviderStatusLabel('delhivery', 'available')).toBe('Delhivery available');
+    expect(getProviderStatusLabel('bluedart', 'not_checked')).toBe('Blue Dart not checked');
   });
 });

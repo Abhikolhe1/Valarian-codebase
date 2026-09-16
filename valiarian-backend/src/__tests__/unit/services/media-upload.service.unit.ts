@@ -578,9 +578,9 @@ describe('MediaUploadService - File Validation (unit)', () => {
     it('returns error for invalid file type', () => {
       const file: UploadedFile = {
         fieldname: 'file',
-        originalname: 'document.pdf',
+        originalname: 'malware.exe',
         encoding: '7bit',
-        mimetype: 'application/pdf',
+        mimetype: 'application/x-msdownload',
         size: 1000,
       };
 
@@ -658,9 +658,9 @@ describe('MediaUploadService - File Validation (unit)', () => {
         },
         {
           fieldname: 'file',
-          originalname: 'document.pdf',
+          originalname: 'malware.exe',
           encoding: '7bit',
-          mimetype: 'application/pdf',
+          mimetype: 'application/x-msdownload',
           size: 1000,
         },
       ];

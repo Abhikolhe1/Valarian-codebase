@@ -280,6 +280,30 @@ export interface CreateReversePickupParams {
   declaredValue: number;
   itemDescription?: string;
   returnReason?: string;
+  /** Delhivery RVP QC 3.0 items. Omit for a normal non-QC reverse pickup. */
+  qualityCheckItems?: ReversePickupQualityCheckItem[];
+}
+
+export interface ReversePickupQualityCheckQuestion {
+  /** Client question ID mapped to a Delhivery question ID by the account POC. */
+  questionId: string;
+  options: string[];
+  /** Delhivery treats the first value as the correct answer. */
+  values: string[];
+  required: boolean;
+  type: 'varchar' | 'multi';
+  questionImages?: string[];
+}
+
+export interface ReversePickupQualityCheckItem {
+  item?: string;
+  description: string;
+  images: string[];
+  returnReason?: string;
+  quantity: number;
+  brand?: string;
+  productCategory?: string;
+  questions: ReversePickupQualityCheckQuestion[];
 }
 
 export interface CreateReversePickupResult {
@@ -314,7 +338,8 @@ export interface ShippingProvider {
   readonly courierName: string;
   readonly providerVersion?:
     | 'bluedart-legacy-soap'
-    | 'bluedart-developer-portal';
+    | 'bluedart-developer-portal'
+    | 'delhivery-b2c-v1';
 
   /**
    * Check if a destination pincode is serviceable.
