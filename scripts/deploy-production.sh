@@ -195,6 +195,13 @@ if grep -q 'localhost:3001' "$NGINX_ADMIN_CONFIG"; then
   systemctl reload nginx
 fi
 
+log NGINX "Activating crawler-visible production storefront routes"
+if ! bash "${SCRIPT_DIR}/apply-production-storefront-nginx.sh" \
+  "${SCRIPT_DIR}/nginx/valiarian-frontend.conf"; then
+  log DEPLOY "Production deployment FAILED at Nginx stage. The previous Nginx configuration was restored."
+  exit 1
+fi
+
 pm2 save
 # Visibility is controlled separately by the Production Visibility workflow.
 # A deployment must never expose a storefront that was intentionally hidden.
