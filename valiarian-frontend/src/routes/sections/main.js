@@ -32,6 +32,7 @@ const ComingSoonPage = lazy(() => import('src/pages/coming-soon'));
 const MaintenancePage = lazy(() => import('src/pages/maintenance'));
 // PRODUCT
 const ProductDetailsPage = lazy(() => import('src/pages/product/details'));
+const ProductCategoryPage = lazy(() => import('src/pages/product/category'));
 // FAVORITES
 const FavoritesPage = lazy(() => import('src/pages/favorites'));
 // ORDERS
@@ -160,6 +161,10 @@ export const mainRoutes = [
             ),
           },
         ],
+      },
+      {
+        path: 'category/:slug',
+        element: <ProductCategoryPage />,
       },
       {
         path: 'products',

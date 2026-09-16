@@ -114,6 +114,13 @@ build_static() {
   rm -rf "${dir}/build.new"
   ( cd "$dir" && BUILD_PATH=build.new GENERATE_SOURCEMAP=false NODE_OPTIONS="--max-old-space-size=2048" npm run build )
   [ -f "${dir}/build.new/index.html" ] || { log "${name^^}" "build did not produce build.new/index.html"; rm -rf "${dir}/build.new"; return 1; }
+  if [ "$name" = "frontend" ]; then
+    log "${name^^}" "Generating crawler-visible public storefront pages"
+    node "${dir}/scripts/generate-seo-pages.cjs" \
+      --build-dir "${dir}/build.new" \
+      --api-base "http://127.0.0.1:3035" \
+      --robots "index,follow"
+  fi
   return 0
 }
 
@@ -186,6 +193,13 @@ if grep -q 'localhost:3001' "$NGINX_ADMIN_CONFIG"; then
   sed -i 's/localhost:3001/localhost:4000/g' "$NGINX_ADMIN_CONFIG"
   nginx -t
   systemctl reload nginx
+fi
+
+log NGINX "Activating crawler-visible production storefront routes"
+if ! bash "${SCRIPT_DIR}/apply-production-storefront-nginx.sh" \
+  "${SCRIPT_DIR}/nginx/valiarian-frontend.conf"; then
+  log DEPLOY "Production deployment FAILED at Nginx stage. The previous Nginx configuration was restored."
+  exit 1
 fi
 
 pm2 save

@@ -123,6 +123,11 @@ deploy_static_app() {
   # is configured in Nginx; this file is the secondary crawler safeguard.
   if [ "$name" = "frontend" ]; then
     cp "${SCRIPT_DIR}/robots.uat.txt" "${dir}/build.new/robots.txt"
+    log "${name^^}" "Generating crawler-visible public storefront pages"
+    node "${dir}/scripts/generate-seo-pages.cjs" \
+      --build-dir "${dir}/build.new" \
+      --api-base "http://127.0.0.1:3055" \
+      --robots "noindex,nofollow"
   fi
 
   log "${name^^}" "Swapping in new build"
@@ -187,6 +192,13 @@ fi
 
 if ! deploy_static_app admin "$ADMIN_DIR" "$ADMIN_PM2_NAME" "$ADMIN_HEALTH_URL"; then
   log DEPLOY "UAT deployment FAILED at admin stage. Backend and frontend deployed successfully; admin rolled back."
+  exit 1
+fi
+
+log NGINX "Activating crawler-visible UAT storefront routes"
+if ! bash "${SCRIPT_DIR}/apply-uat-storefront-nginx.sh" \
+  "${SCRIPT_DIR}/nginx/valiarian-uat.conf"; then
+  log DEPLOY "UAT deployment FAILED at Nginx stage. The previous Nginx configuration was restored."
   exit 1
 fi
 

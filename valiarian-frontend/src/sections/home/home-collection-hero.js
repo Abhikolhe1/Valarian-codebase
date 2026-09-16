@@ -170,6 +170,7 @@ export default function HomeCollectionHero({ imageSrc, videoSrc, cmsData, ...oth
                     <m.div variants={varFade().in}>
                       <Typography
                         variant="h1"
+                        component="h2"
                         sx={{
                           color: 'common.white',
                           fontWeight: 700,

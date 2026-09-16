@@ -10,6 +10,7 @@ import Typography from '@mui/material/Typography';
 import Grid from '@mui/material/Unstable_Grid2';
 // routes
 import { useGetProduct } from 'src/api/product';
+import { useGetCategories } from 'src/api/category';
 import { useParams, useSearchParams } from 'src/routes/hook';
 import { paths } from 'src/routes/paths';
 // components
@@ -17,9 +18,11 @@ import Button from '@mui/material/Button';
 import CustomBreadcrumbs from 'src/components/custom-breadcrumbs';
 import EmptyContent from 'src/components/empty-content';
 import Iconify from 'src/components/iconify';
+import PageSEO from 'src/components/seo/PageSEO';
 import { useSettingsContext } from 'src/components/settings';
 import { RouterLink } from 'src/routes/components';
 import { trackEcommerceEvent } from 'src/utils/analytics';
+import { productSeo } from 'src/utils/storefront-seo';
 //
 import CartIcon from '../common/cart-icon';
 import { useCheckout } from '../hooks';
@@ -315,11 +318,18 @@ export default function ProductShopDetailsView() {
   const [selectedVariant, setSelectedVariant] = useState(null);
   const trackedProductId = useRef(null);
 
-  const { product: apiProduct, productLoading } = useGetProduct(`${id}`);
+  const { product: apiProduct, productLoading, productError } = useGetProduct(`${id}`);
+  const {categories} = useGetCategories();
 
-  // Use dummy product if API doesn't return data
+  // Preserve the existing local catalogue demos without showing fake content for arbitrary 404 URLs.
   const dummyProduct = useMemo(() => getDummyProductById(id), [id]);
-  const product = apiProduct || dummyProduct;
+  const resolvedProduct = apiProduct || (/^(short|full)-[1-6]$/.test(id || '') ? dummyProduct : null);
+  const product = useMemo(() => {
+    if (!resolvedProduct || resolvedProduct.category) return resolvedProduct;
+    const category = categories.find((item) => item.id === resolvedProduct.categoryId);
+    return category ? {...resolvedProduct, category} : resolvedProduct;
+  }, [categories, resolvedProduct]);
+  const seo = useMemo(() => (product ? productSeo(product) : null), [product]);
 
   useEffect(() => {
     if (!productLoading && product && trackedProductId.current !== product.id) {
@@ -377,6 +387,9 @@ export default function ProductShopDetailsView() {
             name: 'Products',
             href: paths.product.root,
           },
+          ...(product?.category?.slug
+            ? [{name: product.category.name, href: paths.product.category(product.category.slug)}]
+            : []),
           { name: product?.name },
         ]}
         sx={{ my: 5, pt: 0 }}
@@ -456,13 +469,29 @@ export default function ProductShopDetailsView() {
   );
 
   return (
-    <Container
+    <>
+      {seo && (
+        <PageSEO
+          title={seo.title}
+          description={seo.description}
+          keywords={product.seoKeywords}
+          canonicalUrl={seo.canonicalUrl}
+          ogType="product"
+          ogImage={seo.image}
+          ogImageAlt={product.name}
+          structuredData={seo.structuredData}
+        />
+      )}
+      {!productLoading && (productError || !product) && (
+        <PageSEO title="Product unavailable | Valiarian" noIndex canonicalUrl={seo?.canonicalUrl} />
+      )}
+      <Container
       maxWidth={settings.themeStretch ? false : 'lg'}
       sx={{
         mb: 15,
         pt: 0,
       }}
-    >
+      >
       <CartIcon totalItems={checkout.totalItems} />
 
       {productLoading && renderSkeleton}
@@ -470,6 +499,7 @@ export default function ProductShopDetailsView() {
       {!productLoading && !product && renderUnavailable}
 
       {!productLoading && product && renderProduct}
-    </Container>
+      </Container>
+    </>
   );
 }

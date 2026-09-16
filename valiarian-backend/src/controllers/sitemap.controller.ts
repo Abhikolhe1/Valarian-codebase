@@ -1,7 +1,11 @@
 import {inject} from '@loopback/core';
 import {repository} from '@loopback/repository';
 import {get, Response, RestBindings} from '@loopback/rest';
-import {PageRepository, ProductRepository} from '../repositories';
+import {
+  CategoryRepository,
+  PageRepository,
+  ProductRepository,
+} from '../repositories';
 
 const PRODUCTION_ORIGIN = 'https://valiarian.com';
 const STATIC_PUBLIC_ROUTES = [
@@ -24,7 +28,8 @@ export function escapeXml(value: string): string {
 
 export function generateSitemapXml(
   pages: Array<{slug: string; updatedAt?: Date}>,
-  products: Array<{slug: string; updatedAt?: Date}>,
+  products: Array<{id?: string; slug: string; updatedAt?: Date}>,
+  categories: Array<{slug: string; updatedAt?: Date}> = [],
 ): string {
   const homePage = pages.find(page => page.slug === 'home');
   const entries = STATIC_PUBLIC_ROUTES.map(route => ({
@@ -41,7 +46,18 @@ export function generateSitemapXml(
     }
   }
 
-  const uniqueEntries = [...new Map(entries.map(entry => [entry.loc, entry])).values()];
+  for (const category of categories) {
+    if (category.slug) {
+      entries.push({
+        loc: `${PRODUCTION_ORIGIN}/category/${encodeURIComponent(category.slug)}`,
+        updatedAt: category.updatedAt,
+      });
+    }
+  }
+
+  const uniqueEntries = [
+    ...new Map(entries.map(entry => [entry.loc, entry])).values(),
+  ];
   const urls = uniqueEntries.map(entry => {
     const lastmod = entry.updatedAt
       ? `\n    <lastmod>${new Date(entry.updatedAt).toISOString().split('T')[0]}</lastmod>`
@@ -65,7 +81,9 @@ export class SitemapController {
     public pageRepository: PageRepository,
     @repository(ProductRepository)
     public productRepository: ProductRepository,
-  ) { }
+    @repository(CategoryRepository)
+    public categoryRepository: CategoryRepository,
+  ) {}
 
   @get('/sitemap.xml', {
     responses: {
@@ -83,7 +101,7 @@ export class SitemapController {
     @inject(RestBindings.Http.RESPONSE) response: Response,
   ): Promise<void> {
     try {
-      const [pages, products] = await Promise.all([
+      const [pages, products, categories] = await Promise.all([
         this.pageRepository.find({
           where: {status: 'published', isActive: true, isDeleted: false},
           fields: {slug: true, updatedAt: true},
@@ -94,10 +112,15 @@ export class SitemapController {
           fields: {slug: true, updatedAt: true},
           order: ['updatedAt DESC'],
         }),
+        this.categoryRepository.find({
+          where: {isActive: true, isDeleted: false},
+          fields: {slug: true, updatedAt: true},
+          order: ['updatedAt DESC'],
+        }),
       ]);
 
       // Generate XML sitemap
-      const xml = generateSitemapXml(pages, products);
+      const xml = generateSitemapXml(pages, products, categories);
 
       // Set response headers
       response.status(200);
@@ -111,5 +134,4 @@ export class SitemapController {
       );
     }
   }
-
 }
