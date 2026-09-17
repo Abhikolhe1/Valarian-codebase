@@ -11,6 +11,7 @@ import Grid from '@mui/material/Unstable_Grid2';
 // routes
 import { useGetProduct } from 'src/api/product';
 import { useGetCategories } from 'src/api/category';
+import { useGetProductReviews } from 'src/api/reviews';
 import { useParams, useSearchParams } from 'src/routes/hook';
 import { paths } from 'src/routes/paths';
 // components
@@ -317,8 +318,10 @@ export default function ProductShopDetailsView() {
   const [currentTab, setCurrentTab] = useState('description');
   const [selectedVariant, setSelectedVariant] = useState(null);
   const trackedProductId = useRef(null);
+  const reviewsSectionRef = useRef(null);
 
   const { product: apiProduct, productLoading, productError } = useGetProduct(`${id}`);
+  const { stats: reviewStats } = useGetProductReviews(apiProduct?.id);
   const {categories} = useGetCategories();
 
   // Preserve the existing local catalogue demos without showing fake content for arbitrary 404 URLs.
@@ -351,6 +354,13 @@ export default function ProductShopDetailsView() {
 
   const handleChangeTab = useCallback((event, newValue) => {
     setCurrentTab(newValue);
+  }, []);
+
+  const handleReviewSummaryClick = useCallback(() => {
+    setCurrentTab('reviews');
+    requestAnimationFrame(() => {
+      reviewsSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
   }, []);
 
   const handleVariantChange = useCallback((variant) => {
@@ -403,6 +413,8 @@ export default function ProductShopDetailsView() {
         <Grid xs={12} md={6} lg={5}>
           <ProductDetailsSummary
             product={product}
+            reviewStats={reviewStats}
+            onReviewClick={handleReviewSummaryClick}
             cart={checkout.cart}
             initialVariantId={initialVariantId}
             onAddCart={onAddCart}
@@ -437,7 +449,7 @@ export default function ProductShopDetailsView() {
         ))}
       </Box>
 
-      <Card>
+      <Card id="product-reviews" ref={reviewsSectionRef} sx={{ scrollMarginTop: 96 }}>
         .
         <Tabs
           value={currentTab}
