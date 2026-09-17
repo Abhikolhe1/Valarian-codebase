@@ -45,6 +45,8 @@ import IncrementerButton from './common/incrementer-button';
 export default function ProductDetailsSummary({
   cart,
   product,
+  reviewStats,
+  onReviewClick,
   initialVariantId,
   onAddCart,
   onBuyNow,
@@ -132,8 +134,10 @@ export default function ProductDetailsSummary({
   // Map our product structure to what the component expects
   const coverUrl = coverImage;
   const subDescription = shortDescription || '';
-  const totalRatings = product.rating || 0;
-  const totalReviews = product.totalReviews || 0;
+  // Reviews are stored separately from products. Always prefer the live review
+  // aggregate so the summary updates when the shared SWR review key is mutated.
+  const totalRatings = Number(reviewStats?.averageRating ?? product.rating ?? 0);
+  const totalReviews = Number(reviewStats?.totalReviews ?? product.totalReviews ?? 0);
 
   // Determine inventory type without nested ternary
   let inventoryType = 'in stock';
@@ -700,11 +704,29 @@ export default function ProductDetailsSummary({
 
   const renderRating = (
     <Stack
+      component="button"
+      type="button"
+      onClick={onReviewClick}
+      aria-label={`View ${totalReviews} product ${totalReviews === 1 ? 'review' : 'reviews'}`}
       direction="row"
       alignItems="center"
       sx={{
         color: 'text.disabled',
         typography: 'body2',
+        width: 'fit-content',
+        border: 0,
+        p: 0,
+        backgroundColor: 'transparent',
+        cursor: 'pointer',
+        '&:hover': {
+          color: 'text.primary',
+        },
+        '&:focus-visible': {
+          outline: '2px solid',
+          outlineColor: 'primary.main',
+          outlineOffset: 4,
+          borderRadius: 0.5,
+        },
       }}
     >
       <Rating size="small" value={totalRatings} precision={0.1} readOnly sx={{ mr: 1 }} />
@@ -813,7 +835,12 @@ ProductDetailsSummary.propTypes = {
   onAddCart: PropTypes.func,
   onBuyNow: PropTypes.func,
   onGotoStep: PropTypes.func,
+  onReviewClick: PropTypes.func,
   initialVariantId: PropTypes.string,
   onVariantChange: PropTypes.func,
   product: PropTypes.object,
+  reviewStats: PropTypes.shape({
+    averageRating: PropTypes.number,
+    totalReviews: PropTypes.number,
+  }),
 };
