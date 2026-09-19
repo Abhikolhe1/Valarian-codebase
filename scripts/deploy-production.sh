@@ -115,13 +115,22 @@ build_static() {
   ( cd "$dir" && BUILD_PATH=build.new GENERATE_SOURCEMAP=false NODE_OPTIONS="--max-old-space-size=2048" npm run build )
   [ -f "${dir}/build.new/index.html" ] || { log "${name^^}" "build did not produce build.new/index.html"; rm -rf "${dir}/build.new"; return 1; }
   if [ "$name" = "frontend" ]; then
-    log "${name^^}" "Generating crawler-visible public storefront pages"
-    node "${dir}/scripts/generate-seo-pages.cjs" \
-      --build-dir "${dir}/build.new" \
-      --api-base "http://127.0.0.1:3035" \
-      --robots "index,follow"
+    ( cd "$dir" && npm run build:ssr )
+    [ -f "${dir}/server-build/render-app.cjs" ] || { log FRONTEND "SSR build was not produced"; return 1; }
   fi
   return 0
+}
+
+deploy_ssr_renderer() {
+  local pm2_name="valiarian-frontend-ssr-production"
+  log FRONTEND "Starting React SSR renderer"
+  export NODE_ENV=production SSR_PORT=3100 SSR_API_ORIGIN=http://127.0.0.1:3035 SSR_BUILD_DIR="${FRONTEND_DIR}/build"
+  if pm2 describe "$pm2_name" >/dev/null 2>&1; then
+    pm2 reload "$pm2_name" --update-env || return 1
+  else
+    ( cd "$FRONTEND_DIR" && pm2 start server/index.cjs --name "$pm2_name" ) || return 1
+  fi
+  bash "${SCRIPT_DIR}/health-check.sh" http://127.0.0.1:3100/health 10 3
 }
 
 deploy_static_app() {
@@ -177,6 +186,11 @@ rollback_static_app() {
 
 if ! deploy_static_app frontend "$FRONTEND_DIR" valiarian-frontend-production 3000 http://127.0.0.1:3000/; then
   log DEPLOY "Production deployment FAILED at frontend stage. Backend deployed successfully; frontend rolled back."
+  exit 1
+fi
+
+if ! deploy_ssr_renderer; then
+  log DEPLOY "Production deployment FAILED: the SSR renderer did not become healthy. Nginx was not changed."
   exit 1
 fi
 

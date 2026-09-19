@@ -1,4 +1,4 @@
-import { Helmet } from 'react-helmet-async';
+import PageSEO from 'src/components/seo/PageSEO';
 // sections
 import { ContactView } from 'src/sections/contact/view';
 
@@ -7,9 +7,11 @@ import { ContactView } from 'src/sections/contact/view';
 export default function ContactPage() {
   return (
     <>
-      <Helmet>
-        <title> Contact us</title>
-      </Helmet>
+      <PageSEO
+        title="Contact Valiarian"
+        description="Contact Valiarian for product, order, sizing, and customer support enquiries."
+        canonicalUrl="https://valiarian.com/contact-us"
+      />
 
       <ContactView />
     </>
