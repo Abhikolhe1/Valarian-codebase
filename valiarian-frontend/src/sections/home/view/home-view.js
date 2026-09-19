@@ -20,9 +20,18 @@ import { HomeHeroSkeleton, HomeProductSectionSkeleton, HomeSectionSkeleton } fro
 export default function HomeView() {
   const { scrollYProgress } = useScroll();
 
-  const { sections, sectionsLoading } = usePageSectionsBySlug('home');
+  const { sections, sectionsLoading, sectionsError } = usePageSectionsBySlug('home');
 
   useEffect(() => {
+    if (sectionsError) {
+      // Keep the customer-facing fallback stable, while making a CMS outage observable.
+      console.error('[HomeView] Homepage CMS sections could not be loaded', sectionsError);
+    }
+  }, [sectionsError]);
+
+  useEffect(() => {
+    if (window.__VALIARIAN_INITIAL_DATA__?.swr) return;
+
     prefetchHomeProductCollections().catch(() => {
       // Product sections already own their own error UI.
     });
@@ -46,18 +55,28 @@ export default function HomeView() {
   const socialMediaSection = sectionMap['social-media'];
 
   const renderCmsSection = (section, Component, fallback) => {
-    if (section || !sectionsLoading) {
+    if (section) {
       return <Component cmsData={section} />;
     }
 
+    if (sectionsError) return <Component cmsData={undefined} />;
+
+    if (!sectionsLoading) return null;
+
     return fallback;
+  };
+
+  const renderProductSection = (section, Component) => {
+    if (section || sectionsError) return <Component cmsData={section} />;
+    if (sectionsLoading) return <HomeProductSectionSkeleton />;
+    return null;
   };
 
   return (
     <>
       <ScrollProgress scrollYProgress={scrollYProgress} />
 
-      {heroSection || !sectionsLoading ? (
+      {heroSection || sectionsError ? (
         <HomeHero
           imageSrc={heroSection?.content?.backgroundImage || '/assets/images/home/hero/valiarian-hero.png'}
           cmsData={heroSection}
@@ -68,13 +87,9 @@ export default function HomeView() {
 
       {renderCmsSection(scrollAnimatedSection, HomeScrollAnimated, <HomeSectionSkeleton />)}
 
-      {sectionsLoading && !newArrivalsSection ? (
-        <HomeProductSectionSkeleton />
-      ) : (
-        <HomeNewArrivals cmsData={newArrivalsSection} />
-      )}
+      {renderProductSection(newArrivalsSection, HomeNewArrivals)}
 
-      {collectionHeroSection || !sectionsLoading ? (
+      {collectionHeroSection || sectionsError ? (
         <HomeCollectionHero
           imageSrc={
             collectionHeroSection?.content?.backgroundImage ||
@@ -86,7 +101,7 @@ export default function HomeView() {
         <HomeSectionSkeleton compact />
       )}
 
-      <HomeBestSellers cmsData={bestSellersSection} />
+      {renderProductSection(bestSellersSection, HomeBestSellers)}
 
       {renderCmsSection(fabricSection, HomeFabricSection, <HomeSectionSkeleton />)}
 
