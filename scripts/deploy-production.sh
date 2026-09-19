@@ -124,11 +124,13 @@ build_static() {
 deploy_ssr_renderer() {
   local pm2_name="valiarian-frontend-ssr-production"
   log FRONTEND "Starting React SSR renderer"
-  export NODE_ENV=production SSR_PORT=3100 SSR_API_ORIGIN=http://127.0.0.1:3035 SSR_BUILD_DIR="${FRONTEND_DIR}/build"
   if pm2 describe "$pm2_name" >/dev/null 2>&1; then
-    pm2 reload "$pm2_name" --update-env || return 1
+    NODE_ENV=production SSR_PORT=3100 SSR_API_ORIGIN=http://127.0.0.1:3035 SSR_BUILD_DIR="${FRONTEND_DIR}/build" \
+      pm2 reload "$pm2_name" --update-env || return 1
   else
-    ( cd "$FRONTEND_DIR" && pm2 start server/index.cjs --name "$pm2_name" ) || return 1
+    ( cd "$FRONTEND_DIR" && \
+      NODE_ENV=production SSR_PORT=3100 SSR_API_ORIGIN=http://127.0.0.1:3035 SSR_BUILD_DIR="${FRONTEND_DIR}/build" \
+      pm2 start server/index.cjs --name "$pm2_name" ) || return 1
   fi
   bash "${SCRIPT_DIR}/health-check.sh" http://127.0.0.1:3100/health 10 3
 }
