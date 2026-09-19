@@ -123,11 +123,8 @@ deploy_static_app() {
   # is configured in Nginx; this file is the secondary crawler safeguard.
   if [ "$name" = "frontend" ]; then
     cp "${SCRIPT_DIR}/robots.uat.txt" "${dir}/build.new/robots.txt"
-    log "${name^^}" "Generating crawler-visible public storefront pages"
-    node "${dir}/scripts/generate-seo-pages.cjs" \
-      --build-dir "${dir}/build.new" \
-      --api-base "http://127.0.0.1:3055" \
-      --robots "noindex,nofollow"
+    ( cd "$dir" && npm run build:ssr )
+    [ -f "${dir}/server-build/render-app.cjs" ] || { log FRONTEND "SSR build was not produced"; return 1; }
   fi
 
   log "${name^^}" "Swapping in new build"
@@ -150,6 +147,18 @@ deploy_static_app() {
   fi
   log HEALTH "${name^} OK"
   return 0
+}
+
+deploy_ssr_renderer() {
+  local pm2_name="valiarian-frontend-ssr-uat"
+  log FRONTEND "Starting React SSR renderer"
+  export NODE_ENV=production SSR_PORT=3101 SSR_API_ORIGIN=http://127.0.0.1:3055 SSR_BUILD_DIR="${FRONTEND_DIR}/build"
+  if pm2 describe "$pm2_name" >/dev/null 2>&1; then
+    pm2 reload "$pm2_name" --update-env || return 1
+  else
+    ( cd "$FRONTEND_DIR" && pm2 start server/index.cjs --name "$pm2_name" ) || return 1
+  fi
+  bash "${SCRIPT_DIR}/health-check.sh" http://127.0.0.1:3101/health 10 3
 }
 
 rollback_static_app() {
@@ -187,6 +196,11 @@ fi
 
 if ! deploy_static_app frontend "$FRONTEND_DIR" "$FRONTEND_PM2_NAME" "$FRONTEND_HEALTH_URL"; then
   log DEPLOY "UAT deployment FAILED at frontend stage. Backend deployed successfully; frontend rolled back."
+  exit 1
+fi
+
+if ! deploy_ssr_renderer; then
+  log DEPLOY "UAT deployment FAILED: the SSR renderer did not become healthy. Nginx was not changed."
   exit 1
 fi
 
