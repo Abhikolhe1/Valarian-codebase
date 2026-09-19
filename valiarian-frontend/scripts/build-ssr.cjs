@@ -1,3 +1,8 @@
+// babel-preset-react-app requires an explicit build environment. The regular
+// CRA build sets this internally, but this standalone webpack process does not.
+process.env.NODE_ENV ||= 'production';
+process.env.BABEL_ENV ||= process.env.NODE_ENV;
+
 const webpack = require('webpack');
 const config = require('../webpack.ssr.cjs');
 
