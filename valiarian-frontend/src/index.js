@@ -8,7 +8,7 @@ import { SWRConfig } from 'swr';
 import App from './App';
 import createEmotionCache from './create-emotion-cache';
 import { persistor } from './redux/store';
-import { hasServerMarkup, readInitialData } from './ssr/initial-data';
+import { createClientSWRConfig, hasServerMarkup, readInitialData } from './ssr/initial-data';
 
 // ----------------------------------------------------------------------
 
@@ -16,15 +16,11 @@ const rootElement = document.getElementById('root');
 const shouldHydrate = hasServerMarkup(rootElement);
 const initialData = readInitialData();
 const emotionCache = createEmotionCache();
+const swrConfig = createClientSWRConfig(initialData);
 
 const application = (
   <CacheProvider value={emotionCache}>
-    <SWRConfig
-      value={{
-        fallback: initialData.swr || {},
-        revalidateOnMount: shouldHydrate ? false : undefined,
-      }}
-    >
+    <SWRConfig value={swrConfig}>
       <HelmetProvider>
         <BrowserRouter>
           <Suspense>
