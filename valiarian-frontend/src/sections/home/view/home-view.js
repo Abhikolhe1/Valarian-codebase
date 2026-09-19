@@ -4,7 +4,12 @@ import { useScroll } from 'framer-motion';
 import ScrollProgress from 'src/components/scroll-progress';
 // CMS
 import { usePageSectionsBySlug } from 'src/api/cms-query';
-import { prefetchHomeProductCollections } from 'src/api/products';
+import {
+  getBestSellersKey,
+  getNewArrivalsKey,
+  prefetchHomeProductCollections,
+} from 'src/api/products';
+import { hasInitialSWRKeys, readInitialData } from 'src/ssr/initial-data';
 //
 import HomeBestSellers from '../home-best-sellers';
 import HomeCollectionHero from '../home-collection-hero';
@@ -16,6 +21,8 @@ import HomeSocialMedia from '../home-social-media';
 import { HomeHeroSkeleton, HomeProductSectionSkeleton, HomeSectionSkeleton } from '../home-skeletons';
 
 // ----------------------------------------------------------------------
+
+const HOME_PRODUCT_KEYS = [getNewArrivalsKey(), getBestSellersKey()];
 
 export default function HomeView() {
   const { scrollYProgress } = useScroll();
@@ -30,7 +37,7 @@ export default function HomeView() {
   }, [sectionsError]);
 
   useEffect(() => {
-    if (window.__VALIARIAN_INITIAL_DATA__?.swr) return;
+    if (hasInitialSWRKeys(readInitialData(), HOME_PRODUCT_KEYS)) return;
 
     prefetchHomeProductCollections().catch(() => {
       // Product sections already own their own error UI.
