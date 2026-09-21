@@ -44,14 +44,27 @@ export default function ContactHero({
             textAlign: { xs: 'center', md: 'unset' },
           }}
         >
-          <TextAnimate text={heroBadge} sx={{ color: 'primary.main' }} variants={varFade().inRight} />
-          <br />
+          <Box component="h1" sx={{ m: 0, font: 'inherit' }}>
+            <TextAnimate
+              inline
+              text={heroBadge}
+              sx={{ color: 'primary.main' }}
+              variants={varFade().inRight}
+            />
+            <br />
 
-          <Stack spacing={2} display="inline-flex" direction="row" sx={{ color: 'common.white' }}>
-            <TextAnimate text={heroTitleLine1} />
-            <TextAnimate text={heroTitleLine2} />
-            <TextAnimate text={heroTitleLine3} />
-          </Stack>
+            <Stack
+              component="span"
+              spacing={2}
+              display="inline-flex"
+              direction="row"
+              sx={{ color: 'common.white' }}
+            >
+              <TextAnimate inline text={heroTitleLine1} />
+              <TextAnimate inline text={heroTitleLine2} />
+              <TextAnimate inline text={heroTitleLine3} />
+            </Stack>
+          </Box>
 
           <Stack
             spacing={5}
@@ -88,10 +101,10 @@ export default function ContactHero({
 
 // ----------------------------------------------------------------------
 
-function TextAnimate({ text, variants, sx, ...other }) {
+function TextAnimate({ text, variants, sx, inline = false, ...other }) {
   return (
     <Box
-      component={m.div}
+      component={inline ? m.span : m.div}
       sx={{
         typography: 'h1',
         overflow: 'hidden',
@@ -110,6 +123,7 @@ function TextAnimate({ text, variants, sx, ...other }) {
 }
 
 TextAnimate.propTypes = {
+  inline: PropTypes.bool,
   sx: PropTypes.object,
   text: PropTypes.string,
   variants: PropTypes.object,

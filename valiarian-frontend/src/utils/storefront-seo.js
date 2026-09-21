@@ -21,6 +21,13 @@ export function limitText(value, maxLength = 160) {
   return `${text.slice(0, maxLength - 3).trimEnd()}...`;
 }
 
+export function completeMetaDescription(primary, supplemental, minimumLength = 70) {
+  const description = plainText(primary);
+  if (description.length >= minimumLength) return limitText(description, 160);
+
+  return limitText([description, plainText(supplemental)].filter(Boolean).join(' '), 160);
+}
+
 function normalizeBrandName(value) {
   return String(value || '').replace(/\bValarian\b/g, 'Valiarian');
 }
@@ -30,13 +37,17 @@ export function productSeo(product) {
   const slug = product?.slug || product?.id || '';
   const canonicalUrl = `${SITE_ORIGIN}/products/${encodeURIComponent(slug)}`;
   const title = normalizeBrandName(limitText(product?.seoTitle || `${name} | Valiarian`, 60));
-  const description = normalizeBrandName(limitText(
+  const categoryName = plainText(product?.category?.name || '');
+  const sourceDescription =
     product?.seoDescription ||
-      product?.shortDescription ||
-      product?.description ||
-      `Shop ${name} by Valiarian and view its available colours, sizes and product details.`,
-    160
-  ));
+    product?.shortDescription ||
+    product?.description;
+  const description = normalizeBrandName(
+    completeMetaDescription(
+      sourceDescription,
+      `Discover ${name}${categoryName ? ` from Valiarian's ${categoryName} collection` : ' by Valiarian'}, with available colours, sizes, fit and product details.`
+    )
+  );
   const images = [product?.coverImage, ...(product?.images || [])]
     .filter(Boolean)
     .map(absoluteStorefrontUrl);
@@ -92,10 +103,9 @@ export function categorySeo(category) {
   const name = plainText(category?.name || 'Products');
   const slug = category?.slug || '';
   const canonicalUrl = `${SITE_ORIGIN}/category/${encodeURIComponent(slug)}`;
-  const description = limitText(
-    category?.description ||
-      `Browse ${name} from Valiarian and view available products, colours, sizes and details.`,
-    160
+  const description = completeMetaDescription(
+    category?.description,
+    `Explore ${name} by Valiarian, including available premium polo styles, colours, sizes and product details.`
   );
 
   return {

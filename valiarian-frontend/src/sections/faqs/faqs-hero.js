@@ -40,17 +40,28 @@ export default function FaqsHero() {
             textAlign: { xs: 'center', md: 'unset' },
           }}
         >
-          <div>
-            <TextAnimate text="How" sx={{ color: 'primary.main' }} variants={varFade().inRight} />
+          <Box component="h1" sx={{ m: 0, font: 'inherit' }}>
+            <TextAnimate
+              inline
+              text="How"
+              sx={{ color: 'primary.main' }}
+              variants={varFade().inRight}
+            />
             <br />
 
-            <Stack spacing={2} display="inline-flex" direction="row" sx={{ color: 'common.white' }}>
-              <TextAnimate text="can" />
-              <TextAnimate text="we" />
-              <TextAnimate text="help" />
-              <TextAnimate text="you?" />
+            <Stack
+              component="span"
+              spacing={2}
+              display="inline-flex"
+              direction="row"
+              sx={{ color: 'common.white' }}
+            >
+              <TextAnimate inline text="can" />
+              <TextAnimate inline text="we" />
+              <TextAnimate inline text="help" />
+              <TextAnimate inline text="you?" />
             </Stack>
-          </div>
+          </Box>
 
           <m.div variants={varFade().in}>
             <TextField
@@ -83,10 +94,10 @@ export default function FaqsHero() {
 
 // ----------------------------------------------------------------------
 
-function TextAnimate({ text, variants, sx, ...other }) {
+function TextAnimate({ text, variants, sx, inline = false, ...other }) {
   return (
     <Box
-      component={m.div}
+      component={inline ? m.span : m.div}
       sx={{
         typography: 'h1',
         overflow: 'hidden',
@@ -105,6 +116,7 @@ function TextAnimate({ text, variants, sx, ...other }) {
 }
 
 TextAnimate.propTypes = {
+  inline: PropTypes.bool,
   sx: PropTypes.object,
   text: PropTypes.string,
   variants: PropTypes.object,
