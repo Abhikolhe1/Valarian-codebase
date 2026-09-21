@@ -1,4 +1,4 @@
-import { Helmet } from 'react-helmet-async';
+import PageSEO from 'src/components/seo/PageSEO';
 // sections
 import AboutView from 'src/sections/about/view/about-view';
 
@@ -7,9 +7,11 @@ import AboutView from 'src/sections/about/view/about-view';
 export default function AboutPage() {
   return (
     <>
-      <Helmet>
-        <title> About us</title>
-      </Helmet>
+      <PageSEO
+        title="About Valiarian | Premium Polo T-Shirts"
+        description="Learn about Valiarian's approach to refined design, premium fabrics, comfort, and modern polo shirts."
+        canonicalUrl="https://valiarian.com/about-us"
+      />
 
       <AboutView />
     </>

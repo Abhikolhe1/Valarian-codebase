@@ -24,34 +24,11 @@ import 'react-lazy-load-image-component/src/effects/blur.css';
 
 // ----------------------------------------------------------------------
 
-// @mui
-import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
-import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
-// redux
-import ReduxProvider from 'src/redux/redux-provider';
 // routes
 import Router from 'src/routes/sections';
-// theme
-import ThemeProvider from 'src/theme';
 // hooks
 import { useScrollToTop } from 'src/hooks/use-scroll-to-top';
-// components
-import MotionLazy from 'src/components/animate/motion-lazy';
-import CartInitializer from 'src/components/cart-initializer';
-import ErrorBoundary from 'src/components/error-boundary';
-import FavoritesInitializer from 'src/components/favorites-initializer';
-import ProgressBar from 'src/components/progress-bar';
-import { SettingsDrawer, SettingsProvider } from 'src/components/settings';
-import SnackbarProvider from 'src/components/snackbar/snackbar-provider';
-// auth
-import { AuthProvider } from 'src/auth/context/jwt';
-// import { AuthProvider, AuthConsumer } from 'src/auth/context/auth0';
-// import { AuthProvider, AuthConsumer } from 'src/auth/context/amplify';
-// import { AuthProvider, AuthConsumer } from 'src/auth/context/firebase';
-// react query
-import QueryProvider from 'src/api/query-provider';
-// contexts
-import { SiteSettingsProvider } from 'src/contexts/SiteSettingsContext';
+import AppProviders from 'src/app-providers';
 
 // ----------------------------------------------------------------------
 
@@ -71,41 +48,8 @@ export default function App() {
   useScrollToTop();
 
   return (
-    <AuthProvider>
-      <ReduxProvider>
-        <QueryProvider>
-          <SiteSettingsProvider>
-            <LocalizationProvider dateAdapter={AdapterDateFns}>
-              <SettingsProvider
-                defaultSettings={{
-                  themeMode: 'light', // 'light' | 'dark'
-                  themeDirection: 'ltr', //  'rtl' | 'ltr'
-                  themeContrast: 'default', // 'default' | 'bold'
-                  themeLayout: 'vertical', // 'vertical' | 'horizontal' | 'mini'
-                  themeColorPresets: 'default', // 'default' | 'cyan' | 'purple' | 'blue' | 'orange' | 'red'
-                  themeStretch: false,
-                }}
-              >
-                <ThemeProvider>
-                  <MotionLazy>
-                    <SnackbarProvider>
-                      <ErrorBoundary>
-                        <SettingsDrawer />
-                        <ProgressBar />
-                        <CartInitializer>
-                          <FavoritesInitializer>
-                            <Router />
-                          </FavoritesInitializer>
-                        </CartInitializer>
-                      </ErrorBoundary>
-                    </SnackbarProvider>
-                  </MotionLazy>
-                </ThemeProvider>
-              </SettingsProvider>
-            </LocalizationProvider>
-          </SiteSettingsProvider>
-        </QueryProvider>
-      </ReduxProvider>
-    </AuthProvider>
+    <AppProviders>
+      <Router />
+    </AppProviders>
   );
 }

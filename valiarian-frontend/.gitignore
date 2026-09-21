@@ -15,6 +15,7 @@ _static
 out
 dist
 build
+server-build
 
 # environment variables
 .env
