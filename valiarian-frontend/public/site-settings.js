@@ -19,11 +19,11 @@
     contactEmail: 'contact@valiarian.com',
     contactPhone: '',
     socialMedia: {
-      facebook: '',
-      instagram: '',
-      twitter: '',
+      facebook: 'https://www.facebook.com/profile.php?id=61594322315304',
+      instagram: 'https://www.instagram.com/valiarian.wear/',
+      twitter: 'https://x.com/valiarianwear',
       linkedin: '',
-      youtube: '',
+      youtube: 'https://www.youtube.com/@valiarianwear',
       pinterest: ''
     },
     footerText: '',
