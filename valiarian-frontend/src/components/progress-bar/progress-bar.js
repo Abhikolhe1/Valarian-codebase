@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect } from 'react';
 import NProgress from 'nprogress';
 //
 import StyledProgressBar from './styles';
@@ -6,10 +6,10 @@ import StyledProgressBar from './styles';
 // ----------------------------------------------------------------------
 
 export default function ProgressBar() {
-  NProgress.configure({ showSpinner: false });
-
-  useMemo(() => {
+  useEffect(() => {
+    NProgress.configure({ showSpinner: false });
     NProgress.start();
+    return () => NProgress.done();
   }, []);
 
   useEffect(() => {

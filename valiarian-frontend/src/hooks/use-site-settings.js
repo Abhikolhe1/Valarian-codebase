@@ -13,10 +13,13 @@ import { useEffect, useState } from 'react';
  * console.log(settings.socialMedia.facebook);
  */
 export function useSiteSettings() {
-  const [settings, setSettings] = useState(window.siteSettings || {});
-  const [loading, setLoading] = useState(!window.siteSettings);
+  const browserSettings = typeof window !== 'undefined' ? window.siteSettings : undefined;
+  const [settings, setSettings] = useState(browserSettings || {});
+  const [loading, setLoading] = useState(!browserSettings && typeof window !== 'undefined');
 
   useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+
     const handleSettingsLoaded = (event) => {
       setSettings(event.detail);
       setLoading(false);
@@ -86,5 +89,7 @@ export function useSiteSetting(key, defaultValue) {
  * @returns {any} Setting value
  */
 export function getSiteSetting(key, defaultValue) {
-  return window.getSiteSetting ? window.getSiteSetting(key, defaultValue) : defaultValue;
+  return typeof window !== 'undefined' && window.getSiteSetting
+    ? window.getSiteSetting(key, defaultValue)
+    : defaultValue;
 }

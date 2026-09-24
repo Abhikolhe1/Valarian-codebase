@@ -17,7 +17,9 @@ describe('storefront SEO', () => {
 
     expect(seo.title).toBe('Obsidian Premium Polo | Valiarian');
     expect(seo.canonicalUrl).toBe('https://valiarian.com/products/obsidian-polo');
-    expect(seo.description).toBe('A premium cotton polo.');
+    expect(seo.description).toBe(
+      'A premium cotton polo. Discover Obsidian Polo by Valiarian, with available colours, sizes, fit and product details.'
+    );
     expect(seo.structuredData['@graph'][0].offers.availability).toBe(
       'https://schema.org/InStock'
     );
@@ -27,7 +29,9 @@ describe('storefront SEO', () => {
   it('uses existing category content and a dedicated canonical URL', () => {
     const seo = categorySeo({slug: 'short-sleeves', name: 'Short Sleeves', description: 'Polos'});
     expect(seo.canonicalUrl).toBe('https://valiarian.com/category/short-sleeves');
-    expect(seo.description).toBe('Polos');
+    expect(seo.description).toBe(
+      'Polos Explore Short Sleeves by Valiarian, including available premium polo styles, colours, sizes and product details.'
+    );
     expect(seo.structuredData['@graph'][1]['@type']).toBe('BreadcrumbList');
   });
 

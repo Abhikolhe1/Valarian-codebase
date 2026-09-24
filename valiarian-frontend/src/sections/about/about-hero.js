@@ -60,6 +60,7 @@ export default function AboutHero({ content = DEFAULT_CONTENT }) {
           <m.div variants={varFade().inRight}>
             <Typography
               variant="h4"
+              component="h1"
               sx={{
                 mt: 3,
                 color: 'common.white',

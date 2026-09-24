@@ -7,9 +7,13 @@ import MainLayout from 'src/layouts/main';
 import SimpleLayout from 'src/layouts/simple';
 import AboutPage from 'src/pages/about-us';
 import ContactPage from 'src/pages/contact-us';
+import FaqsPage from 'src/pages/faqs';
+import HomePage from 'src/pages/home';
 import PremiumPage from 'src/pages/premium';
 import PremiumPreorderPage from 'src/pages/premium-preorder';
 import ProductCheckoutPage from 'src/pages/product/checkout';
+import ProductCategoryPage from 'src/pages/product/category';
+import ProductDetailsPage from 'src/pages/product/details';
 import ProductListPage from 'src/pages/product/list';
 // components
 import { AuthGuard } from 'src/auth/guard';
@@ -17,11 +21,10 @@ import { SplashScreen } from 'src/components/loading-screen';
 
 // ----------------------------------------------------------------------
 
-export const HomePage = lazy(() => import('src/pages/home'));
+export { HomePage };
 const Page500 = lazy(() => import('src/pages/500'));
 const Page403 = lazy(() => import('src/pages/403'));
 const Page404 = lazy(() => import('src/pages/404'));
-const FaqsPage = lazy(() => import('src/pages/faqs'));
 const PricingPage = lazy(() => import('src/pages/pricing'));
 const PaymentPage = lazy(() => import('src/pages/payment'));
 const PaymentSuccessPage = lazy(() => import('../../pages/payment-success'));
@@ -31,8 +34,6 @@ const PaymentPendingPage = lazy(() => import('../../pages/payment-pending'));
 const ComingSoonPage = lazy(() => import('src/pages/coming-soon'));
 const MaintenancePage = lazy(() => import('src/pages/maintenance'));
 // PRODUCT
-const ProductDetailsPage = lazy(() => import('src/pages/product/details'));
-const ProductCategoryPage = lazy(() => import('src/pages/product/category'));
 // FAVORITES
 const FavoritesPage = lazy(() => import('src/pages/favorites'));
 // ORDERS
