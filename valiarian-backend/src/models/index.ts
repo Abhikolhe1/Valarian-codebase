@@ -3,6 +3,7 @@ export * from './address.model';
 export * from './audit-log.model';
 export * from './barcode-scan-log.model';
 export * from './barcode.model';
+export * from './blog-post.model';
 export * from './parent-category.model';
 export * from './category.model';
 export * from './category-product.model';

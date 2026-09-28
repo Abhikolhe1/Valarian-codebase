@@ -2,6 +2,7 @@ export * from './about-page.repository';
 export * from './audit-log.repository';
 export * from './barcode-scan-log.repository';
 export * from './barcode.repository';
+export * from './blog-post.repository';
 export * from './cart-items.repository';
 export * from './carts.repository';
 export * from './parent-category.repository';

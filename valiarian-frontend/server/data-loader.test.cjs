@@ -14,6 +14,11 @@ test('matches only the public SSR allow-list', () => {
     slug: 'example-polo',
   });
   assert.equal(matchPublicRoute('/products/checkout'), null);
+  assert.deepEqual(matchPublicRoute('/blog'), {type: 'blog'});
+  assert.deepEqual(matchPublicRoute('/blog/how-to-style-a-polo'), {
+    type: 'article',
+    slug: 'how-to-style-a-polo',
+  });
   assert.equal(matchPublicRoute('/cart'), null);
   assert.equal(matchPublicRoute('/login'), null);
   assert.equal(matchPublicRoute('/payment/result'), null);

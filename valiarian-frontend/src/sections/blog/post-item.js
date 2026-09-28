@@ -30,7 +30,7 @@ export default function PostItem({ post, index }) {
 
   const mdUp = useResponsive('up', 'md');
 
-  const { coverUrl, title, totalViews, totalComments, totalShares, author, createdAt } = post;
+  const { coverUrl, title, slug, totalViews, totalComments, totalShares, author, createdAt } = post;
 
   const latestPost = index === 0 || index === 1 || index === 2;
 
@@ -50,6 +50,7 @@ export default function PostItem({ post, index }) {
 
         <PostContent
           title={title}
+          slug={slug}
           createdAt={createdAt}
           totalViews={totalViews}
           totalShares={totalShares}
@@ -100,6 +101,7 @@ export default function PostItem({ post, index }) {
 
       <PostContent
         title={title}
+        slug={slug}
         totalViews={totalViews}
         totalComments={totalComments}
         totalShares={totalShares}
@@ -116,10 +118,10 @@ PostItem.propTypes = {
 
 // ----------------------------------------------------------------------
 
-export function PostContent({ title, createdAt, totalViews, totalShares, totalComments, index }) {
+export function PostContent({ title, slug, createdAt, totalViews, totalShares, totalComments, index }) {
   const mdUp = useResponsive('up', 'md');
 
-  const linkTo = paths.post.details(title);
+  const linkTo = paths.post.details(slug);
 
   const latestPostLarge = index === 0;
 
@@ -197,6 +199,7 @@ PostContent.propTypes = {
   createdAt: PropTypes.string,
   index: PropTypes.number,
   title: PropTypes.string,
+  slug: PropTypes.string,
   totalComments: PropTypes.number,
   totalShares: PropTypes.number,
   totalViews: PropTypes.number,

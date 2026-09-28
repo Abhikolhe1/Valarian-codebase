@@ -10,6 +10,7 @@ export async function migrate(args: string[]) {
     existingSchema,
     models: [
       'AboutPage',
+      'BlogPost',
       'Users',
       'Roles',
       'Permissions',

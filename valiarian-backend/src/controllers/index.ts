@@ -21,5 +21,6 @@ export * from './public-product.controller';
 export * from './review.controller';
 export * from './roles.controller';
 export * from './sitemap.controller';
+export * from './blog-post.controller';
 
 export * from './address.controller';

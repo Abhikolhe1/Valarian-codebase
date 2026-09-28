@@ -26,8 +26,8 @@ export function useGetPosts() {
 
 // ----------------------------------------------------------------------
 
-export function useGetPost(title) {
-  const URL = title ? [endpoints.post.details, { params: { title } }] : null;
+export function useGetPost(slug) {
+  const URL = slug ? `${endpoints.post.details}?slug=${encodeURIComponent(slug)}` : null;
 
   const { data, isLoading, error, isValidating } = useSWR(URL, fetcher);
 
@@ -47,7 +47,7 @@ export function useGetPost(title) {
 // ----------------------------------------------------------------------
 
 export function useGetLatestPosts(title) {
-  const URL = title ? [endpoints.post.latest, { params: { title } }] : null;
+  const URL = title ? `${endpoints.post.latest}?title=${encodeURIComponent(title)}` : null;
 
   const { data, isLoading, error, isValidating } = useSWR(URL, fetcher);
 

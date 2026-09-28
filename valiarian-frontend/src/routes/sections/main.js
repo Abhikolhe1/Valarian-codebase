@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react';
-import { Outlet } from 'react-router-dom';
+import { Navigate, Outlet } from 'react-router-dom';
 // auth
 // layouts
 import CompactLayout from 'src/layouts/compact';
@@ -180,13 +180,15 @@ export const mainRoutes = [
         ],
       },
       {
-        path: 'post',
+        path: 'blog',
         children: [
           { element: <PostListPage />, index: true },
           { path: 'list', element: <PostListPage /> },
           { path: ':title', element: <PostDetailsPage /> },
         ],
       },
+      { path: 'post', element: <Navigate to="/blog" replace /> },
+      { path: 'post/:title', element: <PostDetailsPage /> },
     ],
   },
   {
