@@ -48,11 +48,14 @@ export function useHeaderNavigation() {
   }, [navigationData]);
 
   // Return CMS navigation if available, otherwise fallback
-  const navigation = cmsNavigation
-    ? (cmsNavigation.some((item) => item.path === paths.post.root)
+  let navigation = defaultNavigation;
+
+  if (cmsNavigation) {
+    const hasJournal = cmsNavigation.some((item) => item.path === paths.post.root);
+    navigation = hasJournal
       ? cmsNavigation
-      : [...cmsNavigation, { title: 'Journal', path: paths.post.root }])
-    : defaultNavigation;
+      : [...cmsNavigation, { title: 'Journal', path: paths.post.root }];
+  }
 
   return {
     navigation,
