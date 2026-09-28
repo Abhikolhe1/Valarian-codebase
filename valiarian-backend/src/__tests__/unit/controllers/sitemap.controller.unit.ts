@@ -24,6 +24,9 @@ describe('SitemapController helpers', () => {
         {slug: 'short-sleeves', updatedAt: new Date('2026-09-02T12:00:00Z')},
         {slug: 'short-sleeves', updatedAt: new Date('2026-09-02T12:00:00Z')},
       ],
+      [
+        {slug: 'how-to-style-a-polo', updatedAt: new Date('2026-09-03T12:00:00Z')},
+      ],
     );
 
     expect(xml.includes('<loc>https://valiarian.com/</loc>')).to.equal(true);
@@ -50,5 +53,9 @@ describe('SitemapController helpers', () => {
     );
     expect(xml.match(/products\/obsidian-polo/g)?.length).to.equal(1);
     expect(xml.match(/category\/short-sleeves/g)?.length).to.equal(1);
+    expect(xml.includes('<loc>https://valiarian.com/blog</loc>')).to.equal(true);
+    expect(
+      xml.includes('<loc>https://valiarian.com/blog/how-to-style-a-polo</loc>'),
+    ).to.equal(true);
   });
 });

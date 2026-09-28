@@ -54,6 +54,7 @@ export function useFooterNavigation() {
           { name: 'Products', href: paths.product.root },
           { name: 'Our Story', href: paths.about },
           { name: 'FAQs', href: paths.faqs },
+          { name: 'Journal', href: paths.post.root },
         ],
       },
       {
@@ -90,6 +91,15 @@ export function useFooterNavigation() {
     }
 
     const transformedNavigation = transformFooterNavigation(navigationData);
+    const containsBlog = transformedNavigation.some((section) =>
+      section.children?.some((item) => item.href === paths.post.root)
+    );
+    if (!containsBlog && transformedNavigation[0]) {
+      transformedNavigation[0] = {
+        ...transformedNavigation[0],
+        children: [...(transformedNavigation[0].children || []), {name: 'Journal', href: paths.post.root}],
+      };
+    }
     const legalLinks = [
       buildLegalLink('Terms and Condition', legalDocuments.termsAndConditionsUrl),
       buildLegalLink('Privacy Policy', legalDocuments.privacyPolicyUrl),

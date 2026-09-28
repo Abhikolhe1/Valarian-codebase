@@ -72,10 +72,12 @@ export const endpoints = {
     labels: '/api/mail/labels',
   },
   post: {
-    list: '/api/post/list',
-    details: '/api/post/details',
-    latest: '/api/post/latest',
-    search: '/api/post/search',
+    list: '/api/admin/blog-posts',
+    details: (id) => `/api/admin/blog-posts/${id}`,
+    create: '/api/admin/blog-posts',
+    update: (id) => `/api/admin/blog-posts/${id}`,
+    delete: (id) => `/api/admin/blog-posts/${id}`,
+    search: '/api/admin/blog-posts',
   },
   products: {
     list: '/api/products',

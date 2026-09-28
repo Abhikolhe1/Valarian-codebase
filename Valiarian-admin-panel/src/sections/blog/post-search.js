@@ -18,14 +18,14 @@ import SearchNotFound from 'src/components/search-not-found';
 export default function PostSearch({ query, results, onSearch, hrefItem, loading }) {
   const router = useRouter();
 
-  const handleClick = (title) => {
-    router.push(hrefItem(title));
+  const handleClick = (post) => {
+    router.push(hrefItem(post.id));
   };
 
   const handleKeyUp = (event) => {
     if (query) {
       if (event.key === 'Enter') {
-        handleClick(query);
+        if (results.length) handleClick(results[0]);
       }
     }
   };
@@ -91,7 +91,7 @@ export default function PostSearch({ query, results, onSearch, hrefItem, loading
               sx={{ width: 48, height: 48, flexShrink: 0, mr: 1.5, borderRadius: 1 }}
             />
 
-            <Link key={inputValue} underline="none" onClick={() => handleClick(post.title)}>
+            <Link key={inputValue} underline="none" onClick={() => handleClick(post)}>
               {parts.map((part, index) => (
                 <Typography
                   key={index}

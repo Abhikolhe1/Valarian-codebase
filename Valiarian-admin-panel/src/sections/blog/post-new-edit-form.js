@@ -3,6 +3,7 @@ import * as Yup from 'yup';
 import { useCallback, useMemo, useEffect } from 'react';
 import { yupResolver } from '@hookform/resolvers/yup';
 import { useForm } from 'react-hook-form';
+import axiosInstance, { endpoints } from 'src/utils/axios';
 // @mui
 import LoadingButton from '@mui/lab/LoadingButton';
 import Chip from '@mui/material/Chip';
@@ -49,8 +50,9 @@ export default function PostNewEditForm({ currentPost }) {
     description: Yup.string().required('Description is required'),
     content: Yup.string().required('Content is required'),
     coverUrl: Yup.mixed().nullable().required('Cover is required'),
-    tags: Yup.array().min(2, 'Must have at least 2 tags'),
-    metaKeywords: Yup.array().min(1, 'Meta keywords is required'),
+    coverAlt: Yup.string().required('Image alt text is required'),
+    tags: Yup.array().min(1, 'Add at least one relevant tag'),
+    metaKeywords: Yup.array(),
     // not required
     metaTitle: Yup.string(),
     metaDescription: Yup.string(),
@@ -59,9 +61,16 @@ export default function PostNewEditForm({ currentPost }) {
   const defaultValues = useMemo(
     () => ({
       title: currentPost?.title || '',
-      description: currentPost?.description || '',
+      description: currentPost?.excerpt || currentPost?.description || '',
       content: currentPost?.content || '',
       coverUrl: currentPost?.coverUrl || null,
+      coverAlt: currentPost?.coverAlt || '',
+      slug: currentPost?.slug || '',
+      category: currentPost?.category || 'Style Guide',
+      authorName: currentPost?.authorName || 'Valiarian Editorial Team',
+      canonicalUrl: currentPost?.canonicalUrl || '',
+      status: currentPost?.status || 'draft',
+      noIndex: currentPost?.noIndex || false,
       tags: currentPost?.tags || [],
       metaKeywords: currentPost?.metaKeywords || [],
       metaTitle: currentPost?.metaTitle || '',
@@ -93,8 +102,28 @@ export default function PostNewEditForm({ currentPost }) {
 
   const onSubmit = handleSubmit(async (data) => {
     try {
-      await new Promise((resolve) => setTimeout(resolve, 500));
-      reset();
+      let coverUrl = data.coverUrl;
+      if (coverUrl instanceof File) {
+        const formData = new FormData();
+        formData.append('file', coverUrl);
+        formData.append('folder', '/blog');
+        formData.append('altText', data.coverAlt);
+        const upload = await axiosInstance.post(endpoints.cms.media.upload, formData, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        });
+        coverUrl = upload.data.media.url;
+      }
+      const payload = {
+        ...data,
+        excerpt: data.description,
+        coverUrl,
+        status: data.status,
+      };
+      if (currentPost?.id) {
+        await axiosInstance.patch(endpoints.post.update(currentPost.id), payload);
+      } else {
+        await axiosInstance.post(endpoints.post.create, payload);
+      }
       preview.onFalse();
       enqueueSnackbar(currentPost ? 'Update success!' : 'Create success!');
       router.push(paths.dashboard.post.root);
@@ -106,7 +135,7 @@ export default function PostNewEditForm({ currentPost }) {
 
   const handleDrop = useCallback(
     (acceptedFiles) => {
-      const file = acceptedFiles[0];
+      const [file] = acceptedFiles;
 
       const newFile = Object.assign(file, {
         preview: URL.createObjectURL(file),
@@ -122,6 +151,21 @@ export default function PostNewEditForm({ currentPost }) {
   const handleRemoveFile = useCallback(() => {
     setValue('coverUrl', null);
   }, [setValue]);
+
+  const handleArticleImageUpload = useCallback(async (file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('folder', '/blog/content');
+    formData.append('altText', file.name.replace(/\.[^.]+$/, '').replace(/[-_]+/g, ' '));
+    const upload = await axiosInstance.post(endpoints.cms.media.upload, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    enqueueSnackbar('Article image uploaded');
+    return {
+      url: upload.data.media.url,
+      alt: file.name.replace(/\.[^.]+$/, '').replace(/[-_]+/g, ' '),
+    };
+  }, [enqueueSnackbar]);
 
   const renderDetails = (
     <>
@@ -141,14 +185,29 @@ export default function PostNewEditForm({ currentPost }) {
           {!mdUp && <CardHeader title="Details" />}
 
           <Stack spacing={3} sx={{ p: 3 }}>
+            <Card sx={{ p: 2, bgcolor: 'background.neutral' }}>
+              <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                Evergreen article structure
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Start with the reader&apos;s question, add clear H2/H3 sections, practical examples,
+                original images with descriptive alt text, relevant product links, and finish with a
+                concise FAQ. Update facts and the modified date whenever the guidance changes.
+              </Typography>
+            </Card>
+
             <RHFTextField name="title" label="Post Title" />
 
             <RHFTextField name="description" label="Description" multiline rows={3} />
 
+            <RHFTextField name="slug" label="URL slug (leave blank to generate)" />
+
             <Stack spacing={1.5}>
               <Typography variant="subtitle2">Content</Typography>
-              <RHFEditor simple name="content" />
+              <RHFEditor name="content" uploadImage={handleArticleImageUpload} />
             </Stack>
+
+            <RHFTextField name="coverAlt" label="Cover image alt text" />
 
             <Stack spacing={1.5}>
               <Typography variant="subtitle2">Cover</Typography>
@@ -210,6 +269,10 @@ export default function PostNewEditForm({ currentPost }) {
               }
             />
 
+            <RHFTextField name="category" label="Article category" />
+
+            <RHFTextField name="authorName" label="Author name" />
+
             <RHFTextField name="metaTitle" label="Meta title" />
 
             <RHFTextField
@@ -219,6 +282,8 @@ export default function PostNewEditForm({ currentPost }) {
               multiline
               rows={3}
             />
+
+            <RHFTextField name="canonicalUrl" label="Canonical URL (auto-generated if blank)" />
 
             <RHFAutocomplete
               name="metaKeywords"
@@ -248,7 +313,15 @@ export default function PostNewEditForm({ currentPost }) {
               }
             />
 
-            <FormControlLabel control={<Switch defaultChecked />} label="Enable comments" />
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={values.noIndex}
+                  onChange={(event) => setValue('noIndex', event.target.checked)}
+                />
+              }
+              label="Hide this article from search engines"
+            />
           </Stack>
         </Card>
       </Grid>
@@ -260,8 +333,13 @@ export default function PostNewEditForm({ currentPost }) {
       {mdUp && <Grid md={4} />}
       <Grid xs={12} md={8} sx={{ display: 'flex', alignItems: 'center' }}>
         <FormControlLabel
-          control={<Switch defaultChecked />}
-          label="Publish"
+          control={
+            <Switch
+              checked={values.status === 'published'}
+              onChange={(event) => setValue('status', event.target.checked ? 'published' : 'draft')}
+            />
+          }
+          label={values.status === 'published' ? 'Published' : 'Save as draft'}
           sx={{ flexGrow: 1, pl: 3 }}
         />
 

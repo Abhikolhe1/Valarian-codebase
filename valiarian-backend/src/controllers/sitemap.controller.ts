@@ -2,6 +2,7 @@ import {inject} from '@loopback/core';
 import {repository} from '@loopback/repository';
 import {get, Response, RestBindings} from '@loopback/rest';
 import {
+  BlogPostRepository,
   CategoryRepository,
   PageRepository,
   ProductRepository,
@@ -15,6 +16,7 @@ const STATIC_PUBLIC_ROUTES = [
   '/contact-us',
   '/faqs',
   '/premium',
+  '/blog',
 ];
 
 export function escapeXml(value: string): string {
@@ -30,6 +32,7 @@ export function generateSitemapXml(
   pages: Array<{slug: string; updatedAt?: Date}>,
   products: Array<{id?: string; slug: string; updatedAt?: Date}>,
   categories: Array<{slug: string; updatedAt?: Date}> = [],
+  blogPosts: Array<{slug: string; updatedAt?: Date}> = [],
 ): string {
   const homePage = pages.find(page => page.slug === 'home');
   const entries = STATIC_PUBLIC_ROUTES.map(route => ({
@@ -51,6 +54,15 @@ export function generateSitemapXml(
       entries.push({
         loc: `${PRODUCTION_ORIGIN}/category/${encodeURIComponent(category.slug)}`,
         updatedAt: category.updatedAt,
+      });
+    }
+  }
+
+  for (const article of blogPosts) {
+    if (article.slug) {
+      entries.push({
+        loc: `${PRODUCTION_ORIGIN}/blog/${encodeURIComponent(article.slug)}`,
+        updatedAt: article.updatedAt,
       });
     }
   }
@@ -83,6 +95,8 @@ export class SitemapController {
     public productRepository: ProductRepository,
     @repository(CategoryRepository)
     public categoryRepository: CategoryRepository,
+    @repository(BlogPostRepository)
+    public blogPostRepository: BlogPostRepository,
   ) {}
 
   @get('/sitemap.xml', {
@@ -101,7 +115,7 @@ export class SitemapController {
     @inject(RestBindings.Http.RESPONSE) response: Response,
   ): Promise<void> {
     try {
-      const [pages, products, categories] = await Promise.all([
+      const [pages, products, categories, blogPosts] = await Promise.all([
         this.pageRepository.find({
           where: {status: 'published', isActive: true, isDeleted: false},
           fields: {slug: true, updatedAt: true},
@@ -117,10 +131,15 @@ export class SitemapController {
           fields: {slug: true, updatedAt: true},
           order: ['updatedAt DESC'],
         }),
+        this.blogPostRepository.find({
+          where: {status: 'published', noIndex: false},
+          fields: {slug: true, updatedAt: true},
+          order: ['updatedAt DESC'],
+        }),
       ]);
 
       // Generate XML sitemap
-      const xml = generateSitemapXml(pages, products, categories);
+      const xml = generateSitemapXml(pages, products, categories, blogPosts);
 
       // Set response headers
       response.status(200);

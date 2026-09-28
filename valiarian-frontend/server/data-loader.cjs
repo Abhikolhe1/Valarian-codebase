@@ -56,6 +56,10 @@ function matchPublicRoute(pathname) {
   if (pathname === '/about-us') return {type: 'about'};
   if (pathname === '/contact-us') return {type: 'contact'};
   if (pathname === '/faqs') return {type: 'faqs'};
+  if (pathname === '/blog') return {type: 'blog'};
+
+  const article = pathname.match(/^\/blog\/([^/]+)\/?$/);
+  if (article) return {type: 'article', slug: decodeURIComponent(article[1])};
 
   const category = pathname.match(/^\/category\/([^/]+)\/?$/);
   if (category) return {type: 'category', slug: decodeURIComponent(category[1])};
@@ -125,6 +129,23 @@ async function loadInitialData(apiOrigin, pathname) {
 
   if (route.type === 'about') {
     swr[ABOUT_KEY] = await requestJson(apiOrigin, ABOUT_KEY);
+  }
+
+  if (route.type === 'blog') {
+    const blogKey = '/api/post/list';
+    swr[blogKey] = await requestJson(apiOrigin, blogKey);
+  }
+
+  if (route.type === 'article') {
+    const detailsKey = `/api/post/details?slug=${encodeURIComponent(route.slug)}`;
+    const latestKey = `/api/post/latest?title=${encodeURIComponent(route.slug)}`;
+    try {
+      swr[detailsKey] = await requestJson(apiOrigin, detailsKey);
+      await addOptional(swr, apiOrigin, latestKey);
+    } catch (error) {
+      if (error.status !== 404) throw error;
+      return {route, status: 404, swr};
+    }
   }
 
   return {route, status: 200, swr};

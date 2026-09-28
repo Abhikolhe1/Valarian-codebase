@@ -29,6 +29,11 @@ export function useHeaderNavigation() {
         path: paths.about,
         icon: <Iconify icon="eva:info-fill" />,
       },
+      {
+        title: 'Journal',
+        path: paths.post.root,
+        icon: <Iconify icon="solar:document-text-bold" />,
+      },
     ],
     []
   );
@@ -43,7 +48,11 @@ export function useHeaderNavigation() {
   }, [navigationData]);
 
   // Return CMS navigation if available, otherwise fallback
-  const navigation = cmsNavigation || defaultNavigation;
+  const navigation = cmsNavigation
+    ? (cmsNavigation.some((item) => item.path === paths.post.root)
+      ? cmsNavigation
+      : [...cmsNavigation, { title: 'Journal', path: paths.post.root }])
+    : defaultNavigation;
 
   return {
     navigation,

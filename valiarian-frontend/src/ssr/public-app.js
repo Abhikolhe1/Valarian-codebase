@@ -10,6 +10,8 @@ import FaqsPage from 'src/pages/faqs';
 import ProductListPage from 'src/pages/product/list';
 import ProductCategoryPage from 'src/pages/product/category';
 import ProductDetailsPage from 'src/pages/product/details';
+import PostListPage from 'src/pages/post/list';
+import PostDetailsPage from 'src/pages/post/details';
 
 function PublicPage({ children }) {
   return <MainLayout>{children}</MainLayout>;
@@ -30,6 +32,8 @@ export default function PublicSsrApp() {
         <Route path="/about-us" element={<PublicPage><AboutPage /></PublicPage>} />
         <Route path="/contact-us" element={<PublicPage><ContactPage /></PublicPage>} />
         <Route path="/faqs" element={<PublicPage><FaqsPage /></PublicPage>} />
+        <Route path="/blog" element={<PublicPage><PostListPage /></PublicPage>} />
+        <Route path="/blog/:title" element={<PublicPage><PostDetailsPage /></PublicPage>} />
       </Routes>
     </AppProviders>
   );

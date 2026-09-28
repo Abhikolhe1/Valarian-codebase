@@ -1,4 +1,5 @@
 import PropTypes from 'prop-types';
+import { useMemo, useRef } from 'react';
 import 'src/utils/highlight';
 import ReactQuill from 'react-quill';
 // @mui
@@ -15,11 +16,39 @@ export default function Editor({
   simple = false,
   helperText,
   sx,
+  uploadImage,
   ...other
 }) {
-  const modules = {
+  const editorRef = useRef(null);
+
+  const modules = useMemo(() => ({
     toolbar: {
       container: `#${id}`,
+      handlers: uploadImage
+        ? {
+            image: () => {
+              const input = document.createElement('input');
+              input.setAttribute('type', 'file');
+              input.setAttribute('accept', 'image/*');
+              input.click();
+              input.onchange = async () => {
+                const file = input.files?.[0];
+                if (!file) return;
+                const uploaded = await uploadImage(file);
+                const url = typeof uploaded === 'string' ? uploaded : uploaded?.url;
+                const editor = editorRef.current?.getEditor();
+                const range = editor?.getSelection(true);
+                if (editor && url) {
+                  editor.insertEmbed(range?.index || 0, 'image', url, 'user');
+                  const image = [...editor.root.querySelectorAll('img')].find(
+                    (item) => item.getAttribute('src') === url
+                  );
+                  if (image && uploaded?.alt) image.setAttribute('alt', uploaded.alt);
+                }
+              };
+            },
+          }
+        : undefined,
     },
     history: {
       delay: 500,
@@ -30,7 +59,7 @@ export default function Editor({
     clipboard: {
       matchVisual: false,
     },
-  };
+  }), [id, uploadImage]);
 
   return (
     <>
@@ -48,6 +77,7 @@ export default function Editor({
         <Toolbar id={id} isSimple={simple} />
 
         <ReactQuill
+          ref={editorRef}
           modules={modules}
           formats={formats}
           placeholder="Write something awesome..."
@@ -66,4 +96,5 @@ Editor.propTypes = {
   id: PropTypes.string,
   simple: PropTypes.bool,
   sx: PropTypes.object,
+  uploadImage: PropTypes.func,
 };
