@@ -2104,7 +2104,10 @@ export class AuthController {
     const state = crypto.randomBytes(32).toString('hex');
 
     // Store state in cache with 10-minute expiration
-    await this.cacheService.set(`oauth:state:${state}`, true, 600); // 10 minutes TTL
+    const saved = await this.cacheService.set(`oauth:state:${state}`, true, 600);
+    if (!saved) {
+      throw new HttpErrors.ServiceUnavailable('Google login is temporarily unavailable. Please try again shortly.');
+    }
 
     const authUrl = this.googleOAuthService.getAuthorizationUrl(state);
 
