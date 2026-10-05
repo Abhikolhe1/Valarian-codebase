@@ -50,7 +50,7 @@ describe('CacheService (unit)', () => {
 
   after(/** @this {Mocha.Context} */ async function () {
     this.timeout(5000);
-    if (isRedisAvailable && cacheService) {
+    if (cacheService) {
       try {
         await cacheService.disconnect();
       } catch (error) {

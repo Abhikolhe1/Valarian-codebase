@@ -70,6 +70,11 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Redis connection and Google login regression gate
+        run: >-
+          npx lb-mocha --require dist/__tests__/test-env.js --allow-console-logs
+          "dist/__tests__/unit/services/redis-connection.unit.js"
+
       # The CI Postgres container starts completely empty (no tables). Real
       # UAT/production databases already have their schema from cumulative
       # history and NEVER get automigrate here — this is exclusively for the

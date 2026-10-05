@@ -1,30 +1,19 @@
 import {BindingScope, injectable} from '@loopback/core';
 import {HttpErrors} from '@loopback/rest';
-import {createClient, RedisClientType} from 'redis';
+import {RedisConnection} from './redis-connection';
 
 interface MemoryCounter {count: number; expiresAt: number}
 
 @injectable({scope: BindingScope.SINGLETON})
 export class OtpRateLimitService {
-  private client?: RedisClientType;
-  private connectPromise?: Promise<boolean>;
+  private readonly connection = new RedisConnection(process.env.REDIS_URL, 'OtpRateLimit');
+  private get client() {return this.connection.client;}
+  stop(): void {this.connection.stop();}
   private counters = new Map<string, MemoryCounter>();
   private warnedFallback = false;
 
   private async connect(): Promise<boolean> {
-    if (!process.env.REDIS_URL) return false;
-    if (this.client?.isReady) return true;
-    if (!this.connectPromise) {
-      this.client = createClient({
-        url: process.env.REDIS_URL,
-        socket: {connectTimeout: Number(process.env.REDIS_CONNECT_TIMEOUT ?? 2000)},
-      });
-      this.client.on('error', error => {
-        console.error('[OtpRateLimit] Redis error:', error.message);
-      });
-      this.connectPromise = this.client.connect().then(() => true).catch(() => false);
-    }
-    return this.connectPromise;
+    return this.connection.ready();
   }
 
   private memoryIncrement(key: string, windowSeconds: number): number {

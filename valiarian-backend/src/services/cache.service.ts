@@ -1,5 +1,5 @@
 import {BindingScope, injectable} from '@loopback/core';
-import {createClient, RedisClientType} from 'redis';
+import {RedisConnection} from './redis-connection';
 
 /**
  * Cache key prefixes for different content types
@@ -32,108 +32,17 @@ export const CACHE_TTL = {
  */
 @injectable({scope: BindingScope.SINGLETON})
 export class CacheService {
-  private client: RedisClientType | null = null;
-  private isConnected: boolean = false;
-  private connectionPromise: Promise<void> | null = null;
+  private readonly connection = new RedisConnection(
+    process.env.REDIS_URL ?? 'redis://localhost:6379', 'Cache',
+  );
 
-  constructor() {
-    // Initialize Redis connection
-    this.initializeRedis().catch(error => console.error('Cache initialization failed:', error));
-  }
+  private get client() {return this.connection.client;}
 
-  /**
-   * Initialize Redis connection with timeout
-   */
-  private async initializeRedis(): Promise<void> {
-    if (this.connectionPromise) {
-      return this.connectionPromise;
-    }
-
-    this.connectionPromise = (async () => {
-      try {
-        const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
-        const connectionTimeout = parseInt(process.env.REDIS_CONNECT_TIMEOUT || '2000', 10);
-
-        this.client = createClient({
-          url: redisUrl,
-          socket: {
-            connectTimeout: connectionTimeout,
-            reconnectStrategy: (retries: number) => {
-              // Stop reconnecting after 3 attempts
-              if (retries > 3) {
-                console.log('Redis reconnection attempts exhausted. Running without cache.');
-                return false;
-              }
-              // Exponential backoff with max 3 seconds
-              return Math.min(retries * 100, 3000);
-            },
-          },
-        });
-
-        // Error handling
-        this.client.on('error', (err: Error) => {
-          console.error('Redis Client Error:', err.message);
-          this.isConnected = false;
-        });
-
-        this.client.on('connect', () => {
-          console.log('Redis Client Connected');
-          this.isConnected = true;
-        });
-
-        this.client.on('disconnect', () => {
-          console.log('Redis Client Disconnected');
-          this.isConnected = false;
-        });
-
-        // Connect to Redis with timeout
-        const connectPromise = this.client.connect();
-        const timeoutPromise = new Promise<never>((_, reject) => {
-          setTimeout(() => reject(new Error('Redis connection timeout')), connectionTimeout);
-        });
-
-        await Promise.race([connectPromise, timeoutPromise]);
-        this.isConnected = true;
-        console.log('✓ Cache service initialized with Redis');
-      } catch (error) {
-        console.warn('⚠ Redis unavailable - running without cache:', (error as Error).message);
-        this.isConnected = false;
-        this.client = null;
-        // Don't throw - allow app to continue without cache
-      }
-    })();
-
-    return this.connectionPromise;
-  }
-
-  /**
-   * Ensure Redis is connected
-   * Returns immediately if connection failed previously
-   */
   private async ensureConnected(): Promise<boolean> {
-    if (this.isConnected && this.client) {
-      return true;
-    }
-
-    // A request can arrive while the constructor-started connection is still
-    // being established. Wait for that attempt before deciding Redis is down.
-    if (this.connectionPromise && !this.isConnected) {
-      try {
-        await this.connectionPromise;
-      } catch (error) {
-        return false;
-      }
-
-      return this.isConnected && this.client !== null;
-    }
-
-    try {
-      await this.initializeRedis();
-      return this.isConnected && this.client !== null;
-    } catch (error) {
-      return false;
-    }
+    return this.connection.ready();
   }
+
+  stop(): void {this.connection.stop();}
 
   /**
    * Get value from cache
@@ -494,10 +403,6 @@ export class CacheService {
    * Disconnect from Redis
    */
   async disconnect(): Promise<void> {
-    if (this.client) {
-      await this.client.quit();
-      this.isConnected = false;
-      this.client = null;
-    }
+    this.stop();
   }
 }
