@@ -1,6 +1,6 @@
 import {AuthenticationComponent, registerAuthenticationStrategy} from '@loopback/authentication';
 import {BootMixin} from '@loopback/boot';
-import {ApplicationConfig, BindingScope} from '@loopback/core';
+import {ApplicationConfig, asLifeCycleObserver, BindingScope} from '@loopback/core';
 import {RepositoryMixin} from '@loopback/repository';
 import {RestApplication} from '@loopback/rest';
 import {
@@ -104,7 +104,8 @@ export class ValiarianBackendApplication extends BootMixin(
   setUpBinding(): void {
     this.bind('service.hasher').toClass(BcryptHasher);
     this.bind('services.rbac').toClass(RbacService);
-    this.bind('services.cache').toClass(CacheService);
+    this.bind('services.cache').toClass(CacheService)
+      .inScope(BindingScope.SINGLETON).apply(asLifeCycleObserver);
     this.bind('services.cms').toClass(CMSService);
     this.bind('services.audit').toClass(AuditService);
     this.bind('services.SlugService').toClass(SlugService);
@@ -126,7 +127,8 @@ export class ValiarianBackendApplication extends BootMixin(
     this.bind('services.invoice.print').toClass(InvoicePrintService);
     this.bind('services.otp.notification').toClass(OtpNotificationService);
     this.bind('services.otp').toClass(OtpService);
-    this.bind('services.otp.rate-limit').toClass(OtpRateLimitService);
+    this.bind('services.otp.rate-limit').toClass(OtpRateLimitService)
+      .inScope(BindingScope.SINGLETON).apply(asLifeCycleObserver);
     this.bind('services.whatsapp').toClass(WhatsAppService);
     this.bind('services.storage').toClass(LocalStorageService);
     this.bind('services.barcode').toClass(BarcodeService);
