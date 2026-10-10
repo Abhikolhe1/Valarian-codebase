@@ -116,10 +116,18 @@ export class DelhiveryWebhookController {
         deliveredAt: scan.timestamp,
         updatedAt: now,
       });
-    } else if (!shipment.isReverse && scan.internalStatus === 'rto_initiated') {
+    } else if (
+      !shipment.isReverse &&
+      ['rto_initiated', 'rto_in_transit'].includes(scan.internalStatus)
+    ) {
+      const rtoOrderStatus =
+        scan.internalStatus === 'rto_in_transit'
+          ? 'rto_in_transit' as const
+          : 'rto_initiated' as const;
       await this.orderRepository.updateById(shipment.orderId, {
-        status: 'rto_initiated',
-        rtoStatus: 'initiated',
+        status: rtoOrderStatus,
+        rtoStatus:
+          scan.internalStatus === 'rto_in_transit' ? 'in_transit' : 'initiated',
         rtoInitiatedAt: scan.timestamp,
         updatedAt: now,
       });

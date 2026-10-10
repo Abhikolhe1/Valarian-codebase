@@ -46,10 +46,27 @@ import {
 const isPrepaidOrder = (order) =>
   order?.paymentMethod === 'razorpay' || order?.paymentMethod === 'wallet';
 
-const localDateInputValue = () => {
-  const now = new Date();
-  const local = new Date(now.getTime() - now.getTimezoneOffset() * 60000);
-  return local.toISOString().slice(0, 10);
+const INCLUDED_SHIPPING_CHARGE = 199;
+
+const formatOrderDeliveryCharge = (order) => {
+  const included = `${fCurrency(INCLUDED_SHIPPING_CHARGE)} included`;
+  if (order?.deliveryMode !== 'express') return included;
+  return `${included} + ${fCurrency(Number(order.shipping || 29))} Express`;
+};
+
+const delhiveryPickupDateInputValue = () => {
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Asia/Kolkata',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(new Date());
+  const value = (type) => Number(parts.find((part) => part.type === type)?.value);
+  const date = new Date(Date.UTC(value('year'), value('month') - 1, value('day')));
+  if (value('hour') >= 14) date.setUTCDate(date.getUTCDate() + 1);
+  return date.toISOString().slice(0, 10);
 };
 
 const formatStatusOption = (option) => {
@@ -117,7 +134,7 @@ export default function OrderDetailsView() {
   const [courierAction, setCourierAction] = useState('');
   const [pickupDialogOpen, setPickupDialogOpen] = useState(false);
   const [pickupShipment, setPickupShipment] = useState(null);
-  const [pickupDate, setPickupDate] = useState(localDateInputValue);
+  const [pickupDate, setPickupDate] = useState(delhiveryPickupDateInputValue);
   const [pickupTime, setPickupTime] = useState('11:00');
   const [cancelShipmentDialogOpen, setCancelShipmentDialogOpen] = useState(false);
   const [shipmentToCancel, setShipmentToCancel] = useState(null);
@@ -130,6 +147,10 @@ export default function OrderDetailsView() {
   const [trackingNumber, setTrackingNumber] = useState('');
   const [carrier, setCarrier] = useState('');
   const [estimatedDelivery, setEstimatedDelivery] = useState('');
+  const [packageWeightGrams, setPackageWeightGrams] = useState('425');
+  const [packageLengthCm, setPackageLengthCm] = useState('35');
+  const [packageBreadthCm, setPackageBreadthCm] = useState('34');
+  const [packageHeightCm, setPackageHeightCm] = useState('3');
   const [updating, setUpdating] = useState(false);
 
   // Return Dialog
@@ -258,6 +279,19 @@ export default function OrderDetailsView() {
       const orderStatus = isPackingAction ? 'packed' : newStatus;
       const skipBlueDart = shippingProvider === 'manual';
 
+      if (isPackingAction && shippingProvider !== 'manual') {
+        const measurements = [
+          packageWeightGrams,
+          packageLengthCm,
+          packageBreadthCm,
+          packageHeightCm,
+        ].map(Number);
+        if (measurements.some((value) => !Number.isFinite(value) || value <= 0)) {
+          enqueueSnackbar('Enter valid positive packed weight and dimensions.', { variant: 'error' });
+          return;
+        }
+      }
+
       const payload = {
         status: orderStatus,
         comment: statusComment,
@@ -276,6 +310,10 @@ export default function OrderDetailsView() {
         await axios.post(`/api/admin/orders/${id}/shipments`, {
           generateLabelNow: shippingProvider === 'delhivery',
           provider: shippingProvider === 'delhivery' ? 'Delhivery' : 'BlueDart',
+          weightGrams: Number(packageWeightGrams),
+          lengthCm: Number(packageLengthCm),
+          breadthCm: Number(packageBreadthCm),
+          heightCm: Number(packageHeightCm),
         });
       }
 
@@ -542,6 +580,29 @@ export default function OrderDetailsView() {
     } catch (syncError) {
       enqueueSnackbar(
         syncError.response?.data?.message || 'Unable to refresh courier tracking.',
+        { variant: 'error' }
+      );
+    } finally {
+      setCourierAction('');
+    }
+  };
+
+  const handleCalculateDelhiveryCost = async (shipment) => {
+    setCourierAction(`cost:${shipment.id}`);
+    try {
+      const response = await axios.post(
+        `/api/admin/delhivery/shipments/${shipment.id}/shipping-cost`
+      );
+      enqueueSnackbar(
+        `Estimated Delhivery cost: ${fCurrency(response.data?.estimate?.totalCourierCost || 0)}`,
+        { variant: 'success' }
+      );
+      await fetchOrderDetails();
+    } catch (costError) {
+      enqueueSnackbar(
+        costError.response?.data?.error?.message ||
+          costError.response?.data?.message ||
+          'Unable to calculate the Delhivery cost.',
         { variant: 'error' }
       );
     } finally {
@@ -1146,7 +1207,7 @@ export default function OrderDetailsView() {
                 )}
                 <Stack direction="row" justifyContent="space-between">
                   <Typography variant="body2">Shipping</Typography>
-                  <Typography variant="body2">{fCurrency(order.shipping)} included</Typography>
+                  <Typography variant="body2">{formatOrderDeliveryCharge(order)}</Typography>
                 </Stack>
                 {order.tax > 0 && (
                   <Stack direction="row" justifyContent="space-between">
@@ -1227,7 +1288,15 @@ export default function OrderDetailsView() {
                               Courier / Service
                             </Typography>
                             <Typography variant="body2">
-                              {[shipment.courierName, shipment.serviceType, shipment.productCode, shipment.subProductCode]
+                              {[
+                                shipment.courierName,
+                                shipment.courierName === 'Delhivery'
+                                  ? order.deliveryMode || shipment.serviceType
+                                  : shipment.serviceType,
+                                ...(shipment.courierName === 'Delhivery'
+                                  ? []
+                                  : [shipment.productCode, shipment.subProductCode]),
+                              ]
                                 .filter(Boolean)
                                 .join(' / ') || 'Not recorded'}
                             </Typography>
@@ -1252,6 +1321,47 @@ export default function OrderDetailsView() {
                           </Grid>
                         </Grid>
 
+                        {shipment.courierName === 'Delhivery' && (
+                          <Box sx={{ p: 2, borderRadius: 1, bgcolor: 'background.neutral' }}>
+                            <Typography variant="subtitle2" gutterBottom>
+                              Estimated Delhivery Cost
+                            </Typography>
+                            {shipment.chargesUnavailable ? (
+                              <Typography variant="body2" color="text.secondary">
+                                Not calculated yet. Use the production Delhivery rate API for the
+                                account-specific estimate.
+                              </Typography>
+                            ) : (
+                              <Grid container spacing={1}>
+                                <Grid xs={6} sm={3}>
+                                  <Typography variant="caption" color="text.secondary">Base</Typography>
+                                  <Typography variant="body2">{fCurrency(Number(shipment.shippingCharge || 0))}</Typography>
+                                </Grid>
+                                <Grid xs={6} sm={3}>
+                                  <Typography variant="caption" color="text.secondary">Fuel</Typography>
+                                  <Typography variant="body2">{fCurrency(Number(shipment.fuelSurcharge || 0))}</Typography>
+                                </Grid>
+                                <Grid xs={6} sm={3}>
+                                  <Typography variant="caption" color="text.secondary">COD</Typography>
+                                  <Typography variant="body2">{fCurrency(Number(shipment.codCharge || 0))}</Typography>
+                                </Grid>
+                                <Grid xs={6} sm={3}>
+                                  <Typography variant="caption" color="text.secondary">Tax / Other</Typography>
+                                  <Typography variant="body2">{fCurrency(Number(shipment.otherCharges || 0))}</Typography>
+                                </Grid>
+                                <Grid xs={12}>
+                                  <Typography variant="subtitle1">
+                                    Total estimate: {fCurrency(Number(shipment.totalCourierCost || 0))}
+                                  </Typography>
+                                </Grid>
+                              </Grid>
+                            )}
+                            <Typography variant="caption" color="text.secondary">
+                              Delhivery’s estimate may differ from the final courier invoice.
+                            </Typography>
+                          </Box>
+                        )}
+
                         {shipment.pickupRegistrationError && (
                           <Alert severity="error">
                             Pickup creation failed: {shipment.pickupRegistrationError}
@@ -1259,7 +1369,7 @@ export default function OrderDetailsView() {
                         )}
 
                         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} flexWrap="wrap">
-                          {!shipment.isReverse && shipment.awbNumber && (
+                          {shipment.awbNumber && (
                             <Button
                               size="small"
                               variant="outlined"
@@ -1267,9 +1377,10 @@ export default function OrderDetailsView() {
                               disabled={Boolean(courierAction)}
                               onClick={() => handlePrintShippingLabel(shipment)}
                             >
-                              {shipment.courierName === 'Delhivery'
-                                ? 'Official Delhivery Label'
-                                : 'Print Shipping Label'}
+                              {shipment.courierName !== 'Delhivery'
+                                ? 'Print Shipping Label'
+                                : (shipment.isReverse && 'Official Return Label') ||
+                                  'Official Delhivery Label'}
                             </Button>
                           )}
                           {shipment.awbNumber && shipment.status !== 'cancelled' && (
@@ -1283,6 +1394,19 @@ export default function OrderDetailsView() {
                               {courierAction === `sync:${shipment.id}` ? 'Refreshing...' : 'Refresh Tracking'}
                             </Button>
                           )}
+                          {shipment.courierName === 'Delhivery' && shipment.awbNumber && (
+                            <Button
+                              size="small"
+                              variant="outlined"
+                              startIcon={<Iconify icon="solar:calculator-bold" />}
+                              disabled={Boolean(courierAction)}
+                              onClick={() => handleCalculateDelhiveryCost(shipment)}
+                            >
+                              {courierAction === `cost:${shipment.id}`
+                                ? 'Calculating...'
+                                : 'Calculate Courier Cost'}
+                            </Button>
+                          )}
                           {shipment.courierName === 'Delhivery' &&
                             !shipment.isReverse &&
                             shipment.status === 'created' &&
@@ -1294,7 +1418,7 @@ export default function OrderDetailsView() {
                               disabled={Boolean(courierAction)}
                               onClick={() => {
                                 setPickupShipment(shipment);
-                                setPickupDate(localDateInputValue());
+                                setPickupDate(delhiveryPickupDateInputValue());
                                 setPickupDialogOpen(true);
                               }}
                             >
@@ -1820,6 +1944,28 @@ export default function OrderDetailsView() {
               onChange={(e) => setStatusComment(e.target.value)}
             />
 
+            {['packed_delhivery', 'packed_bluedart'].includes(newStatus) && (
+              <>
+                <Typography variant="subtitle2">Final sealed parcel</Typography>
+                <TextField
+                  fullWidth
+                  type="number"
+                  label="Weight (grams)"
+                  value={packageWeightGrams}
+                  onChange={(e) => setPackageWeightGrams(e.target.value)}
+                  inputProps={{ min: 1 }}
+                />
+                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+                  <TextField type="number" label="Length (cm)" value={packageLengthCm} onChange={(e) => setPackageLengthCm(e.target.value)} inputProps={{ min: 1 }} />
+                  <TextField type="number" label="Breadth (cm)" value={packageBreadthCm} onChange={(e) => setPackageBreadthCm(e.target.value)} inputProps={{ min: 1 }} />
+                  <TextField type="number" label="Height (cm)" value={packageHeightCm} onChange={(e) => setPackageHeightCm(e.target.value)} inputProps={{ min: 1 }} />
+                </Stack>
+                <Alert severity="info">
+                  Measure the final sealed parcel. For multiple products packed in one box, enter the combined parcel weight and outer dimensions.
+                </Alert>
+              </>
+            )}
+
             {(newStatus === 'shipped' || newStatus === 'packed_manual' ||
               (order.selectedShippingProvider === 'manual' && ['out_for_delivery', 'delivered'].includes(newStatus))) && (
               <>
@@ -2045,7 +2191,7 @@ export default function OrderDetailsView() {
               type="date"
               label="Pickup Date"
               value={pickupDate}
-              inputProps={{ min: localDateInputValue() }}
+              inputProps={{ min: delhiveryPickupDateInputValue() }}
               InputLabelProps={{ shrink: true }}
               onChange={(event) => setPickupDate(event.target.value)}
             />
@@ -2056,6 +2202,10 @@ export default function OrderDetailsView() {
               InputLabelProps={{ shrink: true }}
               onChange={(event) => setPickupTime(event.target.value)}
             />
+            <Typography variant="caption" color="text.secondary">
+              Before 2:00 PM IST, pickup can be requested for today. At or after 2:00 PM,
+              the earliest pickup date is tomorrow.
+            </Typography>
             <Typography variant="caption" color="text.secondary">
               AWB: {pickupShipment?.awbNumber || 'Not available'}
             </Typography>

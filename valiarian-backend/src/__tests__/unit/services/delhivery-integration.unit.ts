@@ -11,11 +11,14 @@ import {
   DelhiveryProvider,
   mapDelhiveryStatus,
   parseDelhiveryServiceability,
+  parseDelhiveryShippingCost,
 } from '../../../services/shipping-providers/delhivery.provider';
 
 const config = loadDelhiveryConfig({
   DELHIVERY_API_TOKEN: 'test-token',
+  DELHIVERY_RATE_API_TOKEN: 'test-token',
   DELHIVERY_ENV: 'staging',
+  DELHIVERY_PICKUP_LOCATION_NAME: 'VALIARIANB2C-B2C',
 });
 
 const shipment: CreateShipmentParams = {
@@ -42,6 +45,8 @@ const shipment: CreateShipmentParams = {
   heightCm: 5,
   declaredValue: 1000,
   isCod: false,
+  numberOfPieces: 1,
+  itemQuantity: 3,
 };
 
 const reversePickup: CreateReversePickupParams = {
@@ -81,6 +86,14 @@ describe('Delhivery B2C integration', () => {
     }}]}, '400001');
     assert.equal(available.isServiceable, true);
     assert.equal(available.isCodAvailable, true);
+    const surfaceEta = parseDelhiveryServiceability({delivery_codes: [{postal_code: {
+      pin: 400001, pre_paid: 'Y', cod: 'Y', surface_tat: '4', air_tat: '2',
+    }}]}, '400001', 'surface');
+    const expressEta = parseDelhiveryServiceability({delivery_codes: [{postal_code: {
+      pin: 400001, pre_paid: 'Y', cod: 'Y', surface_tat: '4', air_tat: '2',
+    }}]}, '400001', 'air');
+    assert.equal(surfaceEta.estimatedTransitDays, 4);
+    assert.equal(expressEta.estimatedTransitDays, 2);
     assert.equal(parseDelhiveryServiceability({delivery_codes: [{postal_code: {
       pin: 400001, pre_paid: 'Y', cod: 'Y', remarks: 'Embargo',
     }}]}, '400001').isServiceable, false);
@@ -102,20 +115,35 @@ describe('Delhivery B2C integration', () => {
     assert.equal(mapDelhiveryStatus('RTO', 'DL'), 'rto_delivered');
   });
 
+  it('parses the Delhivery account-rate estimate and separates the total', () => {
+    const estimate = parseDelhiveryShippingCost([{
+      charge_DL: 80,
+      charge_FSC: 10,
+      charge_COD: 0,
+      total_amount: 106.2,
+    }]);
+    assert.equal(estimate.shippingCharge, 80);
+    assert.equal(estimate.fuelSurcharge, 10);
+    assert.equal(estimate.otherCharges, 16.2);
+    assert.equal(estimate.totalCourierCost, 106.2);
+  });
+
   it('manifests SPS shipments as URL-encoded data and stores the returned Waybill', async () => {
     let request: any;
     const provider = new DelhiveryProvider(config, {request: async (value: any) => {
       request = value;
       return {success: true, packages: [{status: 'Success', waybill: '1234567890123'}]};
     }} as any);
-    const result = await provider.createShipment(shipment);
+    const result = await provider.createShipment({...shipment, shippingMode: 'Express'});
     assert.equal(result.awbNumber, '1234567890123');
     assert.equal(request.contentType, 'application/x-www-form-urlencoded');
     const form = new URLSearchParams(request.data);
     const payload = JSON.parse(form.get('data') ?? '{}');
-    assert.equal(payload.pickup_location.name, shipment.warehouseName);
+    assert.equal(payload.pickup_location.name, 'VALIARIANB2C-B2C');
     assert.equal(payload.shipments[0].payment_mode, 'Prepaid');
-    assert.equal(payload.shipments[0].order, shipment.orderReference);
+    assert.equal(payload.shipments[0].order, shipment.orderNumber);
+    assert.equal(payload.shipments[0].quantity, '3');
+    assert.equal(payload.shipments[0].shipping_mode, 'Express');
   });
 
   it('sends the token as a query parameter only for Waybill allocation', async () => {
@@ -154,7 +182,7 @@ describe('Delhivery B2C integration', () => {
     assert.equal(tracking.attemptNumber, 2);
   });
 
-  it('selects Delhivery first while also recording Blue Dart availability', async () => {
+  it('selects Delhivery first without calling Blue Dart when Delhivery is usable', async () => {
     const service = new ShippingService(undefined, undefined, undefined);
     let blueDartCalls = 0;
     Object.assign(service, {
@@ -176,7 +204,7 @@ describe('Delhivery B2C integration', () => {
       paymentType: 'prepaid',
     }, true);
     assert.equal(result.selectedProvider, 'Delhivery');
-    assert.equal(blueDartCalls, 1);
+    assert.equal(blueDartCalls, 0);
   });
 
   it('falls through to Blue Dart when Delhivery is unavailable', async () => {
@@ -199,6 +227,35 @@ describe('Delhivery B2C integration', () => {
     assert.equal(result.selectedProvider, 'BlueDart');
     assert.equal(result.delhivery?.isServiceable, false);
     assert.equal(result.blueDart?.isServiceable, true);
+  });
+
+  it('falls through to Blue Dart for COD when Delhivery cannot collect COD', async () => {
+    const service = new ShippingService(undefined, undefined, undefined);
+    let blueDartCalls = 0;
+    Object.assign(service, {
+      delhiveryProvider: {
+        courierName: 'Delhivery',
+        isConfigured: true,
+        checkServiceability: async () => ({
+          isServiceable: true,
+          isCodAvailable: false,
+          courierName: 'Delhivery',
+        }),
+      },
+      activeProvider: {
+        courierName: 'BlueDart',
+        checkServiceability: async () => {
+          blueDartCalls++;
+          return {isServiceable: true, isCodAvailable: true, courierName: 'BlueDart'};
+        },
+      },
+    });
+    const result = await service.checkPreferredServiceability({
+      pincode: '400001',
+      paymentType: 'cod',
+    }, true);
+    assert.equal(result.selectedProvider, 'BlueDart');
+    assert.equal(blueDartCalls, 1);
   });
 
   it('creates a parametric RVP QC payload using mapped client question IDs', async () => {
@@ -272,6 +329,7 @@ describe('Delhivery B2C integration', () => {
     const provider = new DelhiveryProvider(config, {request: async (request: any) => {
       requests.push(request);
       if (request.operation === 'registerPickup') return {pickup_id: 'PICKUP-1'};
+      if (request.operation === 'calculateShippingCost') return [{total_amount: 100}];
       return {success: true};
     }} as any);
 
@@ -350,6 +408,33 @@ describe('Delhivery B2C integration', () => {
       data: [{waybill: '1234567890123', act: 'RE-ATTEMPT'}],
     });
     assert.equal(requestFor('getNdrStatus').path, '/api/cmu/get_bulk_upl/UPL123456');
+  });
+
+  it('accepts a numeric pickup reference returned with HTTP-level creation semantics', async () => {
+    const provider = new DelhiveryProvider(config, {request: async () => ({
+      success: false,
+      pickup_id: 987654,
+      pr_exist: true,
+    })} as any);
+
+    const result = await provider.registerPickup({
+      providerRequestId: 'pickup-existing',
+      awbNumber: '1234567890123',
+      areaCode: '',
+      customerCode: '',
+      customerName: 'Valiarian Warehouse',
+      addressLine1: 'Warehouse address',
+      pincode: '422001',
+      phone: '9999999999',
+      numberOfPieces: 1,
+      weightKg: 0.5,
+      pickupDate: new Date('2026-09-29T00:00:00.000Z'),
+      pickupTime: '11:00',
+      officeCloseTime: '18:00',
+      productCode: 'S',
+    });
+
+    assert.equal(result.pickupReference, '987654');
   });
 
   it('downloads the official 4R Delhivery label only from an approved HTTPS host', async () => {

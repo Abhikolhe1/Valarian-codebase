@@ -53,6 +53,20 @@ export class ShipmentLabel extends Entity {
   })
   generatedBy?: string; // Admin user ID
 
+  @property({
+    type: 'date',
+    defaultFn: 'now',
+    postgresql: {columnName: 'createdat'},
+  })
+  createdAt: Date;
+
+  @property({
+    type: 'date',
+    defaultFn: 'now',
+    postgresql: {columnName: 'updatedat'},
+  })
+  updatedAt: Date;
+
   constructor(data?: Partial<ShipmentLabel>) {
     super(data);
   }

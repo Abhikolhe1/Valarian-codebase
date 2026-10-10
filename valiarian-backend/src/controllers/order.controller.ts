@@ -116,6 +116,7 @@ interface CreateOrderRequest {
     country: string;
   };
   paymentMethod: 'razorpay' | 'cod' | 'wallet';
+  deliveryMode?: 'surface' | 'express';
   discount?: number;
   couponCode?: string;
   shipping?: number;
@@ -613,9 +614,12 @@ export class OrderController {
       paymentMethod: request.paymentMethod,
     });
     const discount = couponApplication ? couponApplication.discountAmount : 0;
-    const shipping = request.shipping || 0;
+    // Never trust a client-submitted shipping value. Express is a fixed,
+    // server-enforced surcharge and is only reachable after Delhivery routing
+    // validation has succeeded.
+    const shipping = request.deliveryMode === 'express' ? 29 : 0;
     tax = Number(roundCurrency(tax));
-    const total = subtotal - discount;
+    const total = subtotal - discount + shipping;
 
     if (subtotal <= 0 || total <= 0) {
       throw new HttpErrors.BadRequest('Invalid order total');
@@ -628,7 +632,7 @@ export class OrderController {
       couponApplication,
       shipping,
       tax,
-      total: subtotal - discount,
+      total,
     };
   }
 
@@ -1730,7 +1734,7 @@ export class OrderController {
   }
 
   private async checkDestinationServiceability(
-    request: Pick<CreateOrderRequest, 'shippingAddress' | 'paymentMethod'>,
+    request: Pick<CreateOrderRequest, 'shippingAddress' | 'paymentMethod' | 'deliveryMode'>,
     forceRefresh = false,
   ): Promise<DeliveryEligibility> {
     const pincode = (request.shippingAddress?.zipCode ?? '').trim();
@@ -1741,12 +1745,35 @@ export class OrderController {
     // never bypass the independent postal-directory check.
     await this.postalPincodeService.assertExists(pincode);
     const isCod = request.paymentMethod === 'cod';
+    const deliveryMode = request.deliveryMode ?? 'surface';
+    if (!['surface', 'express'].includes(deliveryMode)) {
+      throw new HttpErrors.BadRequest('Delivery mode must be surface or express.');
+    }
     const forwardService = selectForwardWaybillService(isCod);
-    const result = await this.shippingService.checkPreferredServiceability({
+    const serviceabilityParams = {
       pincode,
-      deliveryMode: forwardService.deliveryMode,
+      deliveryMode: deliveryMode === 'express' ? 'air' as const : forwardService.deliveryMode,
       paymentType: forwardService.paymentType,
-    }, forceRefresh);
+    };
+    if (deliveryMode === 'express') {
+      const delhivery = await this.shippingService.checkServiceabilityForProvider(
+        'Delhivery',
+        serviceabilityParams,
+        forceRefresh,
+      );
+      const usable = delhivery.isServiceable && (!isCod || delhivery.isCodAvailable);
+      return evaluatePreferredDeliveryEligibility({
+        selectedProvider: usable ? 'Delhivery' : 'Manual',
+        result: delhivery,
+        delhivery,
+        delhiveryCheckFailed: false,
+        blueDartCheckFailed: false,
+      }, isCod);
+    }
+    const result = await this.shippingService.checkPreferredServiceability(
+      serviceabilityParams,
+      forceRefresh,
+    );
     return evaluatePreferredDeliveryEligibility(result, isCod);
   }
 
@@ -1923,6 +1950,7 @@ export class OrderController {
           delhiveryDeliveryStatus: delivery.delhiveryDeliveryStatus,
           delhiveryCheckedAt: new Date(),
           selectedShippingProvider: delivery.selectedShippingProvider,
+          deliveryMode: request.deliveryMode ?? 'surface',
           manualShippingReason: needsManualShipping
             ? unserviceableReason ?? undefined
             : undefined,
@@ -2531,11 +2559,26 @@ export class OrderController {
         timestamp: history.createdAt,
       }));
 
-      // Fetch primary forward active shipment
-      let shipment = await this.shipmentRepository.findOne({
-        where: {orderId, isReverse: false, status: {neq: 'cancelled'}},
-        include: [{relation: 'events'}],
-      });
+      // During an approved/in-progress return, show the reverse AWB and its
+      // customer-to-warehouse scan history. Otherwise show the forward AWB.
+      const isReturnTracking = Boolean(order.returnStatus) || [
+        'return_requested',
+        'returned',
+        'parcel_received',
+        'refunded',
+      ].includes(order.status);
+      let shipment = isReturnTracking
+        ? await this.shipmentRepository.findOne({
+            where: {orderId, isReverse: true, status: {neq: 'cancelled'}},
+            include: [{relation: 'events'}],
+          })
+        : undefined;
+      if (!shipment) {
+        shipment = await this.shipmentRepository.findOne({
+          where: {orderId, isReverse: false, status: {neq: 'cancelled'}},
+          include: [{relation: 'events'}],
+        });
+      }
 
       if (shipment) {
         const cacheTtlMinutes = Number(process.env.TRACKING_CACHE_TTL_MINUTES || '15');
@@ -2604,8 +2647,8 @@ export class OrderController {
         tracking: {
           orderNumber: order.orderNumber,
           status: order.status,
-          trackingNumber: order.trackingNumber,
-          carrier: order.carrier,
+          trackingNumber: shipment?.awbNumber || order.trackingNumber,
+          carrier: shipment?.courierName || order.carrier,
           estimatedDelivery: order.estimatedDelivery,
           shippingAddress: order.shippingAddress,
           events,

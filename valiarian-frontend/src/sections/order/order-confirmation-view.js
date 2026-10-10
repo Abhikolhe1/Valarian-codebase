@@ -14,6 +14,7 @@ import { paths } from 'src/routes/paths';
 // utils
 import axios from 'src/utils/axios';
 import { fCurrency } from 'src/utils/format-number';
+import { formatOrderDeliveryCharge } from 'src/utils/delivery-charge';
 import { fDateTime } from 'src/utils/format-time';
 // components
 import Iconify from 'src/components/iconify';
@@ -221,7 +222,7 @@ export default function OrderConfirmationView() {
                 <Stack direction="row" justifyContent="space-between">
                   <Typography color="text.secondary">Delivery Charge</Typography>
                   <Typography sx={{ minWidth: 140, textAlign: 'right' }}>
-                    {order.shipping ? `${fCurrency(order.shipping)} included` : 'Included'}
+                    {formatOrderDeliveryCharge(order.deliveryMode, order.shipping)}
                   </Typography>
                 </Stack>
 

@@ -28,6 +28,7 @@ import {
   ReturnRequestRepository,
   ProductRepository,
   ProductVariantRepository,
+  OrderStatusHistoryRepository,
 } from '../repositories';
 import {ShippingService} from '../services/shipping.service';
 import {InventoryLifecycleService} from '../services/inventory-lifecycle.service';
@@ -36,10 +37,12 @@ import {ShippingAuditService} from '../services/shipping-audit.service';
 import {validateShipmentAddress} from '../utils/shipment-address-validator';
 import {
   calculateOrderShippingDimensions,
+  getDefaultDimensions,
   ProductShippingData,
 } from '../utils/shipping-dimensions.utils';
 import {selectForwardWaybillService} from '../utils/bluedart-forward-service.utils';
 import {evaluateDeliveryEligibility} from '../utils/delivery-eligibility';
+import {DelhiveryValidationError} from '../services/shipping-providers/delhivery-errors';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -71,6 +74,8 @@ export class ShipmentController {
     @repository(ShipmentLabelRepository)
     public shipmentLabelRepository: ShipmentLabelRepository,
     @repository(OrderRepository) public orderRepository: OrderRepository,
+    @repository(OrderStatusHistoryRepository)
+    public orderStatusHistoryRepository: OrderStatusHistoryRepository,
     @repository(OrderItemRepository)
     public orderItemRepository: OrderItemRepository,
     @repository(ReturnRequestRepository)
@@ -122,9 +127,16 @@ export class ShipmentController {
     @requestBody() req: CreateShipmentRequest,
     @inject(SecurityBindings.USER) currentUser: UserProfile,
   ): Promise<Shipment> {
-    return this.withOrderCreationLock(`forward:${id}`, () =>
-      this.createShipmentUnlocked(id, req, currentUser),
-    );
+    try {
+      return await this.withOrderCreationLock(`forward:${id}`, () =>
+        this.createShipmentUnlocked(id, req, currentUser),
+      );
+    } catch (error) {
+      if (error instanceof DelhiveryValidationError) {
+        throw new HttpErrors.UnprocessableEntity(error.message);
+      }
+      throw error;
+    }
   }
 
   private async createShipmentUnlocked(
@@ -202,6 +214,25 @@ export class ShipmentController {
     }
     const computedDims = calculateOrderShippingDimensions(products);
 
+    const totalItemQuantity = orderItems.reduce(
+      (total, item) => total + Number(item.quantity || 0),
+      0,
+    );
+
+    const suppliedMeasurements = [
+      ['weightGrams', req.weightGrams],
+      ['lengthCm', req.lengthCm],
+      ['breadthCm', req.breadthCm],
+      ['heightCm', req.heightCm],
+    ] as const;
+    for (const [field, value] of suppliedMeasurements) {
+      if (value !== undefined && (!Number.isFinite(value) || value <= 0)) {
+        throw new HttpErrors.UnprocessableEntity(
+          `${field} must be a positive number.`,
+        );
+      }
+    }
+
     // Blue Dart receives Dimensions: [], so use actual/dead weight rather
     // than the locally calculated volumetric chargeable weight.
     const weightGrams = req.weightGrams ?? computedDims.deadWeightGrams;
@@ -211,13 +242,20 @@ export class ShipmentController {
 
     const isCod = order.paymentMethod === 'cod';
     const forwardService = selectForwardWaybillService(isCod);
+    const isDelhivery = courierName === 'Delhivery';
+    const delhiveryShippingMode = order.deliveryMode === 'express'
+      ? 'Express' as const
+      : 'Surface' as const;
+    const serviceabilityDeliveryMode = isDelhivery
+      ? (delhiveryShippingMode === 'Express' ? 'air' as const : 'surface' as const)
+      : forwardService.deliveryMode;
 
     // 5. Check the exact service that will be used for the waybill.
     let servCheck;
     try {
       servCheck = await this.shippingService.checkServiceabilityForProvider(courierName, {
         pincode: order.shippingAddress.zipCode,
-        deliveryMode: forwardService.deliveryMode,
+        deliveryMode: serviceabilityDeliveryMode,
         paymentType: forwardService.paymentType,
       });
     } catch {
@@ -240,7 +278,7 @@ export class ShipmentController {
       manualShippingReason: delivery.needsManualShipping ? delivery.message : '',
     });
     if (!servCheck.isServiceable) {
-      if (forwardService.deliveryMode === 'surface') {
+      if (serviceabilityDeliveryMode === 'surface') {
         throw new HttpErrors.UnprocessableEntity(
           'Surface delivery is not available for this PIN code.',
         );
@@ -297,11 +335,17 @@ export class ShipmentController {
       lengthCm,
       breadthCm,
       heightCm,
+      numberOfPieces: 1,
+      itemQuantity: totalItemQuantity,
+      shippingMode: delhiveryShippingMode,
+      itemDescription: `${totalItemQuantity} apparel item${totalItemQuantity === 1 ? '' : 's'}`,
       declaredValue: order.total,
-      productCode: forwardService.productCode,
-      subProductCode: forwardService.subProductCode,
-      packType: forwardService.packType,
-      serviceType: forwardService.serviceType,
+      productCode: isDelhivery ? undefined : forwardService.productCode,
+      subProductCode: isDelhivery ? undefined : forwardService.subProductCode,
+      packType: isDelhivery ? undefined : forwardService.packType,
+      serviceType: isDelhivery
+        ? delhiveryShippingMode.toLowerCase()
+        : forwardService.serviceType,
       isCod,
       codAmount: isCod ? order.total : 0,
       codFavorOf: process.env.BLUEDART_COD_FAVOR_OF || 'Valarian Pvt Ltd',
@@ -319,9 +363,11 @@ export class ShipmentController {
       heightCm,
       isCod,
       codAmount: isCod ? order.total : 0,
-      productCode: forwardService.productCode,
-      subProductCode: forwardService.subProductCode,
-      serviceType: forwardService.serviceType,
+      productCode: isDelhivery ? undefined : forwardService.productCode,
+      subProductCode: isDelhivery ? undefined : forwardService.subProductCode,
+      serviceType: isDelhivery
+        ? delhiveryShippingMode.toLowerCase()
+        : forwardService.serviceType,
       status: 'created',
       estimatedDelivery: creationResult.estimatedDelivery,
       warehouseId: req.warehouseId,
@@ -439,27 +485,34 @@ export class ShipmentController {
 
     // 12. Create Shipment Label if requested
     if (req.generateLabelNow) {
-      const labelRes = await this.shippingService.generateLabel(
-        creationResult.awbNumber,
-        courierName,
-      );
-      const storageDir =
-        process.env.STORAGE_PATH || path.join(__dirname, '../../uploads');
-      const labelPath = path.join(storageDir, 'labels');
-      if (!fs.existsSync(labelPath)) {
-        fs.mkdirSync(labelPath, {recursive: true});
-      }
-      const labelFile = `${creationResult.awbNumber}.pdf`;
-      const fileUrl = `/uploads/labels/${labelFile}`;
-      fs.writeFileSync(path.join(labelPath, labelFile), labelRes.pdf);
-
-      await this.shipmentLabelRepository.create({
-        shipmentId: shipment.id,
-        labelType: 'awb_label',
-        fileUrl,
-        generatedAt: new Date(),
-        generatedBy: currentUser.id,
+      const existingLabel = await this.shipmentLabelRepository.findOne({
+        where: {shipmentId: shipment.id, labelType: 'awb_label'},
       });
+      let fileUrl = existingLabel?.fileUrl;
+
+      if (!fileUrl) {
+        const labelRes = await this.shippingService.generateLabel(
+          creationResult.awbNumber,
+          courierName,
+        );
+        const storageDir =
+          process.env.STORAGE_PATH || path.join(__dirname, '../../uploads');
+        const labelPath = path.join(storageDir, 'labels');
+        if (!fs.existsSync(labelPath)) {
+          fs.mkdirSync(labelPath, {recursive: true});
+        }
+        const labelFile = `${creationResult.awbNumber}.pdf`;
+        fileUrl = `/uploads/labels/${labelFile}`;
+        fs.writeFileSync(path.join(labelPath, labelFile), labelRes.pdf);
+
+        await this.shipmentLabelRepository.create({
+          shipmentId: shipment.id,
+          labelType: 'awb_label',
+          fileUrl,
+          generatedAt: new Date(),
+          generatedBy: currentUser.id,
+        });
+      }
 
       await this.shipmentRepository.updateById(shipment.id, {
         labelUrl: fileUrl,
@@ -673,20 +726,130 @@ export class ShipmentController {
       }
     }
 
+    // Keep the customer-facing order status aligned with the courier scan when
+    // an admin performs a manual refresh. The background tracking job applies
+    // the same transitions, but this endpoint must not leave the order stuck
+    // at "packed" until the next cron sweep.
+    const order = await this.orderRepository.findById(shipment.orderId);
+
+    // Reverse shipments travel from the customer back to the warehouse. Never
+    // apply forward states such as shipped/out-for-delivery/delivered to them.
+    if (shipment.isReverse) {
+      let reverseOrderStatus: 'returned' | 'parcel_received' | undefined;
+      if (
+        ['picked_up', 'in_transit', 'out_for_delivery'].includes(tracking.currentStatus) &&
+        order.status === 'return_requested'
+      ) {
+        reverseOrderStatus = 'returned';
+        await this.orderRepository.updateById(shipment.orderId, {
+          status: 'returned',
+          returnStatus: 'picked',
+          returnPickedAt: new Date(),
+          updatedAt: new Date(),
+        });
+      } else if (
+        tracking.currentStatus === 'delivered' &&
+        order.status !== 'parcel_received'
+      ) {
+        reverseOrderStatus = 'parcel_received';
+        await this.orderRepository.updateById(shipment.orderId, {
+          status: 'parcel_received',
+          returnStatus: 'completed',
+          parcelReceivedAt: tracking.deliveredAt || new Date(),
+          updatedAt: new Date(),
+        });
+      }
+
+      if (reverseOrderStatus) {
+        await this.orderStatusHistoryRepository.createStatusEntry(
+          shipment.orderId,
+          reverseOrderStatus,
+          currentUser.id,
+          reverseOrderStatus === 'parcel_received'
+            ? `${shipment.courierName} delivered the return to the warehouse. Reverse AWB: ${shipment.awbNumber}.`
+            : `${shipment.courierName} collected the customer return. Reverse AWB: ${shipment.awbNumber}.`,
+        );
+      }
+
+      const updatedReverseShipment = await this.shipmentRepository.findById(shipmentId);
+      await this.auditService.logSyncTracking(
+        currentUser.id,
+        currentUser.email,
+        updatedReverseShipment,
+        prevStatus,
+      );
+      return tracking;
+    }
+
+    let nextOrderStatus:
+      | 'shipped'
+      | 'out_for_delivery'
+      | 'delivered'
+      | 'rto_initiated'
+      | 'rto_in_transit'
+      | 'rto_delivered'
+      | undefined;
+
+    if (
+      ['picked_up', 'in_transit'].includes(tracking.currentStatus) &&
+      order.status === 'packed'
+    ) {
+      nextOrderStatus = 'shipped';
+    } else if (
+      tracking.currentStatus === 'out_for_delivery' &&
+      !['delivered', 'rto_initiated', 'rto_in_transit', 'rto_delivered'].includes(order.status)
+    ) {
+      nextOrderStatus = 'out_for_delivery';
+    }
+
     // Update order status if delivered or RTO
     if (tracking.currentStatus === 'delivered') {
+      nextOrderStatus = 'delivered';
       await this.orderRepository.updateById(shipment.orderId, {
         status: 'delivered',
         deliveredAt: tracking.deliveredAt || new Date(),
         updatedAt: new Date(),
       });
-    } else if (tracking.currentStatus === 'rto_initiated') {
+    } else if (
+      ['rto_initiated', 'rto_in_transit', 'rto_delivered'].includes(
+        tracking.currentStatus,
+      )
+    ) {
+      const rtoStatus = tracking.currentStatus === 'rto_delivered'
+        ? 'delivered' as const
+        : tracking.currentStatus === 'rto_in_transit'
+          ? 'in_transit' as const
+          : 'initiated' as const;
       await this.orderRepository.updateById(shipment.orderId, {
-        status: 'rto_initiated',
-        rtoStatus: 'initiated',
-        rtoInitiatedAt: new Date(),
+        status: tracking.currentStatus as
+          | 'rto_initiated'
+          | 'rto_in_transit'
+          | 'rto_delivered',
+        rtoStatus,
+        ...(tracking.currentStatus === 'rto_initiated' &&
+        shipment.status !== 'rto_initiated'
+          ? {rtoInitiatedAt: new Date()}
+          : {}),
         updatedAt: new Date(),
       });
+      nextOrderStatus = tracking.currentStatus as
+        | 'rto_initiated'
+        | 'rto_in_transit'
+        | 'rto_delivered';
+    } else if (nextOrderStatus) {
+      await this.orderRepository.updateById(shipment.orderId, {
+        status: nextOrderStatus,
+        updatedAt: new Date(),
+      });
+    }
+
+    if (nextOrderStatus && nextOrderStatus !== order.status) {
+      await this.orderStatusHistoryRepository.createStatusEntry(
+        shipment.orderId,
+        nextOrderStatus,
+        currentUser.id,
+        `${shipment.courierName} tracking update for AWB ${shipment.awbNumber}.`,
+      );
     }
 
     const updatedShipment = await this.shipmentRepository.findById(shipmentId);
@@ -825,7 +988,7 @@ export class ShipmentController {
       );
     }
 
-    const weightGrams = req.weightGrams ?? 500;
+    const weightGrams = req.weightGrams ?? getDefaultDimensions().weightGrams;
     const origin = await this.warehouseService.getOriginDetailsForShipment();
 
     const returnReference = returnRequest?.id || order.id;

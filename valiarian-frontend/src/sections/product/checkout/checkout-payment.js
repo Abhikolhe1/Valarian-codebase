@@ -14,7 +14,6 @@ import { checkPincodeServiceability } from 'src/api/shipping';
 import { useAuthContext } from 'src/auth/hooks';
 import FormProvider from 'src/components/hook-form';
 import Iconify from 'src/components/iconify';
-import { INCLUDED_SHIPPING_CHARGE } from 'src/config/checkout';
 import { useSnackbar } from 'src/components/snackbar';
 import useRazorpay from 'src/hooks/use-razorpay';
 import {
@@ -40,13 +39,48 @@ import CheckoutEmailVerificationDialog from './checkout-email-verification-dialo
 import CheckoutPaymentMethods from './checkout-payment-methods';
 import CheckoutSummary from './checkout-summary';
 
-const DELIVERY_OPTIONS = [
-  {
-    value: INCLUDED_SHIPPING_CHARGE,
-    label: 'Standard',
-    description: '₹199 shipping discount applied — no extra delivery cost',
-  },
-];
+const getDeliveryOptions = (serviceability) => {
+  const provider = serviceability?.selectedShippingProvider;
+  const formatExpectedDate = (mode) => {
+    const rawDate = serviceability?.expectedDeliveryDates?.[mode] ||
+      serviceability?.expectedDeliveryDate;
+    if (!rawDate) return '';
+    const date = new Date(`${rawDate}T00:00:00`);
+    if (Number.isNaN(date.getTime())) return '';
+    return ` Estimated delivery on or before ${date.toLocaleDateString('en-IN', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+    })}.`;
+  };
+  if (provider === 'delhivery') {
+    return [
+      {
+        value: 'surface',
+        price: 0,
+        label: 'Standard Delivery',
+        description: `Standard delivery.${formatExpectedDate('surface')}`,
+      },
+      {
+        value: 'express',
+        price: 29,
+        label: 'Express Delivery',
+        description: `Express delivery.${formatExpectedDate('express')} ₹29 express charge applies.`,
+      },
+    ];
+  }
+  if (provider === 'bluedart' || provider === 'manual') {
+    return [
+      {
+        value: 'surface',
+        price: 0,
+        label: 'Standard Delivery',
+        description: 'Standard delivery. Shipping is included in the product price.',
+      },
+    ];
+  }
+  return [];
+};
 
 const PAYMENT_OPTIONS = [
   {
@@ -130,6 +164,10 @@ export default function CheckoutPayment({
   const [emailDialogOpen, setEmailDialogOpen] = useState(false);
   const [codUnavailable, setCodUnavailable] = useState('');
   const [isCheckingCod, setIsCheckingCod] = useState(false);
+  const [deliveryUnavailable, setDeliveryUnavailable] = useState('');
+  const [deliveryEligibility, setDeliveryEligibility] = useState(
+    billing?.deliveryEligibility || null
+  );
 
   const PaymentSchema = Yup.object().shape({
     payment: Yup.string().required('Payment method is required!'),
@@ -138,7 +176,7 @@ export default function CheckoutPayment({
   const methods = useForm({
     resolver: yupResolver(PaymentSchema),
     defaultValues: {
-      delivery: shipping,
+      delivery: 'surface',
       payment: 'razorpay',
     },
   });
@@ -151,6 +189,19 @@ export default function CheckoutPayment({
   } = methods;
 
   const selectedPayment = watch('payment');
+  const selectedDelivery = watch('delivery');
+  const expressDeliveryCharge =
+    deliveryEligibility?.selectedShippingProvider === 'delhivery' &&
+    selectedDelivery === 'express'
+      ? 29
+      : 0;
+  const payableTotal = Number(total || 0) + expressDeliveryCharge;
+  const deliveryOptions = getDeliveryOptions(deliveryEligibility);
+  const paymentOptions = PAYMENT_OPTIONS.filter(
+    (option) =>
+      option.value !== 'cod' ||
+      deliveryEligibility?.availablePaymentMethods?.includes('cod')
+  );
 
   useEffect(() => {
     if (selectedPayment === 'razorpay') {
@@ -161,7 +212,7 @@ export default function CheckoutPayment({
   useEffect(() => {
     const pincode = billing?.zipCode;
 
-    if (selectedPayment !== 'cod' || !pincode) {
+    if (!pincode || !selectedDelivery) {
       setCodUnavailable('');
       return undefined;
     }
@@ -169,11 +220,21 @@ export default function CheckoutPayment({
     let ignore = false;
     setIsCheckingCod(true);
 
-    checkPincodeServiceability(pincode, 'cod')
+    checkPincodeServiceability(
+      pincode,
+      selectedPayment === 'cod' ? 'cod' : undefined,
+      selectedDelivery
+    )
       .then((result) => {
         if (ignore) return;
+        setDeliveryEligibility(result);
+        setDeliveryUnavailable(
+          result?.checkoutAllowed === false
+            ? result.message || 'The selected delivery option is unavailable for this address.'
+            : ''
+        );
         setCodUnavailable(
-          result && result.checkoutAllowed === false
+          selectedPayment === 'cod' && result && result.checkoutAllowed === false
             ? result.message || `Cash on delivery is not available for pincode ${pincode}. Please choose online payment instead.`
             : ''
         );
@@ -181,6 +242,9 @@ export default function CheckoutPayment({
       .catch((checkError) => {
         console.error('COD serviceability check failed:', checkError);
         if (!ignore) {
+          setDeliveryUnavailable(
+            'We could not verify the selected delivery option. Please try again shortly.'
+          );
           setCodUnavailable(
             'We could not verify cash-on-delivery availability right now. Please choose online payment or try again shortly.'
           );
@@ -193,16 +257,44 @@ export default function CheckoutPayment({
     return () => {
       ignore = true;
     };
-  }, [billing?.zipCode, selectedPayment]);
+  }, [billing?.zipCode, selectedDelivery, selectedPayment]);
 
   useEffect(() => {
-    const defaultShipping = DELIVERY_OPTIONS[0]?.value || 0;
+    setDeliveryEligibility(billing?.deliveryEligibility || null);
+  }, [billing?.deliveryEligibility]);
 
-    if (Number(shipping || 0) !== defaultShipping) {
-      onApplyShipping(defaultShipping);
-      setValue('delivery', defaultShipping);
+  useEffect(() => {
+    if (
+      selectedPayment === 'cod' &&
+      selectedDelivery === 'express' &&
+      deliveryEligibility?.codShippingProvider === 'bluedart'
+    ) {
+      setValue('delivery', 'surface');
     }
-  }, [onApplyShipping, setValue, shipping]);
+  }, [
+    deliveryEligibility?.codShippingProvider,
+    selectedDelivery,
+    selectedPayment,
+    setValue,
+  ]);
+
+  useEffect(() => {
+    if (
+      selectedPayment === 'cod' &&
+      !deliveryEligibility?.availablePaymentMethods?.includes('cod')
+    ) {
+      setValue('payment', 'razorpay');
+    }
+  }, [deliveryEligibility?.availablePaymentMethods, selectedPayment, setValue]);
+
+  useEffect(() => {
+    const selectedShipping =
+      deliveryOptions.find((option) => option.value === selectedDelivery)?.price || 0;
+
+    if (Number(shipping || 0) !== selectedShipping) {
+      onApplyShipping(selectedShipping);
+    }
+  }, [deliveryOptions, onApplyShipping, selectedDelivery, shipping]);
 
   useEffect(() => {
     const hasProfileEmail = Boolean((user?.email || '').trim());
@@ -307,7 +399,7 @@ export default function CheckoutPayment({
         trackPurchase({
           transactionId: nextState.orderId || nextState.orderNumber,
           items: eligibleCart,
-          value: nextState.amount || total,
+          value: nextState.amount || payableTotal,
           tax,
           coupon: appliedCoupon?.code,
           payment_type: 'razorpay',
@@ -339,7 +431,7 @@ export default function CheckoutPayment({
     trackPurchase({
       transactionId: order?.id || order?._id || order?.orderId || order?.orderNumber,
       items: eligibleCart,
-      value: order?.total ?? total,
+      value: order?.total ?? payableTotal,
       tax: order?.tax ?? tax,
       coupon: appliedCoupon?.code,
       payment_type: order?.paymentMethod || 'cod',
@@ -407,6 +499,7 @@ export default function CheckoutPayment({
       discount: Number(discount || 0),
       couponCode: appliedCoupon?.code || undefined,
       shipping: Number(shipping || 0),
+      deliveryMode: selectedDelivery,
     };
   };
 
@@ -524,7 +617,7 @@ export default function CheckoutPayment({
       trackPurchase({
         transactionId: verifiedState.orderId || verifiedState.orderNumber,
         items: eligibleCart,
-        value: verifiedState.amount || total,
+        value: verifiedState.amount || payableTotal,
         tax,
         coupon: appliedCoupon?.code,
         payment_type: 'razorpay',
@@ -561,7 +654,7 @@ export default function CheckoutPayment({
           ...(createdPaymentState || {}),
           orderId: createdPaymentState?.orderId || '',
           orderNumber: createdPaymentState?.orderNumber || '',
-          amount: createdPaymentState?.amount || normalizeAmount(total),
+          amount: createdPaymentState?.amount || normalizeAmount(payableTotal),
           createdAt: createdPaymentState?.createdAt || new Date().toISOString(),
           status: 'failed',
         };
@@ -592,7 +685,7 @@ export default function CheckoutPayment({
       const orderData = createOrderPayload(data.payment);
 
       trackEcommerceEvent('add_payment_info', eligibleCart, {
-        value: total,
+        value: payableTotal,
         coupon: appliedCoupon?.code,
         payment_type: data.payment,
       });
@@ -668,9 +761,25 @@ export default function CheckoutPayment({
               </Box>
             )}
 
-            <CheckoutDelivery onApplyShipping={onApplyShipping} options={DELIVERY_OPTIONS} />
+            {!!deliveryUnavailable && (
+              <Alert severity="warning" sx={{ mb: 3 }}>
+                {deliveryUnavailable}
+              </Alert>
+            )}
 
-            <CheckoutPaymentMethods options={PAYMENT_OPTIONS} sx={{ my: 3 }} />
+            {deliveryEligibility?.selectedShippingProvider === 'delhivery' && (
+              <CheckoutDelivery onApplyShipping={onApplyShipping} options={deliveryOptions} />
+            )}
+
+            {deliveryEligibility?.selectedShippingProvider !== 'delhivery' &&
+              deliveryEligibility?.checkoutAllowed && (
+                <Alert severity="info" sx={{ mb: 3 }}>
+                  Your order can still be delivered. We’ll send your parcel using an available
+                  postal or delivery service.
+                </Alert>
+              )}
+
+            <CheckoutPaymentMethods options={paymentOptions} sx={{ my: 3 }} />
 
             {selectedPayment === 'cod' && !!codUnavailable && (
               <Alert severity="warning" sx={{ mb: 3 }}>
@@ -699,16 +808,17 @@ export default function CheckoutPayment({
               total={total}
               subTotal={subTotal}
               discount={discount}
-              shipping={shipping}
+              shipping={0}
               tax={tax}
               actual_price={actualSubTotal}
               sale_price={subTotal}
               product_discount={productDiscount}
               coupon_discount={discount}
               selling_price_incl_tax={subTotal}
-              shipping_charge={shipping}
+              shipping_charge={0}
               gst_amount={tax}
-              final_payable={total}
+              final_payable={payableTotal}
+              express_delivery_charge={expressDeliveryCharge}
               appliedCoupon={appliedCoupon}
               onApplyCoupon={(code) => onApplyCoupon?.(code, selectedPayment)}
               onRemoveCoupon={onRemoveCoupon}
@@ -728,6 +838,10 @@ export default function CheckoutPayment({
                 isSubmitting ||
                 isProcessingPayment ||
                 !eligibleCart?.length ||
+                isCheckingCod ||
+                !deliveryEligibility?.checkoutAllowed ||
+                !deliveryOptions.length ||
+                !!deliveryUnavailable ||
                 (selectedPayment === 'cod' && (isCheckingCod || !!codUnavailable))
               }
             >

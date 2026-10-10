@@ -33,6 +33,7 @@ import {
   DelhiveryProvider,
   DelhiveryShipmentUpdate,
   DelhiveryShippingCostParams,
+  DelhiveryShippingCostResult,
   DelhiveryWarehouseRequest,
 } from './shipping-providers/delhivery.provider';
 import {
@@ -79,6 +80,14 @@ export class ShippingService {
         ? new BlueDartDeveloperPortalProvider(blueDartConfig)
         : new BlueDartProvider();
     this.delhiveryProvider = new DelhiveryProvider();
+  }
+
+  getDelhiveryEnvironment(): 'staging' | 'production' {
+    return this.delhiveryProvider.environment;
+  }
+
+  hasDelhiveryProductionRateCredentials(): boolean {
+    return this.delhiveryProvider.hasProductionRateCredentials;
   }
 
   private getProvider(courierName = 'BlueDart'): ShippingProvider {
@@ -264,11 +273,11 @@ export class ShippingService {
     forceRefresh: boolean,
   ): Promise<ServiceabilityResult> {
     const cacheKey =
-      `shipping:serviceability:${provider.courierName.toLowerCase()}:` +
+      `shipping:serviceability:v2:${provider.courierName.toLowerCase()}:` +
       `${params.pincode}:${params.deliveryMode ?? 'configured'}:` +
       `${params.paymentType ?? 'prepaid'}`;
     const ttlHours = Number(process.env.SERVICEABILITY_CACHE_TTL_HOURS || '24');
-    const ttlSeconds = ttlHours * 3600;
+    const positiveTtlSeconds = ttlHours * 3600;
 
     if (!forceRefresh && this.cacheService) {
       const cached = await this.cacheService.get<ServiceabilityResult>(cacheKey);
@@ -284,6 +293,15 @@ export class ShippingService {
       true,
       provider,
     );
+    // Courier coverage changes frequently. Do not retain a negative result for
+    // 24 hours; a short cache prevents a temporary provider/data issue from
+    // blocking checkout for the rest of the day.
+    const negativeTtlMinutes = Number(
+      process.env.SERVICEABILITY_NEGATIVE_CACHE_TTL_MINUTES || '5',
+    );
+    const ttlSeconds = result.isServiceable
+      ? positiveTtlSeconds
+      : Math.max(60, negativeTtlMinutes * 60);
     if (this.cacheService) {
       await this.cacheService.set(cacheKey, result, ttlSeconds);
     } else {
@@ -339,6 +357,19 @@ export class ShippingService {
       delhiveryCheckFailed = true;
     }
 
+    const delhiveryUsable =
+      delhivery?.isServiceable === true && (!isCod || delhivery.isCodAvailable);
+    if (delhiveryUsable) {
+      return {
+        selectedProvider: 'Delhivery',
+        result: delhivery,
+        delhivery,
+        blueDart: undefined,
+        delhiveryCheckFailed,
+        blueDartCheckFailed: false,
+      };
+    }
+
     try {
       blueDart = await this.checkProviderServiceability(
         this.activeProvider,
@@ -353,16 +384,11 @@ export class ShippingService {
       );
     }
 
-    const delhiveryUsable =
-      delhivery?.isServiceable === true && (!isCod || delhivery.isCodAvailable);
     const blueDartUsable =
       blueDart?.isServiceable === true && (!isCod || blueDart.isCodAvailable);
     let selectedProvider: ForwardShippingProvider = 'Manual';
     let result = blueDart ?? delhivery;
-    if (delhiveryUsable) {
-      selectedProvider = 'Delhivery';
-      result = delhivery;
-    } else if (blueDartUsable) {
+    if (blueDartUsable) {
       selectedProvider = 'BlueDart';
       result = blueDart;
     }
@@ -559,7 +585,7 @@ export class ShippingService {
 
   async calculateDelhiveryShippingCost(
     params: DelhiveryShippingCostParams,
-  ): Promise<unknown> {
+  ): Promise<DelhiveryShippingCostResult> {
     return this.runWithRetry(
       'calculateShippingCost',
       () => this.delhiveryProvider.calculateShippingCost(params),

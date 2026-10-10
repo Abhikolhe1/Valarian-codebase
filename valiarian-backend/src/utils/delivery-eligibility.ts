@@ -35,7 +35,7 @@ export function evaluateDeliveryEligibility(
   const available = result?.isServiceable === true && (!isCod || result.isCodAvailable === true);
   if (available) {
     return {checkoutAllowed: true, blueDartDeliveryStatus: 'available', delhiveryDeliveryStatus: 'not_checked', selectedShippingProvider: 'bluedart', needsManualShipping: false,
-      message: 'Blue Dart delivery is available for this order.'};
+      message: 'Delivery is available for this order.'};
   }
   return {
     // Keep the existing COD collection restriction until an external COD
@@ -47,9 +47,7 @@ export function evaluateDeliveryEligibility(
     needsManualShipping: true,
     message: isCod
       ? 'Cash on delivery could not be confirmed. Please choose online payment.'
-      : result
-        ? 'Blue Dart delivery is unavailable. Arrange an external courier such as India Post.'
-        : 'Blue Dart availability check failed. Delivery is unconfirmed; arrange an external courier or recheck Blue Dart.',
+      : 'Standard delivery will be arranged for this address.',
   };
 }
 
@@ -90,17 +88,19 @@ export function evaluatePreferredDeliveryEligibility(
       delhiveryDeliveryStatus,
       selectedShippingProvider,
       needsManualShipping: false,
-      message: `${chain.selectedProvider} delivery is available for this order.`,
+      message: 'Delivery is available for this order.',
     };
   }
   return {
+    // Prepaid orders can still be fulfilled manually through the postal
+    // service when integrated couriers do not cover the destination.
     checkoutAllowed: !isCod,
     blueDartDeliveryStatus,
     delhiveryDeliveryStatus,
     selectedShippingProvider,
     needsManualShipping: true,
     message: isCod
-      ? 'Cash on delivery is unavailable from Delhivery and Blue Dart. Please choose online payment.'
-      : 'Delhivery and Blue Dart are unavailable or unconfirmed. Use India Post, self-delivery, or another external courier after confirming service.',
+      ? 'Cash on delivery is unavailable for this PIN code. Please choose online payment.'
+      : 'Standard delivery will be arranged for this address.',
   };
 }

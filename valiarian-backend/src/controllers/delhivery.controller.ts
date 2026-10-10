@@ -4,8 +4,12 @@ import {repository} from '@loopback/repository';
 import {get, HttpErrors, param, patch, post, requestBody} from '@loopback/rest';
 import {SecurityBindings, UserProfile} from '@loopback/security';
 import {authorize} from '../authorization';
-import {ShipmentRepository} from '../repositories';
+import {OrderRepository, ShipmentRepository} from '../repositories';
 import {ShippingService} from '../services/shipping.service';
+import {
+  delhiveryPickupDate,
+  earliestDelhiveryPickupDate,
+} from '../utils/delhivery-pickup-schedule.utils';
 import {WarehouseService} from '../services/warehouse.service';
 import {
   DelhiveryShippingCostParams,
@@ -24,6 +28,8 @@ export class DelhiveryController {
   constructor(
     @repository(ShipmentRepository)
     private shipmentRepository: ShipmentRepository,
+    @repository(OrderRepository)
+    private orderRepository: OrderRepository,
     @inject('services.shipping')
     private shippingService: ShippingService,
     @inject('services.warehouse')
@@ -143,6 +149,47 @@ export class DelhiveryController {
       }
     }
     return this.shippingService.calculateDelhiveryShippingCost(request);
+  }
+
+  @post('/api/admin/delhivery/shipments/{shipmentId}/shipping-cost')
+  @authorize({roles: ['super_admin', 'admin']})
+  async calculateShipmentShippingCost(
+    @param.path.string('shipmentId') shipmentId: string,
+  ): Promise<{success: true; estimate: unknown}> {
+    const shipment = await this.delhiveryShipment(shipmentId);
+    if (!this.shippingService.hasDelhiveryProductionRateCredentials()) {
+      throw new HttpErrors.UnprocessableEntity(
+        'Delhivery does not provide account-specific courier prices in staging. ' +
+        'Configure DELHIVERY_RATE_API_TOKEN with the production token, restart the backend, ' +
+        'and calculate again. Shipment operations will remain safely on staging.',
+      );
+    }
+    const order = await this.orderRepository.findById(shipment.orderId);
+    const origin = await this.warehouseService.getOriginDetailsForShipment(
+      shipment.warehouseId,
+    );
+    const estimate = await this.shippingService.calculateDelhiveryShippingCost({
+      originPincode: origin.pincode,
+      destinationPincode: order.shippingAddress.zipCode,
+      weightGrams: Number(shipment.weightGrams),
+      paymentType: shipment.isCod ? 'COD' : 'Pre-paid',
+      mode: order.deliveryMode === 'express' ? 'E' : 'S',
+      shipmentStatus: 'Delivered',
+      lengthCm: Number(shipment.lengthCm),
+      breadthCm: Number(shipment.breadthCm),
+      heightCm: Number(shipment.heightCm),
+      packageType: 'flyer',
+    });
+    await this.shipmentRepository.updateById(shipment.id, {
+      shippingCharge: estimate.shippingCharge,
+      fuelSurcharge: estimate.fuelSurcharge,
+      codCharge: estimate.codCharge,
+      otherCharges: estimate.otherCharges,
+      totalCourierCost: estimate.totalCourierCost,
+      chargesUnavailable: false,
+      updatedAt: new Date(),
+    });
+    return {success: true, estimate};
   }
 
   @get('/api/admin/delhivery/waybills')
@@ -292,12 +339,19 @@ export class DelhiveryController {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(request.pickupDate)) {
       throw new HttpErrors.BadRequest('Pickup date must use YYYY-MM-DD format.');
     }
-    const pickupDate = new Date(`${request.pickupDate}T00:00:00`);
+    const pickupDate = delhiveryPickupDate(request.pickupDate);
     if (Number.isNaN(pickupDate.getTime()) ||
-      pickupDate.getFullYear() !== Number(request.pickupDate.slice(0, 4)) ||
-      pickupDate.getMonth() + 1 !== Number(request.pickupDate.slice(5, 7)) ||
-      pickupDate.getDate() !== Number(request.pickupDate.slice(8, 10))) {
+      pickupDate.getUTCFullYear() !== Number(request.pickupDate.slice(0, 4)) ||
+      pickupDate.getUTCMonth() + 1 !== Number(request.pickupDate.slice(5, 7)) ||
+      pickupDate.getUTCDate() !== Number(request.pickupDate.slice(8, 10))) {
       throw new HttpErrors.BadRequest('Pickup date is not a valid calendar date.');
+    }
+    const earliestPickupDate = earliestDelhiveryPickupDate();
+    if (request.pickupDate < earliestPickupDate) {
+      throw new HttpErrors.BadRequest(
+        `The earliest available Delhivery pickup date is ${earliestPickupDate}. ` +
+        'Requests created at or after 2:00 PM IST must be scheduled for the next day.',
+      );
     }
     const pickupTime = request.pickupTime ?? '11:00';
     if (!/^(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?$/.test(pickupTime)) {

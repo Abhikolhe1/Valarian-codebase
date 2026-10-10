@@ -36,6 +36,8 @@ export interface ServiceabilityResult {
   isCodAvailable: boolean;
   reason?: 'invalid_pincode' | 'not_serviceable';
   estimatedTransitDays?: number;
+  /** Customer-facing date after applying Valiarian's one-day delivery buffer. */
+  expectedDeliveryDate?: string;
   courierName: string;
   areaCode?: string;
   originArea?: string;
@@ -83,7 +85,12 @@ export interface CreateShipmentParams {
   breadthCm: number;
   heightCm: number;
   declaredValue: number;
+  /** Number of physical parcels represented by this AWB. */
   numberOfPieces?: number;
+  /** Number of sale items inside the parcel (courier manifest quantity). */
+  itemQuantity?: number;
+  /** Customer-selected Delhivery movement mode. */
+  shippingMode?: 'Surface' | 'Express';
 
   // Service
   productCode?: string; // e.g. "A" for Air Express

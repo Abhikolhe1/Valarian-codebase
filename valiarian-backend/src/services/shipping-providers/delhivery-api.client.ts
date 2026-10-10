@@ -11,7 +11,7 @@ import {
 } from './delhivery-errors';
 
 interface HttpClient {
-  request<T>(config: Record<string, unknown>): Promise<{data: T}>;
+  request<T>(config: Record<string, unknown>): Promise<{data: T; status?: number}>;
 }
 
 export interface DelhiveryRequestOptions {
@@ -51,6 +51,7 @@ export class DelhiveryApiClient {
       );
     }
     const correlationId = randomUUID();
+    const startedAt = Date.now();
     try {
       const response = await this.http.request<T>({
         baseURL: this.config.baseUrl,
@@ -71,12 +72,37 @@ export class DelhiveryApiClient {
           'X-Correlation-ID': correlationId,
         },
       });
+      if (this.config.debugLogs) {
+        console.info('[Delhivery API]', {
+          correlationId,
+          operation: options.operation,
+          method: options.method,
+          path: options.path,
+          mutation: Boolean(options.mutation),
+          httpStatus: response.status,
+          durationMs: Date.now() - startedAt,
+          result: 'success',
+        });
+      }
       return response.data;
     } catch (error) {
       if (error instanceof DelhiveryProviderError) throw error;
       const clientError = error as any;
       const status = clientError?.response?.status as number | undefined;
       const detail = providerMessage(clientError?.response?.data);
+      if (this.config.debugLogs) {
+        console.error('[Delhivery API]', {
+          correlationId,
+          operation: options.operation,
+          method: options.method,
+          path: options.path,
+          mutation: Boolean(options.mutation),
+          httpStatus: status,
+          durationMs: Date.now() - startedAt,
+          result: 'failure',
+          errorCode: clientError?.code,
+        });
+      }
       if (clientError?.code === 'ECONNABORTED') {
         throw new DelhiveryTimeoutError('Delhivery request timed out', {
           operation: options.operation,

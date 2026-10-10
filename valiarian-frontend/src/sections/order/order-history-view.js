@@ -23,6 +23,7 @@ import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
 import axios, { endpoints } from 'src/utils/axios';
 import { fCurrency } from 'src/utils/format-number';
+import { formatOrderDeliveryCharge } from 'src/utils/delivery-charge';
 import {
   formatOrderStatusLabel,
   getOrderDisplayColor,
@@ -74,6 +75,7 @@ const normalizeStandardOrder = (order) => ({
   total: order.total,
   subtotal: order.subtotal,
   shipping: order.shipping,
+  deliveryMode: order.deliveryMode,
   discount: order.discount,
   items: Array.isArray(order.items) ? order.items : [],
   detailsPath: paths.order.details(order.id),
@@ -323,7 +325,11 @@ export default function OrderHistoryView() {
 
 function OrderCard({ order }) {
   const router = useRouter();
-  const { orderNumber, createdAt, total, items = [], subtotal, shipping, discount, badge, type } = order;
+  const { orderNumber, createdAt, total, items = [], subtotal, shipping, discount, deliveryMode, badge, type } = order;
+  let deliveryChargeLabel = shipping ? `${fCurrency(shipping)} included` : 'Included';
+  if (type === 'standard') {
+    deliveryChargeLabel = formatOrderDeliveryCharge(deliveryMode, shipping);
+  }
 
   return (
     <Card>
@@ -425,7 +431,7 @@ function OrderCard({ order }) {
                   Delivery Charge
                 </Typography>
                 <Typography variant="body2">
-                  {shipping ? `${fCurrency(shipping)} included` : 'Included'}
+                  {deliveryChargeLabel}
                 </Typography>
               </Stack>
               <Divider />
@@ -477,6 +483,7 @@ OrderCard.propTypes = {
     total: PropTypes.number,
     subtotal: PropTypes.number,
     shipping: PropTypes.number,
+    deliveryMode: PropTypes.string,
     discount: PropTypes.number,
     items: PropTypes.array,
     detailsPath: PropTypes.string,

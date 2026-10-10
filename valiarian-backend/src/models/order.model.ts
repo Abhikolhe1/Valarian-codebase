@@ -570,6 +570,10 @@ export class Order extends Entity {
     postgresql: {columnName: 'selectedshippingprovider'}})
   selectedShippingProvider?: 'delhivery' | 'bluedart' | 'manual';
 
+  @property({type: 'string', jsonSchema: {enum: ['surface', 'express']},
+    postgresql: {columnName: 'deliverymode'}})
+  deliveryMode?: 'surface' | 'express';
+
   // Courier coverage failure does not reject an otherwise eligible Indian order.
   @property({
     type: 'boolean',

@@ -40,7 +40,7 @@ export default function CheckoutDelivery({ options, onApplyShipping, ...other })
                 selected={field.value === option.value}
                 onClick={() => {
                   field.onChange(option.value);
-                  onApplyShipping(option.value);
+                  onApplyShipping(option.price);
                 }}
               />
             ))}
@@ -59,7 +59,7 @@ CheckoutDelivery.propTypes = {
 // ----------------------------------------------------------------------
 
 function OptionItem({ option, selected, ...other }) {
-  const { value, label, description } = option;
+  const { value, label, description, price } = option;
 
   return (
     <Paper
@@ -76,8 +76,8 @@ function OptionItem({ option, selected, ...other }) {
       {...other}
     >
       {label === 'Free' && <Iconify icon="carbon:bicycle" width={32} />}
-      {label === 'Standard' && <Iconify icon="carbon:delivery" width={32} />}
-      {label === 'Express' && <Iconify icon="carbon:rocket" width={32} />}
+      {label.startsWith('Standard') && <Iconify icon="carbon:delivery" width={32} />}
+      {label.startsWith('Express') && <Iconify icon="carbon:rocket" width={32} />}
 
       <ListItemText
         sx={{ ml: 2 }}
@@ -86,7 +86,7 @@ function OptionItem({ option, selected, ...other }) {
             <Box component="span" sx={{ flexGrow: 1 }}>
               {label}
             </Box>
-            <Box component="span" sx={{ typography: 'h6' }}>{`₹${value}`}</Box>
+            <Box component="span" sx={{ typography: 'h6' }}>{`₹${price}`}</Box>
           </Stack>
         }
         secondary={description}

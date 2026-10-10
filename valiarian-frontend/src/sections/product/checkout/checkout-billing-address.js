@@ -49,19 +49,19 @@ export default function CheckoutBillingAddress({ checkout, onBackStep, onCreateB
 
   // Courier coverage is separate from checkout eligibility. The backend decides
   // whether an Indian destination can proceed with manual courier fulfilment.
-  const getUnserviceableMessage = async (pincode) => {
+  const checkAddressServiceability = async (pincode) => {
     if (!/^[1-9]\d{5}$/.test(String(pincode || '').trim())) {
-      return 'Please enter a valid 6-digit Indian PIN code.';
+      throw new Error('Please enter a valid 6-digit Indian PIN code.');
     }
     try {
       const result = await checkPincodeServiceability(pincode);
       if (result?.reason === 'invalid_pincode') {
-        return `Pincode ${pincode} is not a valid delivery pincode. Please check and try again.`;
+        throw new Error(`Pincode ${pincode} is not a valid delivery pincode. Please check and try again.`);
       }
       if (result?.checkoutAllowed === false) {
-        return result.message || 'Please check your delivery address.';
+        throw new Error(result.message || 'Delivery is unavailable for this address.');
       }
-      return null;
+      return result;
     } catch (checkError) {
       console.error('Serviceability check failed:', checkError);
       throw new Error(
@@ -74,12 +74,11 @@ export default function CheckoutBillingAddress({ checkout, onBackStep, onCreateB
     setServiceabilityError('');
     setCheckingAddressId(address.id);
     try {
-      const blockMessage = await getUnserviceableMessage(address.pincode);
-      if (blockMessage) {
-        setServiceabilityError(blockMessage);
-        return;
-      }
-      onCreateBilling(buildBillingAddress(address));
+      const deliveryEligibility = await checkAddressServiceability(address.pincode);
+      onCreateBilling({
+        ...buildBillingAddress(address),
+        deliveryEligibility,
+      });
     } catch (checkError) {
       setServiceabilityError(
         checkError?.message ||
@@ -240,19 +239,21 @@ export default function CheckoutBillingAddress({ checkout, onBackStep, onCreateB
         onCreate={async (newAddress) => {
           const sanitizedPayload = sanitizeAddressPayload(newAddress);
 
-          const blockMessage = await getUnserviceableMessage(sanitizedPayload.pincode);
-          if (blockMessage) {
-            throw new Error(blockMessage);
-          }
+          const deliveryEligibility = await checkAddressServiceability(
+            sanitizedPayload.pincode
+          );
 
           const createdAddress = await createAddress(sanitizedPayload);
 
           onCreateBilling(
-            buildBillingAddress(
-              createdAddress,
-              sanitizedPayload.fullName,
-              sanitizedPayload.mobileNumber
-            )
+            {
+              ...buildBillingAddress(
+                createdAddress,
+                sanitizedPayload.fullName,
+                sanitizedPayload.mobileNumber
+              ),
+              deliveryEligibility,
+            }
           );
           addressForm.onFalse();
           mutate();

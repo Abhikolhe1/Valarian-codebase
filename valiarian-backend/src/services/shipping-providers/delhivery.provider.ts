@@ -54,6 +54,15 @@ export interface DelhiveryShippingCostParams {
   packageType?: 'box' | 'flyer';
 }
 
+export interface DelhiveryShippingCostResult {
+  shippingCharge: number;
+  fuelSurcharge: number;
+  codCharge: number;
+  otherCharges: number;
+  totalCourierCost: number;
+  rawResponse: unknown;
+}
+
 export interface DelhiveryWarehouseRequest {
   name: string;
   phone: string;
@@ -72,6 +81,40 @@ export interface DelhiveryWarehouseRequest {
 
 const asRecord = (value: unknown): JsonRecord =>
   value && typeof value === 'object' ? (value as JsonRecord) : {};
+
+export function parseDelhiveryShippingCost(
+  response: unknown,
+): DelhiveryShippingCostResult {
+  const body = Array.isArray(response) ? asRecord(response[0]) : asRecord(response);
+  const numberValue = (...keys: string[]): number => {
+    for (const key of keys) {
+      const value = Number(body[key]);
+      if (Number.isFinite(value)) return value;
+    }
+    return 0;
+  };
+  const shippingCharge = numberValue('charge_DL', 'freight_charge', 'shipping_charge');
+  const fuelSurcharge = numberValue('charge_FSC', 'fuel_surcharge');
+  const codCharge = numberValue('charge_COD', 'cod_charge');
+  const totalCourierCost = numberValue('total_amount', 'total', 'gross_amount');
+  if (!(totalCourierCost > 0)) {
+    throw new DelhiveryValidationError(
+      'Delhivery did not return an estimated total shipping charge',
+      {operation: 'calculateShippingCost'},
+    );
+  }
+  return {
+    shippingCharge,
+    fuelSurcharge,
+    codCharge,
+    otherCharges: Math.max(
+      0,
+      Number((totalCourierCost - shippingCharge - fuelSurcharge - codCharge).toFixed(2)),
+    ),
+    totalCourierCost,
+    rawResponse: response,
+  };
+}
 
 const firstString = (...values: unknown[]): string | undefined =>
   values.find(value => typeof value === 'string' && value.trim()) as
@@ -186,6 +229,7 @@ function normalizeRvpQualityCheck(
 export function parseDelhiveryServiceability(
   response: unknown,
   pincode: string,
+  deliveryMode: ServiceabilityParams['deliveryMode'] = 'surface',
 ): ServiceabilityResult {
   const body = asRecord(response);
   const entries = Array.isArray(body.delivery_codes)
@@ -204,12 +248,22 @@ export function parseDelhiveryServiceability(
   const cod = postal.cod ?? postal.cash ?? postal.cod_serviceable;
   const prepaidServiceable =
     isServiceable && (prepaid === undefined || normalizeBool(prepaid));
+  const modeTat = deliveryMode === 'air'
+    ? postal.air_tat ?? postal.express_tat ?? postal.air_delivery_days
+    : postal.surface_tat ?? postal.surface_delivery_days;
+  const rawTat = modeTat ?? postal.tat ?? postal.delivery_days ??
+    postal.estimated_delivery_days;
+  const parsedTat = Number.parseInt(String(rawTat ?? ''), 10);
+  const estimatedTransitDays = Number.isFinite(parsedTat) && parsedTat > 0
+    ? parsedTat
+    : undefined;
 
   return {
     isServiceable: prepaidServiceable,
     isCodAvailable: isServiceable && normalizeBool(cod),
     reason: prepaidServiceable ? undefined : 'not_serviceable',
     courierName: 'Delhivery',
+    estimatedTransitDays,
     rawResponse: response,
   };
 }
@@ -270,10 +324,27 @@ export class DelhiveryProvider implements ShippingProvider {
     private readonly client = new DelhiveryApiClient(config),
     private readonly labelHttp: DelhiveryLabelHttpClient =
       axios as unknown as DelhiveryLabelHttpClient,
+    private readonly rateClient = config.rateToken === config.token
+      ? client
+      : new DelhiveryApiClient({
+          ...config,
+          environment: 'production',
+          baseUrl: config.rateBaseUrl,
+          token: config.rateToken,
+          configured: Boolean(config.rateToken),
+        }),
   ) {}
 
   get isConfigured(): boolean {
     return this.config.configured;
+  }
+
+  get environment(): DelhiveryConfig['environment'] {
+    return this.config.environment;
+  }
+
+  get hasProductionRateCredentials(): boolean {
+    return Boolean(this.config.rateToken);
   }
 
   async checkServiceability(
@@ -293,7 +364,7 @@ export class DelhiveryProvider implements ShippingProvider {
       operation: 'checkServiceability',
       params: {filter_codes: params.pincode},
     });
-    return parseDelhiveryServiceability(response, params.pincode);
+    return parseDelhiveryServiceability(response, params.pincode, params.deliveryMode);
   }
 
   async createShipment(params: CreateShipmentParams): Promise<CreateShipmentResult> {
@@ -305,17 +376,20 @@ export class DelhiveryProvider implements ShippingProvider {
       state: params.receiverState,
       country: params.receiverCountry || 'India',
       phone: params.receiverPhone,
-      order: params.orderReference,
+      // Delhivery prints this value and renders it as the bottom barcode on
+      // the official packing slip. Use the compact customer-facing number;
+      // the UUID remains our internal idempotency/reconciliation reference.
+      order: params.orderNumber,
       payment_mode: params.isCod ? 'COD' : 'Prepaid',
       products_desc: params.itemDescription ?? 'Apparel',
       cod_amount: params.isCod ? params.codAmount ?? params.declaredValue : 0,
       total_amount: params.declaredValue,
-      quantity: String(params.numberOfPieces ?? 1),
+      quantity: String(params.itemQuantity ?? 1),
       shipment_width: params.breadthCm,
       shipment_height: params.heightCm,
       shipment_length: params.lengthCm,
       weight: params.weightGrams,
-      shipping_mode: this.config.shippingMode,
+      shipping_mode: params.shippingMode ?? this.config.shippingMode,
       seller_name: params.codFavorOf,
       seller_add: params.warehouseAddressLine1,
       return_add: params.warehouseAddressLine1,
@@ -329,7 +403,9 @@ export class DelhiveryProvider implements ShippingProvider {
       format: 'json',
       data: JSON.stringify({
         shipments: [shipment],
-        pickup_location: {name: params.warehouseName},
+        pickup_location: {
+          name: this.config.pickupLocationName ?? params.warehouseName,
+        },
       }),
     }).toString();
     const response = await this.client.request<unknown>({
@@ -525,7 +601,9 @@ export class DelhiveryProvider implements ShippingProvider {
           qc_type: qualityCheck ? 'param' : undefined,
           custom_qc: qualityCheck,
         }],
-        pickup_location: {name: params.warehouseName},
+        pickup_location: {
+          name: this.config.pickupLocationName ?? params.warehouseName,
+        },
       }),
     }).toString();
     const response = await this.client.request<unknown>({
@@ -566,18 +644,38 @@ export class DelhiveryProvider implements ShippingProvider {
           ? `${params.pickupTime}:00`
           : params.pickupTime,
         pickup_date: pickupDate,
-        pickup_location: params.customerName,
+        pickup_location:
+          this.config.pickupLocationName ?? params.customerName,
         expected_package_count: params.numberOfPieces,
       },
     });
-    assertProviderSuccess(response, 'registerPickup');
     const body = asRecord(response);
-    const reference = firstString(
+    const nested = asRecord(
+      body.data ?? body.pickup ?? body.pickup_request ?? body.pickupRequest,
+    );
+    const referenceValue = [
       body.pickup_id,
       body.pickup_reference,
       body.pr_number,
       body.request_id,
+      nested.pickup_id,
+      nested.pickup_reference,
+      nested.pr_number,
+      nested.request_id,
+      nested.id,
+    ].find(value =>
+      (typeof value === 'string' && value.trim().length > 0) ||
+      (typeof value === 'number' && Number.isFinite(value)),
     );
+    const reference = firstString(
+      referenceValue === undefined ? undefined : String(referenceValue),
+    );
+
+    // Delhivery may return HTTP 201 with a pickup ID while `success` is false
+    // (notably when an equivalent pickup request already exists). A usable
+    // provider reference means the request is registered and is safe to store.
+    // Only apply the generic rejection check when no reference was returned.
+    if (!reference) assertProviderSuccess(response, 'registerPickup');
     if (!reference) {
       throw new DelhiveryProviderError('Delhivery did not return a pickup request reference', {
         operation: 'registerPickup',
@@ -623,8 +721,16 @@ export class DelhiveryProvider implements ShippingProvider {
     return response;
   }
 
-  async calculateShippingCost(params: DelhiveryShippingCostParams): Promise<unknown> {
-    return this.client.request<unknown>({
+  async calculateShippingCost(
+    params: DelhiveryShippingCostParams,
+  ): Promise<DelhiveryShippingCostResult> {
+    if (!this.hasProductionRateCredentials) {
+      throw new DelhiveryValidationError(
+        'Production Delhivery rate credentials are not configured',
+        {operation: 'calculateShippingCost'},
+      );
+    }
+    const response = await this.rateClient.request<unknown>({
       method: 'GET',
       path: '/api/kinko/v1/invoice/charges/.json',
       operation: 'calculateShippingCost',
@@ -641,6 +747,7 @@ export class DelhiveryProvider implements ShippingProvider {
         ipkg_type: params.packageType,
       },
     });
+    return parseDelhiveryShippingCost(response);
   }
 
   async fetchWaybills(count?: number): Promise<unknown> {

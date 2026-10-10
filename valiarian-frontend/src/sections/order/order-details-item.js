@@ -12,6 +12,7 @@ import { Link } from '@mui/material';
 import { RouterLink } from 'src/routes/components';
 import { paths } from 'src/routes/paths';
 import { fCurrency } from 'src/utils/format-number';
+import { formatOrderDeliveryCharge } from 'src/utils/delivery-charge';
 // components
 
 // ----------------------------------------------------------------------
@@ -23,6 +24,7 @@ export default function OrderDetailsItems({
   taxes,
   subTotal,
   totalAmount,
+  deliveryMode,
 }) {
   const actualPrice = items.reduce(
     (sum, item) => sum + Math.max(Number(item.originalPrice || item.price || 0), Number(item.price || 0)) * Number(item.quantity || 0),
@@ -64,7 +66,7 @@ export default function OrderDetailsItems({
       <Stack direction="row">
         <Box sx={{ color: 'text.secondary' }}>Delivery Charge</Box>
         <Box sx={{ width: 140, textAlign: 'right' }}>
-          {shipping ? `${fCurrency(shipping)} included` : 'Included'}
+          {formatOrderDeliveryCharge(deliveryMode, shipping)}
         </Box>
       </Stack>
 
@@ -182,4 +184,5 @@ OrderDetailsItems.propTypes = {
   subTotal: PropTypes.number,
   taxes: PropTypes.number,
   totalAmount: PropTypes.number,
+  deliveryMode: PropTypes.string,
 };

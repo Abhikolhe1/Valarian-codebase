@@ -84,8 +84,8 @@ describe('Indian checkout and Blue Dart delivery classification', () => {
     assert.equal((await service.checkServiceability(params, true)).isServiceable, false);
     assert.equal(calls, 2);
   });
-  for (const result of [available, unavailable, undefined]) {
-    it(`allows prepare-payment for an Indian address with courier result ${result?.isServiceable ?? 'outage'}`, async () => {
+  it('allows prepare-payment only when a courier accepts the address', async () => {
+      const result = available;
       const {controller} = fixture(result);
       let gatewayCalls = 0;
       Object.assign(controller, {
@@ -98,6 +98,16 @@ describe('Indian checkout and Blue Dart delivery classification', () => {
       const prepared = await controller.preparePayment(checkoutRequest, actor);
       assert.equal(prepared.amount, 10000);
       assert.equal(gatewayCalls, 1);
+  });
+  for (const result of [unavailable, undefined]) {
+    it(`allows prepaid postal fulfilment when courier result is ${result?.isServiceable ?? 'outage'}`, async () => {
+      const {controller} = fixture(result);
+      Object.assign(controller, {
+        buildOrderDraft: async () => ({subtotal: 100, discount: 0, shipping: 0, tax: 0, total: 100}),
+        razorpayService: {createOrder: async () => ({id: 'test-payment', amount: 10000, currency: 'INR'})},
+      });
+      const prepared = await controller.preparePayment(checkoutRequest, actor);
+      assert.equal(prepared.amount, 10000);
     });
   }
   it('rejects an invalid PIN before preparing payment', async () => {
@@ -106,7 +116,7 @@ describe('Indian checkout and Blue Dart delivery classification', () => {
       shippingAddress: {...checkoutRequest.shippingAddress, zipCode: '012345'}}, actor), /Indian/);
     assert.equal(setup.calls(), 0);
   });
-  for (const [label, serviceResult] of [['available', available], ['unavailable', unavailable], ['check_failed', undefined]] as const) {
+  for (const [label, serviceResult] of [['available', available]] as const) {
     it(`creates a prepaid order and persists its ${label} delivery result`, async () => {
       const {controller} = fixture(serviceResult);
       let created = new Order();
@@ -141,10 +151,10 @@ describe('Indian checkout and Blue Dart delivery classification', () => {
       checkoutAllowed: true, blueDartDeliveryStatus: 'available',
       delhiveryDeliveryStatus: 'not_checked', selectedShippingProvider: 'bluedart',
       needsManualShipping: false,
-      message: 'Blue Dart delivery is available for this order.',
+      message: 'Delivery is available for this order.',
     });
   });
-  it('allows prepaid non-coverage and failures with distinct manual fulfilment flags', () => {
+  it('allows prepaid postal fulfilment when both couriers are unavailable or unconfirmed', () => {
     const noCoverage = evaluateDeliveryEligibility(unavailable, false);
     const failed = evaluateDeliveryEligibility(undefined, false);
     assert(noCoverage.checkoutAllowed && noCoverage.needsManualShipping);
@@ -166,14 +176,76 @@ describe('Indian checkout and Blue Dart delivery classification', () => {
     const result = await new ShippingController(shippingService, postalPincodeService).checkServiceability('400001');
     assert.equal(result.checkoutAllowed, true);
     assert.equal(result.isServiceable, false);
+    assert.deepEqual(result.availableDeliveryModes, ['surface']);
     assert.equal(result.rawResponse, undefined);
   });
-  it('public API records a provider outage as unconfirmed rather than serviceable', async () => {
+  it('public API records a provider outage and preserves prepaid postal fallback without COD', async () => {
     const {shippingService} = fixture(undefined);
     const result = await new ShippingController(shippingService, postalPincodeService).checkServiceability('400001');
     assert.equal(result.blueDartDeliveryStatus, 'check_failed');
     assert.equal(result.checkoutAllowed, true);
+    assert.equal(result.needsManualShipping, true);
+    assert.deepEqual(result.availablePaymentMethods, ['razorpay']);
     assert.equal(result.isServiceable, false);
+    const codResult = await new ShippingController(shippingService, postalPincodeService).checkServiceability('400001', 'cod');
+    assert.equal(codResult.checkoutAllowed, false);
+  });
+  it('offers Delhivery Surface and Express while using Blue Dart only as COD fallback', async () => {
+    const calls: string[] = [];
+    const shippingService = {
+      checkPreferredServiceability: async (params: {paymentType?: string}) => {
+        calls.push(params.paymentType ?? 'prepaid');
+        if (params.paymentType === 'cod') {
+          return {
+            selectedProvider: 'BlueDart',
+            result: {...available, courierName: 'BlueDart'},
+            delhivery: {...available, courierName: 'Delhivery', isCodAvailable: false},
+            blueDart: {...available, courierName: 'BlueDart'},
+            delhiveryCheckFailed: false,
+            blueDartCheckFailed: false,
+          };
+        }
+        const delhivery = {...available, courierName: 'Delhivery', isCodAvailable: false};
+        return {
+          selectedProvider: 'Delhivery',
+          result: delhivery,
+          delhivery,
+          delhiveryCheckFailed: false,
+          blueDartCheckFailed: false,
+        };
+      },
+    } as unknown as ShippingService;
+    const result = await new ShippingController(
+      shippingService,
+      postalPincodeService,
+    ).checkServiceability('400001');
+    assert.equal(result.selectedShippingProvider, 'delhivery');
+    assert.deepEqual(result.availableDeliveryModes, ['surface', 'express']);
+    assert.deepEqual(result.availablePaymentMethods, ['razorpay', 'cod']);
+    assert.equal(result.codShippingProvider, 'bluedart');
+    assert.deepEqual(calls, ['prepaid', 'cod']);
+  });
+  it('never falls back Express delivery to Blue Dart', async () => {
+    let preferredCalls = 0;
+    const shippingService = {
+      checkServiceabilityForProvider: async () => ({
+        isServiceable: true,
+        isCodAvailable: false,
+        courierName: 'Delhivery',
+      }),
+      checkPreferredServiceability: async () => {
+        preferredCalls++;
+        throw new Error('Blue Dart fallback must not run for Express');
+      },
+    } as unknown as ShippingService;
+    const result = await new ShippingController(
+      shippingService,
+      postalPincodeService,
+    ).checkServiceability('400001', undefined, 'express');
+    assert.equal(result.selectedShippingProvider, 'delhivery');
+    assert.deepEqual(result.availableDeliveryModes, ['surface', 'express']);
+    assert.deepEqual(result.availablePaymentMethods, ['razorpay']);
+    assert.equal(preferredCalls, 0);
   });
   it('public API rejects malformed PIN before calling the courier', async () => {
     const setup = fixture(available);

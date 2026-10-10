@@ -188,6 +188,13 @@ export default function OrderTrackingView() {
   const adminCancelledSteps = ['Order Placed', 'Cancelled'];
   const returnRequestedSteps = ['Delivered', 'Return Requested'];
   const normalizedStatus = String(tracking?.status || '').toLowerCase();
+  const normalizedShipmentStatus = String(tracking?.shipment?.status || '').toLowerCase();
+  const effectiveTrackingStatus = (() => {
+    if (normalizedShipmentStatus === 'delivered') return 'delivered';
+    if (normalizedShipmentStatus === 'out_for_delivery') return 'out_for_delivery';
+    if (['picked_up', 'in_transit'].includes(normalizedShipmentStatus)) return 'shipped';
+    return normalizedStatus;
+  })();
   const isCancelledOrder = ['cancelled', 'canceled'].includes(normalizedStatus);
   // Preserve every status event for the customer timeline, but remove internal
   // actor attribution such as "by admin", "by user", or "by staff".
@@ -288,7 +295,7 @@ export default function OrderTrackingView() {
       ? returnDecision
         ? 2
         : 1
-      : getActiveStep(tracking?.status);
+      : getActiveStep(effectiveTrackingStatus);
 
   const shouldShowTimeline = Boolean(
     tracking?.trackingNumber ||
@@ -315,7 +322,7 @@ export default function OrderTrackingView() {
   const showReturnReviewMessage = isReturnFlow && !returnDecision;
 
   const getTrackingMessage = () => {
-    switch (tracking?.status) {
+    switch (effectiveTrackingStatus) {
       case 'delivered':
       case 'completed':
         return 'Your order has been delivered successfully.';
@@ -410,14 +417,14 @@ export default function OrderTrackingView() {
                   <Label
                     variant="soft"
                     color={
-                      (['delivered', 'completed', 'return_requested', 'returned', 'parcel_received', 'refunded'].includes(tracking.status) && 'success') ||
-                      (['shipped', 'out_for_delivery'].includes(tracking.status) && 'info') ||
-                      (tracking.status === 'confirmed' && 'warning') ||
-                      (['cancelled', 'canceled'].includes(tracking.status) && 'error') ||
+                      (['delivered', 'completed', 'return_requested', 'returned', 'parcel_received', 'refunded'].includes(effectiveTrackingStatus) && 'success') ||
+                      (['shipped', 'out_for_delivery'].includes(effectiveTrackingStatus) && 'info') ||
+                      (effectiveTrackingStatus === 'confirmed' && 'warning') ||
+                      (['cancelled', 'canceled'].includes(effectiveTrackingStatus) && 'error') ||
                       'default'
                     }
                   >
-                    {formatOrderStatusLabel(tracking.status)}
+                    {formatOrderStatusLabel(effectiveTrackingStatus)}
                   </Label>
                 </Stack>
 
@@ -515,6 +522,50 @@ export default function OrderTrackingView() {
                 </Box>
               )}
 
+              {(tracking.shipment?.courierEvents || []).length > 0 && (
+                <Box sx={{ mt: 5 }}>
+                  <Typography variant="subtitle2" gutterBottom>
+                    Courier Updates
+                  </Typography>
+                  <Stack spacing={2} sx={{ mt: 2 }}>
+                    {[...(tracking.shipment.courierEvents || [])]
+                      .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+                      .map((event, index) => (
+                        <Stack
+                          key={`${event.timestamp}-${index}`}
+                          direction="row"
+                          spacing={2}
+                          sx={{ p: 2, borderRadius: 1, bgcolor: 'background.neutral' }}
+                        >
+                          <Box
+                            sx={{
+                              width: 8,
+                              height: 8,
+                              borderRadius: '50%',
+                              bgcolor: 'info.main',
+                              mt: 1,
+                              flexShrink: 0,
+                            }}
+                          />
+                          <Box sx={{ flexGrow: 1 }}>
+                            <Typography variant="body2">
+                              {event.description || formatOrderStatusLabel(event.internalStatus)}
+                            </Typography>
+                            {event.location && (
+                              <Typography variant="caption" color="text.secondary" display="block">
+                                Location: {event.location}
+                              </Typography>
+                            )}
+                            <Typography variant="caption" color="text.secondary">
+                              {format(new Date(event.timestamp), 'MMM dd, yyyy - h:mm a')}
+                            </Typography>
+                          </Box>
+                        </Stack>
+                      ))}
+                  </Stack>
+                </Box>
+              )}
+
               {/* Tracking Events */}
               {customerTrackingEvents.length > 0 && (
                 <Box sx={{ mt: 5 }}>
@@ -527,11 +578,7 @@ export default function OrderTrackingView() {
                         key={index}
                         direction="row"
                         spacing={2}
-                        sx={{
-                          p: 2,
-                          borderRadius: 1,
-                          bgcolor: 'background.neutral',
-                        }}
+                        sx={{ p: 2, borderRadius: 1, bgcolor: 'background.neutral' }}
                       >
                         <Box
                           sx={{

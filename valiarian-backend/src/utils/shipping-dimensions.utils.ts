@@ -40,12 +40,29 @@ export interface AggregatedDimensions {
 export function getDefaultDimensions(): Required<ShippingDimensions> {
   return {
     weightGrams: parseInt(
-      process.env.BLUEDART_DEFAULT_WEIGHT_GRAMS ?? '500',
+      process.env.SHIPPING_DEFAULT_WEIGHT_GRAMS ??
+        process.env.BLUEDART_DEFAULT_WEIGHT_GRAMS ??
+        '425',
       10,
     ),
-    lengthCm: parseInt(process.env.BLUEDART_DEFAULT_LENGTH_CM ?? '20', 10),
-    breadthCm: parseInt(process.env.BLUEDART_DEFAULT_BREADTH_CM ?? '15', 10),
-    heightCm: parseInt(process.env.BLUEDART_DEFAULT_HEIGHT_CM ?? '10', 10),
+    lengthCm: parseInt(
+      process.env.SHIPPING_DEFAULT_LENGTH_CM ??
+        process.env.BLUEDART_DEFAULT_LENGTH_CM ??
+        '35',
+      10,
+    ),
+    breadthCm: parseInt(
+      process.env.SHIPPING_DEFAULT_BREADTH_CM ??
+        process.env.BLUEDART_DEFAULT_BREADTH_CM ??
+        '34',
+      10,
+    ),
+    heightCm: parseInt(
+      process.env.SHIPPING_DEFAULT_HEIGHT_CM ??
+        process.env.BLUEDART_DEFAULT_HEIGHT_CM ??
+        '3',
+      10,
+    ),
     volumetricDivisor: parseInt(
       process.env.BLUEDART_VOLUMETRIC_DIVISOR ?? '5000',
       10,

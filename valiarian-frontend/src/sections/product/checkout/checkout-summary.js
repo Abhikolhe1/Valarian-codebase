@@ -36,6 +36,7 @@ export default function CheckoutSummary({
   gst_amount,
   selling_price_incl_tax,
   final_payable,
+  express_delivery_charge,
   onApplyDiscount,
   onApplyCoupon,
   onRemoveCoupon,
@@ -59,6 +60,7 @@ export default function CheckoutSummary({
       : Number(tax ?? 0);
   const gstAmount = Number(gst_amount ?? derivedGstAmount);
   const payableAmount = Number(final_payable ?? total ?? 0);
+  const expressDeliveryCharge = Number(express_delivery_charge || 0);
   const [couponCode, setCouponCode] = useState(appliedCoupon?.code || '');
 
   useEffect(() => {
@@ -135,6 +137,15 @@ export default function CheckoutSummary({
               {fCurrency(-shippingCharge)}
             </Typography>
           </Stack>
+
+          {!!expressDeliveryCharge && (
+            <Stack direction="row" justifyContent="space-between">
+              <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                Express delivery charge
+              </Typography>
+              <Typography variant="subtitle2">{fCurrency(expressDeliveryCharge)}</Typography>
+            </Stack>
+          )}
 
           <Stack spacing={0.5}>
             <Stack direction="row" justifyContent="space-between">
@@ -235,6 +246,7 @@ CheckoutSummary.propTypes = {
   selling_price_incl_tax: PropTypes.number,
   shipping: PropTypes.number,
   shipping_charge: PropTypes.number,
+  express_delivery_charge: PropTypes.number,
   subTotal: PropTypes.number,
   tax: PropTypes.number,
   total: PropTypes.number,

@@ -9,8 +9,12 @@ const getErrorMessage = (error, fallbackMessage) =>
 
 // GET - Check whether a pincode is serviceable by the courier, optionally
 // narrowed to a payment method (COD needs cash-collection support too).
-export async function checkPincodeServiceability(pincode, paymentMethod) {
-  const params = paymentMethod ? { pincode, paymentMethod } : { pincode };
+export async function checkPincodeServiceability(pincode, paymentMethod, deliveryMode) {
+  const params = {
+    pincode,
+    ...(paymentMethod ? { paymentMethod } : {}),
+    ...(deliveryMode ? { deliveryMode } : {}),
+  };
   const requestServiceability = async () => {
     const response = await axiosInstance.get('/api/shipping/serviceability', {
       params,

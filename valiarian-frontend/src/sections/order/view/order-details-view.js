@@ -278,6 +278,7 @@ export default function OrderDetailsView() {
               discount={order.discount}
               subTotal={order.subtotal}
               totalAmount={order.total}
+              deliveryMode={order.deliveryMode}
             />
 
             <OrderDetailsHistory history={statusHistory} order={order} />
